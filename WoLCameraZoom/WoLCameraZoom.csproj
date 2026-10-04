@@ -7,9 +7,9 @@
     <AssemblyName>WoLCameraZoom</AssemblyName>
     <RootNamespace>WoLCameraZoom</RootNamespace>
 
-    <!-- Point this at your Wizards of Legend install, or pass -p:GameDir="..." to dotnet build. -->
-    <GameDir Condition="'$(GameDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Wizards of Legend</GameDir>
-    <ManagedDir>$(GameDir)\WizardsOfLegend_Data\Managed</ManagedDir>
+    <!-- Point this at your Wizard of Legend install, or pass -p:GameDir="..." to dotnet build. -->
+    <GameDir Condition="'$(GameDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Wizard of Legend</GameDir>
+    <ManagedDir>$(GameDir)\WizardOfLegend_Data\Managed</ManagedDir>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,14 +1,19 @@
-# Camera Zoom (Wizards of Legend)
+# Camera Zoom (Wizard of Legend)
 
 A BepInEx 5 plugin that zooms the gameplay camera out so you can see more of the arena.
 
-## Setup
+## Install
 
-1. Install BepInEx 5 (x64) into the Wizards of Legend folder, run the game once, then close it.
+Download `WoLCameraZoom.zip` from the repo's [latest release](https://github.com/mdbailey94/wol.mod/releases/tag/latest) and
+unzip it into your Wizard of Legend folder. See the [main README](../README.md) for details.
+
+## Building it yourself
+
+1. Install BepInEx 5 (x64) into the Wizard of Legend folder, run the game once, then close it.
 2. Install the .NET SDK (6 or newer).
 3. Build:
    ```
-   dotnet build -c Release -p:GameDir="C:\Path\To\Wizards of Legend"
+   dotnet build -c Release -p:GameDir="C:\Path\To\Wizard of Legend"
    ```
    The DLL is copied to `BepInEx\plugins\WoLCameraZoom\` automatically.
 
