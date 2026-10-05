@@ -14,21 +14,26 @@ namespace WoLExtendedStats
     {
         public const string PluginGuid = "mdbailey94.wol.extendedstats";
         public const string PluginName = "Extended Stats";
-        public const string PluginVersion = "0.3.0";
+        public const string PluginVersion = "0.4.0";
 
         private const float RefreshInterval = 0.25f;
         private const float ReferenceHeight = 1080f;
         private const float Margin = 16f;
         private const float PanelTop = 140f;
+        private const float ScrollRepeatSeconds = 0.15f;
+        private const float StickThreshold = 0.5f;
 
         private static ExtendedStatsPlugin instance;
         private static ManualLogSource log;
 
+        private ConfigEntry<bool> modEnabled;
         private ConfigEntry<KeyboardShortcut> toggleKey;
         private ConfigEntry<bool> pinned;
         private ConfigEntry<bool> menuInfo;
         private ConfigEntry<bool> runSummary;
         private ConfigEntry<float> panelScale;
+        private ConfigEntry<int> infoTextSize;
+        private ConfigEntry<int> infoMaxLines;
 
         private readonly List<Player> players = new List<Player>();
         // IMGUI panels in screen order: index 0 on the left, 1 on the right.
@@ -45,15 +50,27 @@ namespace WoLExtendedStats
         {
             public string BaseText;
             public string Written;
+            public int OriginalFontSize;
+            public int ScrollOffset;
+            public float NextScrollTime;
         }
+
+        private struct PendingInfo
+        {
+            public string Extra;
+            public Player Owner;
+        }
+
         private readonly Dictionary<Text, InfoBoxState> infoBoxes = new Dictionary<Text, InfoBoxState>();
-        private readonly Dictionary<Text, string> pendingExtras = new Dictionary<Text, string>();
+        private readonly Dictionary<Text, PendingInfo> pendingExtras = new Dictionary<Text, PendingInfo>();
 
         private void Awake()
         {
             instance = this;
             log = Logger;
 
+            modEnabled = Config.Bind("General", "Enabled", true,
+                "Turn the mod on or off (also in the title screen Mods menu).");
             toggleKey = Config.Bind("Hotkeys", "Toggle", new KeyboardShortcut(KeyCode.F2),
                 "Pin a full stats overlay on screen, or unpin it.");
             pinned = Config.Bind("General", "Visible", false,
@@ -63,6 +80,12 @@ namespace WoLExtendedStats
                 "wizard stats when the cloak is highlighted.");
             runSummary = Config.Bind("General", "ShowRunSummary", true,
                 "Show post-run stats next to the end-of-run screen.");
+            infoTextSize = Config.Bind("General", "InfoTextSize", 75,
+                new ConfigDescription("Size of the added stats in the character menu info box, as % of the game's text size.",
+                    new AcceptableValueRange<int>(40, 100)));
+            infoMaxLines = Config.Bind("General", "InfoMaxLines", 5,
+                new ConfigDescription("Most stat lines shown in the info box at once; scroll for the rest " +
+                    "(right stick, Page Up/Down or mouse wheel).", new AcceptableValueRange<int>(2, 20)));
             panelScale = Config.Bind("General", "Scale", 1f,
                 new ConfigDescription("Overlay and summary panel size multiplier.", new AcceptableValueRange<float>(0.5f, 2f)));
 
@@ -89,7 +112,7 @@ namespace WoLExtendedStats
 
         public static void ShowRunSummary(DeathSummaryUI screen)
         {
-            if (instance == null || !instance.runSummary.Value)
+            if (instance == null || !instance.modEnabled.Value || !instance.runSummary.Value)
                 return;
 
             instance.RefreshPlayers();
@@ -112,6 +135,13 @@ namespace WoLExtendedStats
 
         private void Update()
         {
+            if (!modEnabled.Value)
+            {
+                summaryVisible = false;
+                overlayTexts.Clear();
+                return;
+            }
+
             if (toggleKey.Value.IsDown())
                 pinned.Value = !pinned.Value;
 
@@ -155,7 +185,7 @@ namespace WoLExtendedStats
         private void LateUpdate()
         {
             pendingExtras.Clear();
-            if (menuInfo.Value)
+            if (modEnabled.Value && menuInfo.Value)
             {
                 foreach (Player player in players)
                 {
@@ -172,13 +202,13 @@ namespace WoLExtendedStats
 
             // Write our extras, and restore any box we touched before but no longer should.
             foreach (var pair in pendingExtras)
-                WriteInfoBox(pair.Key, pair.Value);
+                WriteInfoBox(pair.Key, pair.Value.Extra, pair.Value.Owner);
             foreach (Text box in new List<Text>(infoBoxes.Keys))
             {
                 if (box == null)
                     infoBoxes.Remove(box);
                 else if (!pendingExtras.ContainsKey(box))
-                    WriteInfoBox(box, null);
+                    WriteInfoBox(box, null, null);
             }
         }
 
@@ -194,39 +224,98 @@ namespace WoLExtendedStats
                 Player.SkillState[] skills = player.assignedSkills;
                 int index = equip.navigationIndex;
                 if (skills != null && index >= 0 && index < skills.Length && skills[index] != null)
-                    pendingExtras[equip.infoText] = StatText.Arcana(player, skills[index], equip.infoText.supportRichText);
+                    pendingExtras[equip.infoText] = new PendingInfo
+                    {
+                        Extra = StatText.Arcana(player, skills[index], equip.infoText.supportRichText),
+                        Owner = player
+                    };
             }
 
             OutfitMenu outfit = hud.outfitMenu;
             if (outfit != null && outfit.hasFocus && outfit.infoText != null)
-                pendingExtras[outfit.infoText] = StatText.Wizard(player, outfit.infoText.supportRichText);
+                pendingExtras[outfit.infoText] = new PendingInfo
+                {
+                    Extra = StatText.Wizard(player, outfit.infoText.supportRichText),
+                    Owner = player
+                };
         }
 
-        private void WriteInfoBox(Text box, string extra)
+        private void WriteInfoBox(Text box, string extra, Player owner)
         {
             InfoBoxState state;
             if (!infoBoxes.TryGetValue(box, out state))
             {
                 if (extra == null)
                     return;
-                state = new InfoBoxState();
+                state = new InfoBoxState { OriginalFontSize = box.fontSize };
                 infoBoxes[box] = state;
-                // Let the box shrink its font rather than spill out of its frame.
-                box.resizeTextMaxSize = box.fontSize;
-                box.resizeTextMinSize = Mathf.Max(8, box.fontSize / 2);
-                box.resizeTextForBestFit = true;
             }
 
             // If the text isn't what we last wrote, the game has put up a new description.
             if (box.text != state.Written)
+            {
                 state.BaseText = box.text;
+                state.ScrollOffset = 0;
+            }
 
-            string desired = string.IsNullOrEmpty(extra)
+            string section = string.IsNullOrEmpty(extra) ? null : FormatSection(box, state, extra, owner);
+            string desired = section == null
                 ? state.BaseText
-                : (string.IsNullOrEmpty(state.BaseText) ? extra : state.BaseText + "\n\n" + extra);
+                : (string.IsNullOrEmpty(state.BaseText) ? section : state.BaseText + "\n\n" + section);
             if (box.text != desired)
                 box.text = desired;
             state.Written = desired;
+        }
+
+        // Shrinks our section's font and shows at most InfoMaxLines of it, scrolled by the owner.
+        private string FormatSection(Text box, InfoBoxState state, string extra, Player owner)
+        {
+            string[] lines = extra.Split('\n');
+            int maxLines = infoMaxLines.Value;
+            string body;
+            if (lines.Length <= maxLines)
+            {
+                state.ScrollOffset = 0;
+                body = extra;
+            }
+            else
+            {
+                int maxOffset = lines.Length - maxLines;
+                state.ScrollOffset = Mathf.Clamp(state.ScrollOffset + ReadScroll(state, owner), 0, maxOffset);
+                var shown = new string[maxLines];
+                Array.Copy(lines, state.ScrollOffset, shown, 0, maxLines);
+                string position = $"lines {state.ScrollOffset + 1}-{state.ScrollOffset + maxLines} of {lines.Length} - scroll with right stick";
+                body = string.Join("\n", shown) + "\n" + (box.supportRichText ? $"<color=#9aa>{position}</color>" : position);
+            }
+
+            if (!box.supportRichText)
+                return body;
+            int size = Mathf.Max(8, Mathf.RoundToInt(state.OriginalFontSize * infoTextSize.Value / 100f));
+            return $"<size={size}>{body}</size>";
+        }
+
+        // +1 scrolls down a line, -1 up. Held stick repeats; keyboard/mouse work for everyone.
+        private static int ReadScroll(InfoBoxState state, Player owner)
+        {
+            int step = 0;
+            if (Input.GetKeyDown(KeyCode.PageDown) || Input.mouseScrollDelta.y < 0f)
+                step = 1;
+            else if (Input.GetKeyDown(KeyCode.PageUp) || Input.mouseScrollDelta.y > 0f)
+                step = -1;
+            if (step != 0)
+                return step;
+
+            float stick = owner != null ? RightStick.Vertical(owner) : 0f;
+            if (Mathf.Abs(stick) < StickThreshold)
+            {
+                state.NextScrollTime = 0f;
+                return 0;
+            }
+            if (Time.unscaledTime < state.NextScrollTime)
+                return 0;
+            state.NextScrollTime = Time.unscaledTime + ScrollRepeatSeconds;
+            // Rewired reports stick-up as positive, which should scroll back up.
+            return stick > 0f ? -1 : 1;
         }
 
         private void OnGUI()

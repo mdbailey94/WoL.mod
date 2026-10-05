@@ -6,8 +6,8 @@
     <!-- The reference Assembly-CSharp is publicized (private members made public). Unsafe mode
          marks this DLL unverifiable, which makes Mono skip access checks so those members work. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <AssemblyName>WoLExtendedStats</AssemblyName>
-    <RootNamespace>WoLExtendedStats</RootNamespace>
+    <AssemblyName>WoLModMenu</AssemblyName>
+    <RootNamespace>WoLModMenu</RootNamespace>
 
     <!-- Folder holding the reference DLLs listed below (the repo's lib/ folder by default). -->
     <LibDir Condition="'$(LibDir)' == ''">$(MSBuildThisFileDirectory)..\lib</LibDir>
@@ -28,16 +28,8 @@
       <HintPath>$(LibDir)\UnityEngine.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <Reference Include="UnityEngine.UI">
-      <HintPath>$(LibDir)\UnityEngine.UI.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
     <Reference Include="Rewired_Core">
       <HintPath>$(LibDir)\Rewired_Core.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="0Harmony">
-      <HintPath>$(LibDir)\0Harmony.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Assembly-CSharp">
@@ -47,7 +39,7 @@
   </ItemGroup>
 
   <Target Name="CopyToPlugins" AfterTargets="Build" Condition="Exists('$(GameDir)\BepInEx\plugins')">
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(GameDir)\BepInEx\plugins\WoLExtendedStats" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(GameDir)\BepInEx\plugins\WoLModMenu" />
   </Target>
 
 </Project>

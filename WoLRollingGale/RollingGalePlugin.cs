@@ -1,6 +1,7 @@
 using System.IO;
 using System.Reflection;
 using BepInEx;
+using BepInEx.Configuration;
 using LegendAPI;
 using UnityEngine;
 
@@ -14,8 +15,14 @@ namespace WoLRollingGale
         public const string PluginName = "Rolling Gale";
         public const string PluginVersion = "0.1.0";
 
+        private ConfigEntry<bool> modEnabled;
+
         private void Awake()
         {
+            modEnabled = Config.Bind("General", "Enabled", true,
+                "Offer Rolling Gale in the arcana shop (also in the title screen Mods menu). " +
+                "Turning it off doesn't remove it from a run where you already have it.");
+
             Skills.Register(new SkillInfo
             {
                 ID = RollingGaleState.staticID,
@@ -38,7 +45,9 @@ namespace WoLRollingGale
                     hitStunDurationModifier = new[] { 1.1f },
                     sameAttackImmunityTime = new[] { 0.25f }
                 },
-                priceMultiplier = 4
+                priceMultiplier = 4,
+                // LegendAPI rerolls a shop offer when this returns false.
+                unlockCondition = () => modEnabled.Value
             });
 
             Logger.LogInfo($"{PluginName} {PluginVersion} registered");
