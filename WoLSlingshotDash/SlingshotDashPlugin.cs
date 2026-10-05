@@ -14,7 +14,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.3.0";
+        public const string PluginVersion = "0.4.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -48,7 +48,7 @@ namespace WoLSlingshotDash
         {
             log = Logger;
             modEnabled = Config.Bind("General", "Enabled", true,
-                "Offer Slingshot in the arcana shop (also in the title screen Mods menu). " +
+                "Offer Slingshot and Blazing Slingshot in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
             chargeAnimation = Config.Bind("Charge", "Animation", "Jump",
                 new ConfigDescription("Animation for the backward hop and the held pose while charging.",
@@ -86,7 +86,35 @@ namespace WoLSlingshotDash
                 unlockCondition = () => modEnabled.Value
             });
 
-            Logger.LogInfo($"{PluginName} {PluginVersion} registered");
+            Skills.Register(new SkillInfo
+            {
+                ID = BlazingSlingshotState.staticID,
+                displayName = "Blazing Slingshot",
+                description = "Hold to pull back and charge, then release to drive a long flaming punch across the room, sucking enemies in behind you!",
+                enhancedDescription = "A bigger punch and a hotter trail!",
+                icon = LoadIcon("icon_fire.png"),
+                tier = 2,
+                stateType = typeof(BlazingSlingshotState),
+                skillStats = new SkillStats
+                {
+                    ID = new[] { BlazingSlingshotState.staticID },
+                    elementType = new[] { "Fire" },
+                    subElementType = new[] { "Fire" },
+                    targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
+                    damage = new[] { 9 },
+                    cooldown = new[] { 0.6f },
+                    // Negative knockback pulls: bursts suck enemies toward them, and the punch
+                    // (its direction set to the dash) throws enemies backward, behind the wizard.
+                    knockbackMultiplier = new[] { -26f },
+                    hitStunDurationModifier = new[] { 1.2f },
+                    // Short, so the punch and trail keep grabbing enemies through the whole dash.
+                    sameAttackImmunityTime = new[] { 0.12f }
+                },
+                priceMultiplier = 3,
+                unlockCondition = () => modEnabled.Value
+            });
+
+            Logger.LogInfo($"{PluginName} {PluginVersion} registered Slingshot and Blazing Slingshot");
         }
 
         private Sprite LoadIcon(string fileName)
