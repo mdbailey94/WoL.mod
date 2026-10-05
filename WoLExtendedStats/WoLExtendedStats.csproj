@@ -3,6 +3,9 @@
   <PropertyGroup>
     <TargetFramework>net35</TargetFramework>
     <LangVersion>7.3</LangVersion>
+    <!-- The reference Assembly-CSharp is publicized (private members made public). Unsafe mode
+         marks this DLL unverifiable, which makes Mono skip access checks so those members work. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>WoLExtendedStats</AssemblyName>
     <RootNamespace>WoLExtendedStats</RootNamespace>
 
