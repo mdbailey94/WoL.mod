@@ -1,8 +1,10 @@
+using Chaos.AnimatorExtensions;
 using UnityEngine;
 
 namespace WoLSlingshotDash
 {
-    // A dash you can charge: hold the dash button to plant and pull back, release to launch.
+    // A dash you can charge: hold the dash button to hop backward and hold that pose while you pull
+// back, release to launch.
     // The longer the hold (up to MaxCharge), the faster and longer the dash, and the launch
     // spot gets a wind burst that knocks enemies away. A tap is a normal dash.
     //
@@ -19,6 +21,8 @@ namespace WoLSlingshotDash
         private const float MaxSpeedBonus = 0.6f;
         private const float MaxDurationBonus = 0.4f;
         private const float DustInterval = 0.1f;
+        // The backward hop at the start of a charge.
+        private const float HopTime = 0.18f;
         private const string SpeedModID = "SlingshotDash_Speed";
         private const string DurationModID = "SlingshotDash_Duration";
 
@@ -26,6 +30,8 @@ namespace WoLSlingshotDash
         private float chargeTime;
         private float nextDust;
         private bool boosted;
+        private Vector2 hopVelocity;
+        private bool hopStarted;
 
         public SlingshotDashState(FSM fsm, Player parentPlayer) : base(staticID, fsm, parentPlayer)
         {
@@ -35,7 +41,7 @@ namespace WoLSlingshotDash
         public override void OnEnter()
         {
             // Without a way to read the button we can't charge; behave like a normal dash.
-            if (!DashButton.Available(parent))
+            if (!DashButton.Available(parent, skillSlot))
             {
                 base.OnEnter();
                 return;
@@ -44,7 +50,8 @@ namespace WoLSlingshotDash
             charging = true;
             chargeTime = 0f;
             nextDust = 0f;
-            StopMoving();
+            hopStarted = false;
+            ApplyChargeVelocity();
         }
 
         public override void Update()
@@ -56,10 +63,19 @@ namespace WoLSlingshotDash
             }
 
             chargeTime += Time.deltaTime;
-            StopMoving();
-            EmitChargeDust();
+            if (chargeTime >= TapWindow)
+            {
+                // Held past a tap: hop backward, then keep turning to face the aim.
+                if (!hopStarted)
+                    StartHop();
+                else if (!Hopping)
+                    parent.SetFacingDirectionBasedOnInput();
+                PlayChargePose();
+                EmitChargeDust();
+            }
+            ApplyChargeVelocity();
 
-            bool held = DashButton.Held(parent);
+            bool held = DashButton.Held(parent, skillSlot);
             if (!held || chargeTime >= MaxCharge)
                 Launch(chargeTime < TapWindow ? 0f : Mathf.Clamp01(chargeTime / MaxCharge));
         }
@@ -68,7 +84,7 @@ namespace WoLSlingshotDash
         {
             if (charging)
             {
-                StopMoving();
+                ApplyChargeVelocity();
                 return;
             }
             base.FixedUpdate();
@@ -142,10 +158,37 @@ namespace WoLSlingshotDash
                 -3f, -1f, new Vector3?(parent.transform.position), null);
         }
 
-        private void StopMoving()
+        private float HopProgress => Mathf.Clamp01((chargeTime - TapWindow) / HopTime);
+        private bool Hopping => hopStarted && HopProgress < 1f;
+
+        // Face where you're aiming and hop away from it, like pulling back a slingshot.
+        private void StartHop()
+        {
+            hopStarted = true;
+            parent.SetFacingDirectionBasedOnInput();
+            Vector2 facing = Entity.GetFacingDirectionVector(parent.facingDirection).normalized;
+            hopVelocity = -facing * (SlingshotDashPlugin.HopDistance / HopTime);
+        }
+
+        // Planted, except while hopping backward.
+        private void ApplyChargeVelocity()
         {
             if (parent.rigidbody2D != null)
-                parent.rigidbody2D.velocity = Vector2.zero;
+                parent.rigidbody2D.velocity = Hopping ? hopVelocity : Vector2.zero;
+        }
+
+        // Plays the chosen animation through the hop up to the pose frame, then holds that frame
+        // (the game holds a pose the same way: replaying the animation at a fixed time each frame).
+        private void PlayChargePose()
+        {
+            if (parent.anim == null)
+                return;
+            string anim = SlingshotDashPlugin.ChargeAnimation(parent);
+            if (string.IsNullOrEmpty(anim))
+                return;
+            float pose = SlingshotDashPlugin.ChargePoseFrame;
+            float time = pose * HopProgress;
+            parent.anim.PlayDirectional(anim, -1, time);
         }
     }
 }

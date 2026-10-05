@@ -5,22 +5,33 @@ using Rewired;
 
 namespace WoLSlingshotDash
 {
-    // Reads whether the player is still holding the dash button, through the game's Rewired
-    // actions. The action is found by name (anything containing "dash") and logged once, so a
-    // log shows what was picked; without one, the dash just behaves normally.
+    // Reads whether the player is still holding the dash button. First the way the game's own
+    // hold skills do it (the "Skill<slot>" input action), then any Rewired action with "dash" in
+    // its name as a fallback. What was found is logged once; without either, the dash just
+    // behaves normally.
     public static class DashButton
     {
-        private static int actionId = -2; // -2 = not looked up yet, -1 = none found
+        private static int dashActionId = -2; // -2 = not looked up yet, -1 = none found
+        private static readonly Dictionary<int, bool> slotActionExists = new Dictionary<int, bool>();
 
-        public static bool Available(Player player) => ActionId() >= 0 && RewiredPlayer(player) != null;
+        public static bool Available(Player player, int skillSlot)
+        {
+            if (player == null || player.inputDevice == null)
+                return false;
+            return SlotActionExists(skillSlot) || (DashActionId() >= 0 && player.inputDevice.rewiredPlayer != null);
+        }
 
-        public static bool Held(Player player)
+        public static bool Held(Player player, int skillSlot)
         {
             try
             {
-                Rewired.Player rewired = RewiredPlayer(player);
-                int id = ActionId();
-                return rewired != null && id >= 0 && rewired.GetButton(id);
+                ChaosInputDevice device = player != null ? player.inputDevice : null;
+                if (device == null)
+                    return false;
+                if (SlotActionExists(skillSlot) && device.GetButton(SlotAction(skillSlot)))
+                    return true;
+                int id = DashActionId();
+                return id >= 0 && device.rewiredPlayer != null && device.rewiredPlayer.GetButton(id);
             }
             catch
             {
@@ -28,26 +39,33 @@ namespace WoLSlingshotDash
             }
         }
 
-        private static Rewired.Player RewiredPlayer(Player player)
+        private static string SlotAction(int skillSlot) => "Skill" + skillSlot;
+
+        private static bool SlotActionExists(int skillSlot)
         {
-            ChaosInputDevice device = player != null ? player.inputDevice : null;
-            return device != null ? device.rewiredPlayer : null;
+            bool exists;
+            if (slotActionExists.TryGetValue(skillSlot, out exists) || !ReInput.isReady)
+                return exists;
+            exists = ReInput.mapping.GetAction(SlotAction(skillSlot)) != null;
+            slotActionExists[skillSlot] = exists;
+            SlingshotDashPlugin.Log($"Dash button: skill slot {skillSlot} action '{SlotAction(skillSlot)}' {(exists ? "found" : "not found")}");
+            return exists;
         }
 
-        private static int ActionId()
+        private static int DashActionId()
         {
-            if (actionId != -2 || !ReInput.isReady)
-                return actionId;
+            if (dashActionId != -2 || !ReInput.isReady)
+                return dashActionId;
 
             IList<InputAction> actions = ReInput.mapping.Actions;
             string all = string.Join(", ", actions.Where(a => a != null).Select(a => $"'{a.name}'#{a.id}").ToArray());
             InputAction dash = actions.FirstOrDefault(a => a != null && !string.IsNullOrEmpty(a.name)
                 && a.name.IndexOf("dash", StringComparison.OrdinalIgnoreCase) >= 0);
-            actionId = dash != null ? dash.id : -1;
+            dashActionId = dash != null ? dash.id : -1;
             SlingshotDashPlugin.Log(dash != null
                 ? $"Dash button action: '{dash.name}' (#{dash.id}). All actions: {all}"
-                : $"No dash action found, Slingshot will dash without charging. All actions: {all}");
-            return actionId;
+                : $"No dash action found by name. All actions: {all}");
+            return dashActionId;
         }
     }
 }
