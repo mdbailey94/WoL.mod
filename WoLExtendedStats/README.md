@@ -9,11 +9,11 @@ The game's info box gets an extra section under the normal description:
 
 - **Arcana highlighted:** that arcana's damage, crit chance and crit damage, and cooldown, all including
   relic and outfit bonuses. Once you've used it, this run's damage, hits and crits with it are shown too.
-- **Cloak highlighted:** your wizard stats: health and shield, armor, evade, damage taken, healing,
-  move and dash speed, gold and platinum.
+- **Cloak highlighted:** the wizard stats the HUD doesn't show: armor, evade, damage taken, healing,
+  move speed and dash speed.
 
 The stats use a smaller font (75% of the game's, adjustable) and show at most 3 lines at a time.
-If there are more, the last line ends with "(1-3 of 5, R-stick)" and you can scroll with the
+If there are more, the last line ends with a position like "(1/3)" and you can scroll with the
 **right stick** (or **Page Up/Down** or the mouse wheel). Scrolling resets when you highlight
 something else. If the right stick doesn't scroll, `BepInEx\LogOutput.log` lists your controller's
 stick names (search for "axes:").
@@ -55,7 +55,7 @@ In `BepInEx\config\mdbailey94.wol.extendedstats.cfg`:
 | `RightStickAxis` | -1 | Controller axis used to scroll the info box; -1 detects it (XInput pads use axis 3) |
 | `Visible` | false | Overlay pinned (remembers your last F2 toggle) |
 | `ShowInCharacterMenu` | true | Add stats to the character menu's info box |
-| `InfoFontSizeAdjust` | -2 | Points added to the whole info box's font (game description and stats); negative = smaller |
+| `InfoFontSizeOffset` | -4 | Points added to the whole info box's font (game description and stats); negative = smaller |
 | `InfoTextSize` | 75 | Size of the added stats, as % of the game's text (40-100) |
 | `InfoVisibleLines` | 3 | Most stat lines shown at once before scrolling (1-20); fewer if the box is smaller |
 | `ShowRunSummary` | true | Show the post-run stats panel |
