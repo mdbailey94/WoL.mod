@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- net35 loads on both the old and new Unity Mono runtimes. -->
+    <TargetFramework>net35</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+    <AssemblyName>WoLCameraZoom</AssemblyName>
+    <RootNamespace>WoLCameraZoom</RootNamespace>
+
+    <!-- Point this at your Wizard of Legend install, or pass -p:GameDir="..." to dotnet build. -->
+    <GameDir Condition="'$(GameDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Wizard of Legend</GameDir>
+    <ManagedDir>$(GameDir)\WizardOfLegend_Data\Managed</ManagedDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Lets net35 build without the old .NET Framework targeting pack installed. -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="BepInEx">
+      <HintPath>$(GameDir)\BepInEx\core\BepInEx.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(ManagedDir)\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- Newer Unity versions split the engine into modules; harmless if the files don't exist. -->
+    <Reference Include="UnityEngine.CoreModule" Condition="Exists('$(ManagedDir)\UnityEngine.CoreModule.dll')">
+      <HintPath>$(ManagedDir)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule" Condition="Exists('$(ManagedDir)\UnityEngine.InputLegacyModule.dll')">
+      <HintPath>$(ManagedDir)\UnityEngine.InputLegacyModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Copy the built DLL straight into the game's plugin folder. -->
+  <Target Name="CopyToPlugins" AfterTargets="Build" Condition="Exists('$(GameDir)\BepInEx\plugins')">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(GameDir)\BepInEx\plugins\WoLCameraZoom" />
+  </Target>
+
+</Project>
