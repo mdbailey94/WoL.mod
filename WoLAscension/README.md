@@ -18,16 +18,20 @@ top of the ones before it.
 
 ## Choosing a level
 
-In the hub (your house), a panel at the top shows the level and what it does. Change it with:
-- **Controller:** open the character menu (**Select**) and push the **right stick left/right**
-- **Keyboard:** **[** and **]**
-- **Mouse:** click the **<** and **>** arrows
+When you step into the portal that starts a run, the game pauses and an **ASCENSION** prompt
+appears, drawn in the game's pixel style with the game's own font:
 
-The level is locked once you leave the hub, and a small "ASCENSION n" tag shows in the corner
-during the run. Back in the hub, all modifiers come off. The modifiers use the game's own stat
-system, so they stack normally with relics.
+- **Left / right** (either stick, the d-pad, arrow keys, or click the arrows): change the level.
+  The pips fill up and the list shows what that level adds.
+- **A** (or Enter / Space): begin the run at that level.
 
-Level 0 means normal difficulty. You can also turn the whole mod off in the title screen Mods menu.
+It starts at the level you picked last time. Level 0 (OFF) is normal difficulty. The level is
+locked for the run, a small "ASCENSION n" tag shows in the corner, and all modifiers come off when
+you're back in the hub. The modifiers use the game's own stat system, so they stack normally with
+relics. You can also turn the whole mod off in the title screen Mods menu.
+
+If a run starts from somewhere the portal hook doesn't catch, the prompt appears (paused) as soon
+as the first enemies do.
 
 ## Install
 
@@ -36,9 +40,9 @@ and unzip it into your Wizard of Legend folder. Only BepInEx is needed.
 
 ## Settings
 
-`BepInEx\config\mdbailey94.wol.ascension.cfg`: `Enabled`, `Level` (0–10), `ShowLevelInRun`.
+`BepInEx\config\mdbailey94.wol.ascension.cfg`: `Enabled`, `Level` (0–10, the prompt's starting level), `ShowLevelInRun`.
 
 ## Troubleshooting
 
-`BepInEx\LogOutput.log` records "Entered the hub" and "Left the hub - running at Ascension n",
-plus every level load, so you can see when it switches on and off.
+`BepInEx\LogOutput.log` records each portal ("Portal to '...' (starts a run: true)"),
+"Starting run at Ascension n", "Entered the hub", and every level load.

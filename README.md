@@ -7,7 +7,7 @@ BepInEx 5 mods for Wizard of Legend.
 | [WoLCameraZoom](WoLCameraZoom/) | Working | Zooms the gameplay camera out so you can see more of the arena. |
 | [WoLRollingGale](WoLRollingGale/) | Working | New Air arcana: a line of wind bursts that rolls forward and pulls enemies. Needs LegendAPI. |
 | [WoLExtendedStats](WoLExtendedStats/) | Working | Hidden arcana and wizard stats in the character menu info box, plus a post-run report: crits, biggest crit, pit knock-offs, top speed and more. Co-op aware. |
-| [WoLAscension](WoLAscension/) | Untested | Ascension levels 1–10: stacking difficulty modifiers chosen in the hub before a run. |
+| [WoLAscension](WoLAscension/) | Working (0.2 untested) | Ascension levels 1–10: stacking difficulty modifiers, picked on a pixel-art prompt when you enter the run portal. |
 | [WoLModMenu](WoLModMenu/) | Working | A MODS panel on the title screen to switch the mods above on and off instantly (Select / M). |
 
 ## Install (no build needed)
