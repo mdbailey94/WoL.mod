@@ -14,7 +14,7 @@ namespace WoLExtendedStats
     {
         public const string PluginGuid = "mdbailey94.wol.extendedstats";
         public const string PluginName = "Extended Stats";
-        public const string PluginVersion = "0.4.3";
+        public const string PluginVersion = "0.4.4";
 
         private const float RefreshInterval = 0.25f;
         private const float ReferenceHeight = 1080f;
@@ -33,6 +33,7 @@ namespace WoLExtendedStats
         private ConfigEntry<bool> runSummary;
         private ConfigEntry<float> panelScale;
         private ConfigEntry<int> infoTextSize;
+        private ConfigEntry<int> infoFontSizeAdjust;
         private ConfigEntry<int> infoMaxLines;
 
         private readonly List<Player> players = new List<Player>();
@@ -83,6 +84,9 @@ namespace WoLExtendedStats
                 "wizard stats when the cloak is highlighted.");
             runSummary = Config.Bind("General", "ShowRunSummary", true,
                 "Show post-run stats next to the end-of-run screen.");
+            infoFontSizeAdjust = Config.Bind("General", "InfoFontSizeAdjust", -2,
+                new ConfigDescription("Points added to the character menu info box's font size, for the game's description " +
+                    "and the stats alike (negative = smaller).", new AcceptableValueRange<int>(-10, 10)));
             infoTextSize = Config.Bind("General", "InfoTextSize", 75,
                 new ConfigDescription("Size of the added stats in the character menu info box, as % of the game's text size.",
                     new AcceptableValueRange<int>(40, 100)));
@@ -258,6 +262,8 @@ namespace WoLExtendedStats
                 if (extra == null)
                     return;
                 state = new InfoBoxState { OriginalFontSize = box.fontSize };
+                // Shrink (or grow) the whole box, the game's own description included.
+                box.fontSize = Mathf.Max(8, state.OriginalFontSize + infoFontSizeAdjust.Value);
                 infoBoxes[box] = state;
                 LogInfoBox(box);
                 // Needed for our smaller font and colours; the game's descriptions use no tags.
@@ -321,7 +327,7 @@ namespace WoLExtendedStats
             if (count < lines.Length)
                 shown[count - 1] += $"  <color=#9aa>({offset + 1}-{offset + count} of {lines.Length}, R-stick)</color>";
 
-            int size = Mathf.Max(8, Mathf.RoundToInt(state.OriginalFontSize * infoTextSize.Value / 100f));
+            int size = Mathf.Max(8, Mathf.RoundToInt(state.OriginalFontSize * infoTextSize.Value / 100f) + infoFontSizeAdjust.Value);
             string section = $"<size={size}>{string.Join("\n", shown)}</size>";
             return string.IsNullOrEmpty(state.BaseText) ? section : state.BaseText + "\n" + section;
         }
