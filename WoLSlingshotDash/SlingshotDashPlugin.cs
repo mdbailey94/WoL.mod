@@ -15,7 +15,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.5.0";
+        public const string PluginVersion = "0.5.1";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -88,7 +88,7 @@ namespace WoLSlingshotDash
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
                     // Level 1 is the launch burst, level 2 the landing burst.
                     damage = new[] { 8, 8 },
-                    cooldown = new[] { 4f },
+                    cooldown = new[] { 10f },
                     // Positive knockback pushes enemies away; gentler where you land.
                     knockbackMultiplier = new[] { 55f, 22f },
                     hitStunDurationModifier = new[] { 1.2f },
@@ -115,7 +115,7 @@ namespace WoLSlingshotDash
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
                     // Level 1 is the trail, level 2 the vacuum's pulses where you land.
                     damage = new[] { 9, 4 },
-                    cooldown = new[] { 5f },
+                    cooldown = new[] { 10f },
                     // Negative knockback pulls enemies toward each burst.
                     knockbackMultiplier = new[] { -26f, -32f },
                     hitStunDurationModifier = new[] { 1.2f },

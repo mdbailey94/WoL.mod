@@ -31,7 +31,7 @@ the launch, gentler where you land. Both get bigger with more charge.
 
 ### Cooldown
 
-Both have **one charge**: Slingshot recharges in **4 s**, Blazing Slingshot in **5 s**. A tap uses
+Both have **one charge** that recharges in **10 s**. A tap uses
 the charge too, since it's the same dash.
 
 You're not invulnerable while charging, so time it. Careful hopping backward near a ledge.
