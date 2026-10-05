@@ -43,10 +43,10 @@ jobs:
       - name: Fetch game reference DLLs
         run: |
           mkdir -p lib
-          for dll in Assembly-CSharp.dll LegendApi.dll UnityEngine.dll; do
+          for dll in Assembly-CSharp.dll LegendApi.dll UnityEngine.dll UnityEngine.UI.dll; do
             curl -sSfL -o "lib/$dll" "$WOL_LIB_URL/$dll"
           done
-          cp "$GAME_DIR/BepInEx/core/BepInEx.dll" lib/
+          cp "$GAME_DIR/BepInEx/core/BepInEx.dll" "$GAME_DIR/BepInEx/core/0Harmony.dll" lib/
 
       - name: Build and package mods
         run: |
