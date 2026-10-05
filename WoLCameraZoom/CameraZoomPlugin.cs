@@ -15,6 +15,7 @@ namespace WoLCameraZoom
         private const float MaxZoom = 2.5f;
         private const float ZoomStep = 0.1f;
 
+        private ConfigEntry<bool> modEnabled;
         private ConfigEntry<float> zoom;
         private ConfigEntry<KeyboardShortcut> zoomOutKey;
         private ConfigEntry<KeyboardShortcut> zoomInKey;
@@ -26,6 +27,7 @@ namespace WoLCameraZoom
 
         private void Awake()
         {
+            modEnabled = Config.Bind("General", "Enabled", true, "Turn the mod on or off (also in the title screen Mods menu).");
             zoom = Config.Bind("General", "Zoom", 1.4f,
                 new ConfigDescription("Camera zoom multiplier. 1 = vanilla, higher = see more of the arena.",
                     new AcceptableValueRange<float>(MinZoom, MaxZoom)));
@@ -47,6 +49,9 @@ namespace WoLCameraZoom
 
         private void Update()
         {
+            if (!modEnabled.Value)
+                return;
+
             if (zoomOutKey.Value.IsDown())
                 SetZoom(zoom.Value + ZoomStep);
             else if (zoomInKey.Value.IsDown())
@@ -66,7 +71,7 @@ namespace WoLCameraZoom
         // seeing the vanilla value, and any script that resets the size each frame can't fight us.
         private void OnCameraPreCull(Camera cam)
         {
-            if (cam != Camera.main || !cam.orthographic || Mathf.Approximately(zoom.Value, 1f))
+            if (!modEnabled.Value || cam != Camera.main || !cam.orthographic || Mathf.Approximately(zoom.Value, 1f))
                 return;
 
             scaledCamera = cam;

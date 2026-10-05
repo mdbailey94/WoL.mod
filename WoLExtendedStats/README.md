@@ -12,7 +12,9 @@ The game's info box gets an extra section under the normal description:
 - **Cloak highlighted:** your wizard stats: health and shield, armor, evade, damage taken, healing,
   move and dash speed, gold and platinum.
 
-If the extra text doesn't fit, the info box shrinks its font to keep it inside the frame.
+The stats use a smaller font (75% of the game's, adjustable) and show at most 5 lines at a time.
+If there are more, a "lines 1-5 of 8" note appears and you can scroll with the **right stick**
+(or **Page Up/Down** or the mouse wheel). Scrolling resets when you highlight something else.
 
 ## Post-run stats
 
@@ -46,13 +48,16 @@ In `BepInEx\config\mdbailey94.wol.extendedstats.cfg`:
 
 | Setting | Default | |
 |---------|---------|-|
+| `Enabled` | true | Turn the whole mod on/off (also in the title screen Mods menu) |
 | `Toggle` | F2 | Pin/unpin the full overlay |
 | `Visible` | false | Overlay pinned (remembers your last F2 toggle) |
 | `ShowInCharacterMenu` | true | Add stats to the character menu's info box |
+| `InfoTextSize` | 75 | Size of the added stats, as % of the game's text (40-100) |
+| `InfoMaxLines` | 5 | Lines shown at once before scrolling (2-20) |
 | `ShowRunSummary` | true | Show the post-run stats panel |
 | `Scale` | 1.0 | Overlay/summary panel size, 0.5 to 2 |
 
 ## Building it yourself
 
 Same as [Rolling Gale](../WoLRollingGale/README.md#building-it-yourself), plus `UnityEngine.UI.dll`
-(from `WizardOfLegend_Data\Managed`) and `0Harmony.dll` (from `BepInEx\core`) in `lib`.
+and `Rewired_Core.dll` (from `WizardOfLegend_Data\Managed`) and `0Harmony.dll` (from `BepInEx\core`) in `lib`.
