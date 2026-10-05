@@ -9,7 +9,7 @@ A new Air arcana, added with [LegendAPI](https://github.com/yekoc/LegendAPI).
 |------|-------|
 | Element | Air |
 | Tier | 2 |
-| Damage | 12 per pulse (each burst pulses twice) |
+| Damage | 8 per burst, 3 per echo pulse (up to 33 per enemy; 44 enhanced) |
 | Cooldown | 5 s |
 | Bursts | 3 (4 when enhanced) |
 

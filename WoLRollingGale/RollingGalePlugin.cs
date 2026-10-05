@@ -13,7 +13,7 @@ namespace WoLRollingGale
     {
         public const string PluginGuid = "mdbailey94.wol.rollinggale";
         public const string PluginName = "Rolling Gale";
-        public const string PluginVersion = "0.2.0";
+        public const string PluginVersion = "0.3.0";
 
         private ConfigEntry<bool> modEnabled;
 
@@ -38,7 +38,9 @@ namespace WoLRollingGale
                     elementType = new[] { "Air" },
                     subElementType = new[] { "Air" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
-                    damage = new[] { 12 },
+                    // Level 1 is each burst, level 2 its echo pulse. At most 3x8 + 3x3 = 33 per enemy
+                    // (44 enhanced) if dragged through the whole line.
+                    damage = new[] { 8, 3 },
                     cooldown = new[] { 5f },
                     // Negative knockback pulls targets toward the burst, like Gust Burst.
                     knockbackMultiplier = new[] { -22f },

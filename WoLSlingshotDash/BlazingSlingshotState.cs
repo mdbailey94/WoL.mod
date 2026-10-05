@@ -13,7 +13,7 @@ namespace WoLSlingshotDash
     {
         public new static string staticID = "BlazingSlingshot";
 
-        private const float TrailInterval = 0.09f;
+        private const float TrailInterval = 0.15f;
         private const float FlameInterval = 0.03f;
         private const int VacuumPulses = 4;
         private const float VacuumPulseInterval = 0.15f;
@@ -40,13 +40,13 @@ namespace WoLSlingshotDash
             if (nextFlame <= 0f)
             {
                 nextFlame = FlameInterval;
-                EmitBlitzFlames(position, 3 + Mathf.RoundToInt(4 * charge));
+                EmitBlitzFlames(position, 2 + Mathf.RoundToInt(3 * charge));
             }
             nextTrail -= Time.deltaTime;
             if (nextTrail <= 0f)
             {
                 nextTrail = TrailInterval;
-                FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1, 1.25f + charge, true);
+                FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1, 0.8f + 0.4f * charge, true);
             }
         }
 
@@ -64,7 +64,7 @@ namespace WoLSlingshotDash
                 SlingshotDashPlugin.Log($"Vacuum flame effect unavailable: {e.Message}");
             }
             // The dash state ends here, so the vacuum runs on the plugin.
-            SlingshotDashPlugin.Run(Vacuum(position, 2f + 1.5f * charge, parent.skillCategory, skillID, vacuum));
+            SlingshotDashPlugin.Run(Vacuum(position, 1.4f + 0.6f * charge, parent.skillCategory, skillID, vacuum));
         }
 
         private static IEnumerator Vacuum(Vector3 position, float scale, string skillCategory, string id, GameObject vacuum)
@@ -72,7 +72,7 @@ namespace WoLSlingshotDash
             for (int i = 0; i < VacuumPulses; i++)
             {
                 FlameBurst.CreateBurst(position, skillCategory, id, 2, scale, true);
-                EmitBlitzFlames(position, 10);
+                EmitBlitzFlames(position, 6);
                 yield return new WaitForSeconds(VacuumPulseInterval);
             }
             if (vacuum != null)

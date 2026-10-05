@@ -29,10 +29,16 @@ the launch, gentler where you land. Both get bigger with more charge.
 - Where you land, a **flame vacuum** keeps sucking everyone nearby in for about half a second.
 - Everything scales with charge, and it's Fire, so it can burn.
 
-### Cooldown
+### Balance
 
-Both have **one charge** that recharges in **10 s**. A tap uses
-the charge too, since it's the same dash.
+Slingshot arcana trade a long cooldown and a charge-up for more range and damage than a normal
+dash, without outclassing standard arcana. Both have **one charge** that recharges in **10 s**, and
+a tap uses the charge too, since it's the same dash.
+
+| | Damage per enemy | Notes |
+|---|---|---|
+| Slingshot | 10 at launch, 6 where you land (up to 16) | Strong knockback at launch, gentle at landing |
+| Blazing Slingshot | 4 per trail burst, 2 per vacuum pulse (about 20 at most) | Plus burn; pulls instead of pushing |
 
 You're not invulnerable while charging, so time it. Careful hopping backward near a ledge.
 
