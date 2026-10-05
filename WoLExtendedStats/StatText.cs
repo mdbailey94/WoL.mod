@@ -14,7 +14,8 @@ namespace WoLExtendedStats
         // Shown under the game's description when an arcana is highlighted in the equip menu.
         public static string Arcana(Player player, Player.SkillState skill, bool rich)
         {
-            var sb = new StringBuilder();
+            // Short lines so they don't wrap in the menu's narrow info box; it scrolls by line.
+            var lines = new List<string>();
             StatData data = skill.skillData;
             if (data != null)
             {
@@ -22,16 +23,17 @@ namespace WoLExtendedStats
                 float critChance = Stat(data, StatData.critChStr, false);
                 float critDamage = Stat(data, StatData.critDmgStr, false);
                 float cooldown = Cooldown(player, skill, data);
-                sb.Append($"Damage {damage:0}  ·  Crit {Percent(critChance)} ({critDamage:0.##}x)  ·  Cooldown {cooldown:0.##}s");
+                lines.Add($"Damage {damage:0}  ·  Cooldown {cooldown:0.##}s");
+                lines.Add($"Crit {Percent(critChance)}  ·  Crit damage {critDamage:0.##}x");
             }
 
             SkillRunStats run;
             if (RunTracker.For(player).BySkill.TryGetValue(skill.skillID, out run) && run.Hits > 0)
             {
-                sb.Append('\n');
-                sb.Append(Color($"This run: {run.Damage} dmg · {run.Hits} hits · {run.Crits} crits", Dim, rich));
+                lines.Add(Color($"This run: {run.Damage} dmg", Dim, rich));
+                lines.Add(Color($"{run.Hits} hits  ·  {run.Crits} crits", Dim, rich));
             }
-            return sb.ToString();
+            return string.Join("\n", lines.ToArray());
         }
 
         // Shown under the cloak's description when the outfit is highlighted.

@@ -14,7 +14,7 @@ namespace WoLExtendedStats
     {
         public const string PluginGuid = "mdbailey94.wol.extendedstats";
         public const string PluginName = "Extended Stats";
-        public const string PluginVersion = "0.4.0";
+        public const string PluginVersion = "0.4.1";
 
         private const float RefreshInterval = 0.25f;
         private const float ReferenceHeight = 1080f;
@@ -53,6 +53,9 @@ namespace WoLExtendedStats
             public int OriginalFontSize;
             public int ScrollOffset;
             public float NextScrollTime;
+            // How many stat lines fit, measured for this description + stats text.
+            public string FitKey;
+            public int FitLines;
         }
 
         private struct PendingInfo
@@ -226,7 +229,7 @@ namespace WoLExtendedStats
                 if (skills != null && index >= 0 && index < skills.Length && skills[index] != null)
                     pendingExtras[equip.infoText] = new PendingInfo
                     {
-                        Extra = StatText.Arcana(player, skills[index], equip.infoText.supportRichText),
+                        Extra = StatText.Arcana(player, skills[index], true),
                         Owner = player
                     };
             }
@@ -235,7 +238,7 @@ namespace WoLExtendedStats
             if (outfit != null && outfit.hasFocus && outfit.infoText != null)
                 pendingExtras[outfit.infoText] = new PendingInfo
                 {
-                    Extra = StatText.Wizard(player, outfit.infoText.supportRichText),
+                    Extra = StatText.Wizard(player, true),
                     Owner = player
                 };
         }
@@ -249,6 +252,9 @@ namespace WoLExtendedStats
                     return;
                 state = new InfoBoxState { OriginalFontSize = box.fontSize };
                 infoBoxes[box] = state;
+                LogInfoBox(box);
+                // Needed for our smaller font and colours; the game's descriptions use no tags.
+                box.supportRichText = true;
             }
 
             // If the text isn't what we last wrote, the game has put up a new description.
@@ -258,40 +264,72 @@ namespace WoLExtendedStats
                 state.ScrollOffset = 0;
             }
 
-            string section = string.IsNullOrEmpty(extra) ? null : FormatSection(box, state, extra, owner);
-            string desired = section == null
-                ? state.BaseText
-                : (string.IsNullOrEmpty(state.BaseText) ? section : state.BaseText + "\n\n" + section);
+            string desired = state.BaseText;
+            if (!string.IsNullOrEmpty(extra))
+            {
+                string[] lines = extra.Split('\n');
+                string key = state.BaseText + "\u0001" + extra;
+                if (key != state.FitKey)
+                {
+                    state.FitKey = key;
+                    state.FitLines = FitLines(box, state, lines);
+                }
+
+                int shown = state.FitLines;
+                if (shown < lines.Length)
+                    state.ScrollOffset = Mathf.Clamp(state.ScrollOffset + ReadScroll(state, owner), 0, lines.Length - shown);
+                else
+                    state.ScrollOffset = 0;
+                desired = Compose(state, lines, shown, state.ScrollOffset);
+            }
+
             if (box.text != desired)
                 box.text = desired;
             state.Written = desired;
         }
 
-        // Shrinks our section's font and shows at most InfoMaxLines of it, scrolled by the owner.
-        private string FormatSection(Text box, InfoBoxState state, string extra, Player owner)
+        // The most stat lines (up to InfoMaxLines) that fit inside the box under its description.
+        private int FitLines(Text box, InfoBoxState state, string[] lines)
         {
-            string[] lines = extra.Split('\n');
-            int maxLines = infoMaxLines.Value;
-            string body;
-            if (lines.Length <= maxLines)
-            {
-                state.ScrollOffset = 0;
-                body = extra;
-            }
-            else
-            {
-                int maxOffset = lines.Length - maxLines;
-                state.ScrollOffset = Mathf.Clamp(state.ScrollOffset + ReadScroll(state, owner), 0, maxOffset);
-                var shown = new string[maxLines];
-                Array.Copy(lines, state.ScrollOffset, shown, 0, maxLines);
-                string position = $"lines {state.ScrollOffset + 1}-{state.ScrollOffset + maxLines} of {lines.Length} - scroll with right stick";
-                body = string.Join("\n", shown) + "\n" + (box.supportRichText ? $"<color=#9aa>{position}</color>" : position);
-            }
+            int most = Mathf.Min(infoMaxLines.Value, lines.Length);
+            float available = box.rectTransform.rect.height;
+            if (available <= 1f)
+                return most;
 
-            if (!box.supportRichText)
-                return body;
+            for (int count = most; count > 1; count--)
+            {
+                box.text = Compose(state, lines, count, 0);
+                if (box.preferredHeight <= available + 0.5f)
+                    return count;
+            }
+            return 1;
+        }
+
+        // Description, a blank line, then `count` stat lines from `offset` in the smaller font.
+        // When not everything fits, the last line says where you are so you know to scroll.
+        private string Compose(InfoBoxState state, string[] lines, int count, int offset)
+        {
+            var shown = new string[count];
+            Array.Copy(lines, offset, shown, 0, count);
+            if (count < lines.Length)
+                shown[count - 1] += $"  <color=#9aa>({offset + 1}-{offset + count} of {lines.Length}, R-stick)</color>";
+
             int size = Mathf.Max(8, Mathf.RoundToInt(state.OriginalFontSize * infoTextSize.Value / 100f));
-            return $"<size={size}>{body}</size>";
+            string section = $"<size={size}>{string.Join("\n", shown)}</size>";
+            return string.IsNullOrEmpty(state.BaseText) ? section : state.BaseText + "\n" + section;
+        }
+
+        private static readonly HashSet<string> loggedBoxes = new HashSet<string>();
+
+        // One line per info box so a log can tell us how big the game's boxes are.
+        private void LogInfoBox(Text box)
+        {
+            string name = box.transform.parent != null ? box.transform.parent.name + "/" + box.name : box.name;
+            if (!loggedBoxes.Add(name))
+                return;
+            Rect rect = box.rectTransform.rect;
+            Logger.LogInfo($"Info box '{name}': {rect.width:0}x{rect.height:0}, font {box.fontSize}, " +
+                           $"richText {box.supportRichText}, overflow {box.horizontalOverflow}/{box.verticalOverflow}");
         }
 
         // +1 scrolls down a line, -1 up. Held stick repeats; keyboard/mouse work for everyone.

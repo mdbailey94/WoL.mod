@@ -15,7 +15,7 @@ namespace WoLModMenu
     {
         public const string PluginGuid = "mdbailey94.wol.modmenu";
         public const string PluginName = "Mod Menu";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.1.1";
 
         private const string ModGuidPrefix = "mdbailey94.wol.";
         private const float ReferenceHeight = 1080f;
@@ -40,6 +40,7 @@ namespace WoLModMenu
         private bool open;
         private int selected;
         private int reenableTitleFrame = -1;
+        private string lastTitleStatus;
 
         private GUIStyle textStyle;
         private GUIStyle boxStyle;
@@ -115,10 +116,26 @@ namespace WoLModMenu
                 nextTitleSearch = Time.unscaledTime + FindTitleInterval;
                 titleScreen = FindObjectOfType<TitleScreen>();
             }
-            // We disable the title screen ourselves while open, so don't require it enabled then.
-            return titleScreen != null && titleScreen.gameObject.activeInHierarchy
+            // Show on the title screen unless the game's own Options screen is up. We disable the
+            // title screen ourselves while open, so don't require it enabled then.
+            bool onTitle = titleScreen != null && titleScreen.gameObject.activeInHierarchy
                 && (open || titleScreen.enabled)
-                && titleScreen.currentState == TitleScreen.TitleScreenState.Menu;
+                && titleScreen.currentState != TitleScreen.TitleScreenState.Options;
+            LogTitleStatus(onTitle);
+            return onTitle;
+        }
+
+        // Logs only when something changes, so a log shows why the panel did or didn't appear.
+        private void LogTitleStatus(bool onTitle)
+        {
+            string status = titleScreen == null
+                ? "no title screen"
+                : $"title screen active={titleScreen.gameObject.activeInHierarchy} enabled={titleScreen.enabled} " +
+                  $"state={titleScreen.currentState} -> showing={onTitle}";
+            if (status == lastTitleStatus)
+                return;
+            lastTitleStatus = status;
+            Logger.LogInfo(status);
         }
 
         private void DiscoverMods()
