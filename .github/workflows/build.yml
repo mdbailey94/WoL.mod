@@ -12,6 +12,9 @@ permissions:
 env:
   BEPINEX_URL: https://github.com/BepInEx/BepInEx/releases/download/v5.4.21/BepInEx_x64_5.4.21.0.zip
   UNITY_REF_URL: https://api.nuget.org/v3-flatcontainer/unity3d.unityengine/2018.1.6-f1/unity3d.unityengine.2018.1.6-f1.nupkg
+  # Stripped reference copies of the game's DLLs plus LegendAPI, pinned to one commit of
+  # TheTimeSweeper/EpicWolMods. Used only to compile against; nothing from here is shipped.
+  WOL_LIB_URL: https://raw.githubusercontent.com/TheTimeSweeper/EpicWolMods/c80d122b5f2a37f1a59e540c7911c4f92103dc2a/_lib
 
 jobs:
   build:
@@ -35,6 +38,15 @@ jobs:
           curl -sSL -o "$RUNNER_TEMP/unity.nupkg" "$UNITY_REF_URL"
           unzip -q -j "$RUNNER_TEMP/unity.nupkg" lib/UnityEngine.dll -d "$GAME_DIR/WizardOfLegend_Data/Managed"
           echo "GAME_DIR=$GAME_DIR" >> "$GITHUB_ENV"
+
+      # Mods that use game code (e.g. LegendAPI skills) build against lib/.
+      - name: Fetch game reference DLLs
+        run: |
+          mkdir -p lib
+          for dll in Assembly-CSharp.dll LegendApi.dll UnityEngine.dll; do
+            curl -sSfL -o "lib/$dll" "$WOL_LIB_URL/$dll"
+          done
+          cp "$GAME_DIR/BepInEx/core/BepInEx.dll" lib/
 
       - name: Build and package mods
         run: |
@@ -64,4 +76,4 @@ jobs:
           gh release create latest dist/*.zip \
             --target "$GITHUB_SHA" \
             --title "Latest build" \
-            --notes "Built from ${GITHUB_SHA::7}. Unzip into your Wizard of Legend folder (the one with WizardOfLegend.exe)."
+            --notes "Built from ${GITHUB_SHA::7}. Unzip into your Wizard of Legend folder (the one with WizardOfLegend.exe). Skill mods also need LegendAPI installed."
