@@ -6,7 +6,7 @@ BepInEx 5 mods for Wizard of Legend.
 |-----|--------|-------------|
 | [WoLCameraZoom](WoLCameraZoom/) | Working | Zooms the gameplay camera out so you can see more of the arena. |
 | [WoLRollingGale](WoLRollingGale/) | Working | New Air arcana: a line of wind bursts that rolls forward and pulls enemies. Needs LegendAPI. |
-| [WoLExtendedStats](WoLExtendedStats/) | Untested | Press F2 for a panel of hidden stats: crit, armor, evade, per-arcana damage and cooldowns, run totals. |
+| [WoLExtendedStats](WoLExtendedStats/) | Working | Hidden stats (crit, armor, evade, per-arcana damage and cooldowns, run totals) shown with the character menu or pinned with F2. Co-op aware. |
 
 ## Install (no build needed)
 

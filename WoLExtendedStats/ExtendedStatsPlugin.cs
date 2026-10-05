@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using BepInEx;
 using BepInEx.Configuration;
@@ -11,53 +12,74 @@ namespace WoLExtendedStats
     {
         public const string PluginGuid = "mdbailey94.wol.extendedstats";
         public const string PluginName = "Extended Stats";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.2.0";
 
         private const float RefreshInterval = 0.25f;
         private const float ReferenceHeight = 1080f;
+        private const float Margin = 16f;
+        private const float PanelTop = 140f;
 
         private ConfigEntry<KeyboardShortcut> toggleKey;
-        private ConfigEntry<bool> visible;
+        private ConfigEntry<bool> pinned;
+        private ConfigEntry<bool> showWithMenu;
         private ConfigEntry<float> panelScale;
 
-        private string panelText = string.Empty;
+        // One panel per player, in screen order (index 0 drawn on the left, 1 on the right).
+        private readonly List<string> panelTexts = new List<string>();
         private float nextRefresh;
         private GUIStyle textStyle;
         private GUIStyle boxStyle;
 
         private void Awake()
         {
-            toggleKey = Config.Bind("Hotkeys", "Toggle", new KeyboardShortcut(KeyCode.F2), "Show or hide the stats panel.");
-            visible = Config.Bind("General", "Visible", true, "Whether the panel is shown when the game starts.");
+            toggleKey = Config.Bind("Hotkeys", "Toggle", new KeyboardShortcut(KeyCode.F2),
+                "Pin the panels on screen, or unpin them.");
+            pinned = Config.Bind("General", "Visible", false,
+                "Keep the panels on screen all the time (toggled with the hotkey).");
+            showWithMenu = Config.Bind("General", "ShowWithCharacterMenu", true,
+                "Show a player's panel while their in-game character/equip menu is open (Select on controller).");
             panelScale = Config.Bind("General", "Scale", 1f,
                 new ConfigDescription("Panel size multiplier.", new AcceptableValueRange<float>(0.5f, 2f)));
 
-            Logger.LogInfo($"{PluginName} {PluginVersion} loaded (toggle with {toggleKey.Value})");
+            Logger.LogInfo($"{PluginName} {PluginVersion} loaded (pin with {toggleKey.Value})");
         }
 
         private void Update()
         {
             if (toggleKey.Value.IsDown())
-                visible.Value = !visible.Value;
+                pinned.Value = !pinned.Value;
 
-            if (!visible.Value || Time.unscaledTime < nextRefresh)
+            if (Time.unscaledTime < nextRefresh)
                 return;
 
             nextRefresh = Time.unscaledTime + RefreshInterval;
-            try
+            panelTexts.Clear();
+
+            List<Player> players = GetPlayers();
+            foreach (Player player in players)
             {
-                panelText = BuildText(GetLocalPlayer());
-            }
-            catch (Exception e)
-            {
-                // Never let a bad read break the game loop; show it in the panel instead.
-                panelText = "Extended Stats error:\n" + e.Message;
+                if (!pinned.Value && !(showWithMenu.Value && IsCharacterMenuOpen(player)))
+                {
+                    panelTexts.Add(null);
+                    continue;
+                }
+
+                try
+                {
+                    string header = players.Count > 1 ? $"<b><color=#fd5>PLAYER {player.playerID + 1}</color></b>\n" : string.Empty;
+                    panelTexts.Add(header + BuildText(player));
+                }
+                catch (Exception e)
+                {
+                    // Never let a bad read break the game loop; show it in the panel instead.
+                    panelTexts.Add("Extended Stats error:\n" + e.Message);
+                }
             }
         }
 
         private void OnGUI()
         {
-            if (!visible.Value || string.IsNullOrEmpty(panelText))
+            if (panelTexts.Count == 0)
                 return;
 
             if (textStyle == null)
@@ -68,30 +90,56 @@ namespace WoLExtendedStats
             }
 
             float scale = Screen.height / ReferenceHeight * panelScale.Value;
+            float virtualWidth = Screen.width / scale;
             Matrix4x4 previous = GUI.matrix;
             GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(scale, scale, 1f));
 
-            var content = new GUIContent(panelText);
-            Vector2 size = textStyle.CalcSize(content);
-            var area = new Rect(16f, 140f, size.x + 24f, size.y + 16f);
-            GUI.Box(area, GUIContent.none, boxStyle);
-            GUI.Label(new Rect(area.x + 12f, area.y + 8f, size.x, size.y), content, textStyle);
+            for (int i = 0; i < panelTexts.Count; i++)
+            {
+                if (string.IsNullOrEmpty(panelTexts[i]))
+                    continue;
+
+                var content = new GUIContent(panelTexts[i]);
+                Vector2 size = textStyle.CalcSize(content);
+                float width = size.x + 24f;
+                // Player 1 hugs the left edge, player 2 the right, matching the split HUD.
+                float x = i == 0 ? Margin : virtualWidth - width - Margin;
+                var area = new Rect(x, PanelTop, width, size.y + 16f);
+                GUI.Box(area, GUIContent.none, boxStyle);
+                GUI.Label(new Rect(area.x + 12f, area.y + 8f, size.x, size.y), content, textStyle);
+            }
 
             GUI.matrix = previous;
         }
 
-        private static Player GetLocalPlayer()
+        private static List<Player> GetPlayers()
         {
+            var result = new List<Player>();
             Player[] players = GameController.activePlayers;
             if (players == null)
-                return null;
+                return result;
 
             foreach (Player player in players)
             {
                 if (player != null)
-                    return player;
+                    result.Add(player);
             }
-            return null;
+            result.Sort((a, b) => a.playerID.CompareTo(b.playerID));
+            return result;
+        }
+
+        // The equip/inventory menu the game opens on Select lives on each player's lower HUD.
+        private static bool IsCharacterMenuOpen(Player player)
+        {
+            try
+            {
+                LowerHUD hud = player.lowerHUD;
+                return hud != null && hud.equipMenuActive;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private static string BuildText(Player player)
