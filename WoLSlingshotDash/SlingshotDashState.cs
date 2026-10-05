@@ -32,6 +32,8 @@ namespace WoLSlingshotDash
         private bool boosted;
         private Vector2 hopVelocity;
         private bool hopStarted;
+        // Charge of the dash in flight (0 for a tap), for the burst where it lands.
+        private float launchCharge;
 
         public SlingshotDashState(FSM fsm, Player parentPlayer) : base(staticID, fsm, parentPlayer)
         {
@@ -48,6 +50,7 @@ namespace WoLSlingshotDash
             }
 
             charging = true;
+            launchCharge = 0f;
             chargeTime = 0f;
             nextDust = 0f;
             hopStarted = false;
@@ -92,7 +95,13 @@ namespace WoLSlingshotDash
 
         public override void OnExit()
         {
+            // A charged launch that finished (not interrupted by a hit) bursts where it lands too,
+            // so the far end of the slingshot hits as well as the start.
+            if (!charging && launchCharge > 0f && cooldownReady
+                && !fsm.nextStateName.Contains("Hurt") && !fsm.nextStateName.Contains("Dead"))
+                LaunchBurst(launchCharge, true);
             charging = false;
+            launchCharge = 0f;
             RemoveBoost();
             base.OnExit();
         }
@@ -100,10 +109,11 @@ namespace WoLSlingshotDash
         private void Launch(float charge)
         {
             charging = false;
+            launchCharge = charge;
             if (charge > 0f)
             {
                 ApplyBoost(charge);
-                LaunchBurst(charge);
+                LaunchBurst(charge, false);
             }
             // Start the game's own dash now, aimed wherever the player is holding.
             base.OnEnter();
@@ -132,19 +142,20 @@ namespace WoLSlingshotDash
             boosted = false;
         }
 
-        // Pushes enemies away from where you launched; bigger with more charge.
-        private void LaunchBurst(float charge)
+        // Pushes enemies away from where you launched (and where you land); bigger with more
+        // charge. The hit area is the burst scale, and the dust ring is drawn to match it.
+        private void LaunchBurst(float charge, bool landing)
         {
             Vector3 position = parent.transform.position;
-            float scale = 1.5f + 1.5f * charge;
+            float scale = (landing ? 1.75f : 1.5f) + 1.75f * charge;
             WindBurst burst = WindBurst.CreateBurst(position, parent.skillCategory, skillID, 1, scale);
             burst.emitParticles = false;
             PoolManager.GetPoolItem<ParticleEffect>("WindBurstEffect").Emit(new int?(2 + Mathf.RoundToInt(3 * charge)),
                 new Vector3?(position), null, null, 0f, null, null);
-            PoolManager.GetPoolItem<DustEmitter>().EmitCircle(60 + Mathf.RoundToInt(90 * charge), 1.5f + charge, -8f, -1f,
+            PoolManager.GetPoolItem<DustEmitter>().EmitCircle(60 + Mathf.RoundToInt(90 * charge), scale, -8f, -1f,
                 new Vector3?(position), null);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(position), null, 24f, -1f,
-                1.3f - 0.3f * charge, false);
+                (landing ? 1.1f : 1.3f) - 0.3f * charge, false);
         }
 
         // Little dust puffs at your feet that get bigger as the charge builds.

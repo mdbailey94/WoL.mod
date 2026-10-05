@@ -14,7 +14,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.2.0";
+        public const string PluginVersion = "0.3.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -64,7 +64,7 @@ namespace WoLSlingshotDash
             {
                 ID = SlingshotDashState.staticID,
                 displayName = "Slingshot",
-                description = "Hold to pull back and charge, then release to launch yourself across the room!",
+                description = "Hold to pull back and charge, then release to launch yourself across the room, blasting enemies away where you leave and land!",
                 enhancedDescription = "Launch sends out a bigger burst!",
                 icon = LoadIcon("icon.png"),
                 tier = 2,
@@ -77,8 +77,8 @@ namespace WoLSlingshotDash
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
                     damage = new[] { 8 },
                     cooldown = new[] { 0.6f },
-                    // Positive knockback pushes enemies away from the launch point.
-                    knockbackMultiplier = new[] { 30f },
+                    // Positive knockback pushes enemies away from the launch and landing points.
+                    knockbackMultiplier = new[] { 55f },
                     hitStunDurationModifier = new[] { 1.2f },
                     sameAttackImmunityTime = new[] { 0.25f }
                 },

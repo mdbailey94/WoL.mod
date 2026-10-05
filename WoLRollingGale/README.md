@@ -9,12 +9,13 @@ A new Air arcana, added with [LegendAPI](https://github.com/yekoc/LegendAPI).
 |------|-------|
 | Element | Air |
 | Tier | 2 |
-| Damage | 12 per burst |
+| Damage | 12 per pulse (each burst pulses twice) |
 | Cooldown | 5 s |
 | Bursts | 3 (4 when enhanced) |
 
-Each burst lands further out along your aim and is a little larger than the last. Bursts
-pull enemies inward, like Gust Burst does.
+Each burst lands further out along your aim and is a little larger than the last, then pulses
+again a moment later. Bursts pull enemies inward, like Gust Burst does, and each one can grab an
+enemy again, so they get dragged along the whole line.
 
 ## Install
 

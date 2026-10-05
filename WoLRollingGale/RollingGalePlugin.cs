@@ -13,7 +13,7 @@ namespace WoLRollingGale
     {
         public const string PluginGuid = "mdbailey94.wol.rollinggale";
         public const string PluginName = "Rolling Gale";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.2.0";
 
         private ConfigEntry<bool> modEnabled;
 
@@ -41,9 +41,10 @@ namespace WoLRollingGale
                     damage = new[] { 12 },
                     cooldown = new[] { 5f },
                     // Negative knockback pulls targets toward the burst, like Gust Burst.
-                    knockbackMultiplier = new[] { -14f },
+                    knockbackMultiplier = new[] { -22f },
                     hitStunDurationModifier = new[] { 1.1f },
-                    sameAttackImmunityTime = new[] { 0.25f }
+                    // Short, so each burst in the line (and its echo) grabs the enemy again.
+                    sameAttackImmunityTime = new[] { 0.1f }
                 },
                 priceMultiplier = 4,
                 // LegendAPI rerolls a shop offer when this returns false.

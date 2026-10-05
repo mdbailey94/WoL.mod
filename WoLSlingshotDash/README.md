@@ -2,14 +2,15 @@
 
 A new **dash** arcana, added with [LegendAPI](https://github.com/yekoc/LegendAPI).
 
-> **Slingshot**: Hold to pull back and charge, then release to launch yourself across the room!
+> **Slingshot**: Hold to pull back and charge, then release to launch yourself across the room, blasting enemies away where you leave and land!
 
 - **Tap** dash: a normal dash.
 - **Hold** dash: your wizard hops backward, like pulling back a slingshot, then holds that pose
   while dust builds at their feet (up to 1 second). Keep aiming to turn and line up the shot.
 - **Release**: launch the way you're aiming. A full charge gives **+60% dash speed and +40% dash
-  time** (about 2.2× the distance), and the launch spot bursts with wind that knocks nearby
-  enemies away. Holding the full second launches you automatically.
+  time** (about 2.2× the distance). Wind bursts go off **where you leave and where you land**,
+  knocking nearby enemies hard away; both get bigger with more charge. Holding the full second
+  launches you automatically.
 
 You're not invulnerable while charging, so time it. Careful hopping backward near a ledge.
 
