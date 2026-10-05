@@ -15,7 +15,7 @@ namespace WoLAscension
     {
         public const string PluginGuid = "mdbailey94.wol.ascension";
         public const string PluginName = "Ascension";
-        public const string PluginVersion = "0.2.0";
+        public const string PluginVersion = "0.2.1";
 
         private const string PlayerDamageTakenMod = "Ascension_DamageTaken";
         private const string PlayerHealingMod = "Ascension_Healing";
@@ -282,23 +282,34 @@ namespace WoLAscension
 
         private static bool AnyEnemy() => FindObjectOfType<Enemy>() != null;
 
-        // Adds, updates or (for a 1x multiplier) removes one of our multiplicative stat mods.
-        private static void EnsureMod(NumVarStat stat, string id, float multiplier, bool fillToNewMax)
+        // Adds, updates or (for a 1x multiplier) removes one of our stat mods. The game's
+        // Multiplicative mod value is the *change*: 0.15 means +15%, -0.15 means -15%
+        // (passing 0.85 for "x0.85" actually gave +85%).
+        private void EnsureMod(NumVarStat stat, string id, float multiplier, bool fillToNewMax)
         {
             if (stat == null)
                 return;
 
+            float change = multiplier - 1f;
             int index = stat.GetModIndex(id);
             if (index >= 0)
             {
                 var existing = stat.modifiers[index] as NumVarStatMod;
-                if (existing != null && Mathf.Approximately(existing.modValue, multiplier))
+                if (existing != null && Mathf.Approximately(existing.modValue, change))
                     return;
                 stat.RemoveMod(id);
             }
-            if (!Mathf.Approximately(multiplier, 1f))
-                stat.AddMod(new NumVarStatMod(id, multiplier, 10, VarStatModType.Multiplicative, fillToNewMax));
+            if (Mathf.Approximately(change, 0f))
+                return;
+
+            float before = stat.ModifiedValue;
+            stat.AddMod(new NumVarStatMod(id, change, 10, VarStatModType.Multiplicative, fillToNewMax));
+            if (loggedMods.Add(id))
+                Logger.LogInfo($"{id}: x{multiplier:0.##} -> {before:0.##} became {stat.ModifiedValue:0.##}");
         }
+
+        // Each mod's first application is logged so the log shows the real before/after values.
+        private readonly HashSet<string> loggedMods = new HashSet<string>();
 
         // Gold is deposited through a wallet that may be recreated per run, so (re)hook when it changes.
         private void HookGold()
