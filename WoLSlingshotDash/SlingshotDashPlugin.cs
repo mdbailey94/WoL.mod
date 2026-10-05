@@ -15,7 +15,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.5.1";
+        public const string PluginVersion = "0.6.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -86,8 +86,8 @@ namespace WoLSlingshotDash
                     elementType = new[] { "Air" },
                     subElementType = new[] { "Air" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
-                    // Level 1 is the launch burst, level 2 the landing burst.
-                    damage = new[] { 8, 8 },
+                    // Level 1 is the launch burst, level 2 the landing burst: at most 16 per enemy.
+                    damage = new[] { 10, 6 },
                     cooldown = new[] { 10f },
                     // Positive knockback pushes enemies away; gentler where you land.
                     knockbackMultiplier = new[] { 55f, 22f },
@@ -113,8 +113,9 @@ namespace WoLSlingshotDash
                     elementType = new[] { "Fire" },
                     subElementType = new[] { "Fire" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
-                    // Level 1 is the trail, level 2 the vacuum's pulses where you land.
-                    damage = new[] { 9, 4 },
+                    // Level 1 is the trail, level 2 the vacuum's pulses where you land. About
+                    // 3 trail hits x4 + 4 pulses x2 = 20 at most per enemy, plus burn.
+                    damage = new[] { 4, 2 },
                     cooldown = new[] { 10f },
                     // Negative knockback pulls enemies toward each burst.
                     knockbackMultiplier = new[] { -26f, -32f },

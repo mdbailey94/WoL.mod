@@ -84,7 +84,8 @@ namespace WoLRollingGale
             Vector2 position = origin + direction * (FirstBurstDistance + BurstSpacing * index);
             float scale = (FirstBurstScale + BurstScaleGrowth * index) * (echo ? EchoScale : 1f);
 
-            WindBurst burst = WindBurst.CreateBurst(position, parent.skillCategory, skillID, 1, scale);
+            // Echoes use skill level 2: mostly pull, little damage.
+            WindBurst burst = WindBurst.CreateBurst(position, parent.skillCategory, skillID, echo ? 2 : 1, scale);
             burst.emitParticles = false;
 
             var vortex = new ParticleSystemOverride
