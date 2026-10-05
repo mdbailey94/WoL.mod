@@ -1,8 +1,8 @@
 # Custom Paintings (Wizard of Legend)
 
-Hang your own pictures in the Chaos Trials. Some of the breakable paintings on the trial walls
-show one of your pictures instead, fitted inside the game's own frame and shrunk to the
-painting's size so it stays crisp pixel art.
+Hang your own pictures in the Chaos Trials. Now and then (0.5% by default) a breakable painting
+on the trial walls shows one of your pictures instead, fitted inside the game's own frame and
+shrunk to the painting's size so it stays crisp pixel art.
 
 ## Install
 
@@ -25,7 +25,8 @@ cropped to the frame's shape, since that's usually where faces are.
 `BepInEx\config\mdbailey94.wol.custompaintings.cfg`, or the Mods menu for on/off:
 
 - `Enabled`: on or off.
-- `Chance`: share of paintings that show one of your pictures. Default `0.35`.
+- `ChancePercent`: percent of paintings that show one of your pictures. Default `0.5`, so
+  they're a rare find; raise it (up to `100`) to see them more often.
 - `FrameInset`: how many pixels of the game's frame to keep around your picture. `0` (default)
   picks about 16% of the painting's size; raise it if your picture covers the frame, lower it if
   the old canvas peeks out.

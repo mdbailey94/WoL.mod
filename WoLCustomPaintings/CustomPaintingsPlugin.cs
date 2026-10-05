@@ -16,7 +16,7 @@ namespace WoLCustomPaintings
     {
         public const string PluginGuid = "mdbailey94.wol.custompaintings";
         public const string PluginName = "Custom Paintings";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.1.1";
 
         private static ManualLogSource log;
         private static ConfigEntry<bool> modEnabled;
@@ -33,9 +33,11 @@ namespace WoLCustomPaintings
             log = Logger;
             modEnabled = Config.Bind("General", "Enabled", true,
                 "Show your pictures on some of the paintings in the trials (also in the title screen Mods menu).");
-            chance = Config.Bind("General", "Chance", 0.35f,
-                new ConfigDescription("Share of paintings that show one of your pictures (0-1).",
-                    new AcceptableValueRange<float>(0f, 1f)));
+            // A new key (it was "Chance", 0-1) so the new default replaces an already saved 0.35.
+            chance = Config.Bind("General", "ChancePercent", 0.5f,
+                new ConfigDescription("Percent of paintings that show one of your pictures (0-100). " +
+                    "The default 0.5 makes them a rare find.",
+                    new AcceptableValueRange<float>(0f, 100f)));
             frameInset = Config.Bind("General", "FrameInset", 0,
                 new ConfigDescription("Pixels of the original painting's frame to keep around your picture " +
                     "(0 = automatic). Raise it if your picture covers the frame, lower it if old canvas shows.",
@@ -85,7 +87,7 @@ namespace WoLCustomPaintings
             {
                 try
                 {
-                    if (!modEnabled.Value || pictures.Count == 0 || UnityEngine.Random.value >= chance.Value)
+                    if (!modEnabled.Value || pictures.Count == 0 || UnityEngine.Random.value * 100f >= chance.Value)
                         return;
                     Texture2D picture = pictures[UnityEngine.Random.Range(0, pictures.Count)];
                     __instance.gameObject.AddComponent<PaintingSwap>().picture = picture;
