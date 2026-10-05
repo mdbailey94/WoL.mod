@@ -32,6 +32,14 @@
       <HintPath>$(LibDir)\Rewired_Core.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(LibDir)\UnityEngine.UI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(LibDir)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="Assembly-CSharp">
       <HintPath>$(LibDir)\Assembly-CSharp.dll</HintPath>
       <Private>false</Private>
