@@ -14,7 +14,7 @@ namespace WoLExtendedStats
     {
         public const string PluginGuid = "mdbailey94.wol.extendedstats";
         public const string PluginName = "Extended Stats";
-        public const string PluginVersion = "0.4.4";
+        public const string PluginVersion = "0.4.5";
 
         private const float RefreshInterval = 0.25f;
         private const float ReferenceHeight = 1080f;
@@ -84,7 +84,8 @@ namespace WoLExtendedStats
                 "wizard stats when the cloak is highlighted.");
             runSummary = Config.Bind("General", "ShowRunSummary", true,
                 "Show post-run stats next to the end-of-run screen.");
-            infoFontSizeAdjust = Config.Bind("General", "InfoFontSizeAdjust", -2,
+            // New key name so the -4 default reaches configs that saved the old InfoFontSizeAdjust=-2.
+            infoFontSizeAdjust = Config.Bind("General", "InfoFontSizeOffset", -4,
                 new ConfigDescription("Points added to the character menu info box's font size, for the game's description " +
                     "and the stats alike (negative = smaller).", new AcceptableValueRange<int>(-10, 10)));
             infoTextSize = Config.Bind("General", "InfoTextSize", 75,
@@ -325,7 +326,11 @@ namespace WoLExtendedStats
             var shown = new string[count];
             Array.Copy(lines, offset, shown, 0, count);
             if (count < lines.Length)
-                shown[count - 1] += $"  <color=#9aa>({offset + 1}-{offset + count} of {lines.Length}, R-stick)</color>";
+            {
+                // Scroll position out of the number of positions, e.g. (1/3).
+                int positions = lines.Length - count + 1;
+                shown[count - 1] += $"  <color=#9aa>({offset + 1}/{positions})</color>";
+            }
 
             int size = Mathf.Max(8, Mathf.RoundToInt(state.OriginalFontSize * infoTextSize.Value / 100f) + infoFontSizeAdjust.Value);
             string section = $"<size={size}>{string.Join("\n", shown)}</size>";

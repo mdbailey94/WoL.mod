@@ -40,11 +40,10 @@ namespace WoLExtendedStats
         public static string Wizard(Player player, bool rich)
         {
             var lines = new List<string>();
+            // Health, shield, gold and gems are already on the game's HUD; only show what it hides.
             Health health = player.health;
             if (health != null)
             {
-                string shield = health.CurrentShieldValue > 0 ? $"  ·  Shield {health.CurrentShieldValue}" : string.Empty;
-                lines.Add($"Health {health.CurrentHealthValue}/{Value(health.healthStat):0}{shield}");
                 lines.Add($"Armor {Percent(Value(health.armorStat))}  ·  Evade {Percent(Value(health.evadeStat))}");
                 lines.Add($"Damage taken {Multiplier(Value(health.damageTakenStat))}  ·  Healing {Multiplier(Value(health.healModifierStat))}");
             }
@@ -52,9 +51,6 @@ namespace WoLExtendedStats
             Movement movement = player.movement;
             if (movement != null)
                 lines.Add($"Move speed {Value(movement.moveSpeedStat):0.#}  ·  Dash speed {Value(movement.dashSpeedStat):0.#}");
-
-            if (Player.goldWallet != null && Player.platWallet != null)
-                lines.Add(Color($"Gold {Player.goldWallet.balance}  ·  Platinum {Player.platWallet.balance}", Dim, rich));
 
             return string.Join("\n", lines.ToArray());
         }
