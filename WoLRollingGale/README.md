@@ -18,7 +18,8 @@ pull enemies inward, like Gust Burst does.
 
 ## Install
 
-1. Install BepInExPack of Legend and **LegendAPI** (both on Thunderstore).
+1. Install BepInExPack of Legend, **LegendAPI** and **HookGenPatcher** (all on Thunderstore).
+   Without HookGenPatcher, LegendAPI fails to load with a `TypeLoadException`.
 2. Download `WoLRollingGale.zip` from the [latest release](https://github.com/mdbailey94/wol.mod/releases/tag/latest)
    and unzip it into your Wizard of Legend folder.
 3. Buy it from the arcana shop in the Plaza, or check it in the spell book.
