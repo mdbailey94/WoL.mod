@@ -15,7 +15,7 @@ namespace WoLModMenu
     {
         public const string PluginGuid = "mdbailey94.wol.modmenu";
         public const string PluginName = "Mod Menu";
-        public const string PluginVersion = "0.1.2";
+        public const string PluginVersion = "0.1.3";
 
         private const string ModGuidPrefix = "mdbailey94.wol.";
         private const float ReferenceHeight = 1080f;
@@ -26,6 +26,13 @@ namespace WoLModMenu
         private static readonly string[] SelectButtons = { "back", "view", "select", "share", "create", "-", "minus" };
         private static readonly string[] ConfirmButtons = { "a", "cross" };
         private static readonly string[] CancelButtons = { "b", "circle" };
+
+        // XInput pads Rewired doesn't recognise name their buttons "Button 0".. but keep XInput's
+        // order: A, B, X, Y, LB, RB, Back/View, Start, ...
+        private const int XInputA = 0;
+        private const int XInputB = 1;
+        private const int XInputBack = 6;
+        private static readonly HashSet<string> loggedJoysticks = new HashSet<string>();
 
         private class ModToggle
         {
@@ -91,13 +98,13 @@ namespace WoLModMenu
 
             if (!open)
             {
-                if (Input.GetKeyDown(KeyCode.M) || AnyButtonDown(SelectButtons))
+                if (Input.GetKeyDown(KeyCode.M) || AnyButtonDown(SelectButtons, XInputBack))
                     Open();
                 return;
             }
 
             if (Input.GetKeyDown(KeyCode.M) || Input.GetKeyDown(KeyCode.Escape)
-                || AnyButtonDown(SelectButtons) || AnyButtonDown(CancelButtons))
+                || AnyButtonDown(SelectButtons, XInputBack) || AnyButtonDown(CancelButtons, XInputB))
             {
                 Close();
                 return;
@@ -108,7 +115,7 @@ namespace WoLModMenu
             else if (Direction(InputDirection.Down, KeyCode.DownArrow))
                 selected = (selected + 1) % mods.Count;
             else if (Direction(InputDirection.Left, KeyCode.LeftArrow) || Direction(InputDirection.Right, KeyCode.RightArrow)
-                     || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space) || AnyButtonDown(ConfirmButtons))
+                     || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space) || AnyButtonDown(ConfirmButtons, XInputA))
                 Toggle(selected);
         }
 
@@ -236,7 +243,7 @@ namespace WoLModMenu
             }
         }
 
-        private static bool AnyButtonDown(string[] names)
+        private bool AnyButtonDown(string[] names, int xinputIndex)
         {
             if (!ReInput.isReady)
                 return false;
@@ -244,16 +251,45 @@ namespace WoLModMenu
             {
                 if (joystick == null || joystick.Buttons == null)
                     continue;
-                foreach (Rewired.Controller.Button button in joystick.Buttons)
+                LogJoystick(joystick);
+
+                IList<Rewired.Controller.Button> buttons = joystick.Buttons;
+                bool generic = HasGenericNames(joystick);
+                for (int i = 0; i < buttons.Count; i++)
                 {
-                    if (button == null || !button.justPressed || string.IsNullOrEmpty(button.name))
+                    Rewired.Controller.Button button = buttons[i];
+                    if (button == null || !button.justPressed)
                         continue;
-                    string name = button.name.Trim().ToLowerInvariant();
-                    if (Array.IndexOf(names, name) >= 0)
+                    if (generic ? i == xinputIndex : MatchesName(button.name, names))
                         return true;
                 }
             }
             return false;
+        }
+
+        private static bool MatchesName(string buttonName, string[] names) =>
+            !string.IsNullOrEmpty(buttonName) && Array.IndexOf(names, buttonName.Trim().ToLowerInvariant()) >= 0;
+
+        // Unrecognised pads get "Button 0", "Button 1"... instead of A/B/Back.
+        private static bool HasGenericNames(Joystick joystick)
+        {
+            foreach (Rewired.Controller.Button button in joystick.Buttons)
+            {
+                if (button != null && !string.IsNullOrEmpty(button.name)
+                    && !button.name.StartsWith("Button ", StringComparison.OrdinalIgnoreCase))
+                    return false;
+            }
+            return true;
+        }
+
+        private void LogJoystick(Joystick joystick)
+        {
+            if (!loggedJoysticks.Add(joystick.name + "#" + joystick.id))
+                return;
+            string mode = HasGenericNames(joystick)
+                ? $"generic names, using XInput order (A = Button {XInputA}, B = Button {XInputB}, Select = Button {XInputBack})"
+                : "named buttons";
+            Logger.LogInfo($"Controller '{joystick.name}': {joystick.Buttons.Count} buttons, {mode}");
         }
 
         private void OnGUI()

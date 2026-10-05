@@ -52,8 +52,10 @@ In `BepInEx\config\mdbailey94.wol.extendedstats.cfg`:
 |---------|---------|-|
 | `Enabled` | true | Turn the whole mod on/off (also in the title screen Mods menu) |
 | `Toggle` | F2 | Pin/unpin the full overlay |
+| `RightStickAxis` | -1 | Controller axis used to scroll the info box; -1 detects it (XInput pads use axis 3) |
 | `Visible` | false | Overlay pinned (remembers your last F2 toggle) |
 | `ShowInCharacterMenu` | true | Add stats to the character menu's info box |
+| `InfoFontSizeAdjust` | -2 | Points added to the whole info box's font (game description and stats); negative = smaller |
 | `InfoTextSize` | 75 | Size of the added stats, as % of the game's text (40-100) |
 | `InfoVisibleLines` | 3 | Most stat lines shown at once before scrolling (1-20); fewer if the box is smaller |
 | `ShowRunSummary` | true | Show the post-run stats panel |

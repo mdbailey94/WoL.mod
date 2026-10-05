@@ -9,6 +9,13 @@ namespace WoLExtendedStats
     // aim vector isn't usable for this: it can fall back to the left stick or the last direction.
     public static class RightStick
     {
+        // XInput pads (Xbox and most PC controllers) that Rewired doesn't recognise get generic
+        // names ("Axis 0".."Axis 5") but always the same order: left X/Y, right X/Y, triggers.
+        private const int XInputRightStickY = 3;
+
+        // Set from config: a specific axis index to use instead of auto-detecting (-1 = auto).
+        public static int OverrideIndex = -1;
+
         // Each joystick's axis list and the player's input scheme are logged once, so a log
         // shows what this controller calls its sticks if scrolling doesn't respond.
         private static readonly HashSet<string> loggedJoysticks = new HashSet<string>();
@@ -47,21 +54,33 @@ namespace WoLExtendedStats
                 if (joystick == null || joystick.Axes == null)
                     continue;
 
-                Rewired.Controller.Axis match = null;
-                foreach (Rewired.Controller.Axis axis in joystick.Axes)
-                {
-                    if (axis != null && IsRightStickVertical(axis.name))
-                    {
-                        match = axis;
-                        break;
-                    }
-                }
+                Rewired.Controller.Axis match = FindAxis(joystick);
                 LogJoystick(joystick, match);
 
                 if (match != null && Math.Abs(match.value) > Math.Abs(strongest))
                     strongest = match.value;
             }
             return strongest;
+        }
+
+        private static Rewired.Controller.Axis FindAxis(Joystick joystick)
+        {
+            IList<Rewired.Controller.Axis> axes = joystick.Axes;
+            if (OverrideIndex >= 0)
+                return OverrideIndex < axes.Count ? axes[OverrideIndex] : null;
+
+            foreach (Rewired.Controller.Axis axis in axes)
+            {
+                if (axis != null && IsRightStickVertical(axis.name))
+                    return axis;
+            }
+
+            bool genericNames = axes.All(a => a == null || string.IsNullOrEmpty(a.name)
+                || a.name.StartsWith("Axis ", StringComparison.OrdinalIgnoreCase));
+            bool xinput = joystick.name != null && joystick.name.IndexOf("xinput", StringComparison.OrdinalIgnoreCase) >= 0;
+            if ((xinput || genericNames) && axes.Count > XInputRightStickY)
+                return axes[XInputRightStickY];
+            return null;
         }
 
         private static void LogJoystick(Joystick joystick, Rewired.Controller.Axis match)
