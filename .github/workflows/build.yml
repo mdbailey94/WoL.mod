@@ -76,4 +76,4 @@ jobs:
           gh release create latest dist/*.zip \
             --target "$GITHUB_SHA" \
             --title "Latest build" \
-            --notes "Built from ${GITHUB_SHA::7}. Unzip into your Wizard of Legend folder (the one with WizardOfLegend.exe). Skill mods also need LegendAPI installed."
+            --notes "Built from ${GITHUB_SHA::7}. Unzip into your Wizard of Legend folder (the one with WizardOfLegend.exe). Skill mods also need LegendAPI and HookGenPatcher installed."
