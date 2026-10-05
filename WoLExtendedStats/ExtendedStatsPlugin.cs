@@ -14,7 +14,7 @@ namespace WoLExtendedStats
     {
         public const string PluginGuid = "mdbailey94.wol.extendedstats";
         public const string PluginName = "Extended Stats";
-        public const string PluginVersion = "0.4.2";
+        public const string PluginVersion = "0.4.3";
 
         private const float RefreshInterval = 0.25f;
         private const float ReferenceHeight = 1080f;
@@ -90,6 +90,10 @@ namespace WoLExtendedStats
             infoMaxLines = Config.Bind("General", "InfoVisibleLines", 3,
                 new ConfigDescription("Most stat lines shown in the info box at once; scroll for the rest " +
                     "(right stick, Page Up/Down or mouse wheel).", new AcceptableValueRange<int>(1, 20)));
+            RightStick.OverrideIndex = Config.Bind("Hotkeys", "RightStickAxis", -1,
+                new ConfigDescription("Controller axis number used to scroll the info box; -1 = detect automatically. " +
+                    "The log lists your controller's axes (search for 'axes:').",
+                    new AcceptableValueRange<int>(-1, 15))).Value;
             panelScale = Config.Bind("General", "Scale", 1f,
                 new ConfigDescription("Overlay and summary panel size multiplier.", new AcceptableValueRange<float>(0.5f, 2f)));
 
