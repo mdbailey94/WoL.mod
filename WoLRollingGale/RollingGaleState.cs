@@ -4,7 +4,7 @@ using UnityEngine;
 namespace WoLRollingGale
 {
     // Fires a line of wind bursts that step forward along the aim direction, each a little
-    // further out and a little larger. Built on the same calls as SillySkills' Gale Burst.
+    // further out and a little larger, and each pulsing a second time a moment later. Built on the same calls as SillySkills' Gale Burst.
     public class RollingGaleState : Player.SkillState
     {
         public new static string staticID = "RollingGale";
@@ -14,6 +14,8 @@ namespace WoLRollingGale
         private const float FirstBurstScale = 2.5f;
         private const float BurstScaleGrowth = 0.5f;
         private const float BurstInterval = 0.12f;
+        // Each burst pulses again one interval later at the same spot, so the pull lasts longer.
+        private const float EchoScale = 0.85f;
 
         private int stopwatchID;
         private int burstCount;
@@ -45,11 +47,12 @@ namespace WoLRollingGale
 
             burstCount = IsEmpowered ? 4 : 3;
             burstsFired = 0;
+            // One extra interval for the last burst's echo.
             stopwatchID = ChaosStopwatch.Begin(
                 timeValue: 0.05f,
                 useInterval: true,
                 intervalTime: BurstInterval,
-                totalIntervals: burstCount);
+                totalIntervals: burstCount + 1);
 
             parent.FaceTarget(origin + direction);
             parent.anim.PlayDirectional(parent.GSlamAnimStr, -1, animExecTime);
@@ -66,16 +69,20 @@ namespace WoLRollingGale
                     base.ExecuteSkill();
                     break;
                 case StopwatchState.Ready:
+                    // Echo the previous burst, then fire the next one further out.
+                    if (burstsFired > 0 && burstsFired <= burstCount)
+                        CreateBurst(burstsFired - 1, true);
                     if (burstsFired < burstCount)
-                        CreateBurst(burstsFired++);
+                        CreateBurst(burstsFired, false);
+                    burstsFired++;
                     break;
             }
         }
 
-        private void CreateBurst(int index)
+        private void CreateBurst(int index, bool echo)
         {
             Vector2 position = origin + direction * (FirstBurstDistance + BurstSpacing * index);
-            float scale = FirstBurstScale + BurstScaleGrowth * index;
+            float scale = (FirstBurstScale + BurstScaleGrowth * index) * (echo ? EchoScale : 1f);
 
             WindBurst burst = WindBurst.CreateBurst(position, parent.skillCategory, skillID, 1, scale);
             burst.emitParticles = false;
@@ -87,6 +94,8 @@ namespace WoLRollingGale
             };
             PoolManager.GetPoolItem<ParticleEffect>("AirVortex").Emit(new int?(1), new Vector3?(position), vortex,
                 new Vector3?(new Vector3(0f, 0f, Random.Range(0f, 360f))), 0f, null, null);
+            if (echo)
+                return;
             PoolManager.GetPoolItem<ParticleEffect>("WindBurstEffect").Emit(new int?(2), new Vector3?(position), null, null, 0f, null, null);
             PoolManager.GetPoolItem<DustEmitter>().EmitCircle(60, 1.5f, -8f, -1f, new Vector3?(position), null);
 

@@ -15,7 +15,7 @@ namespace WoLAscension
     {
         public const string PluginGuid = "mdbailey94.wol.ascension";
         public const string PluginName = "Ascension";
-        public const string PluginVersion = "0.2.1";
+        public const string PluginVersion = "0.2.2";
 
         private const string PlayerDamageTakenMod = "Ascension_DamageTaken";
         private const string PlayerHealingMod = "Ascension_Healing";
@@ -24,7 +24,7 @@ namespace WoLAscension
         private const string EnemySpeedMod = "Ascension_EnemySpeed";
 
         private const float ApplyInterval = 0.25f;
-        private const float HubSearchInterval = 1f;
+        private const float TrialCheckInterval = 0.5f;
         // Ignore confirm presses right after opening, so the button that entered the portal
         // doesn't also start the run.
         private const float ConfirmDelay = 0.3f;
@@ -36,9 +36,11 @@ namespace WoLAscension
         private ConfigEntry<bool> showInRun;
 
         private readonly List<Player> players = new List<Player>();
-        private PlayerRoomUI hubUI;
-        private float nextHubSearch;
-        private bool inHub;
+        // Whether the current scene is part of the Chaos Trials (a tier floor or boss arena).
+        private bool inTrials;
+        private float nextTrialCheck;
+        // Set by a level load out of the trials (death, quitting, finishing); handled in Tick.
+        private volatile bool runEnded;
         private float nextApply;
         private Wallet hookedWallet;
 
@@ -74,7 +76,11 @@ namespace WoLAscension
             }
 
             GameController.levelLoadEventHandlers += (next, previous) =>
+            {
                 Logger.LogInfo($"Level load: '{previous}' -> '{next}'");
+                if (IsTrialScene(previous) && !IsTrialScene(next))
+                    runEnded = true;
+            };
             Logger.LogInfo($"{PluginName} {PluginVersion} loaded (last level {level.Value})");
         }
 
@@ -104,7 +110,7 @@ namespace WoLAscension
                 return true;
 
             string destination = loader.nextLevelName;
-            bool startsRun = NextLevelLoader.InTierScene(destination) && !NextLevelLoader.InTierScene();
+            bool startsRun = IsTrialScene(destination) && !IsTrialScene();
             Logger.LogInfo($"Portal to '{destination}' (starts a run: {startsRun})");
             if (!startsRun)
                 return true;
@@ -136,20 +142,25 @@ namespace WoLAscension
             }
 
             RefreshPlayers();
-            bool hubNow = players.Count > 0 && FindHub();
-            if (hubNow && !inHub)
+            if (runEnded)
             {
-                Logger.LogInfo("Entered the hub - Ascension modifiers off");
+                runEnded = false;
+                Logger.LogInfo("Left the trials - Ascension modifiers off");
                 runLevel = -1;
                 RemovePlayerMods();
             }
-            inHub = hubNow;
+            if (Time.unscaledTime >= nextTrialCheck)
+            {
+                nextTrialCheck = Time.unscaledTime + TrialCheckInterval;
+                inTrials = IsTrialScene();
+            }
 
             if (!modEnabled.Value || players.Count == 0 || GameController.pvpOn)
                 return;
 
-            // Backup: a run started without the portal prompt (e.g. a different entrance) - ask now.
-            if (runLevel < 0 && !inHub && AnyEnemy())
+            // Backup: on a trial floor without having picked at the portal (e.g. a different
+            // entrance) - ask now. Only on trial floors, so the plaza's training dummies don't count.
+            if (runLevel < 0 && inTrials && AnyEnemy())
             {
                 Logger.LogInfo("Run started without the portal prompt; asking now");
                 OpenPrompt(null);
@@ -167,15 +178,18 @@ namespace WoLAscension
             ApplyEnemyMods();
         }
 
-        // The hub is the house with the spellbook, wardrobe, relic chest and loadout.
-        private bool FindHub()
+        // The Chaos Trials' floors and boss arenas, by the game's own scene checks. The house, the
+        // plaza and the title screen are outside. An empty name means the current scene.
+        private static bool IsTrialScene(string levelName = "")
         {
-            if (Time.unscaledTime >= nextHubSearch)
+            try
             {
-                nextHubSearch = Time.unscaledTime + HubSearchInterval;
-                hubUI = FindObjectOfType<PlayerRoomUI>();
+                return NextLevelLoader.InTierScene(levelName) || NextLevelLoader.InBossScene(levelName);
             }
-            return hubUI != null && hubUI.gameObject.activeInHierarchy;
+            catch
+            {
+                return false;
+            }
         }
 
         // ---- Prompt ----
@@ -347,7 +361,7 @@ namespace WoLAscension
         {
             if (promptOpen)
                 DrawPrompt();
-            else if (modEnabled.Value && showInRun.Value && runLevel > 0 && players.Count > 0 && !inHub)
+            else if (modEnabled.Value && showInRun.Value && runLevel > 0 && players.Count > 0 && inTrials)
                 DrawRunTag();
         }
 

@@ -1,6 +1,6 @@
 # Ascension (Wizard of Legend)
 
-Ascension levels 1–10 for harder runs. Pick your level in the hub; each level adds a modifier on
+Ascension levels 1–10 for harder runs. Pick your level as you enter the Chaos Trials; each level adds a modifier on
 top of the ones before it.
 
 | Level | Adds |
@@ -18,7 +18,7 @@ top of the ones before it.
 
 ## Choosing a level
 
-When you step into the portal that starts a run, the game pauses and an **ASCENSION** prompt
+When you step into the portal into the Chaos Trials, the game pauses and an **ASCENSION** prompt
 appears, drawn in the game's pixel style with the game's own font:
 
 - **Left / right** (either stick, the d-pad, arrow keys, or click the arrows): change the level.
@@ -27,11 +27,12 @@ appears, drawn in the game's pixel style with the game's own font:
 
 It starts at the level you picked last time. Level 0 (OFF) is normal difficulty. The level is
 locked for the run, a small "ASCENSION n" tag shows in the corner, and all modifiers come off when
-you're back in the hub. The modifiers use the game's own stat system, so they stack normally with
+you leave the trials (dying, quitting or finishing). The modifiers use the game's own stat system, so they stack normally with
 relics. You can also turn the whole mod off in the title screen Mods menu.
 
-If a run starts from somewhere the portal hook doesn't catch, the prompt appears (paused) as soon
-as the first enemies do.
+The prompt only appears for the trials: leaving your house or fighting the plaza's training
+dummies never brings it up. If a run starts from somewhere the portal hook doesn't catch, it
+appears (paused) as soon as the first enemies on a trial floor do.
 
 ## Install
 
@@ -45,4 +46,4 @@ and unzip it into your Wizard of Legend folder. Only BepInEx is needed.
 ## Troubleshooting
 
 `BepInEx\LogOutput.log` records each portal ("Portal to '...' (starts a run: true)"),
-"Starting run at Ascension n", "Entered the hub", and every level load.
+"Starting run at Ascension n", "Left the trials", and every level load.

@@ -1,15 +1,38 @@
-# Slingshot (Wizard of Legend)
+# Slingshot and Blazing Slingshot (Wizard of Legend)
 
-A new **dash** arcana, added with [LegendAPI](https://github.com/yekoc/LegendAPI).
+Two new **dash** arcana, added with [LegendAPI](https://github.com/yekoc/LegendAPI). Both charge
+the same way; they differ in what the launch does.
 
-> **Slingshot**: Hold to pull back and charge, then release to launch yourself across the room!
+### Charging (both)
 
 - **Tap** dash: a normal dash.
 - **Hold** dash: your wizard hops backward, like pulling back a slingshot, then holds that pose
   while dust builds at their feet (up to 1 second). Keep aiming to turn and line up the shot.
 - **Release**: launch the way you're aiming. A full charge gives **+60% dash speed and +40% dash
-  time** (about 2.2× the distance), and the launch spot bursts with wind that knocks nearby
-  enemies away. Holding the full second launches you automatically.
+  time** (about 2.2× the distance). Holding the full second launches you automatically.
+
+### Slingshot (Air)
+
+> **Slingshot**: Hold to pull back and charge, then release to launch yourself across the room,
+> blasting enemies away where you leave and land!
+
+Wind bursts go off **where you leave and where you land**, knocking nearby enemies away: hard at
+the launch, gentler where you land. Both get bigger with more charge.
+
+### Blazing Slingshot (Fire)
+
+> **Blazing Slingshot**: Hold to pull back and charge, then release to blitz across the room in
+> flames, leaving a vacuum that sucks enemies in!
+
+- You rush forward wrapped in **Blazing Blitz's flame trail**, dropping flame bursts that pull
+  nearby enemies into your path.
+- Where you land, a **flame vacuum** keeps sucking everyone nearby in for about half a second.
+- Everything scales with charge, and it's Fire, so it can burn.
+
+### Cooldown
+
+Both have **one charge** that recharges in **10 s**. A tap uses
+the charge too, since it's the same dash.
 
 You're not invulnerable while charging, so time it. Careful hopping backward near a ledge.
 
@@ -28,8 +51,8 @@ Changes apply the next time the game starts.
 
 Needs BepInExPack of Legend, **LegendAPI** and **HookGenPatcher**. Download `WoLSlingshotDash.zip`
 from the [latest release](https://github.com/mdbailey94/wol.mod/releases/tag/latest) and unzip it
-into your Wizard of Legend folder. Find it in the arcana shop, or install **Unlock Mod Content** to
-have it unlocked right away.
+into your Wizard of Legend folder. Find them in the arcana shop, or install **Unlock Mod Content** to
+have them unlocked right away.
 
 ## Troubleshooting
 
