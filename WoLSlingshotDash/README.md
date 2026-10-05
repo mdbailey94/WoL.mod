@@ -16,19 +16,23 @@ the same way; they differ in what the launch does.
 > **Slingshot**: Hold to pull back and charge, then release to launch yourself across the room,
 > blasting enemies away where you leave and land!
 
-Wind bursts go off **where you leave and where you land**, knocking nearby enemies hard away.
-Both get bigger with more charge.
+Wind bursts go off **where you leave and where you land**, knocking nearby enemies away: hard at
+the launch, gentler where you land. Both get bigger with more charge.
 
 ### Blazing Slingshot (Fire)
 
-> **Blazing Slingshot**: Hold to pull back and charge, then release to drive a long flaming punch
-> across the room, sucking enemies in behind you!
+> **Blazing Slingshot**: Hold to pull back and charge, then release to blitz across the room in
+> flames, leaving a vacuum that sucks enemies in!
 
-- A **long flaming punch** rides out in front of you for the whole dash. Enemies it hits are
-  thrown **backward, behind you**.
-- You leave a **trail of flame bursts** that pull nearby enemies into your path.
-- Where you land, a bigger flame burst **pulls everyone nearby into a pile**.
+- You rush forward wrapped in **Blazing Blitz's flame trail**, dropping flame bursts that pull
+  nearby enemies into your path.
+- Where you land, a **flame vacuum** keeps sucking everyone nearby in for about half a second.
 - Everything scales with charge, and it's Fire, so it can burn.
+
+### Cooldown
+
+Both have **one charge**: Slingshot recharges in **4 s**, Blazing Slingshot in **5 s**. A tap uses
+the charge too, since it's the same dash.
 
 You're not invulnerable while charging, so time it. Careful hopping backward near a ledge.
 

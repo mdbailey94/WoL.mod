@@ -1,3 +1,4 @@
+using System.Collections;
 using System.IO;
 using System.Reflection;
 using BepInEx;
@@ -14,7 +15,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.4.0";
+        public const string PluginVersion = "0.5.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -22,7 +23,16 @@ namespace WoLSlingshotDash
         private static ConfigEntry<float> hopDistance;
         private ConfigEntry<bool> modEnabled;
 
+        private static SlingshotDashPlugin instance;
+
         public static void Log(string message) => log?.LogInfo(message);
+
+        // Runs effects that outlive the dash state (e.g. Blazing Slingshot's vacuum).
+        public static void Run(IEnumerator routine)
+        {
+            if (instance != null)
+                instance.StartCoroutine(routine);
+        }
 
         public static float ChargePoseFrame => Mathf.Clamp01(chargePoseFrame?.Value ?? 0.4f);
         public static float HopDistance => Mathf.Max(0f, hopDistance?.Value ?? 1.5f);
@@ -47,6 +57,7 @@ namespace WoLSlingshotDash
         private void Awake()
         {
             log = Logger;
+            instance = this;
             modEnabled = Config.Bind("General", "Enabled", true,
                 "Offer Slingshot and Blazing Slingshot in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
@@ -75,10 +86,11 @@ namespace WoLSlingshotDash
                     elementType = new[] { "Air" },
                     subElementType = new[] { "Air" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
-                    damage = new[] { 8 },
-                    cooldown = new[] { 0.6f },
-                    // Positive knockback pushes enemies away from the launch and landing points.
-                    knockbackMultiplier = new[] { 55f },
+                    // Level 1 is the launch burst, level 2 the landing burst.
+                    damage = new[] { 8, 8 },
+                    cooldown = new[] { 4f },
+                    // Positive knockback pushes enemies away; gentler where you land.
+                    knockbackMultiplier = new[] { 55f, 22f },
                     hitStunDurationModifier = new[] { 1.2f },
                     sameAttackImmunityTime = new[] { 0.25f }
                 },
@@ -90,8 +102,8 @@ namespace WoLSlingshotDash
             {
                 ID = BlazingSlingshotState.staticID,
                 displayName = "Blazing Slingshot",
-                description = "Hold to pull back and charge, then release to drive a long flaming punch across the room, sucking enemies in behind you!",
-                enhancedDescription = "A bigger punch and a hotter trail!",
+                description = "Hold to pull back and charge, then release to blitz across the room in flames, leaving a vacuum that sucks enemies in!",
+                enhancedDescription = "A hotter trail and a stronger vacuum!",
                 icon = LoadIcon("icon_fire.png"),
                 tier = 2,
                 stateType = typeof(BlazingSlingshotState),
@@ -101,13 +113,13 @@ namespace WoLSlingshotDash
                     elementType = new[] { "Fire" },
                     subElementType = new[] { "Fire" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
-                    damage = new[] { 9 },
-                    cooldown = new[] { 0.6f },
-                    // Negative knockback pulls: bursts suck enemies toward them, and the punch
-                    // (its direction set to the dash) throws enemies backward, behind the wizard.
-                    knockbackMultiplier = new[] { -26f },
+                    // Level 1 is the trail, level 2 the vacuum's pulses where you land.
+                    damage = new[] { 9, 4 },
+                    cooldown = new[] { 5f },
+                    // Negative knockback pulls enemies toward each burst.
+                    knockbackMultiplier = new[] { -26f, -32f },
                     hitStunDurationModifier = new[] { 1.2f },
-                    // Short, so the punch and trail keep grabbing enemies through the whole dash.
+                    // Short, so the trail and vacuum keep grabbing enemies.
                     sameAttackImmunityTime = new[] { 0.12f }
                 },
                 priceMultiplier = 3,

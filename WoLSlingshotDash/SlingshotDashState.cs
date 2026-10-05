@@ -3,7 +3,8 @@ using UnityEngine;
 namespace WoLSlingshotDash
 {
     // Slingshot (Air): a charged launch bursts with wind where you leave and where you land,
-    // knocking nearby enemies away. Bigger with more charge.
+    // knocking nearby enemies away. Bigger with more charge. The landing burst uses skill level 2,
+    // which has gentler knockback.
     public class SlingshotDashState : ChargedDashState
     {
         public new static string staticID = "SlingshotDash";
@@ -21,7 +22,7 @@ namespace WoLSlingshotDash
         {
             Vector3 position = parent.transform.position;
             float scale = (landing ? 1.75f : 1.5f) + 1.75f * charge;
-            WindBurst burst = WindBurst.CreateBurst(position, parent.skillCategory, skillID, 1, scale);
+            WindBurst burst = WindBurst.CreateBurst(position, parent.skillCategory, skillID, landing ? 2 : 1, scale);
             burst.emitParticles = false;
             PoolManager.GetPoolItem<ParticleEffect>("WindBurstEffect").Emit(new int?(2 + Mathf.RoundToInt(3 * charge)),
                 new Vector3?(position), null, null, 0f, null, null);

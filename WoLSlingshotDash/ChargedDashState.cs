@@ -36,6 +36,8 @@ namespace WoLSlingshotDash
         protected ChargedDashState(string skillID, FSM fsm, Player parentPlayer) : base(skillID, fsm, parentPlayer)
         {
             applyStopElementStatus = true;
+            // One dash charge, so the long cooldown means one slingshot at a time.
+            InitChargeSkillSettings(1, 0f, skillData, this);
         }
 
         // Right after a charged launch starts, still at the launch spot; inputVector is the aim.

@@ -1,25 +1,25 @@
+using System.Collections;
 using UnityEngine;
 
 namespace WoLSlingshotDash
 {
-    // Blazing Slingshot (Fire): a charged launch drives a long flaming punch ahead of you for the
-    // whole dash, and leaves a trail of flame bursts that suck enemies in behind you. Where you
-    // land, a bigger burst pulls everyone nearby into a pile. Bigger with more charge.
+    // Blazing Slingshot (Fire): a charged launch rushes you forward wrapped in Blazing Blitz's
+    // flame trail, dropping flame bursts that pull enemies into your path. Where you land, a flame
+    // vacuum keeps sucking everyone nearby in for a moment. Bigger with more charge.
     //
-    // The skill's knockback is negative (a pull, like Gust Burst), so bursts pull toward their
-    // centre. The punch's knockback direction is overridden with the dash direction, which with
-    // the negative strength throws enemies it hits backward, behind the wizard.
+    // The skill's knockback is negative (a pull, like Gust Burst), so every burst pulls toward its
+    // centre. Level 1 is the trail; level 2 is the vacuum's pulses.
     public class BlazingSlingshotState : ChargedDashState
     {
         public new static string staticID = "BlazingSlingshot";
 
-        // The punch is respawned along the dash so it stays out in front the whole way.
-        private const float PunchInterval = 0.06f;
         private const float TrailInterval = 0.09f;
+        private const float FlameInterval = 0.03f;
+        private const int VacuumPulses = 4;
+        private const float VacuumPulseInterval = 0.15f;
 
-        private Vector2 direction;
-        private float nextPunch;
         private float nextTrail;
+        private float nextFlame;
 
         public BlazingSlingshotState(FSM fsm, Player parentPlayer) : base(staticID, fsm, parentPlayer)
         {
@@ -27,50 +27,81 @@ namespace WoLSlingshotDash
 
         protected override void OnLaunch(float charge)
         {
-            direction = inputVector.sqrMagnitude > 0.01f
-                ? inputVector.normalized
-                : Entity.GetFacingDirectionVector(parent.facingDirection).normalized;
-            nextPunch = 0f;
-            nextTrail = TrailInterval;
-            Punch(charge);
+            nextTrail = 0f;
+            nextFlame = 0f;
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(parent.transform.position), null, 24f, -1f,
                 0.9f - 0.2f * charge, false);
         }
 
         protected override void WhileDashing(float charge)
         {
-            nextPunch -= Time.deltaTime;
+            Vector3 position = parent.transform.position;
+            nextFlame -= Time.deltaTime;
+            if (nextFlame <= 0f)
+            {
+                nextFlame = FlameInterval;
+                EmitBlitzFlames(position, 3 + Mathf.RoundToInt(4 * charge));
+            }
             nextTrail -= Time.deltaTime;
-            if (nextPunch <= 0f)
-                Punch(charge);
             if (nextTrail <= 0f)
             {
                 nextTrail = TrailInterval;
-                FlameBurst.CreateBurst(parent.transform.position, parent.skillCategory, skillID, 1, 1.25f + charge, true);
+                FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1, 1.25f + charge, true);
             }
         }
 
         protected override void OnLand(float charge)
         {
-            FlameBurst.CreateBurst(parent.transform.position, parent.skillCategory, skillID, 1, 2f + 1.5f * charge, true);
+            Vector3 position = parent.transform.position;
+            GameObject vacuum = null;
+            try
+            {
+                VacuumFlameSmall flame = ChaosInst<VacuumFlameSmall>(VacuumFlameSmall.Prefab, new Vector2?(position), null, null);
+                vacuum = flame != null ? flame.gameObject : null;
+            }
+            catch (System.Exception e)
+            {
+                SlingshotDashPlugin.Log($"Vacuum flame effect unavailable: {e.Message}");
+            }
+            // The dash state ends here, so the vacuum runs on the plugin.
+            SlingshotDashPlugin.Run(Vacuum(position, 2f + 1.5f * charge, parent.skillCategory, skillID, vacuum));
         }
 
-        // A long fist of flame out in front, pointed along the dash.
-        private void Punch(float charge)
+        private static IEnumerator Vacuum(Vector3 position, float scale, string skillCategory, string id, GameObject vacuum)
         {
-            nextPunch = PunchInterval;
-            Vector2 origin = parent.attackOriginTrans != null
-                ? (Vector2)parent.attackOriginTrans.position
-                : (Vector2)parent.transform.position;
-            FlamePunch punch = ChaosInst<FlamePunch>(FlamePunch.Prefab, new Vector2?(origin + direction * 0.5f),
-                new Quaternion?(Globals.GetRotationQuaternion(direction)), null);
-            if (punch == null)
-                return;
-            punch.SetScale(1.5f + 1.5f * charge);
-            if (punch.attack != null)
+            for (int i = 0; i < VacuumPulses; i++)
             {
-                punch.attack.SetAttackInfo(parent.skillCategory, skillID, 1, false);
-                punch.attack.knockbackOverwriteVector = direction;
+                FlameBurst.CreateBurst(position, skillCategory, id, 2, scale, true);
+                EmitBlitzFlames(position, 10);
+                yield return new WaitForSeconds(VacuumPulseInterval);
+            }
+            if (vacuum != null)
+            {
+                VacuumFlameSmall flame = vacuum.GetComponent<VacuumFlameSmall>();
+                try
+                {
+                    if (flame != null)
+                        flame.CleanUp();
+                }
+                catch
+                {
+                }
+                if (vacuum != null && vacuum.activeSelf)
+                    Object.Destroy(vacuum);
+            }
+        }
+
+        // The flame particles Blazing Blitz trails behind the wizard.
+        private static void EmitBlitzFlames(Vector3 position, int count)
+        {
+            try
+            {
+                FireBurst fire = PoolManager.GetPoolItem<FireBurst>();
+                if (fire != null)
+                    fire.EmitSingle(new int?(count), new Vector3?(position));
+            }
+            catch
+            {
             }
         }
     }
