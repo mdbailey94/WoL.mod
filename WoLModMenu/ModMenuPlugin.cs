@@ -15,7 +15,7 @@ namespace WoLModMenu
     {
         public const string PluginGuid = "mdbailey94.wol.modmenu";
         public const string PluginName = "Mod Menu";
-        public const string PluginVersion = "0.1.1";
+        public const string PluginVersion = "0.1.2";
 
         private const string ModGuidPrefix = "mdbailey94.wol.";
         private const float ReferenceHeight = 1080f;
@@ -40,6 +40,8 @@ namespace WoLModMenu
         private bool open;
         private int selected;
         private int reenableTitleFrame = -1;
+        // The title screen we paused while open, so we only ever re-enable what we disabled.
+        private TitleScreen pausedTitle;
         private string lastTitleStatus;
 
         private GUIStyle textStyle;
@@ -70,8 +72,9 @@ namespace WoLModMenu
             // button that closed us doesn't also act on it.
             if (reenableTitleFrame >= 0 && Time.frameCount >= reenableTitleFrame)
             {
-                if (titleScreen != null)
-                    titleScreen.enabled = true;
+                if (pausedTitle != null)
+                    pausedTitle.enabled = true;
+                pausedTitle = null;
                 reenableTitleFrame = -1;
             }
 
@@ -109,29 +112,60 @@ namespace WoLModMenu
                 Toggle(selected);
         }
 
+        // True outside a run (no active players), i.e. the title screen and other front-end menus,
+        // except while the game's own Options screen is open. Finding the title screen itself is
+        // only needed to pause its input while our panel is open.
         private bool OnTitleMenu()
         {
-            if (titleScreen == null && Time.unscaledTime >= nextTitleSearch)
+            if (Time.unscaledTime >= nextTitleSearch)
             {
                 nextTitleSearch = Time.unscaledTime + FindTitleInterval;
-                titleScreen = FindObjectOfType<TitleScreen>();
+                titleScreen = FindTitleScreen();
             }
-            // Show on the title screen unless the game's own Options screen is up. We disable the
-            // title screen ourselves while open, so don't require it enabled then.
-            bool onTitle = titleScreen != null && titleScreen.gameObject.activeInHierarchy
-                && (open || titleScreen.enabled)
-                && titleScreen.currentState != TitleScreen.TitleScreenState.Options;
-            LogTitleStatus(onTitle);
+
+            bool inRun = AnyActivePlayer();
+            bool inOptions = titleScreen != null && titleScreen.gameObject.activeInHierarchy
+                && titleScreen.currentState == TitleScreen.TitleScreenState.Options;
+            bool onTitle = !inRun && !inOptions;
+            LogTitleStatus(inRun, onTitle);
             return onTitle;
         }
 
-        // Logs only when something changes, so a log shows why the panel did or didn't appear.
-        private void LogTitleStatus(bool onTitle)
+        // Includes inactive objects, unlike FindObjectOfType, but skips prefab assets.
+        private static TitleScreen FindTitleScreen()
         {
-            string status = titleScreen == null
-                ? "no title screen"
-                : $"title screen active={titleScreen.gameObject.activeInHierarchy} enabled={titleScreen.enabled} " +
-                  $"state={titleScreen.currentState} -> showing={onTitle}";
+            TitleScreen fallback = null;
+            foreach (TitleScreen screen in Resources.FindObjectsOfTypeAll<TitleScreen>())
+            {
+                if (screen == null || !screen.gameObject.scene.IsValid())
+                    continue;
+                if (screen.gameObject.activeInHierarchy)
+                    return screen;
+                fallback = screen;
+            }
+            return fallback;
+        }
+
+        private static bool AnyActivePlayer()
+        {
+            Player[] players = GameController.activePlayers;
+            if (players == null)
+                return false;
+            foreach (Player player in players)
+            {
+                if (player != null)
+                    return true;
+            }
+            return false;
+        }
+
+        // Logs only when something changes, so a log shows why the panel did or didn't appear.
+        private void LogTitleStatus(bool inRun, bool onTitle)
+        {
+            string title = titleScreen == null
+                ? "not found"
+                : $"active={titleScreen.gameObject.activeInHierarchy} enabled={titleScreen.enabled} state={titleScreen.currentState}";
+            string status = $"in run={inRun}, title screen {title}, mods={mods.Count} -> showing={onTitle}";
             if (status == lastTitleStatus)
                 return;
             lastTitleStatus = status;
@@ -166,7 +200,11 @@ namespace WoLModMenu
             open = true;
             selected = Mathf.Clamp(selected, 0, mods.Count - 1);
             reenableTitleFrame = -1;
-            titleScreen.enabled = false;
+            if (titleScreen != null && titleScreen.enabled && titleScreen.gameObject.activeInHierarchy)
+            {
+                pausedTitle = titleScreen;
+                pausedTitle.enabled = false;
+            }
         }
 
         private void Close()

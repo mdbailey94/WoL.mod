@@ -12,9 +12,11 @@ The game's info box gets an extra section under the normal description:
 - **Cloak highlighted:** your wizard stats: health and shield, armor, evade, damage taken, healing,
   move and dash speed, gold and platinum.
 
-The stats use a smaller font (75% of the game's, adjustable) and show at most 5 lines at a time.
-If there are more, a "lines 1-5 of 8" note appears and you can scroll with the **right stick**
-(or **Page Up/Down** or the mouse wheel). Scrolling resets when you highlight something else.
+The stats use a smaller font (75% of the game's, adjustable) and show at most 3 lines at a time.
+If there are more, the last line ends with "(1-3 of 5, R-stick)" and you can scroll with the
+**right stick** (or **Page Up/Down** or the mouse wheel). Scrolling resets when you highlight
+something else. If the right stick doesn't scroll, `BepInEx\LogOutput.log` lists your controller's
+stick names (search for "axes:").
 
 ## Post-run stats
 
@@ -53,7 +55,7 @@ In `BepInEx\config\mdbailey94.wol.extendedstats.cfg`:
 | `Visible` | false | Overlay pinned (remembers your last F2 toggle) |
 | `ShowInCharacterMenu` | true | Add stats to the character menu's info box |
 | `InfoTextSize` | 75 | Size of the added stats, as % of the game's text (40-100) |
-| `InfoMaxLines` | 5 | Lines shown at once before scrolling (2-20) |
+| `InfoVisibleLines` | 3 | Most stat lines shown at once before scrolling (1-20); fewer if the box is smaller |
 | `ShowRunSummary` | true | Show the post-run stats panel |
 | `Scale` | 1.0 | Overlay/summary panel size, 0.5 to 2 |
 

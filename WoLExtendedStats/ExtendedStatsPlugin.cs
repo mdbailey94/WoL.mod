@@ -14,7 +14,7 @@ namespace WoLExtendedStats
     {
         public const string PluginGuid = "mdbailey94.wol.extendedstats";
         public const string PluginName = "Extended Stats";
-        public const string PluginVersion = "0.4.1";
+        public const string PluginVersion = "0.4.2";
 
         private const float RefreshInterval = 0.25f;
         private const float ReferenceHeight = 1080f;
@@ -86,9 +86,10 @@ namespace WoLExtendedStats
             infoTextSize = Config.Bind("General", "InfoTextSize", 75,
                 new ConfigDescription("Size of the added stats in the character menu info box, as % of the game's text size.",
                     new AcceptableValueRange<int>(40, 100)));
-            infoMaxLines = Config.Bind("General", "InfoMaxLines", 5,
+            // New key name so the lower default reaches configs that saved the old InfoMaxLines=5.
+            infoMaxLines = Config.Bind("General", "InfoVisibleLines", 3,
                 new ConfigDescription("Most stat lines shown in the info box at once; scroll for the rest " +
-                    "(right stick, Page Up/Down or mouse wheel).", new AcceptableValueRange<int>(2, 20)));
+                    "(right stick, Page Up/Down or mouse wheel).", new AcceptableValueRange<int>(1, 20)));
             panelScale = Config.Bind("General", "Scale", 1f,
                 new ConfigDescription("Overlay and summary panel size multiplier.", new AcceptableValueRange<float>(0.5f, 2f)));
 
@@ -112,6 +113,8 @@ namespace WoLExtendedStats
         }
 
         public static void LogError(string where, Exception e) => log?.LogError($"[{where}] {e}");
+
+        public static void LogInfo(string message) => log?.LogInfo(message);
 
         public static void ShowRunSummary(DeathSummaryUI screen)
         {
