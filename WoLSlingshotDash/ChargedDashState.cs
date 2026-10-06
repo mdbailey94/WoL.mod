@@ -69,6 +69,10 @@ namespace WoLSlingshotDash
         // invulnerability and timing, but doesn't move you).
         protected virtual bool HoldsStill => false;
 
+        // Holding shorter than this is a tap: a normal dash, no hop or slingshot. The charge passed
+        // to OnLaunch etc. is still hold time / MaxCharge (1 s), so at least this much.
+        protected virtual float MinChargeTime => TapWindow;
+
         // Called first when the dash button starts a dash. Return true to use this press for
         // something else (the wizard then stands still for the dash instead of moving).
         protected virtual bool InterceptDash() => false;
@@ -109,7 +113,7 @@ namespace WoLSlingshotDash
             }
 
             chargeTime += Time.deltaTime;
-            if (chargeTime >= TapWindow)
+            if (chargeTime >= MinChargeTime)
             {
                 // Held past a tap: hop backward, then keep turning to face the aim.
                 if (!hopStarted)
@@ -124,7 +128,7 @@ namespace WoLSlingshotDash
             bool held = DashButton.Held(parent, skillSlot);
             float maxHold = SlingshotDashPlugin.MaxHoldSeconds;
             if (!held || (maxHold > 0f && chargeTime >= maxHold))
-                Launch(chargeTime < TapWindow ? 0f : Mathf.Clamp01(chargeTime / MaxCharge));
+                Launch(chargeTime < MinChargeTime ? 0f : Mathf.Clamp01(chargeTime / MaxCharge));
         }
 
         public override void FixedUpdate()
@@ -203,7 +207,7 @@ namespace WoLSlingshotDash
                 -3f, -1f, new Vector3?(parent.transform.position), null);
         }
 
-        private float HopProgress => Mathf.Clamp01((chargeTime - TapWindow) / HopTime);
+        private float HopProgress => Mathf.Clamp01((chargeTime - MinChargeTime) / HopTime);
         private bool Hopping => hopStarted && HopProgress < 1f;
 
         // Face where you're aiming and hop away from it, like pulling back a slingshot.

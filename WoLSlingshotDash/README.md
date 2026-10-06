@@ -35,10 +35,12 @@ the launch, gentler where you land. Both get bigger with more charge.
 > **Frost Slingshot**: Hold to pull back and charge, then release to throw an ice feint and swap
 > places with it, freezing enemies where you stood!
 
-- Instead of dashing, you **throw an ice copy of yourself** (the game's ice decoy) along your aim:
-  3 to 9 tiles depending on charge, stopping short of walls.
-- It **hovers there for up to 2 seconds** while you keep moving. Then, or as soon as you **press
-  dash again**, you **swap places**: you appear where it is, and it appears where you are.
+- Hold **0.2 to 1 second**, then release: instead of dashing, you **throw an ice copy of
+  yourself** (the game's ice decoy) along your aim, 3 to 9 tiles depending on how long you held,
+  stopping short of walls. Shorter than 0.2 seconds is a normal dash.
+- It **hovers** while you keep moving: from no hover at 0.2 seconds up to **2 seconds** at a full
+  charge. Then, or as soon as you **press dash again**, you **swap places**: you appear where it
+  is, and it appears where you are.
 - **Both spots freeze**: a small Frost Nova bursts at each end, and the copy lingers for a couple
   of seconds so enemies keep going after it.
 

@@ -5,25 +5,30 @@ using UnityEngine;
 namespace WoLSlingshotDash
 {
     // Frost Slingshot (Water, the game's frost element): a charged launch throws an ice feint
-    // (the game's IceDecoy, which enemies go after) out along your aim. It hovers there for up to
-    // HoverTime while you keep moving; then, or as soon as you press dash again, you swap places
-    // with it. Both spots burst with a small Frost Nova that freezes enemies, and the feint lingers
-    // where you were to keep drawing them. Further with more charge.
+    // (the game's IceDecoy, which enemies go after) out along your aim. It hovers there while you
+    // keep moving; then, or as soon as you press dash again, you swap places with it. Both spots
+    // burst with a small Frost Nova that freezes enemies, and the feint lingers where you were to
+    // keep drawing them. Holding 0.2 s to 1 s scales both the throw distance and the hover time
+    // (none at 0.2 s, MaxHoverTime at 1 s).
     public class FrostSlingshotState : ChargedDashState
     {
         public new static string staticID = "FrostSlingshot";
 
         private const float FlightTime = 0.3f;
-        private const float HoverTime = 2f;
+        private const float MinHold = 0.2f;      // shorter is a normal dash
+        private const float MaxHoverTime = 2f;   // hover before the forced swap, at full charge
         private const float MinDistance = 3f;
         private const float ExtraDistance = 6f; // added at full charge
         private const float WallMargin = 0.75f;
         private const float LingerTime = 2.5f;   // how long the feint stays after the swap
 
+        protected override float MinChargeTime => MinHold;
+
         // The feint in flight or hovering, until the swap.
         private class Feint
         {
             public float thrownAt;
+            public float hoverTime;
             public bool swapRequested;
             public bool swapped;
         }
@@ -42,7 +47,7 @@ namespace WoLSlingshotDash
         protected override bool InterceptDash()
         {
             // Only while a feint can actually be out, so a dash press is never swallowed for good.
-            if (pending == null || pending.swapped || Time.time > pending.thrownAt + FlightTime + HoverTime + 0.5f)
+            if (pending == null || pending.swapped || Time.time > pending.thrownAt + FlightTime + pending.hoverTime + 0.5f)
                 return false;
             pending.swapRequested = true;
             return true;
@@ -50,11 +55,13 @@ namespace WoLSlingshotDash
 
         protected override void OnLaunch(float charge)
         {
+            // Hold time 0.2 s -> 0, 1 s -> 1.
+            float power = Mathf.Clamp01((charge - MinHold) / (1f - MinHold));
             Vector2 direction = inputVector.sqrMagnitude > 0.01f
                 ? inputVector.normalized
                 : Entity.GetFacingDirectionVector(parent.facingDirection).normalized;
             Vector2 start = parent.transform.position;
-            float distance = MinDistance + ExtraDistance * charge;
+            float distance = MinDistance + ExtraDistance * power;
             // Stop short of walls so you never swap into one.
             RaycastHit2D hit = Physics2D.Raycast(start, direction, distance, ChaosCollisions.layerAllWallAndObst);
             if (hit.collider != null)
@@ -62,10 +69,10 @@ namespace WoLSlingshotDash
 
             parent.anim?.PlayDirectional(parent.ForehandAnimStr, -1, 0f);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(start), null, 24f, -1f, 1.5f, false);
-            pending = new Feint { thrownAt = Time.time };
+            pending = new Feint { thrownAt = Time.time, hoverTime = MaxHoverTime * power };
             // The dash state ends long before the swap, so the feint runs on the plugin.
             SlingshotDashPlugin.Run(Throw(parent, pending, SpawnDecoy(start), start, start + direction * distance,
-                1.75f + charge, parent.skillCategory, skillID));
+                1.75f + power, parent.skillCategory, skillID));
         }
 
         private GameObject SpawnDecoy(Vector2 position)
@@ -76,7 +83,7 @@ namespace WoLSlingshotDash
                 if (decoy == null)
                     return null;
                 decoy.parentEnt = parent;
-                decoy.duration = FlightTime + HoverTime + LingerTime;
+                decoy.duration = FlightTime + MaxHoverTime + LingerTime;
                 return decoy.gameObject;
             }
             catch (System.Exception e)
@@ -107,7 +114,7 @@ namespace WoLSlingshotDash
 
             // Hover with a slight bob until the time's up or you press dash.
             t = 0f;
-            while (t < HoverTime && !feint.swapRequested)
+            while (t < feint.hoverTime && !feint.swapRequested)
             {
                 t += Time.deltaTime;
                 MoveDecoy(decoy, end + new Vector2(0f, Mathf.Sin(t * 6f) * 0.08f));
