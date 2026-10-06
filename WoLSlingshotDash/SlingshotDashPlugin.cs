@@ -16,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.12.0";
+        public const string PluginVersion = "0.13.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -213,13 +213,15 @@ namespace WoLSlingshotDash
                     elementType = new[] { "Earth" },
                     subElementType = new[] { "Earth" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
-                    // Level 1 is the kick, level 2 the grip's ticks (every 0.4 s, up to 2 s).
-                    damage = new[] { 14, 3 },
+                    // Level 1 is the kick, level 2 the grip's ticks (every 0.4 s, up to 2 s), level 3
+                    // the game's vine used for the look (harmless).
+                    damage = new[] { 14, 3, 0 },
                     cooldown = new[] { dashCooldownSeconds.Value },
                     // The kick knocks along your pull (set on the burst); the grip holds still.
-                    knockbackMultiplier = new[] { 45f, 0f },
-                    knockbackOverwrite = new[] { true, false },
-                    hitStunDurationModifier = new[] { 1.2f, 1.5f },
+                    knockbackMultiplier = new[] { 45f, 0f, 0f },
+                    knockbackOverwrite = new[] { true, false, false },
+                    hitStunDurationModifier = new[] { 1.2f, 1.5f, 0f },
+                    showDamageNumber = new[] { true, true, false },
                     // Short, so the kick still lands right after the last grip tick.
                     sameAttackImmunityTime = new[] { 0.1f }
                 },

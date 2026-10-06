@@ -25,7 +25,8 @@ namespace WoLSlingshotDash
         private float nextTick;
         private bool kicked;
         private float pullSpeed;
-        private VineLines vines;
+        private VineLines vines;        // drawn vines (fallback) and the coils
+        private GameVines gameVines;    // the game's own vine, when it works
 
         public VineSlingshotState(FSM fsm, Player parentPlayer) : base(staticID, fsm, parentPlayer)
         {
@@ -54,16 +55,18 @@ namespace WoLSlingshotDash
             kicked = false;
 
             vines = VineLines.Create(parent);
-            vines?.Shoot(start, anchor);
+            gameVines = GameVines.Create(parent, parent.skillCategory, skillID);
+            if (gameVines != null)
+                gameVines.Hold(target != null ? target.transform : null, anchor);
+            if (gameVines == null || gameVines.Broken)
+                vines?.Shoot(start, anchor);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(start), null, 24f, -1f, 0.8f, false);
         }
 
         protected override void WhileCharging(float holdTime)
         {
             FollowTarget();
-            vines?.Hold(parent.transform.position, anchor);
-            if (target != null)
-                vines?.Ensnare(anchor);
+            DrawVines();
             // Hold the grabbed enemy: small hits that keep it stunned.
             if (target != null && holdTime - MinChargeTime >= nextTick)
             {
@@ -89,9 +92,7 @@ namespace WoLSlingshotDash
             if (kicked)
                 return;
             FollowTarget();
-            vines?.Hold(parent.transform.position, anchor);
-            if (target != null)
-                vines?.Ensnare(anchor);
+            DrawVines();
         }
 
         // Pull yourself along the vines, and kick on arrival.
@@ -154,8 +155,21 @@ namespace WoLSlingshotDash
             anchor = target.transform.position;
         }
 
+        // The game's vine if it's working, otherwise our drawn ones; coils on a grabbed enemy.
+        private void DrawVines()
+        {
+            if (gameVines != null && !gameVines.Broken)
+                gameVines.Hold(target != null ? target.transform : null, anchor);
+            if (gameVines == null || gameVines.Broken)
+                vines?.Hold(parent.transform.position, anchor);
+            if (target != null)
+                vines?.Ensnare(anchor);
+        }
+
         private void RemoveVines()
         {
+            gameVines?.Remove();
+            gameVines = null;
             if (vines != null)
             {
                 Object.Destroy(vines.gameObject);

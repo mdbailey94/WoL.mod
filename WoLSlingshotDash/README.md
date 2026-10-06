@@ -49,7 +49,8 @@ the launch, gentler where you land. Both get bigger with more charge.
 > **Vine Slingshot**: Hold to lash out twin vines that grab the first foe they touch, then let go
 > to pull yourself in and kick it away!
 
-- Hold dash past a tap and **twin vines shoot out** along your aim (up to 8 tiles).
+- Hold dash past a tap and **twin vines** (the game's own vine, as thrown by Soaring Ivy) **shoot
+  out** along your aim, up to 8 tiles.
 - The **first enemy they touch is grabbed**: vines coil tight around it (on bosses too, even
   though they can't be held still) and it takes small hits that keep it stunned for as long as
   you hold, up to 2 seconds.
@@ -62,10 +63,11 @@ the launch, gentler where you land. Both get bigger with more charge.
 > **Storm Slingshot**: Hold to gather enemy projectiles into a crackling field around you, then
 > let go to hurl them and yourself at the foe!
 
-- While you hold, **Mag Sphere's field** forms around you (growing as you charge) and **catches
-  enemy projectiles**: they turn to your side and **spin around you** (up to 8).
-- Let go and they **all fire in a tight fan along your aim**, hitting harder than before (×1.5),
-  while you **dash after them** and land with a small **lightning burst**.
+- While you hold, a **small Mag Sphere** forms on you (growing a little as you charge) and works
+  like Mag Sphere, **gathering the projectiles** around it.
+- Let go and **every projectile in it is turned to your side and fired in a fan along your aim**,
+  hitting harder than before (×1.5), while you **dash after them** and land with a small
+  **lightning burst**.
 
 ### Balance
 

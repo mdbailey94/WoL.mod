@@ -3,32 +3,41 @@ using UnityEngine;
 
 namespace WoLSlingshotDash
 {
-    // Storm Slingshot (Lightning): while you hold, a field around you (shown with Mag Sphere's own
-    // look) catches enemy projectiles, turns them to your side (the game's own reflect) and spins
-    // them around you. The field grows as you hold. Let go and they all fire in a tight fan along
-    // your aim while you dash after them, with a small lightning burst where you land.
+    // Storm Slingshot (Lightning): while you hold, a small Mag Sphere forms on you and does what
+    // Mag Sphere does, gathering the projectiles around it. Let go and every projectile inside it
+    // is turned to your side and fired in a fan along your aim while you dash after them, with a
+    // small lightning burst where you land.
+    //
+    // If the game's Mag Sphere can't be made, a drawn ring and our own catching stand in: enemy
+    // projectiles in the field are reflected and spun around you until you let go.
     public class StormSlingshotState : ChargedDashState
     {
         public new static string staticID = "StormSlingshot";
 
+        private const float SphereScale = 0.6f;       // smaller than the arcana's
+        private const float ExtraSphereScale = 0.2f;  // added at full charge
+        private const float DefaultSphereRadius = 2f; // if its collider can't be measured
         private const int MaxCaught = 8;
-        private const float MinFieldRadius = 2.5f;
-        private const float ExtraFieldRadius = 2f;   // added at full charge
+        private const float MinFieldRadius = 2f;
+        private const float ExtraFieldRadius = 1.5f;
         private const float OrbitRadius = 1.3f;
-        private const float OrbitSpeed = 4f;         // radians per second
+        private const float OrbitSpeed = 4f;
         private const float LaunchSpeed = 22f;
-        private const float FanDegrees = 8f;          // between neighbouring projectiles
-        private const float ReflectDamage = 1.5f;     // damage multiplier for caught projectiles
+        private const float FanDegrees = 8f;
+        private const float ReflectDamage = 1.5f;
         private const float ScanInterval = 0.1f;
 
+        private MagSphere sphere;
+        private static bool loggedSphere;
+        private static bool loggedRelease;
+
+        // Fallback catching (no Mag Sphere).
         private readonly List<Projectile> caught = new List<Projectile>();
         private readonly Dictionary<Projectile, float> speeds = new Dictionary<Projectile, float>();
         private Projectile[] nearby = new Projectile[0];
         private float nextScan;
         private float orbitAngle;
         private StaticRing ring;
-        private GameObject sphere;      // the game's Mag Sphere, as the charge-up look
-        private static bool loggedSphere;
 
         public StormSlingshotState(FSM fsm, Player parentPlayer) : base(staticID, fsm, parentPlayer)
         {
@@ -36,18 +45,16 @@ namespace WoLSlingshotDash
 
         protected override void OnChargeStarted()
         {
-            ReleaseAll(null);
+            caught.Clear();
+            speeds.Clear();
             orbitAngle = 0f;
             nextScan = 0f;
             sphere = SpawnSphere();
-            // Our own crackling ring only if the game's sphere couldn't be shown.
             if (sphere == null)
                 ring = StaticRing.Create(parent);
         }
 
-        // Mag Sphere's own look around you while you charge. Its collider is turned off: the
-        // catching is done here, it's only there to be seen.
-        private GameObject SpawnSphere()
+        private MagSphere SpawnSphere()
         {
             try
             {
@@ -59,34 +66,22 @@ namespace WoLSlingshotDash
                 ms.followTrans = parent.transform;
                 ms.skillCategory = parent.skillCategory;
                 ms.duration = 60f;
-                if (ms.mainCollider != null)
-                    ms.mainCollider.enabled = false;
-                foreach (Collider2D c in ms.GetComponentsInChildren<Collider2D>(true))
-                    c.enabled = false;
+                ms.transform.localScale = Vector3.one * SphereScale;
                 if (!loggedSphere)
                 {
                     loggedSphere = true;
-                    SlingshotDashPlugin.Log("Storm: using Mag Sphere's look for the charge-up");
+                    SlingshotDashPlugin.Log("Storm: charging with a Mag Sphere");
                 }
-                return ms.gameObject;
+                return ms;
             }
             catch (System.Exception e)
             {
                 if (!loggedSphere)
                 {
                     loggedSphere = true;
-                    SlingshotDashPlugin.Log($"Storm: Mag Sphere unavailable, drawing a ring instead: {e.Message}");
+                    SlingshotDashPlugin.Log($"Storm: Mag Sphere unavailable, using our own field: {e.Message}");
                 }
                 return null;
-            }
-        }
-
-        private void RemoveSphere()
-        {
-            if (sphere != null)
-            {
-                Object.Destroy(sphere);
-                sphere = null;
             }
         }
 
@@ -94,15 +89,137 @@ namespace WoLSlingshotDash
         {
             Vector2 center = parent.transform.position;
             float power = Mathf.Clamp01((holdTime - MinChargeTime) / (1f - MinChargeTime));
-            float field = MinFieldRadius + ExtraFieldRadius * power;
-            ring?.Draw(center, field);
             if (sphere != null)
             {
-                // Keep it on you, a little bigger as the field grows.
                 sphere.transform.position = center;
-                sphere.transform.localScale = Vector3.one * (1f + 0.4f * power);
+                sphere.transform.localScale = Vector3.one * (SphereScale + ExtraSphereScale * power);
+                return;
             }
+            float field = MinFieldRadius + ExtraFieldRadius * power;
+            ring?.Draw(center, field);
+            CatchAndOrbit(center, field);
+        }
 
+        protected override void OnLaunch(float charge)
+        {
+            Vector2 aim = inputVector.sqrMagnitude > 0.01f
+                ? inputVector.normalized
+                : Entity.GetFacingDirectionVector(parent.facingDirection).normalized;
+            Vector2 center = parent.transform.position;
+            if (sphere != null)
+            {
+                float radius = SphereRadius();
+                RemoveSphere();
+                var inside = new List<Projectile>();
+                foreach (Projectile p in Object.FindObjectsOfType<Projectile>())
+                {
+                    if (p != null && p.gameObject.activeInHierarchy
+                        && Vector2.Distance(p.transform.position, center) <= radius)
+                        inside.Add(p);
+                }
+                Fan(inside, center, aim);
+                if (!loggedRelease)
+                {
+                    loggedRelease = true;
+                    SlingshotDashPlugin.Log($"Storm: fired {inside.Count} projectile(s) from a sphere of radius {radius:0.0}");
+                }
+            }
+            else
+            {
+                RemoveRing();
+                Fan(caught, center, aim);
+                caught.Clear();
+                speeds.Clear();
+            }
+            SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(center), null, 24f, -1f, 1.6f, false);
+        }
+
+        protected override void OnLand(float charge)
+        {
+            LightningBurst.CreateBurst(parent.transform.position, parent.skillCategory, skillID, 1, 1.2f + 0.4f * charge, false);
+        }
+
+        protected override void OnStateExit()
+        {
+            RemoveSphere();
+            RemoveRing();
+            // Let go without launching (e.g. hit): fling the fallback's caught projectiles outward.
+            foreach (Projectile p in caught)
+            {
+                if (p == null || !p.gameObject.activeInHierarchy)
+                    continue;
+                float speed;
+                p.moveSpeed = speeds.TryGetValue(p, out speed) ? speed : LaunchSpeed;
+                Send(p, p.transform.position, ((Vector2)p.transform.position - (Vector2)parent.transform.position).normalized);
+            }
+            caught.Clear();
+            speeds.Clear();
+        }
+
+        // Every projectile turned to your side and sent along the aim, spread in a fan.
+        private void Fan(List<Projectile> projectiles, Vector2 center, Vector2 aim)
+        {
+            projectiles.RemoveAll(p => p == null || !p.gameObject.activeInHierarchy);
+            int n = projectiles.Count;
+            Vector2 side = Quaternion.Euler(0f, 0f, 90f) * aim;
+            for (int i = 0; i < n; i++)
+            {
+                Projectile p = projectiles[i];
+                float slot = i - (n - 1) / 2f;
+                Vector2 direction = Quaternion.Euler(0f, 0f, slot * FanDegrees) * aim;
+                if (!(p.parentEntity is Player) && !p.ignoreReflect)
+                {
+                    try
+                    {
+                        p.OnReflect(direction, ReflectDamage);
+                    }
+                    catch
+                    {
+                    }
+                }
+                float speed;
+                if (!speeds.TryGetValue(p, out speed))
+                    speed = p.moveSpeed;
+                p.moveSpeed = Mathf.Max(speed, LaunchSpeed);
+                Send(p, center + aim * 0.6f + side * slot * 0.25f, direction);
+            }
+        }
+
+        private static void Send(Projectile p, Vector2 position, Vector2 direction)
+        {
+            p.transform.position = position;
+            p.moveVector = direction;
+            if (p.rigidbody2D != null)
+            {
+                p.rigidbody2D.position = position;
+                p.rigidbody2D.velocity = direction * p.moveSpeed;
+            }
+            try
+            {
+                p.RefreshFlightTime(false);
+            }
+            catch
+            {
+            }
+        }
+
+        private float SphereRadius()
+        {
+            try
+            {
+                Collider2D c = sphere.mainCollider != null ? sphere.mainCollider : sphere.GetComponentInChildren<Collider2D>();
+                if (c != null)
+                    return Mathf.Max(c.bounds.extents.x, c.bounds.extents.y);
+            }
+            catch
+            {
+            }
+            return DefaultSphereRadius * sphere.transform.localScale.x;
+        }
+
+        // Fallback: catch enemy projectiles in the field and spin them around you.
+        private void CatchAndOrbit(Vector2 center, float field)
+        {
             if (Time.time >= nextScan)
             {
                 nextScan = Time.time + ScanInterval;
@@ -112,117 +229,45 @@ namespace WoLSlingshotDash
             {
                 if (caught.Count >= MaxCaught)
                     break;
-                if (p == null || !p.gameObject.activeInHierarchy || p.ignoreReflect || caught.Contains(p))
-                    continue;
-                if (p.parentEntity is Player)
+                if (p == null || !p.gameObject.activeInHierarchy || p.ignoreReflect || caught.Contains(p) || p.parentEntity is Player)
                     continue;
                 Vector2 offset = (Vector2)p.transform.position - center;
                 if (offset.magnitude > field)
                     continue;
                 try
                 {
-                    if (!p.OnReflect(new Vector2(-offset.y, offset.x).normalized, ReflectDamage))
-                        continue;
+                    p.OnReflect(new Vector2(-offset.y, offset.x).normalized, ReflectDamage);
                 }
                 catch
                 {
-                    continue;
                 }
                 speeds[p] = p.moveSpeed;
-                p.moveSpeed = 0f; // we move it while it orbits
+                p.moveSpeed = 0f;
                 caught.Add(p);
             }
-
-            // Spin the caught projectiles around you.
             caught.RemoveAll(p => p == null || !p.gameObject.activeInHierarchy);
             orbitAngle += OrbitSpeed * Time.deltaTime;
             for (int i = 0; i < caught.Count; i++)
             {
                 float angle = orbitAngle + i * Mathf.PI * 2f / caught.Count;
                 var offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
-                Place(caught[i], center + offset * OrbitRadius, new Vector2(-offset.y, offset.x));
-                try
-                {
-                    caught[i].RefreshFlightTime(false);
-                }
-                catch
-                {
-                }
-            }
-        }
-
-        protected override void OnLaunch(float charge)
-        {
-            Vector2 aim = inputVector.sqrMagnitude > 0.01f
-                ? inputVector.normalized
-                : Entity.GetFacingDirectionVector(parent.facingDirection).normalized;
-            RemoveRing();
-            RemoveSphere();
-            ReleaseAll(aim);
-            SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(parent.transform.position), null, 24f, -1f, 1.6f, false);
-        }
-
-        protected override void OnLand(float charge)
-        {
-            LightningBurst.CreateBurst(parent.transform.position, parent.skillCategory, skillID, 1, 1.2f + 0.4f * charge, false);
-        }
-
-        // Let go without launching (e.g. hit): fling them outward rather than leave them hanging.
-        protected override void OnStateExit()
-        {
-            RemoveRing();
-            RemoveSphere();
-            ReleaseAll(null);
-        }
-
-        // Fire every caught projectile: along the aim in a fan, or outward from you if aim is null.
-        private void ReleaseAll(Vector2? aim)
-        {
-            Vector2 center = parent.transform.position;
-            int n = caught.Count;
-            for (int i = 0; i < n; i++)
-            {
                 Projectile p = caught[i];
-                if (p == null || !p.gameObject.activeInHierarchy)
-                    continue;
-                Vector2 direction;
-                if (aim.HasValue)
-                {
-                    float degrees = (i - (n - 1) / 2f) * FanDegrees;
-                    direction = Quaternion.Euler(0f, 0f, degrees) * aim.Value;
-                    p.transform.position = center + aim.Value * 0.6f + (Vector2)(Quaternion.Euler(0f, 0f, 90f) * aim.Value) * (i - (n - 1) / 2f) * 0.25f;
-                }
-                else
-                {
-                    direction = ((Vector2)p.transform.position - center).normalized;
-                }
-                float speed;
-                if (!speeds.TryGetValue(p, out speed))
-                    speed = LaunchSpeed;
-                p.moveSpeed = aim.HasValue ? Mathf.Max(speed, LaunchSpeed) : speed;
-                Place(p, p.transform.position, direction);
+                p.transform.position = center + offset * OrbitRadius;
+                p.moveVector = new Vector2(-offset.y, offset.x);
                 if (p.rigidbody2D != null)
-                    p.rigidbody2D.velocity = direction * p.moveSpeed;
-                try
                 {
-                    p.RefreshFlightTime(false);
-                }
-                catch
-                {
+                    p.rigidbody2D.position = p.transform.position;
+                    p.rigidbody2D.velocity = Vector2.zero;
                 }
             }
-            caught.Clear();
-            speeds.Clear();
         }
 
-        private static void Place(Projectile p, Vector2 position, Vector2 moveVector)
+        private void RemoveSphere()
         {
-            p.transform.position = position;
-            p.moveVector = moveVector;
-            if (p.rigidbody2D != null)
+            if (sphere != null)
             {
-                p.rigidbody2D.position = position;
-                p.rigidbody2D.velocity = Vector2.zero;
+                Object.Destroy(sphere.gameObject);
+                sphere = null;
             }
         }
 

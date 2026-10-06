@@ -35,9 +35,6 @@ namespace WoLSlingshotDash
                     vines.sortingLayer = body.sortingLayerID;
                     vines.sortingOrder = body.sortingOrder + 1;
                 }
-                vines.lines = new LineRenderer[2];
-                for (int i = 0; i < 2; i++)
-                    vines.lines[i] = vines.NewLine("Vine" + i, Segments + 1, Width, Width * 0.75f, false);
                 return vines;
             }
             catch (System.Exception e)
@@ -55,6 +52,12 @@ namespace WoLSlingshotDash
 
         public void Hold(Vector2 from, Vector2 to)
         {
+            if (lines == null)
+            {
+                lines = new LineRenderer[2];
+                for (int i = 0; i < 2; i++)
+                    lines[i] = NewLine("Vine" + i, Segments + 1, Width, Width * 0.75f, false);
+            }
             float reach = Mathf.Clamp01((Time.time - shotAt) / ShootTime);
             Vector2 tip = Vector2.Lerp(from, to, reach);
             Vector2 along = tip - from;
