@@ -7,8 +7,8 @@ the same way; they differ in what the launch does.
 
 - **Tap** dash: a normal dash. While the slingshot is recharging, holding is a normal dash too.
 - **Hold** dash (slingshot ready): your wizard hops backward, like pulling back a slingshot, then holds that pose
-  while dust builds at their feet. The charge is full after 1 second, but you can keep holding
-  as long as you like. Keep aiming to turn and line up the shot.
+  while dust builds at their feet. The charge is full after 1 second; after 2 seconds it
+  launches by itself. Keep aiming to turn and line up the shot.
 - **Release**: launch the way you're aiming. A full charge gives **+60% dash speed and +40% dash
   time** (about 2.2× the distance).
 
@@ -63,9 +63,9 @@ the launch, gentler where you land. Both get bigger with more charge.
 > **Storm Slingshot**: Hold to gather enemy projectiles into a crackling field around you, then
 > let go to hurl them and yourself at the foe!
 
-- While you hold, a **small Mag Sphere** forms on you (growing a little as you charge) and works
-  like Mag Sphere, **gathering the projectiles** around it. Anything it catches is **turned to
-  your side at once**, so it can't hit you or your allies.
+- While you hold, a **small Mag Sphere** forms on you (growing a little as you charge). **Every
+  projectile that enters it** is **turned to your side at once** (it can't hit you or your
+  allies) and **orbits you**.
 - Let go and **every projectile in it is turned to your side and fired in a fan along your aim**,
   hitting harder than before (×1.5), while you **dash after them** and land with a small
   **lightning burst**.
@@ -75,8 +75,9 @@ the launch, gentler where you land. Both get bigger with more charge.
 Slingshot arcana trade a long cooldown and a charge-up for more range and damage than a normal
 dash, without outclassing standard arcana. The **slingshot** has one charge that recharges in
 **7 s** (`CooldownSeconds`); until then, and for taps, the dash button is a **normal dash** with a
-short cooldown. The arcana's icon on the HUD darkens and counts down the seconds while the
-slingshot recharges, and a puff of dust and a swish tell you when it's ready again.
+short cooldown. The arcana's HUD icon shows only the **slingshot's** cooldown (counting down
+while it recharges, and flashing when it's ready), not the normal dash's; a puff of dust and a
+swish also tell you it's ready.
 
 | | Damage per enemy | Notes |
 |---|---|---|
@@ -96,8 +97,8 @@ The hop and the held pose reuse the game's own wizard animations. In
 - `Animation`: `Jump` (default), `Charge`, `Slide`, `Hurt`, `Kick`, `Parry`, `Slam`, `Fall` or `None`.
 - `PoseFrame`: which moment of that animation is held, from `0` (start) to `1` (end). Default `0.4`.
 - `HopDistance`: how far the hop goes. Default `1.5`; `0` turns the hop off.
-- `MaxHoldSeconds`: launch automatically after holding this long. Default `0`: hold as long as
-  you like.
+- `MaxHold`: every slingshot launches by itself after you've held this long. Default `2`; `0`
+  lets you hold as long as you like.
 
 Under `[Balance]`:
 

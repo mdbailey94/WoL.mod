@@ -5,7 +5,7 @@ using UnityEngine;
 namespace WoLSlingshotDash
 {
     // A dash you can charge: hold the dash button to hop backward and hold that pose while you pull
-    // back, release to launch. You can hold as long as you like (see MaxHoldSeconds); the charge
+    // back, release to launch. A hold launches by itself after MaxHold (2 s by default); the charge
     // is full after MaxCharge. The longer the hold (up to MaxCharge), the faster and longer the
     // dash. A tap is a normal dash. Each arcana adds its own attacks through OnLaunch,
     // WhileDashing and OnLand, which only run for a charged launch.

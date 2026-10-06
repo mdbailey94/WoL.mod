@@ -3,14 +3,13 @@ using UnityEngine;
 
 namespace WoLSlingshotDash
 {
-    // Storm Slingshot (Lightning): while you hold, a small Mag Sphere forms on you and does what
-    // Mag Sphere does, gathering the projectiles around it; anything hostile it catches is turned
-    // to your side at once, so it can't hit you or your allies. Let go and every projectile inside it
-    // is turned to your side and fired in a fan along your aim while you dash after them, with a
+    // Storm Slingshot (Lightning): while you hold, a small Mag Sphere forms on you. Every projectile
+    // that enters it is turned to your side at once (so it can't hit you or your allies) and spun
+    // around you. Let go and they all fire in a fan along your aim while you dash after them, with a
     // small lightning burst where you land.
     //
-    // If the game's Mag Sphere can't be made, a drawn ring and our own catching stand in: enemy
-    // projectiles in the field are reflected and spun around you until you let go.
+    // The Mag Sphere is only the look (its colliders are off, so it doesn't do its own thing to the
+    // projectiles); the catching is done here, within its radius. Without it, a drawn ring shows.
     public class StormSlingshotState : ChargedDashState
     {
         public new static string staticID = "StormSlingshot";
@@ -18,7 +17,7 @@ namespace WoLSlingshotDash
         private const float SphereScale = 0.6f;       // smaller than the arcana's
         private const float ExtraSphereScale = 0.2f;  // added at full charge
         private const float DefaultSphereRadius = 2f; // if its collider can't be measured
-        private const int MaxCaught = 8;
+        private const int MaxCaught = 20;
         private const float MinFieldRadius = 2f;
         private const float ExtraFieldRadius = 1.5f;
         private const float OrbitRadius = 1.3f;
@@ -26,14 +25,15 @@ namespace WoLSlingshotDash
         private const float LaunchSpeed = 22f;
         private const float FanDegrees = 8f;
         private const float ReflectDamage = 1.5f;
-        private const float ScanInterval = 0.1f;
-        private const float ConvertScanInterval = 0.05f;
+        private const float ScanInterval = 0.05f;
 
         private MagSphere sphere;
+        private float sphereBaseRadius = DefaultSphereRadius; // its collider's radius at scale 1
+        private int seenThisCharge;
+        private static bool loggedCatch;
         // Projectiles the sphere has caught and turned to your side.
         private readonly HashSet<Projectile> converted = new HashSet<Projectile>();
         private static bool loggedSphere;
-        private static bool loggedRelease;
 
         // Fallback catching (no Mag Sphere).
         private readonly List<Projectile> caught = new List<Projectile>();
@@ -51,6 +51,7 @@ namespace WoLSlingshotDash
         {
             converted.Clear();
             caught.Clear();
+            seenThisCharge = 0;
             speeds.Clear();
             orbitAngle = 0f;
             nextScan = 0f;
@@ -71,6 +72,13 @@ namespace WoLSlingshotDash
                 ms.followTrans = parent.transform;
                 ms.skillCategory = parent.skillCategory;
                 ms.duration = 60f;
+                ms.transform.localScale = Vector3.one;
+                Collider2D main = ms.mainCollider != null ? ms.mainCollider : ms.GetComponentInChildren<Collider2D>();
+                if (main != null)
+                    sphereBaseRadius = Mathf.Max(0.5f, Mathf.Max(main.bounds.extents.x, main.bounds.extents.y));
+                // Only its look: we do the catching.
+                foreach (Collider2D c in ms.GetComponentsInChildren<Collider2D>(true))
+                    c.enabled = false;
                 ms.transform.localScale = Vector3.one * SphereScale;
                 if (!loggedSphere)
                 {
@@ -94,15 +102,19 @@ namespace WoLSlingshotDash
         {
             Vector2 center = parent.transform.position;
             float power = Mathf.Clamp01((holdTime - MinChargeTime) / (1f - MinChargeTime));
+            float field;
             if (sphere != null)
             {
+                float scale = SphereScale + ExtraSphereScale * power;
                 sphere.transform.position = center;
-                sphere.transform.localScale = Vector3.one * (SphereScale + ExtraSphereScale * power);
-                ConvertInside(center, SphereRadius());
-                return;
+                sphere.transform.localScale = Vector3.one * scale;
+                field = sphereBaseRadius * scale;
             }
-            float field = MinFieldRadius + ExtraFieldRadius * power;
-            ring?.Draw(center, field);
+            else
+            {
+                field = MinFieldRadius + ExtraFieldRadius * power;
+                ring?.Draw(center, field);
+            }
             CatchAndOrbit(center, field);
         }
 
@@ -112,32 +124,17 @@ namespace WoLSlingshotDash
                 ? inputVector.normalized
                 : Entity.GetFacingDirectionVector(parent.facingDirection).normalized;
             Vector2 center = parent.transform.position;
-            if (sphere != null)
+            RemoveSphere();
+            RemoveRing();
+            if (!loggedCatch)
             {
-                float radius = SphereRadius();
-                RemoveSphere();
-                var inside = new List<Projectile>(converted);
-                foreach (Projectile p in Object.FindObjectsOfType<Projectile>())
-                {
-                    if (p != null && p.gameObject.activeInHierarchy && !converted.Contains(p)
-                        && Vector2.Distance(p.transform.position, center) <= radius)
-                        inside.Add(p);
-                }
-                converted.Clear();
-                Fan(inside, center, aim);
-                if (!loggedRelease)
-                {
-                    loggedRelease = true;
-                    SlingshotDashPlugin.Log($"Storm: fired {inside.Count} projectile(s) from a sphere of radius {radius:0.0}");
-                }
+                loggedCatch = true;
+                SlingshotDashPlugin.Log($"Storm: caught {caught.Count} projectile(s) " +
+                    $"({seenThisCharge} entered the field this charge, {nearby.Length} in the room)");
             }
-            else
-            {
-                RemoveRing();
-                Fan(caught, center, aim);
-                caught.Clear();
-                speeds.Clear();
-            }
+            Fan(caught, center, aim);
+            caught.Clear();
+            speeds.Clear();
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(center), null, 24f, -1f, 1.6f, false);
         }
 
@@ -161,27 +158,6 @@ namespace WoLSlingshotDash
             }
             caught.Clear();
             speeds.Clear();
-        }
-
-        // Anything hostile that comes inside the sphere is turned to your side straight away, so
-        // nothing it catches can hit you or your allies.
-        private void ConvertInside(Vector2 center, float radius)
-        {
-            if (Time.time >= nextScan)
-            {
-                nextScan = Time.time + ConvertScanInterval;
-                nearby = Object.FindObjectsOfType<Projectile>();
-            }
-            foreach (Projectile p in nearby)
-            {
-                if (p == null || !p.gameObject.activeInHierarchy || converted.Contains(p) || p.parentEntity is Player)
-                    continue;
-                if (Vector2.Distance(p.transform.position, center) > radius)
-                    continue;
-                TurnToYourSide(p, p.moveVector.sqrMagnitude > 0.01f ? p.moveVector : Vector2.up);
-                converted.Add(p);
-            }
-            converted.RemoveWhere(p => p == null || !p.gameObject.activeInHierarchy);
         }
 
         // The game's reflect (a parry's switch of sides); for projectiles that can't be reflected,
@@ -252,21 +228,8 @@ namespace WoLSlingshotDash
             }
         }
 
-        private float SphereRadius()
-        {
-            try
-            {
-                Collider2D c = sphere.mainCollider != null ? sphere.mainCollider : sphere.GetComponentInChildren<Collider2D>();
-                if (c != null)
-                    return Mathf.Max(c.bounds.extents.x, c.bounds.extents.y);
-            }
-            catch
-            {
-            }
-            return DefaultSphereRadius * sphere.transform.localScale.x;
-        }
-
-        // Fallback: catch enemy projectiles in the field and spin them around you.
+        // Catch every projectile that enters the field (not your own), turn it to your side and
+        // spin it around you.
         private void CatchAndOrbit(Vector2 center, float field)
         {
             if (Time.time >= nextScan)
@@ -278,12 +241,17 @@ namespace WoLSlingshotDash
             {
                 if (caught.Count >= MaxCaught)
                     break;
-                if (p == null || !p.gameObject.activeInHierarchy || caught.Contains(p) || p.parentEntity is Player)
+                if (p == null || !p.gameObject.activeInHierarchy || caught.Contains(p) || converted.Contains(p))
+                    continue;
+                // Your own (and ones already yours) aren't caught.
+                if (p.parentEntity is Player)
                     continue;
                 Vector2 offset = (Vector2)p.transform.position - center;
                 if (offset.magnitude > field)
                     continue;
+                seenThisCharge++;
                 TurnToYourSide(p, new Vector2(-offset.y, offset.x).normalized);
+                converted.Add(p);
                 speeds[p] = p.moveSpeed;
                 p.moveSpeed = 0f;
                 caught.Add(p);
@@ -301,6 +269,13 @@ namespace WoLSlingshotDash
                 {
                     p.rigidbody2D.position = p.transform.position;
                     p.rigidbody2D.velocity = Vector2.zero;
+                }
+                try
+                {
+                    p.RefreshFlightTime(false);
+                }
+                catch
+                {
                 }
             }
         }

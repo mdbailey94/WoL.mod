@@ -5,63 +5,101 @@ using UnityEngine;
 
 namespace WoLSlingshotDash
 {
-    // The HUD's arcana icons only show the normal dash's cooldown. While a slingshot recharges,
-    // this drives the game's own cooldown display for that icon (darkened icon, border, countdown
-    // and fill) right after the game updates it each frame, then hands it back once it's ready.
-    [HarmonyPatch(typeof(CooldownEntry), nameof(CooldownEntry.EntryUpdate))]
+    // On a slingshot arcana's HUD icon, only the slingshot's own cooldown shows: the game's
+    // display (darkened icon, fill, countdown) is driven from it right after the game updates the
+    // icon each frame, and the normal dash's cooldown and its "ready" flash are hidden. The flash
+    // plays when the slingshot is ready instead.
     public static class SlingshotHud
     {
-        private static readonly HashSet<CooldownEntry> driven = new HashSet<CooldownEntry>();
+        private static readonly HashSet<CooldownEntry> cooling = new HashSet<CooldownEntry>();
+        private static bool allowPing;
         private static bool loggedError;
         private static bool loggedShown;
 
-        private static void Postfix(CooldownEntry __instance)
+        public static void Install(Harmony harmony)
         {
-            try
+            harmony.CreateClassProcessor(typeof(EntryPatch)).Patch();
+            harmony.CreateClassProcessor(typeof(PingPatch)).Patch();
+        }
+
+        public static bool IsSlingshot(string skillID) =>
+            skillID == SlingshotDashState.staticID || skillID == BlazingSlingshotState.staticID
+            || skillID == FrostSlingshotState.staticID || skillID == VineSlingshotState.staticID
+            || skillID == StormSlingshotState.staticID;
+
+        [HarmonyPatch(typeof(CooldownEntry), nameof(CooldownEntry.EntryUpdate))]
+        private static class EntryPatch
+        {
+            private static void Postfix(CooldownEntry __instance)
             {
-                Apply(__instance);
-            }
-            catch (Exception e)
-            {
-                if (!loggedError)
+                try
                 {
-                    loggedError = true;
-                    SlingshotDashPlugin.Log($"Slingshot HUD failed: {e}");
+                    Apply(__instance);
+                }
+                catch (Exception e)
+                {
+                    if (!loggedError)
+                    {
+                        loggedError = true;
+                        SlingshotDashPlugin.Log($"Slingshot HUD failed: {e}");
+                    }
                 }
             }
+        }
+
+        // The normal dash's "ready" flash is hidden for slingshot arcana (ours plays instead).
+        [HarmonyPatch(typeof(CooldownUI), nameof(CooldownUI.RequestCDPing))]
+        private static class PingPatch
+        {
+            private static bool Prefix(string skillID) => allowPing || !IsSlingshot(skillID);
         }
 
         private static void Apply(CooldownEntry entry)
         {
             Player.SkillState state = entry.skillState;
-            float remaining, total;
-            if (state == null || !ChargedDashState.TryGetCooldown(state.parent, state.skillID, out remaining, out total))
+            if (state == null || !IsSlingshot(state.skillID))
             {
-                // Recharged: give the icon back to the game.
-                if (driven.Remove(entry) && entry.remainingCD <= 0f)
-                    entry.SetReady();
+                cooling.Remove(entry);
                 return;
             }
-            // The normal dash's own cooldown is longer: let the game show that.
-            if (entry.remainingCD >= remaining)
-                return;
 
-            entry.remainingCD = remaining;
-            entry.SetCooldown();
-            if (entry.skillBGOverlay != null)
-                entry.skillBGOverlay.fillAmount = Mathf.Clamp01(remaining / Mathf.Max(0.01f, total));
-            if (entry.skillCooldownText != null)
+            float remaining, total;
+            if (ChargedDashState.TryGetCooldown(state.parent, state.skillID, out remaining, out total))
             {
-                entry.skillCooldownText.enabled = true;
-                entry.skillCooldownText.text = Mathf.CeilToInt(remaining).ToString();
+                entry.remainingCD = remaining;
+                entry.remainingChargeCD = 0f;
+                entry.SetCooldown();
+                if (entry.skillBGOverlay != null)
+                    entry.skillBGOverlay.fillAmount = Mathf.Clamp01(remaining / Mathf.Max(0.01f, total));
+                if (entry.skillCooldownText != null)
+                {
+                    entry.skillCooldownText.enabled = true;
+                    entry.skillCooldownText.text = Mathf.CeilToInt(remaining).ToString();
+                }
+                cooling.Add(entry);
+                if (!loggedShown)
+                {
+                    loggedShown = true;
+                    SlingshotDashPlugin.Log($"HUD: showing the slingshot cooldown on {state.skillID}");
+                }
+                return;
             }
-            driven.Add(entry);
-            if (!loggedShown)
+
+            // Slingshot ready: always show the icon as ready, whatever the normal dash is doing.
+            entry.remainingCD = 0f;
+            entry.remainingChargeCD = 0f;
+            entry.SetReady();
+            if (cooling.Remove(entry) && entry.cooldownUI != null)
             {
-                loggedShown = true;
-                SlingshotDashPlugin.Log($"HUD: showing the slingshot cooldown on {state.skillID} " +
-                    $"(overlay {(entry.skillBGOverlay != null ? entry.skillBGOverlay.type.ToString() : "none")}, " +
-                    $"text {(entry.skillCooldownText != null ? "yes" : "none")})");
+                allowPing = true;
+                try
+                {
+                    entry.cooldownUI.RequestCDPing(state.skillID);
+                }
+                finally
+                {
+                    allowPing = false;
+                }
             }
         }
     }

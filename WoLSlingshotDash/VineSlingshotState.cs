@@ -4,8 +4,8 @@ using UnityEngine;
 namespace WoLSlingshotDash
 {
     // Vine Slingshot (Earth): hold dash and twin vines shoot out along your aim. The first enemy
-    // they touch is grabbed and takes small, stunning hits while you keep holding (up to
-    // MaxTether); if they touch no enemy they latch onto the wall or the ground at their reach.
+    // they touch is grabbed and takes small, stunning hits while you keep holding (up to the
+    // slingshots' max hold); if they touch no enemy they latch onto the wall or the ground at their reach.
     // Let go (or run out of time) and you pull yourself to the target and kick it back hard.
     public class VineSlingshotState : ChargedDashState
     {
@@ -14,7 +14,6 @@ namespace WoLSlingshotDash
         private const float Range = 8f;
         private const float CatchRadius = 0.45f;
         private const float WallMargin = 0.6f;
-        private const float MaxTether = 2f;
         private const float TickInterval = 0.4f;
         private const float ArriveDistance = 0.9f;
         private const float MinPullSpeed = 18f;
@@ -34,7 +33,6 @@ namespace WoLSlingshotDash
 
         // You pull yourself in; the dash's own speed boost doesn't apply.
         protected override bool BoostsDash => false;
-        protected override float MaxHoldTime => MinChargeTime + MaxTether;
 
         protected override void OnChargeStarted()
         {

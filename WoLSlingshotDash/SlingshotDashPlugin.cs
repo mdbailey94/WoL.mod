@@ -16,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.13.1";
+        public const string PluginVersion = "0.14.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -44,7 +44,7 @@ namespace WoLSlingshotDash
         public static float ChargePoseFrame => Mathf.Clamp01(chargePoseFrame?.Value ?? 0.4f);
         public static float HopDistance => Mathf.Max(0f, hopDistance?.Value ?? 1.5f);
         // 0 = hold as long as you like.
-        public static float MaxHoldSeconds => Mathf.Max(0f, maxHold?.Value ?? 0f);
+        public static float MaxHoldSeconds => Mathf.Max(0f, maxHold?.Value ?? 2f);
         public static float SlingshotCooldown => Mathf.Max(0.5f, cooldownSeconds?.Value ?? 7f);
         public static string VineDarkColor => vineDark?.Value;
         public static string VineMidColor => vineMid?.Value;
@@ -84,9 +84,10 @@ namespace WoLSlingshotDash
             hopDistance = Config.Bind("Charge", "HopDistance", 1.5f,
                 new ConfigDescription("How far the backward hop goes when you start charging (0 = no hop).",
                     new AcceptableValueRange<float>(0f, 4f)));
-            maxHold = Config.Bind("Charge", "MaxHoldSeconds", 0f,
-                new ConfigDescription("Launch automatically after holding this long (0 = hold as long as you " +
-                    "like). The charge is full after 1 second either way.",
+            // Replaces MaxHoldSeconds (default 0 = no limit) so the 2 s default applies.
+            maxHold = Config.Bind("Charge", "MaxHold", 2f,
+                new ConfigDescription("Launch automatically after holding this long, for every slingshot " +
+                    "(0 = hold as long as you like).",
                     new AcceptableValueRange<float>(0f, 10f)));
             cooldownSeconds = Config.Bind("Balance", "CooldownSeconds", 7f,
                 new ConfigDescription("How long until you can slingshot again (one charge). Until then the " +
@@ -257,7 +258,7 @@ namespace WoLSlingshotDash
 
             try
             {
-                new Harmony(PluginGuid).CreateClassProcessor(typeof(SlingshotHud)).Patch();
+                SlingshotHud.Install(new Harmony(PluginGuid));
             }
             catch (System.Exception e)
             {
