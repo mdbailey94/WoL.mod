@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace WoLSlingshotDash
 {
-    // Frost Slingshot (Water, the game's frost element): a charged launch throws an ice feint
+    // Feint Swap (Water, the game's frost element): a charged launch throws an ice feint
     // (the game's IceDecoy, which enemies go after) out along your aim. It hovers there while you
     // keep moving; then, or as soon as you press dash again, you swap places with it. Both spots
     // burst with a small Frost Nova that freezes enemies, and the feint lingers where you were to

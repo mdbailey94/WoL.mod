@@ -16,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.16.0";
+        public const string PluginVersion = "0.17.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -38,7 +38,7 @@ namespace WoLSlingshotDash
 
         public static void Log(string message) => log?.LogInfo(message);
 
-        // Runs effects that outlive the dash state (e.g. Blazing Slingshot's vacuum).
+        // Runs effects that outlive the dash state (e.g. Vacuum Kick's vacuum).
         public static void Run(IEnumerator routine)
         {
             if (instance != null)
@@ -112,7 +112,7 @@ namespace WoLSlingshotDash
                     new AcceptableValueRange<float>(0.1f, 5f)));
             // Replaces BlazingPathPull (default 12, too weak to notice) with a stronger default.
             blazingDrag = Config.Bind("Balance", "BlazingDrag", 35f,
-                new ConfigDescription("How hard Blazing Slingshot's trail drags enemies along your dash. " +
+                new ConfigDescription("How hard Vacuum Kick's trail drags enemies along your dash. " +
                     "Make it negative if they get pushed the wrong way. Applies the next time the game starts.",
                     new AcceptableValueRange<float>(-80f, 80f)));
             vineDark = Config.Bind("Vines", "DarkColor", "",
@@ -130,19 +130,19 @@ namespace WoLSlingshotDash
                     "grab (0 = its start, 1 = its end).",
                     new AcceptableValueRange<float>(0f, 1f)));
             frostFreezeRadius = Config.Bind("Balance", "FrostFreezeRadius", 1f,
-                new ConfigDescription("Radius of Frost Slingshot's freezes at a 0.2 s hold; a full charge adds " +
+                new ConfigDescription("Radius of Feint Swap's freezes at a 0.2 s hold; a full charge adds " +
                     "half again.",
                     new AcceptableValueRange<float>(0.25f, 4f)));
             stormSphereSize = Config.Bind("Balance", "StormSphereSize", 0.6f,
-                new ConfigDescription("Size of Storm Slingshot's Mag Sphere compared with the Mag Sphere arcana's " +
+                new ConfigDescription("Size of Charged Leap's Mag Sphere compared with the Mag Sphere arcana's " +
                     "(1 = the same size).",
                     new AcceptableValueRange<float>(0.2f, 1.5f)));
 
             Skills.Register(new SkillInfo
             {
                 ID = SlingshotDashState.staticID,
-                displayName = "Slingshot",
-                description = "Hold to pull back and charge, then release to launch yourself across the room, blasting enemies away where you leave and land!",
+                displayName = "Raging Wind",
+                description = "Hold to pull back and charge, then release to ride a raging wind across the room, blasting enemies away where you leave and land!",
                 enhancedDescription = "Launch sends out a bigger burst!",
                 icon = LoadIcon("icon.png"),
                 tier = 2,
@@ -168,9 +168,9 @@ namespace WoLSlingshotDash
             Skills.Register(new SkillInfo
             {
                 ID = BlazingSlingshotState.staticID,
-                displayName = "Blazing Slingshot",
-                description = "Hold to pull back and charge, then release to blitz across the room in flames, leaving a vacuum that sucks enemies in!",
-                enhancedDescription = "A hotter trail and a stronger vacuum!",
+                displayName = "Vacuum Kick",
+                description = "Hold to pull back and charge, then release to blitz across the room in flames, dragging enemies along, and land a kick that pulls them in!",
+                enhancedDescription = "A hotter trail and a stronger pull!",
                 icon = LoadIcon("icon_fire.png"),
                 tier = 2,
                 stateType = typeof(BlazingSlingshotState),
@@ -199,8 +199,8 @@ namespace WoLSlingshotDash
             Skills.Register(new SkillInfo
             {
                 ID = FrostSlingshotState.staticID,
-                displayName = "Frost Slingshot",
-                description = "Hold to pull back and charge, then release to throw an ice feint and swap places with it, freezing enemies where you stood!",
+                displayName = "Feint Swap",
+                description = "Hold to pull back and charge, then release to throw an ice feint and swap places with it, freezing enemies at both ends!",
                 enhancedDescription = "A longer throw and a colder burst!",
                 icon = LoadIcon("icon_ice.png"),
                 tier = 2,
@@ -260,9 +260,9 @@ namespace WoLSlingshotDash
             Skills.Register(new SkillInfo
             {
                 ID = StormSlingshotState.staticID,
-                displayName = "Storm Slingshot",
-                description = "Hold to gather enemy projectiles into a crackling field around you, then let go to hurl them and yourself at the foe!",
-                enhancedDescription = "A wider field and a bigger burst!",
+                displayName = "Charged Leap",
+                description = "Hold to pull enemy projectiles into orbit around you, then let go to fling them at the foe and leap in after them!",
+                enhancedDescription = "A stronger orbit and a bigger burst!",
                 icon = LoadIcon("icon_lightning.png"),
                 tier = 2,
                 stateType = typeof(StormSlingshotState),
@@ -297,10 +297,10 @@ namespace WoLSlingshotDash
             }
             catch (System.Exception e)
             {
-                Logger.LogError($"Storm Slingshot hit guard failed to install: {e.Message}");
+                Logger.LogError($"Charged Leap hit guard failed to install: {e.Message}");
             }
 
-            Logger.LogInfo($"{PluginName} {PluginVersion} registered Slingshot, Blazing, Frost, Vine and Storm Slingshot");
+            Logger.LogInfo($"{PluginName} {PluginVersion} registered Raging Wind, Vacuum Kick, Feint Swap, Vine Slingshot and Charged Leap");
         }
 
         private Sprite LoadIcon(string fileName)

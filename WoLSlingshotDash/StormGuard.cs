@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace WoLSlingshotDash
 {
-    // While Storm Slingshot's Mag Sphere holds projectiles, they can't hit (or break on) the wizard
+    // While Charged Leap's Mag Sphere holds projectiles, they can't hit (or break on) the wizard
     // who's charging, other players, or anything on their side. The projectiles themselves are left
     // exactly as they are, so the Mag Sphere still treats them as enemy projectiles and does
     // everything to them that it normally does.

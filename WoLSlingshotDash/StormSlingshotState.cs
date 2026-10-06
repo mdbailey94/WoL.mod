@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace WoLSlingshotDash
 {
-    // Storm Slingshot (Lightning): while you hold, the game's Mag Sphere forms on you and works
+    // Charged Leap (Lightning): while you hold, the game's Mag Sphere forms on you and works
     // exactly as the arcana does (its own look and its own handling of projectiles; we don't touch
     // the sphere or the projectiles), only smaller (Balance.StormSphereSize, through a scaled holder
     // so the sphere's own sizing is left alone). Whatever it holds can't hit you or your allies
