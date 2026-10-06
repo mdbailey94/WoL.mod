@@ -16,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.15.0";
+        public const string PluginVersion = "0.15.1";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -28,6 +28,7 @@ namespace WoLSlingshotDash
         private ConfigEntry<float> blazingDrag;
         private static ConfigEntry<float> frostFreezeRadius;
         private static ConfigEntry<float> stormSphereSize;
+        private static ConfigEntry<float> vineHoldFrame;
         private static ConfigEntry<string> vineDark, vineMid, vineLight;
         private ConfigEntry<bool> modEnabled;
 
@@ -51,6 +52,7 @@ namespace WoLSlingshotDash
         public static string VineMidColor => vineMid?.Value;
         public static string VineLightColor => vineLight?.Value;
         public static float FrostFreezeRadius => Mathf.Max(0.25f, frostFreezeRadius?.Value ?? 1f);
+        public static float VineHoldFrame => Mathf.Clamp01(vineHoldFrame?.Value ?? 0.95f);
         public static float StormSphereSize => Mathf.Clamp(stormSphereSize?.Value ?? 0.6f, 0.2f, 1.5f);
 
         // The game's own player animation for the chosen name, or null for "None".
@@ -108,6 +110,10 @@ namespace WoLSlingshotDash
                 "Vine Slingshot's darkest green as a hex colour like #1E4A2A (empty = taken from the game's vines).");
             vineMid = Config.Bind("Vines", "MidColor", "", "Vine Slingshot's main green (empty = from the game).");
             vineLight = Config.Bind("Vines", "LightColor", "", "Vine Slingshot's highlight green (empty = from the game).");
+            vineHoldFrame = Config.Bind("Vines", "HoldFrame", 0.95f,
+                new ConfigDescription("Which moment of the game's vine animation Vine Slingshot holds for the whole " +
+                    "grab (0 = its start, 1 = its end).",
+                    new AcceptableValueRange<float>(0f, 1f)));
             frostFreezeRadius = Config.Bind("Balance", "FrostFreezeRadius", 1f,
                 new ConfigDescription("Radius of Frost Slingshot's freezes at a 0.2 s hold; a full charge adds " +
                     "half again.",

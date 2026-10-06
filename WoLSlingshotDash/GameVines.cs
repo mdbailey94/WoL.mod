@@ -5,9 +5,10 @@ namespace WoLSlingshotDash
 {
     // Twin vines using the game's own vine (VinePull, the vine Soaring Ivy and the other vine
     // arcana throw), stretched from the wizard to the target at our range. Their attack uses a
-    // harmless skill level (no damage or knockback): they're only the look. If the game retracts
-    // them early they're put back; if they keep disappearing, Broken tells the caller to fall
-    // back to drawn vines.
+    // harmless skill level (no damage or knockback): they're only the look. Each vine's animation
+    // is held on its last part (fully stretched; Vines.HoldFrame) the whole time rather than
+    // playing the throw over and over. If the game retracts them early they're put back; if they
+    // keep disappearing, Broken tells the caller to fall back to drawn vines.
     public class GameVines
     {
         private static readonly Vector2[] Offsets = { new Vector2(0f, 0.2f), new Vector2(0f, -0.1f) };
@@ -15,6 +16,9 @@ namespace WoLSlingshotDash
         private const int MaxRespawns = 6;
 
         private readonly VinePull[] vines = new VinePull[2];
+        // The animation state each vine is held in (0 = not yet), and the frame it was made.
+        private readonly int[] heldState = new int[2];
+        private readonly int[] spawnFrame = new int[2];
         private readonly Player player;
         private readonly string skillCategory;
         private readonly string skillID;
@@ -65,6 +69,7 @@ namespace WoLSlingshotDash
                 {
                     vine.targetPos = point;
                     vine.maxDist = 99f;
+                    HoldLastFrame(i);
                     continue;
                 }
                 if (vine != null)
@@ -73,6 +78,8 @@ namespace WoLSlingshotDash
                     Object.Destroy(vine.gameObject);
                 }
                 vines[i] = Spawn(target, point, Offsets[i]);
+                heldState[i] = 0;
+                spawnFrame[i] = Time.frameCount;
                 if (vines[i] == null)
                     respawns = MaxRespawns + 1;
             }
@@ -80,6 +87,33 @@ namespace WoLSlingshotDash
             {
                 Log("Vines: the game's vine keeps retracting, drawing our own instead");
                 Remove();
+            }
+        }
+
+        // Holds the vine's animation on its fully stretched end. The animation it starts takes
+        // effect a frame after it's made, so it's read from the next frame on; after that, if the
+        // game moves it on to another animation, it's put back.
+        private void HoldLastFrame(int i)
+        {
+            try
+            {
+                Animator anim = vines[i].anim;
+                if (anim == null || Time.frameCount <= spawnFrame[i])
+                    return;
+                AnimatorStateInfo info = anim.GetCurrentAnimatorStateInfo(0);
+                if (heldState[i] == 0)
+                {
+                    if (info.length < 0.05f)
+                        return;
+                    heldState[i] = info.fullPathHash;
+                }
+                else if (info.fullPathHash == heldState[i] && anim.speed == 0f)
+                    return;
+                anim.Play(heldState[i], 0, SlingshotDashPlugin.VineHoldFrame);
+                anim.speed = 0f;
+            }
+            catch
+            {
             }
         }
 
@@ -120,6 +154,9 @@ namespace WoLSlingshotDash
                     continue;
                 try
                 {
+                    // Let the retract play (the hold had stopped the animation).
+                    if (vine.anim != null)
+                        vine.anim.speed = 1f;
                     vine.Retract();
                 }
                 catch

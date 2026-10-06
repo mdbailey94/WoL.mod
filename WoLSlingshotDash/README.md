@@ -65,7 +65,7 @@ the launch, gentler where you land. Both get bigger with more charge.
 
 - While you hold, **Mag Sphere** forms on you and works at full effect, exactly like the arcana,
   just **smaller** (`StormSphereSize`). Nothing it holds can **hit you or your allies** while
-  you charge.
+  you charge, and anything about to fly out of the smaller sphere is turned back into its orbit.
 - Let go and the sphere ends and **everything it caught is fired in a fan along your aim**,
   hitting harder than before (×1.5), while you **dash after them** and land with a small
   **lightning burst**.
@@ -113,7 +113,8 @@ Under `[Balance]`:
 
 Under `[Vines]`: `DarkColor`, `MidColor` and `LightColor` set Vine Slingshot's greens as hex
 colours like `#2E6B3A`. Empty (the default) takes them from the game's own vine art; the log
-says which colours it used.
+says which colours it used. `HoldFrame` picks the moment of the game's vine animation that's held
+for the whole grab (`0` = its start, `1` = its end). Default `0.95`, the fully stretched vines.
 
 Changes apply the next time the game starts.
 

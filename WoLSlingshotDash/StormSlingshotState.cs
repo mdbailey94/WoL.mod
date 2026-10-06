@@ -25,6 +25,9 @@ namespace WoLSlingshotDash
         private const float FanDegrees = 8f;
         private const float ReflectDamage = 1.5f;
         private const float ScanInterval = 0.05f;
+        // Past this share of the sphere's radius, a held projectile heading out is turned back
+        // along its orbit (the smaller sphere can't always bend fast ones round by itself).
+        private const float KeepInFrom = 0.75f;
 
         private MagSphere sphere;
         private GameObject sphereHolder;
@@ -32,6 +35,8 @@ namespace WoLSlingshotDash
         private static bool loggedCatch;
         // Projectiles the sphere holds (left as they are; StormGuard keeps them off your side).
         private readonly HashSet<Projectile> held = new HashSet<Projectile>();
+        // Enemy projectiles seen coming (so they're still held if the sphere makes them yours first).
+        private readonly HashSet<Projectile> incoming = new HashSet<Projectile>();
         // Fallback: projectiles caught and turned to your side.
         private readonly HashSet<Projectile> converted = new HashSet<Projectile>();
         private static bool loggedSphere;
@@ -197,15 +202,47 @@ namespace WoLSlingshotDash
             }
             foreach (Projectile p in nearby)
             {
-                if (p == null || !p.gameObject.activeInHierarchy || held.Contains(p) || p.parentEntity is Player)
+                if (p == null || !p.gameObject.activeInHierarchy || held.Contains(p))
                     continue;
-                if (Vector2.Distance(p.transform.position, center) > radius)
+                float distance = Vector2.Distance(p.transform.position, center);
+                if (!(p.parentEntity is Player) && distance <= radius * 2f)
+                    incoming.Add(p);
+                if (distance > radius || !incoming.Contains(p))
                     continue;
                 held.Add(p);
                 StormGuard.Hold(p, parent);
                 seenThisCharge++;
             }
             held.RemoveWhere(p => p == null || !p.gameObject.activeInHierarchy);
+            incoming.RemoveWhere(p => p == null || !p.gameObject.activeInHierarchy);
+            foreach (Projectile p in held)
+                KeepInOrbit(p, center, radius);
+        }
+
+        // A held projectile near the edge and heading out is turned along its orbit and a little
+        // inward, the way it's already circling (so it never fights the sphere's own spin).
+        private static void KeepInOrbit(Projectile p, Vector2 center, float radius)
+        {
+            Vector2 offset = (Vector2)p.transform.position - center;
+            float distance = offset.magnitude;
+            Vector2 move = p.moveVector;
+            if (distance < radius * KeepInFrom || distance < 0.01f || move.sqrMagnitude < 0.0001f
+                || Vector2.Dot(move, offset) <= 0f)
+                return;
+            Vector2 outward = offset / distance;
+            float spin = outward.x * move.y - outward.y * move.x;
+            Vector2 tangent = spin >= 0f ? new Vector2(-outward.y, outward.x) : new Vector2(outward.y, -outward.x);
+            float inwardPull = 0.3f + 2f * Mathf.Clamp01((distance / radius - KeepInFrom) / (1f - KeepInFrom));
+            Vector2 direction = (tangent - outward * inwardPull).normalized;
+            p.moveVector = direction * move.magnitude;
+            if (distance > radius)
+                p.transform.position = center + outward * radius;
+            if (p.rigidbody2D != null)
+            {
+                if (distance > radius)
+                    p.rigidbody2D.position = p.transform.position;
+                p.rigidbody2D.velocity = direction * p.rigidbody2D.velocity.magnitude;
+            }
         }
 
         private void ReleaseHeld()
@@ -214,6 +251,7 @@ namespace WoLSlingshotDash
                 StormGuard.Release(p);
             StormGuard.ReleaseAll(parent);
             held.Clear();
+            incoming.Clear();
         }
 
         private float SphereRadius()
