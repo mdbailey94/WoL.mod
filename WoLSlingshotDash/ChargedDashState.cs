@@ -4,7 +4,8 @@ using UnityEngine;
 namespace WoLSlingshotDash
 {
     // A dash you can charge: hold the dash button to hop backward and hold that pose while you pull
-    // back, release to launch. The longer the hold (up to MaxCharge), the faster and longer the
+    // back, release to launch. You can hold as long as you like (see MaxHoldSeconds); the charge
+    // is full after MaxCharge. The longer the hold (up to MaxCharge), the faster and longer the
     // dash. A tap is a normal dash. Each arcana adds its own attacks through OnLaunch,
     // WhileDashing and OnLand, which only run for a charged launch.
     //
@@ -53,6 +54,13 @@ namespace WoLSlingshotDash
         {
         }
 
+        // A charged launch normally boosts the dash; an arcana with its own launch can opt out.
+        protected virtual bool BoostsDash => true;
+
+        // Keep the wizard planted during a charged dash (the dash still runs for its cooldown,
+        // invulnerability and timing, but doesn't move you).
+        protected virtual bool HoldsStill => false;
+
         public override void OnEnter()
         {
             // Without a way to read the button we can't charge; behave like a normal dash.
@@ -94,7 +102,8 @@ namespace WoLSlingshotDash
             ApplyChargeVelocity();
 
             bool held = DashButton.Held(parent, skillSlot);
-            if (!held || chargeTime >= MaxCharge)
+            float maxHold = SlingshotDashPlugin.MaxHoldSeconds;
+            if (!held || (maxHold > 0f && chargeTime >= maxHold))
                 Launch(chargeTime < TapWindow ? 0f : Mathf.Clamp01(chargeTime / MaxCharge));
         }
 
@@ -106,6 +115,8 @@ namespace WoLSlingshotDash
                 return;
             }
             base.FixedUpdate();
+            if (launchCharge > 0f && HoldsStill && parent.rigidbody2D != null)
+                parent.rigidbody2D.velocity = Vector2.zero;
         }
 
         public override void OnExit()
@@ -123,7 +134,7 @@ namespace WoLSlingshotDash
         {
             charging = false;
             launchCharge = charge;
-            if (charge > 0f)
+            if (charge > 0f && BoostsDash)
                 ApplyBoost(charge);
             // Start the game's own dash now, aimed wherever the player is holding.
             base.OnEnter();

@@ -15,12 +15,14 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.6.0";
+        public const string PluginVersion = "0.7.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
         private static ConfigEntry<float> chargePoseFrame;
         private static ConfigEntry<float> hopDistance;
+        private static ConfigEntry<float> maxHold;
+        private ConfigEntry<float> cooldownSeconds;
         private ConfigEntry<bool> modEnabled;
 
         private static SlingshotDashPlugin instance;
@@ -36,6 +38,8 @@ namespace WoLSlingshotDash
 
         public static float ChargePoseFrame => Mathf.Clamp01(chargePoseFrame?.Value ?? 0.4f);
         public static float HopDistance => Mathf.Max(0f, hopDistance?.Value ?? 1.5f);
+        // 0 = hold as long as you like.
+        public static float MaxHoldSeconds => Mathf.Max(0f, maxHold?.Value ?? 0f);
 
         // The game's own player animation for the chosen name, or null for "None".
         public static string ChargeAnimation(Player player)
@@ -59,7 +63,7 @@ namespace WoLSlingshotDash
             log = Logger;
             instance = this;
             modEnabled = Config.Bind("General", "Enabled", true,
-                "Offer Slingshot and Blazing Slingshot in the arcana shop (also in the title screen Mods menu). " +
+                "Offer the Slingshot arcana (Air, Fire and Ice) in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
             chargeAnimation = Config.Bind("Charge", "Animation", "Jump",
                 new ConfigDescription("Animation for the backward hop and the held pose while charging.",
@@ -70,6 +74,14 @@ namespace WoLSlingshotDash
             hopDistance = Config.Bind("Charge", "HopDistance", 1.5f,
                 new ConfigDescription("How far the backward hop goes when you start charging (0 = no hop).",
                     new AcceptableValueRange<float>(0f, 4f)));
+            maxHold = Config.Bind("Charge", "MaxHoldSeconds", 0f,
+                new ConfigDescription("Launch automatically after holding this long (0 = hold as long as you " +
+                    "like). The charge is full after 1 second either way.",
+                    new AcceptableValueRange<float>(0f, 10f)));
+            cooldownSeconds = Config.Bind("Balance", "CooldownSeconds", 7f,
+                new ConfigDescription("Cooldown of all three slingshots (one charge each). Applies the next " +
+                    "time the game starts.",
+                    new AcceptableValueRange<float>(0.5f, 30f)));
 
             Skills.Register(new SkillInfo
             {
@@ -88,7 +100,7 @@ namespace WoLSlingshotDash
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
                     // Level 1 is the launch burst, level 2 the landing burst: at most 16 per enemy.
                     damage = new[] { 10, 6 },
-                    cooldown = new[] { 10f },
+                    cooldown = new[] { cooldownSeconds.Value },
                     // Positive knockback pushes enemies away; gentler where you land.
                     knockbackMultiplier = new[] { 55f, 22f },
                     hitStunDurationModifier = new[] { 1.2f },
@@ -116,7 +128,7 @@ namespace WoLSlingshotDash
                     // Level 1 is the trail, level 2 the vacuum's pulses where you land. About
                     // 3 trail hits x4 + 4 pulses x2 = 20 at most per enemy, plus burn.
                     damage = new[] { 4, 2 },
-                    cooldown = new[] { 10f },
+                    cooldown = new[] { cooldownSeconds.Value },
                     // Negative knockback pulls enemies toward each burst.
                     knockbackMultiplier = new[] { -26f, -32f },
                     hitStunDurationModifier = new[] { 1.2f },
@@ -127,7 +139,35 @@ namespace WoLSlingshotDash
                 unlockCondition = () => modEnabled.Value
             });
 
-            Logger.LogInfo($"{PluginName} {PluginVersion} registered Slingshot and Blazing Slingshot");
+            Skills.Register(new SkillInfo
+            {
+                ID = FrostSlingshotState.staticID,
+                displayName = "Frost Slingshot",
+                description = "Hold to pull back and charge, then release to throw an ice feint and swap places with it, freezing enemies where you stood!",
+                enhancedDescription = "A longer throw and a colder burst!",
+                icon = LoadIcon("icon_ice.png"),
+                tier = 2,
+                stateType = typeof(FrostSlingshotState),
+                skillStats = new SkillStats
+                {
+                    ID = new[] { FrostSlingshotState.staticID },
+                    elementType = new[] { "Ice" },
+                    subElementType = new[] { "Ice" },
+                    targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
+                    // One Frost Nova where you stood: 12 damage and a guaranteed freeze.
+                    damage = new[] { 12 },
+                    cooldown = new[] { cooldownSeconds.Value },
+                    knockbackMultiplier = new[] { 0f },
+                    hitStunDurationModifier = new[] { 1f },
+                    sameAttackImmunityTime = new[] { 0.5f },
+                    freezeChance = new[] { 1f },
+                    freezeDuration = new[] { 1.5f }
+                },
+                priceMultiplier = 3,
+                unlockCondition = () => modEnabled.Value
+            });
+
+            Logger.LogInfo($"{PluginName} {PluginVersion} registered Slingshot, Blazing Slingshot and Frost Slingshot");
         }
 
         private Sprite LoadIcon(string fileName)
