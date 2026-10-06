@@ -33,7 +33,7 @@ namespace WoLSlingshotDash
             Try("air puffs", () => PoolManager.GetPoolItem<AirWalkEmitter>().EmitSingle(new int?(count),
                 new Vector3?(position), null, null, 0f, null));
 
-        // The swirl Gust Burst and Raging Wind's bursts show.
+        // The swirl Gust Burst shows.
         public static void WindSwirl(Vector2 position, int count) =>
             Try("wind swirl", () => PoolManager.GetPoolItem<ParticleEffect>("WindBurstEffect").Emit(new int?(count),
                 new Vector3?(position), null, null, 0f, null, null));

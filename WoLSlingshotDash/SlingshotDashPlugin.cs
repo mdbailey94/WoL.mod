@@ -16,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.20.0";
+        public const string PluginVersion = "0.21.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -25,7 +25,7 @@ namespace WoLSlingshotDash
         private static ConfigEntry<float> maxHold;
         private static ConfigEntry<float> cooldownSeconds;
         private ConfigEntry<float> dashCooldownSeconds;
-        private ConfigEntry<float> blazingDrag;
+        private ConfigEntry<float> drag;
         private static ConfigEntry<float> frostFreezeRadius;
         private static ConfigEntry<float> stormSphereSize;
         private static ConfigEntry<bool> matchIconPalette;
@@ -112,9 +112,9 @@ namespace WoLSlingshotDash
                 new ConfigDescription("Cooldown of the normal dash these arcana do when not slingshotting. " +
                     "Applies the next time the game starts.",
                     new AcceptableValueRange<float>(0.1f, 5f)));
-            // Replaces BlazingPathPull (default 12, too weak to notice) with a stronger default.
-            blazingDrag = Config.Bind("Balance", "BlazingDrag", 35f,
-                new ConfigDescription("How hard Vacuum Kick's trail drags enemies along your dash. " +
+            // The drag moved from the fire arcana (BlazingDrag) to the wind one.
+            drag = Config.Bind("Balance", "Drag", 35f,
+                new ConfigDescription("How hard Vacuum Fist's wind drags enemies along your dash. " +
                     "Make it negative if they get pushed the wrong way. Applies the next time the game starts.",
                     new AcceptableValueRange<float>(-80f, 80f)));
             vineDark = Config.Bind("Vines", "DarkColor", "",
@@ -146,8 +146,8 @@ namespace WoLSlingshotDash
             Skills.Register(new SkillInfo
             {
                 ID = SlingshotDashState.staticID,
-                displayName = "Raging Wind",
-                description = "Hold to charge, then release to ride a raging wind across the room, blasting enemies away where you take off and land!",
+                displayName = "Vacuum Fist",
+                description = "Hold to charge, then release to rush across the room on a howling wind that drags enemies along, and finish with a punch that pulls them all in!",
                 enhancedDescription = "Leaves a trail of gusts along your path!",
                 icon = LoadIcon("icon.png"),
                 tier = 2,
@@ -158,14 +158,18 @@ namespace WoLSlingshotDash
                     elementType = new[] { "Air" },
                     subElementType = new[] { "Air" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
-                    // Level 1 is the launch burst, level 2 the landing burst: at most 16 per enemy.
-                    // Level 3 is the enhanced trail's gusts (each blows twice).
-                    damage = new[] { 10, 6, 3 },
+                    // Level 1 is the dragging wind (launch and dash), level 2 the vacuum's pulses
+                    // where you land: about 3 x4 + 4 x2 = 20 at most per enemy. Level 3 is the
+                    // enhanced trail's gusts (each blows twice).
+                    damage = new[] { 4, 2, 3 },
                     cooldown = new[] { dashCooldownSeconds.Value },
-                    // Positive knockback pushes enemies away; gentler where you land.
-                    knockbackMultiplier = new[] { 55f, 22f, 18f },
+                    // Level 1 knocks enemies along the dash (set on each burst), so they get
+                    // dragged with you; level 2 pulls toward its centre; level 3 pushes away.
+                    knockbackMultiplier = new[] { drag.Value, -32f, 18f },
+                    knockbackOverwrite = new[] { true, false, false },
                     hitStunDurationModifier = new[] { 1.2f },
-                    sameAttackImmunityTime = new[] { 0.25f }
+                    // Short, so the wind and vacuum keep grabbing enemies.
+                    sameAttackImmunityTime = new[] { 0.12f }
                 },
                 priceMultiplier = 3,
                 unlockCondition = () => modEnabled.Value
@@ -175,7 +179,7 @@ namespace WoLSlingshotDash
             {
                 ID = BlazingSlingshotState.staticID,
                 displayName = "Vacuum Kick",
-                description = "Hold to charge, then release to blitz through enemies in a trail of flame, dragging them along, and finish with a kick that pulls them in!",
+                description = "Hold to charge, then release to blitz through enemies in a trail of flame, shoving them aside, and finish with a kick that blasts them away!",
                 enhancedDescription = "Sets every enemy it touches on fire!",
                 icon = LoadIcon("icon_fire.png"),
                 tier = 2,
@@ -186,19 +190,18 @@ namespace WoLSlingshotDash
                     elementType = new[] { "Fire" },
                     subElementType = new[] { "Fire" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
-                    // Level 1 is the trail, level 2 the vacuum's pulses where you land. About
-                    // 3 trail hits x4 + 4 pulses x2 = 20 at most per enemy. Levels 3 and 4 are the
-                    // same for the enhanced version, plus a sure burn.
-                    damage = new[] { 4, 2, 4, 2 },
+                    // Level 1 is the launch and trail, level 2 the blast where you land: about
+                    // 2 trail hits x4 + 10 = 18 at most per enemy. Levels 3 and 4 are the same for
+                    // the enhanced version, plus a sure burn.
+                    damage = new[] { 4, 10, 4, 10 },
                     cooldown = new[] { dashCooldownSeconds.Value },
-                    // Level 1 (the trail) knocks enemies along the dash direction, set on each burst,
-                    // so they get dragged with you; level 2 (the vacuum) pulls toward its centre.
-                    knockbackMultiplier = new[] { blazingDrag.Value, -32f, blazingDrag.Value, -32f },
-                    knockbackOverwrite = new[] { true, false, true, false },
+                    // Positive knockback: the trail shoves enemies out of your way, the blast
+                    // throws them hard.
+                    knockbackMultiplier = new[] { 30f, 60f, 30f, 60f },
                     hitStunDurationModifier = new[] { 1.2f },
                     burnChance = new[] { 0f, 0f, 1f, 1f },
                     burnLevel = new[] { 1 },
-                    // Short, so the trail and vacuum keep grabbing enemies.
+                    // Short, so the trail keeps catching enemies and the blast still lands.
                     sameAttackImmunityTime = new[] { 0.12f }
                 },
                 priceMultiplier = 3,
@@ -320,7 +323,7 @@ namespace WoLSlingshotDash
                 Logger.LogError($"Charged Leap hit guard failed to install: {e.Message}");
             }
 
-            Logger.LogInfo($"{PluginName} {PluginVersion} registered Raging Wind, Vacuum Kick, Feint Swap, Vine Slingshot and Charged Leap");
+            Logger.LogInfo($"{PluginName} {PluginVersion} registered Vacuum Fist, Vacuum Kick, Feint Swap, Vine Slingshot and Charged Leap");
         }
 
         private Sprite LoadIcon(string fileName)

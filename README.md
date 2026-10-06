@@ -6,7 +6,7 @@ BepInEx 5 mods for Wizard of Legend.
 |-----|--------|-------------|
 | [WoLCameraZoom](WoLCameraZoom/) | Working | Zooms the gameplay camera out so you can see more of the arena. |
 | [WoLRollingGale](WoLRollingGale/) | Working | New Air arcana: a line of wind bursts that rolls forward and pulls enemies. Needs LegendAPI. |
-| [WoLSlingshotDash](WoLSlingshotDash/) | Working (Storm untested) | Five hold-to-charge dash arcana: Raging Wind (wind bursts), Vacuum Kick (a flaming rush that drags enemies, ending in a vacuum), Feint Swap (throw an ice feint, swap places, freeze both ends) Vine Slingshot (grab with twin vines, pull in and kick) and Charged Leap (catch enemy projectiles, then hurl them and yourself). Needs LegendAPI. |
+| [WoLSlingshotDash](WoLSlingshotDash/) | Working (Storm untested) | Five hold-to-charge dash arcana: Vacuum Fist (a rushing wind that drags enemies, ending in a vacuum punch), Vacuum Kick (a flaming rush that shoves enemies aside, ending in a blast), Feint Swap (throw an ice feint, swap places, freeze both ends) Vine Slingshot (grab with twin vines, pull in and kick) and Charged Leap (catch enemy projectiles, then hurl them and yourself). Needs LegendAPI. |
 | [WoLExtendedStats](WoLExtendedStats/) | Working | Hidden arcana and wizard stats in the character menu info box, plus a post-run report: crits, biggest crit, pit knock-offs, top speed and more. Co-op aware. |
 | [WoLAscension](WoLAscension/) | Working (0.2.1 untested) | Ascension levels 1–10: stacking difficulty modifiers, picked on a pixel-art prompt when you enter the run portal. |
 | [WoLUnlockModContent](WoLUnlockModContent/) | Untested | Mods-menu toggle that unlocks all mod-added arcana and relics for easy testing (reversible). Needs LegendAPI. |

@@ -5,11 +5,10 @@ using UnityEngine;
 namespace WoLSlingshotDash
 {
     // Vacuum Kick (Fire): a charged launch rushes you forward wrapped in Blazing Blitz's
-    // flame trail, dropping flame bursts that drag enemies along your path. Where you land, a flame
-    // vacuum keeps sucking everyone nearby in for a moment. Bigger with more charge.
+    // flame trail, dropping flame bursts that shove enemies out of your path. The kick at the end
+    // lands in a fiery blast that throws everyone nearby away. Bigger with more charge.
     //
-    // Level 1 is the trail: its knockback is overridden to point along the dash (BlazingDrag).
-    // Level 2 is the vacuum's pulses: negative knockback, a pull toward the centre like Gust Burst.
+    // Level 1 is the launch and trail (knockback pushes away from each burst), level 2 the blast.
     // Enhanced, levels 3 and 4 stand in for them: the same, but every hit sets enemies on fire.
     public class BlazingSlingshotState : ChargedDashState
     {
@@ -21,11 +20,11 @@ namespace WoLSlingshotDash
         // Hit area of the burst where you launch.
         private const float LaunchHitScale = 3f;
         private const float FlameInterval = 0.03f;
-        private const int VacuumPulses = 4;
-        private const float VacuumPulseInterval = 0.15f;
+        // The blast where you land.
+        private const float BlastScale = 2f;
+        private const float BlastChargeScale = 1.25f;
 
         private float nextTrail;
-        private Vector2 direction;
         // Enhanced uses the burning copies of the levels (3 and 4).
         private int LevelOffset => IsEmpowered ? 2 : 0;
         private float nextFlame;
@@ -57,15 +56,11 @@ namespace WoLSlingshotDash
             // Flair only: a fiery blast and a shake as you take off.
             Effects.FireBlast(parent.transform.position, 6 + Mathf.RoundToInt(6 * charge));
             Effects.Shake(0.5f + 0.4f * charge);
-            direction = inputVector.sqrMagnitude > 0.01f
-                ? inputVector.normalized
-                : Entity.GetFacingDirectionVector(parent.facingDirection).normalized;
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(parent.transform.position), null, 24f, -1f,
                 0.9f - 0.2f * charge, false);
-            // A wide hit where you launch (no effect of its own; the trail's flames show it).
-            FlameBurst start = FlameBurst.CreateBurst(parent.transform.position, parent.skillCategory, skillID, 1 + LevelOffset, LaunchHitScale, false);
-            if (start != null && start.attack != null)
-                start.attack.knockbackOverwriteVector = direction;
+            // A wide hit where you launch, shoving enemies away (no effect of its own; the
+            // trail's flames show it).
+            FlameBurst.CreateBurst(parent.transform.position, parent.skillCategory, skillID, 1 + LevelOffset, LaunchHitScale, false);
         }
 
         protected override void WhileDashing(float charge)
@@ -88,61 +83,27 @@ namespace WoLSlingshotDash
             {
                 nextTrail = TrailInterval;
                 // The hit: a full-size burst with no effect of its own (the small visible flames
-                // are the Blitz trail), so it catches enemies you dash past. Knocks them along the
-                // dash so the trail drags them with you.
-                FlameBurst burst = FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1 + LevelOffset, TrailHitScale, false);
-                if (burst != null && burst.attack != null)
-                    burst.attack.knockbackOverwriteVector = direction;
-                // The small visible burst (same skill, so it can't hit anyone twice; same drag).
-                FlameBurst flames = FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1 + LevelOffset, 0.8f + 0.4f * charge, true);
-                if (flames != null && flames.attack != null)
-                    flames.attack.knockbackOverwriteVector = direction;
+                // are the Blitz trail), so it catches enemies you dash past and shoves them out of
+                // your way.
+                FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1 + LevelOffset, TrailHitScale, false);
+                // The small visible burst (same skill, so it can't hit anyone twice).
+                FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1 + LevelOffset, 0.8f + 0.4f * charge, true);
             }
         }
 
+        // The kick lands in a fiery blast that throws everyone nearby away (level 2).
         protected override void OnLand(float charge)
         {
-            Vector3 position = parent.transform.position;
-            // Flair only: the kick lands in a blast, with dust streaming in to it.
-            Effects.FireBlast(position, 10 + Mathf.RoundToInt(8 * charge));
-            Effects.DustSuction(position, 30);
-            Effects.Shake(0.8f + 0.4f * charge);
-            GameObject vacuum = null;
-            try
-            {
-                VacuumFlameSmall flame = ChaosInst<VacuumFlameSmall>(VacuumFlameSmall.Prefab, new Vector2?(position), null, null);
-                vacuum = flame != null ? flame.gameObject : null;
-            }
-            catch (System.Exception e)
-            {
-                SlingshotDashPlugin.Log($"Vacuum flame effect unavailable: {e.Message}");
-            }
-            // The dash state ends here, so the vacuum runs on the plugin.
-            SlingshotDashPlugin.Run(Vacuum(position, 1.0f + 0.4f * charge, parent.skillCategory, skillID, 2 + LevelOffset, vacuum));
-        }
-
-        private static IEnumerator Vacuum(Vector3 position, float scale, string skillCategory, string id, int level, GameObject vacuum)
-        {
-            for (int i = 0; i < VacuumPulses; i++)
-            {
-                FlameBurst.CreateBurst(position, skillCategory, id, level, scale, true);
-                EmitBlitzFlames(position, 6);
-                yield return new WaitForSeconds(VacuumPulseInterval);
-            }
-            if (vacuum != null)
-            {
-                VacuumFlameSmall flame = vacuum.GetComponent<VacuumFlameSmall>();
-                try
-                {
-                    if (flame != null)
-                        flame.CleanUp();
-                }
-                catch
-                {
-                }
-                if (vacuum != null && vacuum.activeSelf)
-                    Object.Destroy(vacuum);
-            }
+            Vector2 position = parent.transform.position;
+            float scale = BlastScale + BlastChargeScale * charge;
+            FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 2 + LevelOffset, scale, true);
+            EmitBlitzFlames(position, 14);
+            // Flair only: the blast's fire, a ring of dust thrown out and a shake.
+            Effects.FireBlast(position, 12 + Mathf.RoundToInt(8 * charge));
+            Effects.Dust(position, 60, scale);
+            Effects.Shake(0.9f + 0.4f * charge);
+            SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(position), null, 24f, -1f,
+                0.7f - 0.1f * charge, false);
         }
 
         // The flame particles Blazing Blitz trails behind the wizard.

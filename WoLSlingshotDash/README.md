@@ -1,4 +1,4 @@
-# Raging Wind, Vacuum Kick, Feint Swap, Vine Slingshot and Charged Leap (Wizard of Legend)
+# Vacuum Fist, Vacuum Kick, Feint Swap, Vine Slingshot and Charged Leap (Wizard of Legend)
 
 Five new **dash** arcana, added with [LegendAPI](https://github.com/yekoc/LegendAPI). Both charge
 the same way; they differ in what the launch does.
@@ -8,7 +8,7 @@ the same way; they differ in what the launch does.
 - **Tap** dash: a normal dash. While the slingshot is recharging, holding is a normal dash too.
 - **Hold** dash (slingshot ready): your wizard hops backward, like pulling back a slingshot,
   and holds that pose while their element gathers round them: a fast-spinning whirlwind for
-  Raging Wind, flames (and a trembling wizard) for Vacuum Kick, ice crystals forming in a
+  Vacuum Fist, flames (and a trembling wizard) for Vacuum Kick, ice crystals forming in a
   closing ring for Feint Swap, pebbles and leaves for Vine Slingshot, and electric arcs and
   sparks for Charged Leap. The charge is full after 1 second; after 2 seconds it
   launches by itself. Keep aiming to turn and line up the shot (Vine Slingshot is the
@@ -16,30 +16,34 @@ the same way; they differ in what the launch does.
 - **Release**: launch the way you're aiming. A full charge gives **+60% dash speed and +40% dash
   time** (about 2.2× the distance).
 
-### Raging Wind (Air)
+### Vacuum Fist (Air)
 
-> **Raging Wind**: Hold to charge, then release to ride a raging wind across the room, blasting
-> enemies away where you take off and land!
+> **Vacuum Fist**: Hold to charge, then release to rush across the room on a howling wind that
+> drags enemies along, and finish with a punch that pulls them all in!
 >
 > *Enhanced: Leaves a trail of gusts along your path!*
 
-- Wind bursts go off **where you take off and where you land**, knocking nearby enemies away:
-  hard at take-off, gentler where you land. Both get bigger with more charge.
+- A wide gust grabs enemies where you launch, then the wind you ride **drags everyone you pass
+  along with you**.
+- You wind up a punch for the end of the rush, and it lands in a **vacuum** that keeps pulling
+  everyone nearby in for about half a second.
+- Everything scales with charge.
 - **Enhanced**: gusts are left all along your path, each blowing twice (3 damage a gust, pushing
   enemies away from the line).
 
 ### Vacuum Kick (Fire)
 
 > **Vacuum Kick**: Hold to charge, then release to blitz through enemies in a trail of flame,
-> dragging them along, and finish with a kick that pulls them in!
+> shoving them aside, and finish with a kick that blasts them away!
 >
 > *Enhanced: Sets every enemy it touches on fire!*
 
-- A wide burst catches enemies where you launch, then you rush forward wrapped in **Blazing
-  Blitz's flame trail**, dropping flame bursts that drag enemies they hit along your path.
-- Where you land, a **flame vacuum** keeps sucking everyone nearby in for about half a second.
+- A wide burst where you launch, then you rush forward wrapped in **Blazing Blitz's flame
+  trail**, dropping flame bursts that **shove enemies out of your way**.
+- You swing into a kick for the end of the rush, and it lands in a **fiery blast** that throws
+  everyone nearby away.
 - Everything scales with charge.
-- **Enhanced**: every hit, trail and vacuum alike, **sets the enemy on fire**.
+- **Enhanced**: every hit, trail and blast alike, **sets the enemy on fire**.
 
 ### Feint Swap (Water)
 
@@ -99,8 +103,8 @@ the same way; they differ in what the launch does.
 ### Flair
 
 Every arcana has extra effects that are only for show (they never hit anything or change the
-timing): Raging Wind's take-off puff and streaming gust, Vacuum Kick's fiery blasts, the kick it
-swings into at the end of its rush and the dust drawn into its landing, Feint Swap's splashes,
+timing): Vacuum Fist's whirl of wind, the punch it winds up and the dust drawn into its vacuum,
+Vacuum Kick's fiery blasts and the kick it swings into at the end of its rush, Feint Swap's splashes,
 shimmering trail and glints at both ends, and Charged Leap's lightning flash and crackling sparks.
 Most come with a small camera shake.
 
@@ -115,8 +119,8 @@ swish also tell you it's ready.
 
 | | Damage per enemy | Notes |
 |---|---|---|
-| Raging Wind | 10 at launch, 6 where you land (up to 16) | Strong knockback at launch, gentle at landing; enhanced trail gusts 3 each |
-| Vacuum Kick | 4 per trail burst, 2 per vacuum pulse (about 20 at most) | Pulls instead of pushing; enhanced, every hit burns |
+| Vacuum Fist | 4 per drag, 2 per vacuum pulse (about 20 at most) | Drags along, then pulls in; enhanced trail gusts 3 each |
+| Vacuum Kick | 4 per trail burst, 10 from the blast (about 18 at most) | Shoves aside, then throws away; enhanced, every hit burns |
 | Feint Swap | 12 per Frost Nova (one at each end) | Freezes for 1.5 s; the feint draws enemies |
 | Vine Slingshot | 3 per grip tick (every 0.4 s, up to 2 s) and 14 from the kick | Grip stuns; the kick knocks back hard; enhanced snares 2 every 0.5 s |
 | Charged Leap | Caught projectiles ×1.5, plus 10 from the landing burst | Only as strong as what you catch |
@@ -138,8 +142,8 @@ Under `[Balance]`:
 
 - `CooldownSeconds`: how long until you can slingshot again. Default `7`.
 - `DashCooldownSeconds`: cooldown of the normal dash in between. Default `0.6`.
-- `BlazingDrag`: how hard Vacuum Kick's trail drags enemies along your dash. Default
-  `35`; make it negative if they get pushed the wrong way.
+- `Drag`: how hard Vacuum Fist's wind drags enemies along your dash. Default `35`; make it
+  negative if they get pushed the wrong way.
 - `FrostFreezeRadius`: size of Feint Swap's freezes at the shortest hold (a full charge adds
   half again). Default `1`.
 - `StormSphereSize`: size of Charged Leap's Mag Sphere compared with the arcana's (`1` = the
