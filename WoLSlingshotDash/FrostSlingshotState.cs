@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace WoLSlingshotDash
 {
-    // Frost Slingshot (Ice): a charged launch throws an ice feint (the game's IceDecoy, which
+    // Frost Slingshot (Water, the game's frost element): a charged launch throws an ice feint (the game's IceDecoy, which
     // enemies go after) out along your aim while you stay put. When it lands you swap places: you
     // appear where it landed, and it appears where you stood and bursts with a small Frost Nova
     // that freezes enemies around it, then lingers to draw them in. Further with more charge.

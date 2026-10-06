@@ -15,7 +15,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.7.1";
+        public const string PluginVersion = "0.7.2";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -63,7 +63,7 @@ namespace WoLSlingshotDash
             log = Logger;
             instance = this;
             modEnabled = Config.Bind("General", "Enabled", true,
-                "Offer the Slingshot arcana (Air, Fire and Ice) in the arcana shop (also in the title screen Mods menu). " +
+                "Offer the Slingshot arcana (Air, Fire and Water) in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
             chargeAnimation = Config.Bind("Charge", "Animation", "Jump",
                 new ConfigDescription("Animation for the backward hop and the held pose while charging.",
@@ -151,8 +151,10 @@ namespace WoLSlingshotDash
                 skillStats = new SkillStats
                 {
                     ID = new[] { FrostSlingshotState.staticID },
-                    elementType = new[] { "Ice" },
-                    subElementType = new[] { "Ice" },
+                    // The game's frost arcana are Water: "Ice" has no spellbook tab, and using it
+                    // broke the wizard's setup when loading into the house.
+                    elementType = new[] { "Water" },
+                    subElementType = new[] { "Water" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
                     // One Frost Nova where you stood: 12 damage and a guaranteed freeze.
                     damage = new[] { 12 },

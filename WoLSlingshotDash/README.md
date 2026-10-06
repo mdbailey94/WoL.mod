@@ -30,7 +30,7 @@ the launch, gentler where you land. Both get bigger with more charge.
 - Where you land, a **flame vacuum** keeps sucking everyone nearby in for about half a second.
 - Everything scales with charge, and it's Fire, so it can burn.
 
-### Frost Slingshot (Ice)
+### Frost Slingshot (Water)
 
 > **Frost Slingshot**: Hold to pull back and charge, then release to throw an ice feint and swap
 > places with it, freezing enemies where you stood!
@@ -83,7 +83,7 @@ Anything not in the config file lives in the code:
 - **Charging** (time to full charge, tap window, speed/duration bonus, hop timing): the
   constants at the top of `ChargedDashState.cs`.
 - **Each arcana's attacks**: `SlingshotDashState.cs` (Air), `BlazingSlingshotState.cs` (Fire)
-  and `FrostSlingshotState.cs` (Ice): burst sizes, intervals, throw distance and so on, as
+  and `FrostSlingshotState.cs` (Water): burst sizes, intervals, throw distance and so on, as
   constants at the top or numbers in the calls.
 
 To build your change, push it to a branch and open a pull request: GitHub Actions builds every
