@@ -15,7 +15,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.10.1";
+        public const string PluginVersion = "0.11.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -68,7 +68,7 @@ namespace WoLSlingshotDash
             log = Logger;
             instance = this;
             modEnabled = Config.Bind("General", "Enabled", true,
-                "Offer the Slingshot arcana (Air, Fire, Water and Earth) in the arcana shop (also in the title screen Mods menu). " +
+                "Offer the Slingshot arcana (Air, Fire, Water, Earth and Lightning) in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
             chargeAnimation = Config.Bind("Charge", "Animation", "Jump",
                 new ConfigDescription("Animation for the backward hop and the held pose while charging.",
@@ -218,7 +218,33 @@ namespace WoLSlingshotDash
                 unlockCondition = () => modEnabled.Value
             });
 
-            Logger.LogInfo($"{PluginName} {PluginVersion} registered Slingshot, Blazing, Frost and Vine Slingshot");
+            Skills.Register(new SkillInfo
+            {
+                ID = StormSlingshotState.staticID,
+                displayName = "Storm Slingshot",
+                description = "Hold to gather enemy projectiles into a crackling field around you, then let go to hurl them and yourself at the foe!",
+                enhancedDescription = "A wider field and a bigger burst!",
+                icon = LoadIcon("icon_lightning.png"),
+                tier = 2,
+                stateType = typeof(StormSlingshotState),
+                skillStats = new SkillStats
+                {
+                    ID = new[] { StormSlingshotState.staticID },
+                    elementType = new[] { "Lightning" },
+                    subElementType = new[] { "Lightning" },
+                    targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
+                    // The landing burst; caught projectiles keep their own damage (x1.5).
+                    damage = new[] { 10 },
+                    cooldown = new[] { dashCooldownSeconds.Value },
+                    knockbackMultiplier = new[] { 25f },
+                    hitStunDurationModifier = new[] { 1.2f },
+                    sameAttackImmunityTime = new[] { 0.3f }
+                },
+                priceMultiplier = 3,
+                unlockCondition = () => modEnabled.Value
+            });
+
+            Logger.LogInfo($"{PluginName} {PluginVersion} registered Slingshot, Blazing, Frost, Vine and Storm Slingshot");
         }
 
         // Keeps the slingshot cooldown drawn over its arcana icon.

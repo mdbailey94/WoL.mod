@@ -16,6 +16,8 @@ namespace WoLSlingshotDash
         private const float TrailInterval = 0.1f;
         // Hit area of each trail burst; the visible flames are smaller.
         private const float TrailHitScale = 2f;
+        // Hit area of the burst where you launch.
+        private const float LaunchHitScale = 3f;
         private const float FlameInterval = 0.03f;
         private const int VacuumPulses = 4;
         private const float VacuumPulseInterval = 0.15f;
@@ -37,6 +39,10 @@ namespace WoLSlingshotDash
                 : Entity.GetFacingDirectionVector(parent.facingDirection).normalized;
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(parent.transform.position), null, 24f, -1f,
                 0.9f - 0.2f * charge, false);
+            // A wide hit where you launch (no effect of its own; the trail's flames show it).
+            FlameBurst start = FlameBurst.CreateBurst(parent.transform.position, parent.skillCategory, skillID, 1, LaunchHitScale, false);
+            if (start != null && start.attack != null)
+                start.attack.knockbackOverwriteVector = direction;
         }
 
         protected override void WhileDashing(float charge)
@@ -79,7 +85,7 @@ namespace WoLSlingshotDash
                 SlingshotDashPlugin.Log($"Vacuum flame effect unavailable: {e.Message}");
             }
             // The dash state ends here, so the vacuum runs on the plugin.
-            SlingshotDashPlugin.Run(Vacuum(position, 1.4f + 0.6f * charge, parent.skillCategory, skillID, vacuum));
+            SlingshotDashPlugin.Run(Vacuum(position, 1.0f + 0.4f * charge, parent.skillCategory, skillID, vacuum));
         }
 
         private static IEnumerator Vacuum(Vector3 position, float scale, string skillCategory, string id, GameObject vacuum)

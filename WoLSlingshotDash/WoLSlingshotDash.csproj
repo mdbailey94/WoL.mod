@@ -55,6 +55,7 @@
     <EmbeddedResource Include="Assets\icon_fire.png" LogicalName="WoLSlingshotDash.Assets.icon_fire.png" />
     <EmbeddedResource Include="Assets\icon_ice.png" LogicalName="WoLSlingshotDash.Assets.icon_ice.png" />
     <EmbeddedResource Include="Assets\icon_earth.png" LogicalName="WoLSlingshotDash.Assets.icon_earth.png" />
+    <EmbeddedResource Include="Assets\icon_lightning.png" LogicalName="WoLSlingshotDash.Assets.icon_lightning.png" />
   </ItemGroup>
 
   <Target Name="CopyToPlugins" AfterTargets="Build" Condition="Exists('$(GameDir)\BepInEx\plugins')">

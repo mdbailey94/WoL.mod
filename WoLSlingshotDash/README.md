@@ -1,9 +1,9 @@
-# Slingshot, Blazing, Frost and Vine Slingshot (Wizard of Legend)
+# Slingshot, Blazing, Frost, Vine and Storm Slingshot (Wizard of Legend)
 
-Four new **dash** arcana, added with [LegendAPI](https://github.com/yekoc/LegendAPI). Both charge
+Five new **dash** arcana, added with [LegendAPI](https://github.com/yekoc/LegendAPI). Both charge
 the same way; they differ in what the launch does.
 
-### Charging (all four)
+### Charging (all five)
 
 - **Tap** dash: a normal dash. While the slingshot is recharging, holding is a normal dash too.
 - **Hold** dash (slingshot ready): your wizard hops backward, like pulling back a slingshot, then holds that pose
@@ -25,8 +25,8 @@ the launch, gentler where you land. Both get bigger with more charge.
 > **Blazing Slingshot**: Hold to pull back and charge, then release to blitz across the room in
 > flames, leaving a vacuum that sucks enemies in!
 
-- You rush forward wrapped in **Blazing Blitz's flame trail**, dropping flame bursts that drag
-  enemies they hit a little way along your path.
+- A wide burst catches enemies where you launch, then you rush forward wrapped in **Blazing
+  Blitz's flame trail**, dropping flame bursts that drag enemies they hit along your path.
 - Where you land, a **flame vacuum** keeps sucking everyone nearby in for about half a second.
 - Everything scales with charge, and it's Fire, so it can burn.
 
@@ -57,6 +57,16 @@ the launch, gentler where you land. Both get bigger with more charge.
 - Let go, or run out of time, and you **pull yourself in** with a kick that **knocks the target
   back** hard.
 
+### Storm Slingshot (Lightning)
+
+> **Storm Slingshot**: Hold to gather enemy projectiles into a crackling field around you, then
+> let go to hurl them and yourself at the foe!
+
+- While you hold, a **crackling field** around you (growing as you charge) **catches enemy
+  projectiles**, like Mag Sphere: they turn to your side and **spin around you** (up to 8).
+- Let go and they **all fire in a tight fan along your aim**, hitting harder than before (×1.5),
+  while you **dash after them** and land with a small **lightning burst**.
+
 ### Balance
 
 Slingshot arcana trade a long cooldown and a charge-up for more range and damage than a normal
@@ -71,6 +81,7 @@ slingshot recharges, and a puff of dust and a swish tell you when it's ready aga
 | Blazing Slingshot | 4 per trail burst, 2 per vacuum pulse (about 20 at most) | Plus burn; pulls instead of pushing |
 | Frost Slingshot | 12 per Frost Nova (one at each end) | Freezes for 1.5 s; the feint draws enemies |
 | Vine Slingshot | 3 per grip tick (every 0.4 s, up to 2 s) and 14 from the kick | Grip stuns; the kick knocks back hard |
+| Storm Slingshot | Caught projectiles ×1.5, plus 10 from the landing burst | Only as strong as what you catch |
 
 You're not invulnerable while charging, so time it. Careful hopping backward near a ledge.
 
@@ -107,8 +118,8 @@ Anything not in the config file lives in the code:
 - **Charging** (time to full charge, tap window, speed/duration bonus, hop timing): the
   constants at the top of `ChargedDashState.cs`.
 - **Each arcana's attacks**: `SlingshotDashState.cs` (Air), `BlazingSlingshotState.cs` (Fire),
-  `FrostSlingshotState.cs` (Water) and `VineSlingshotState.cs` (Earth; the vines are drawn in
-  `VineLines.cs`): burst sizes, intervals, throw distance and so on, as
+  `FrostSlingshotState.cs` (Water), `VineSlingshotState.cs` (Earth; the vines are drawn in
+  `VineLines.cs`) and `StormSlingshotState.cs` (Lightning): burst sizes, intervals, throw distance and so on, as
   constants at the top or numbers in the calls.
 
 To build your change, push it to a branch and open a pull request: GitHub Actions builds every
