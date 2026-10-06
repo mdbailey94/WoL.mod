@@ -4,7 +4,8 @@ using UnityEngine;
 namespace WoLSlingshotDash
 {
     // Storm Slingshot (Lightning): while you hold, a small Mag Sphere forms on you and does what
-    // Mag Sphere does, gathering the projectiles around it. Let go and every projectile inside it
+    // Mag Sphere does, gathering the projectiles around it; anything hostile it catches is turned
+    // to your side at once, so it can't hit you or your allies. Let go and every projectile inside it
     // is turned to your side and fired in a fan along your aim while you dash after them, with a
     // small lightning burst where you land.
     //
@@ -26,8 +27,11 @@ namespace WoLSlingshotDash
         private const float FanDegrees = 8f;
         private const float ReflectDamage = 1.5f;
         private const float ScanInterval = 0.1f;
+        private const float ConvertScanInterval = 0.05f;
 
         private MagSphere sphere;
+        // Projectiles the sphere has caught and turned to your side.
+        private readonly HashSet<Projectile> converted = new HashSet<Projectile>();
         private static bool loggedSphere;
         private static bool loggedRelease;
 
@@ -45,6 +49,7 @@ namespace WoLSlingshotDash
 
         protected override void OnChargeStarted()
         {
+            converted.Clear();
             caught.Clear();
             speeds.Clear();
             orbitAngle = 0f;
@@ -93,6 +98,7 @@ namespace WoLSlingshotDash
             {
                 sphere.transform.position = center;
                 sphere.transform.localScale = Vector3.one * (SphereScale + ExtraSphereScale * power);
+                ConvertInside(center, SphereRadius());
                 return;
             }
             float field = MinFieldRadius + ExtraFieldRadius * power;
@@ -110,13 +116,14 @@ namespace WoLSlingshotDash
             {
                 float radius = SphereRadius();
                 RemoveSphere();
-                var inside = new List<Projectile>();
+                var inside = new List<Projectile>(converted);
                 foreach (Projectile p in Object.FindObjectsOfType<Projectile>())
                 {
-                    if (p != null && p.gameObject.activeInHierarchy
+                    if (p != null && p.gameObject.activeInHierarchy && !converted.Contains(p)
                         && Vector2.Distance(p.transform.position, center) <= radius)
                         inside.Add(p);
                 }
+                converted.Clear();
                 Fan(inside, center, aim);
                 if (!loggedRelease)
                 {
@@ -156,6 +163,56 @@ namespace WoLSlingshotDash
             speeds.Clear();
         }
 
+        // Anything hostile that comes inside the sphere is turned to your side straight away, so
+        // nothing it catches can hit you or your allies.
+        private void ConvertInside(Vector2 center, float radius)
+        {
+            if (Time.time >= nextScan)
+            {
+                nextScan = Time.time + ConvertScanInterval;
+                nearby = Object.FindObjectsOfType<Projectile>();
+            }
+            foreach (Projectile p in nearby)
+            {
+                if (p == null || !p.gameObject.activeInHierarchy || converted.Contains(p) || p.parentEntity is Player)
+                    continue;
+                if (Vector2.Distance(p.transform.position, center) > radius)
+                    continue;
+                TurnToYourSide(p, p.moveVector.sqrMagnitude > 0.01f ? p.moveVector : Vector2.up);
+                converted.Add(p);
+            }
+            converted.RemoveWhere(p => p == null || !p.gameObject.activeInHierarchy);
+        }
+
+        // The game's reflect (a parry's switch of sides); for projectiles that can't be reflected,
+        // their attack is re-aimed at enemies with this arcana's own stats instead.
+        private void TurnToYourSide(Projectile p, Vector2 direction)
+        {
+            bool reflected = false;
+            if (!p.ignoreReflect)
+            {
+                try
+                {
+                    reflected = p.OnReflect(direction, ReflectDamage);
+                }
+                catch
+                {
+                }
+            }
+            try
+            {
+                // Can't be reflected: aim its attack at enemies with this arcana's stats.
+                if (!reflected && p.attackBox != null)
+                    p.attackBox.SetAttackInfo(parent.skillCategory, skillID, 1, false);
+                // Either way it's yours now, so it never hits its owner (you).
+                p.parentEntity = parent;
+                p.parentObject = parent.gameObject;
+            }
+            catch
+            {
+            }
+        }
+
         // Every projectile turned to your side and sent along the aim, spread in a fan.
         private void Fan(List<Projectile> projectiles, Vector2 center, Vector2 aim)
         {
@@ -167,16 +224,8 @@ namespace WoLSlingshotDash
                 Projectile p = projectiles[i];
                 float slot = i - (n - 1) / 2f;
                 Vector2 direction = Quaternion.Euler(0f, 0f, slot * FanDegrees) * aim;
-                if (!(p.parentEntity is Player) && !p.ignoreReflect)
-                {
-                    try
-                    {
-                        p.OnReflect(direction, ReflectDamage);
-                    }
-                    catch
-                    {
-                    }
-                }
+                if (!(p.parentEntity is Player))
+                    TurnToYourSide(p, direction);
                 float speed;
                 if (!speeds.TryGetValue(p, out speed))
                     speed = p.moveSpeed;
@@ -229,18 +278,12 @@ namespace WoLSlingshotDash
             {
                 if (caught.Count >= MaxCaught)
                     break;
-                if (p == null || !p.gameObject.activeInHierarchy || p.ignoreReflect || caught.Contains(p) || p.parentEntity is Player)
+                if (p == null || !p.gameObject.activeInHierarchy || caught.Contains(p) || p.parentEntity is Player)
                     continue;
                 Vector2 offset = (Vector2)p.transform.position - center;
                 if (offset.magnitude > field)
                     continue;
-                try
-                {
-                    p.OnReflect(new Vector2(-offset.y, offset.x).normalized, ReflectDamage);
-                }
-                catch
-                {
-                }
+                TurnToYourSide(p, new Vector2(-offset.y, offset.x).normalized);
                 speeds[p] = p.moveSpeed;
                 p.moveSpeed = 0f;
                 caught.Add(p);
