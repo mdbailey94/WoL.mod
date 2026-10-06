@@ -126,6 +126,16 @@ namespace WoLSlingshotDash
         {
         }
 
+        // The animation for the hop and the held pose, and how far into it the pose is.
+        protected virtual string ChargeAnimation => SlingshotDashPlugin.ChargeAnimation(parent);
+        protected virtual float ChargePoseFrame => SlingshotDashPlugin.ChargePoseFrame;
+
+        // Hop backward at the start of a charge (otherwise the pose plays where you stand).
+        protected virtual bool HopsBack => true;
+
+        // Keep facing the way the charge started instead of turning with the aim.
+        protected virtual bool LocksFacing => false;
+
         // Launch automatically after holding this long (0 = no limit).
         protected virtual float MaxHoldTime => SlingshotDashPlugin.MaxHoldSeconds;
 
@@ -184,7 +194,7 @@ namespace WoLSlingshotDash
                     StartHop();
                     OnChargeStarted();
                 }
-                else if (!Hopping)
+                else if (!Hopping && !LocksFacing)
                     parent.SetFacingDirectionBasedOnInput();
                 PlayChargePose();
                 EmitChargeDust();
@@ -293,7 +303,7 @@ namespace WoLSlingshotDash
             hopStarted = true;
             parent.SetFacingDirectionBasedOnInput();
             Vector2 facing = Entity.GetFacingDirectionVector(parent.facingDirection).normalized;
-            hopVelocity = -facing * (SlingshotDashPlugin.HopDistance / HopTime);
+            hopVelocity = HopsBack ? -facing * (SlingshotDashPlugin.HopDistance / HopTime) : Vector2.zero;
         }
 
         // Planted, except while hopping backward.
@@ -309,10 +319,10 @@ namespace WoLSlingshotDash
         {
             if (parent.anim == null)
                 return;
-            string anim = SlingshotDashPlugin.ChargeAnimation(parent);
+            string anim = ChargeAnimation;
             if (string.IsNullOrEmpty(anim))
                 return;
-            float pose = SlingshotDashPlugin.ChargePoseFrame;
+            float pose = ChargePoseFrame;
             float time = pose * HopProgress;
             parent.anim.PlayDirectional(anim, -1, time);
         }

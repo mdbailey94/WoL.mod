@@ -1,3 +1,4 @@
+using System.Collections;
 using Chaos.AnimatorExtensions;
 using UnityEngine;
 
@@ -7,11 +8,18 @@ namespace WoLSlingshotDash
     // they touch is grabbed and takes small, stunning hits while you keep holding (up to the
     // slingshots' max hold); if they touch no enemy they latch onto the wall or the ground at their reach.
     // Let go (or run out of time) and you pull yourself to the target and kick it back hard.
+    //
+    // While holding, the wizard stays planted punching the ground and can't turn (the trade-off
+    // for a longer reach); the pull trails dust and pebbles, and the kick lands with a hit-stop,
+    // a camera shake, a floor crack and a spray of rock, and the target skids away trailing dust.
     public class VineSlingshotState : ChargedDashState
     {
         public new static string staticID = "VineSlingshot";
 
-        private const float Range = 8f;
+        private const float Range = 9.2f; // 15% over the original 8, for not being able to turn
+        private const float TrailInterval = 0.035f;
+        private const float SkidTime = 0.45f;
+        private const float SkidInterval = 0.05f;
         private const float CatchRadius = 0.45f;
         private const float WallMargin = 0.6f;
         private const float TickInterval = 0.4f;
@@ -24,6 +32,7 @@ namespace WoLSlingshotDash
         private float nextTick;
         private bool kicked;
         private float pullSpeed;
+        private float nextTrail;
         private VineLines vines;        // drawn vines (fallback) and the coils
         private GameVines gameVines;    // the game's own vine, when it works
 
@@ -33,6 +42,12 @@ namespace WoLSlingshotDash
 
         // You pull yourself in; the dash's own speed boost doesn't apply.
         protected override bool BoostsDash => false;
+
+        // Planted, punching the ground, facing where the vines went.
+        protected override bool HopsBack => false;
+        protected override bool LocksFacing => true;
+        protected override string ChargeAnimation => SlingshotDashPlugin.VineHoldAnimation(parent);
+        protected override float ChargePoseFrame => SlingshotDashPlugin.VineHoldPoseFrame;
 
         protected override void OnChargeStarted()
         {
@@ -50,6 +65,7 @@ namespace WoLSlingshotDash
             target = FirstEnemy(start, direction, reach);
             anchor = target != null ? (Vector2)target.transform.position : start + direction * reach;
             nextTick = 0f;
+            nextTrail = 0f;
             kicked = false;
 
             vines = VineLines.Create(parent);
@@ -58,6 +74,9 @@ namespace WoLSlingshotDash
                 gameVines.Hold(target != null ? target.transform : null, anchor);
             if (gameVines == null || gameVines.Broken)
                 vines?.Shoot(start, anchor);
+            // The fist hits the ground.
+            Effects.Crack(start);
+            Effects.Dust(start, 14, 0.5f);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(start), null, 24f, -1f, 0.8f, false);
         }
 
@@ -91,6 +110,14 @@ namespace WoLSlingshotDash
                 return;
             FollowTarget();
             DrawVines();
+            // A trail of dust and pebbles behind you as you're pulled in.
+            if (Time.time >= nextTrail)
+            {
+                nextTrail = Time.time + TrailInterval;
+                Vector2 position = parent.transform.position;
+                Effects.Dust(position, 4, 0.3f);
+                Effects.Pebbles(position, 2);
+            }
         }
 
         // Pull yourself along the vines, and kick on arrival.
@@ -125,19 +152,45 @@ namespace WoLSlingshotDash
         {
             kicked = true;
             RemoveVines();
+            Enemy kickedEnemy = target;
             Vector2 position = parent.transform.position;
             Vector2 direction = anchor - launchFrom;
             if (direction.sqrMagnitude < 0.01f)
                 direction = Entity.GetFacingDirectionVector(parent.facingDirection);
             direction.Normalize();
             parent.anim?.PlayDirectional(parent.KickAnimStr, -1, 0.5f);
-            EarthBurst burst = EarthBurst.CreateBurst(position + direction * 0.6f, parent.skillCategory, skillID, 1, 1.3f);
+            Vector2 impact = position + direction * 0.6f;
+            EarthBurst burst = EarthBurst.CreateBurst(impact, parent.skillCategory, skillID, 1, 1.3f);
             // Knock the target on, away from you.
             if (burst != null && burst.attack != null)
                 burst.attack.knockbackOverwriteVector = direction;
-            PoolManager.GetPoolItem<DustEmitter>().EmitCircle(50, 1.2f, -6f, -1f, new Vector3?(position), null);
+
+            // The impact: a short hit-stop, a shake, a crack and a spray of rock along the kick.
+            Effects.HitStop(4);
+            Effects.Shake(1.6f);
+            Effects.Crack(impact);
+            Effects.RockSpray(impact, direction, 14);
+            Effects.Dust(position, 50, 1.2f);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(position), null, 24f, -1f, 0.7f, false);
+            if (kickedEnemy != null)
+                SlingshotDashPlugin.Run(Skid(kickedEnemy.transform, direction));
             target = null;
+        }
+
+        // The kicked enemy skids away trailing dust and pebbles, with a crack where it stops.
+        private static IEnumerator Skid(Transform enemy, Vector2 direction)
+        {
+            float end = Time.time + SkidTime;
+            Vector2 last = enemy != null ? (Vector2)enemy.position : Vector2.zero;
+            while (Time.time < end && enemy != null && enemy.gameObject.activeInHierarchy)
+            {
+                last = enemy.position;
+                Effects.Dust(last, 6, 0.35f);
+                Effects.Pebbles(last, 2);
+                yield return new WaitForSeconds(SkidInterval);
+            }
+            Effects.Crack(last + direction * 0.3f);
+            Effects.Dust(last, 16, 0.6f);
         }
 
         private void FollowTarget()

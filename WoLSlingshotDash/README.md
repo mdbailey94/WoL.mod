@@ -49,14 +49,16 @@ the launch, gentler where you land. Both get bigger with more charge.
 > **Vine Slingshot**: Hold to lash out twin vines that grab the first foe they touch, then let go
 > to pull yourself in and kick it away!
 
-- Hold dash past a tap and **twin vines** (the game's own vine, as thrown by Soaring Ivy) **shoot
-  out** along your aim, up to 8 tiles.
+- Hold dash past a tap and the wizard **punches the ground** as **twin vines** (the game's own
+  vine, as thrown by Soaring Ivy) **shoot out** along your aim, up to 9.2 tiles. You stay planted
+  and **can't turn** while holding; that's the trade-off for the longer reach.
 - The **first enemy they touch is grabbed**: vines coil tight around it (on bosses too, even
   though they can't be held still) and it takes small hits that keep it stunned for as long as
   you hold, up to 2 seconds.
 - If they touch no enemy, they **latch onto the wall** (or the ground at their reach).
-- Let go, or run out of time, and you **pull yourself in** with a kick that **knocks the target
-  back** hard.
+- Let go, or run out of time, and you **pull yourself in** trailing dust and pebbles, with a kick
+  that **knocks the target back** hard: a hit-stop, a camera shake, a floor crack and a spray of
+  rock, and the target skids away in a cloud of dust.
 
 ### Storm Slingshot (Lightning)
 
@@ -116,6 +118,8 @@ colours like `#2E6B3A`. Empty (the default) takes them from the game's own vine 
 says which colours it used. `HoldFrame` picks the moment of the game's vine animation that's held
 for the whole grab (`0` = its start, `1` = its end). Default `0.95`, the fully stretched vines,
 which are then stretched further to reach the enemy, wall or ground they grabbed.
+`HoldAnimation` (default `PBAoE`, punching the ground; `Slam` is the other ground hit) and
+`HoldPoseFrame` (default `0.5`) set the wizard's pose while holding Vine Slingshot.
 
 Changes apply the next time the game starts.
 

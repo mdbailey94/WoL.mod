@@ -16,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.15.2";
+        public const string PluginVersion = "0.16.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -29,6 +29,8 @@ namespace WoLSlingshotDash
         private static ConfigEntry<float> frostFreezeRadius;
         private static ConfigEntry<float> stormSphereSize;
         private static ConfigEntry<float> vineHoldFrame;
+        private static ConfigEntry<string> vineHoldAnimation;
+        private static ConfigEntry<float> vineHoldPoseFrame;
         private static ConfigEntry<string> vineDark, vineMid, vineLight;
         private ConfigEntry<bool> modEnabled;
 
@@ -56,9 +58,15 @@ namespace WoLSlingshotDash
         public static float StormSphereSize => Mathf.Clamp(stormSphereSize?.Value ?? 0.6f, 0.2f, 1.5f);
 
         // The game's own player animation for the chosen name, or null for "None".
-        public static string ChargeAnimation(Player player)
+        public static string ChargeAnimation(Player player) => AnimationByName(player, chargeAnimation?.Value ?? "Jump");
+
+        // Vine Slingshot's hold: the wizard punching the ground.
+        public static string VineHoldAnimation(Player player) => AnimationByName(player, vineHoldAnimation?.Value ?? "PBAoE");
+        public static float VineHoldPoseFrame => Mathf.Clamp01(vineHoldPoseFrame?.Value ?? 0.5f);
+
+        private static string AnimationByName(Player player, string name)
         {
-            switch ((chargeAnimation?.Value ?? "Jump").Trim().ToLowerInvariant())
+            switch ((name ?? "").Trim().ToLowerInvariant())
             {
                 case "none": return null;
                 case "charge": return player.ChargeAnimStr;
@@ -67,6 +75,7 @@ namespace WoLSlingshotDash
                 case "kick": return player.KickAnimStr;
                 case "parry": return player.ParryAnimStr;
                 case "slam": return player.GSlamAnimStr;
+                case "pbaoe": return player.PBAoEAnimStr;
                 case "fall": return player.FallAnimStr;
                 default: return player.JumpAnimStr;
             }
@@ -81,7 +90,7 @@ namespace WoLSlingshotDash
                 "Turning it off doesn't remove it from a run where you already have it.");
             chargeAnimation = Config.Bind("Charge", "Animation", "Jump",
                 new ConfigDescription("Animation for the backward hop and the held pose while charging.",
-                    new AcceptableValueList<string>("Jump", "Charge", "Slide", "Hurt", "Kick", "Parry", "Slam", "Fall", "None")));
+                    new AcceptableValueList<string>("Jump", "Charge", "Slide", "Hurt", "Kick", "Parry", "Slam", "PBAoE", "Fall", "None")));
             chargePoseFrame = Config.Bind("Charge", "PoseFrame", 0.4f,
                 new ConfigDescription("How far into the animation the held pose is (0 = first frame, 1 = last).",
                     new AcceptableValueRange<float>(0f, 1f)));
@@ -110,6 +119,12 @@ namespace WoLSlingshotDash
                 "Vine Slingshot's darkest green as a hex colour like #1E4A2A (empty = taken from the game's vines).");
             vineMid = Config.Bind("Vines", "MidColor", "", "Vine Slingshot's main green (empty = from the game).");
             vineLight = Config.Bind("Vines", "LightColor", "", "Vine Slingshot's highlight green (empty = from the game).");
+            vineHoldAnimation = Config.Bind("Vines", "HoldAnimation", "PBAoE",
+                new ConfigDescription("The wizard's animation while holding Vine Slingshot (PBAoE = punching the ground).",
+                    new AcceptableValueList<string>("PBAoE", "Slam", "Jump", "Charge", "Slide", "Hurt", "Kick", "Parry", "Fall", "None")));
+            vineHoldPoseFrame = Config.Bind("Vines", "HoldPoseFrame", 0.5f,
+                new ConfigDescription("How far into that animation the held pose is (0 = first frame, 1 = last).",
+                    new AcceptableValueRange<float>(0f, 1f)));
             vineHoldFrame = Config.Bind("Vines", "HoldFrame", 0.95f,
                 new ConfigDescription("Which moment of the game's vine animation Vine Slingshot holds for the whole " +
                     "grab (0 = its start, 1 = its end).",
