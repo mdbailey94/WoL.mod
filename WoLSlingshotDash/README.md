@@ -63,9 +63,9 @@ the launch, gentler where you land. Both get bigger with more charge.
 > **Storm Slingshot**: Hold to gather enemy projectiles into a crackling field around you, then
 > let go to hurl them and yourself at the foe!
 
-- While you hold, **Mag Sphere** forms on you, just as the arcana makes it, pulling projectiles
-  in its own way. Anything hostile it catches is **turned to your side at once**, so it can't
-  hit you or your allies.
+- While you hold, **Mag Sphere** forms on you and works at full effect, exactly like the arcana,
+  just **smaller** (`StormSphereSize`). Nothing it holds can **hit you or your allies** while
+  you charge.
 - Let go and the sphere ends and **everything it caught is fired in a fan along your aim**,
   hitting harder than before (×1.5), while you **dash after them** and land with a small
   **lightning burst**.
@@ -108,6 +108,8 @@ Under `[Balance]`:
   `35`; make it negative if they get pushed the wrong way.
 - `FrostFreezeRadius`: size of Frost Slingshot's freezes at the shortest hold (a full charge adds
   half again). Default `1`.
+- `StormSphereSize`: size of Storm Slingshot's Mag Sphere compared with the arcana's (`1` = the
+  same). Default `0.6`.
 
 Under `[Vines]`: `DarkColor`, `MidColor` and `LightColor` set Vine Slingshot's greens as hex
 colours like `#2E6B3A`. Empty (the default) takes them from the game's own vine art; the log

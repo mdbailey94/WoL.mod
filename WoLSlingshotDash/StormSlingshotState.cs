@@ -3,10 +3,11 @@ using UnityEngine;
 
 namespace WoLSlingshotDash
 {
-    // Storm Slingshot (Lightning): while you hold, the game's Mag Sphere forms on you exactly as the
-    // arcana makes it (its own look and its own pull on projectiles; we don't resize, move or
-    // switch off any of it). Anything hostile it catches is turned to your side at once, so it
-    // can't hit you or your allies. Let go and the sphere ends and everything it caught fires in a
+    // Storm Slingshot (Lightning): while you hold, the game's Mag Sphere forms on you and works
+    // exactly as the arcana does (its own look and its own handling of projectiles; we don't touch
+    // the sphere or the projectiles), only smaller (Balance.StormSphereSize, through a scaled holder
+    // so the sphere's own sizing is left alone). Whatever it holds can't hit you or your allies
+    // while you charge (StormGuard). Let go and the sphere ends and everything it held fires in a
     // fan along your aim while you dash after it, with a small lightning burst where you land.
     //
     // Without a Mag Sphere, a drawn ring stands in and our own catching spins projectiles round you.
@@ -26,9 +27,12 @@ namespace WoLSlingshotDash
         private const float ScanInterval = 0.05f;
 
         private MagSphere sphere;
+        private GameObject sphereHolder;
         private int seenThisCharge;
         private static bool loggedCatch;
-        // Projectiles the sphere has caught and turned to your side.
+        // Projectiles the sphere holds (left as they are; StormGuard keeps them off your side).
+        private readonly HashSet<Projectile> held = new HashSet<Projectile>();
+        // Fallback: projectiles caught and turned to your side.
         private readonly HashSet<Projectile> converted = new HashSet<Projectile>();
         private static bool loggedSphere;
 
@@ -47,6 +51,7 @@ namespace WoLSlingshotDash
         protected override void OnChargeStarted()
         {
             converted.Clear();
+            ReleaseHeld();
             caught.Clear();
             seenThisCharge = 0;
             speeds.Clear();
@@ -61,23 +66,39 @@ namespace WoLSlingshotDash
         {
             try
             {
-                MagSphere ms = ChaosInst<MagSphere>(MagSphere.Prefab, new Vector2?(parent.transform.position), null, null);
+                // The sphere goes inside a scaled holder: that makes it smaller without changing
+                // anything on the sphere itself (it can size and animate itself as it likes).
+                sphereHolder = new GameObject("StormSlingshotSphere");
+                sphereHolder.transform.position = parent.transform.position;
+                float size = SlingshotDashPlugin.StormSphereSize;
+                sphereHolder.transform.localScale = new Vector3(size, size, 1f);
+                MagSphere ms = ChaosInst<MagSphere>(MagSphere.Prefab, new Vector2?(parent.transform.position), null,
+                    sphereHolder.transform);
                 if (ms == null)
+                {
+                    RemoveSphere();
                     return null;
+                }
+                // What the arcana gives its sphere: who it belongs to and what it follows.
                 ms.parentPlayer = parent;
                 ms.parentObject = parent.gameObject;
                 ms.followTrans = parent.transform;
                 ms.skillCategory = parent.skillCategory;
                 ms.duration = 60f;
+                if (ms.damageModifier <= 0f)
+                    ms.damageModifier = 1f;
                 if (!loggedSphere)
                 {
                     loggedSphere = true;
-                    SlingshotDashPlugin.Log("Storm: charging with a Mag Sphere");
+                    SlingshotDashPlugin.Log($"Storm: charging with a Mag Sphere at {size:0.##}x size " +
+                        $"(damageModifier {ms.damageModifier}, balanceBias {ms.balanceBias}, " +
+                        $"invertedRadius {ms.invertedRadius}, empowered {ms.isEmpowered})");
                 }
                 return ms;
             }
             catch (System.Exception e)
             {
+                RemoveSphere();
                 if (!loggedSphere)
                 {
                     loggedSphere = true;
@@ -92,8 +113,8 @@ namespace WoLSlingshotDash
             Vector2 center = parent.transform.position;
             if (sphere != null)
             {
-                // Leave the sphere to do its thing; just make whatever it holds yours.
-                ConvertInside(sphere.transform.position, SphereRadius());
+                // Leave the sphere to do its thing; just keep what it holds off your side.
+                HoldInside(sphere.transform.position, SphereRadius());
                 return;
             }
             float power = Mathf.Clamp01((holdTime - MinChargeTime) / (1f - MinChargeTime));
@@ -113,7 +134,7 @@ namespace WoLSlingshotDash
             {
                 Vector2 sphereCenter = sphere.transform.position;
                 float radius = SphereRadius();
-                foreach (Projectile p in converted)
+                foreach (Projectile p in held)
                 {
                     if (!toFire.Contains(p))
                         toFire.Add(p);
@@ -127,6 +148,7 @@ namespace WoLSlingshotDash
             }
             RemoveSphere();
             RemoveRing();
+            ReleaseHeld();
             if (!loggedCatch)
             {
                 loggedCatch = true;
@@ -136,6 +158,7 @@ namespace WoLSlingshotDash
             Fan(toFire, center, aim);
             caught.Clear();
             converted.Clear();
+            held.Clear();
             speeds.Clear();
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(center), null, 24f, -1f, 1.6f, false);
         }
@@ -149,6 +172,7 @@ namespace WoLSlingshotDash
         {
             RemoveSphere();
             RemoveRing();
+            ReleaseHeld();
             // Let go without launching (e.g. hit): fling the fallback's caught projectiles outward.
             foreach (Projectile p in caught)
             {
@@ -162,8 +186,9 @@ namespace WoLSlingshotDash
             speeds.Clear();
         }
 
-        // Anything hostile inside the sphere is turned to your side straight away.
-        private void ConvertInside(Vector2 center, float radius)
+        // Anything not yours that comes inside the sphere is held: left exactly as it is for the
+        // sphere, but it can't hit you or your allies until you let go.
+        private void HoldInside(Vector2 center, float radius)
         {
             if (Time.time >= nextScan)
             {
@@ -172,15 +197,23 @@ namespace WoLSlingshotDash
             }
             foreach (Projectile p in nearby)
             {
-                if (p == null || !p.gameObject.activeInHierarchy || converted.Contains(p) || p.parentEntity is Player)
+                if (p == null || !p.gameObject.activeInHierarchy || held.Contains(p) || p.parentEntity is Player)
                     continue;
                 if (Vector2.Distance(p.transform.position, center) > radius)
                     continue;
-                TurnToYourSide(p, p.moveVector.sqrMagnitude > 0.01f ? p.moveVector : Vector2.up);
-                converted.Add(p);
+                held.Add(p);
+                StormGuard.Hold(p, parent);
                 seenThisCharge++;
             }
-            converted.RemoveWhere(p => p == null || !p.gameObject.activeInHierarchy);
+            held.RemoveWhere(p => p == null || !p.gameObject.activeInHierarchy);
+        }
+
+        private void ReleaseHeld()
+        {
+            foreach (Projectile p in held)
+                StormGuard.Release(p);
+            StormGuard.ReleaseAll(parent);
+            held.Clear();
         }
 
         private float SphereRadius()
@@ -323,6 +356,11 @@ namespace WoLSlingshotDash
             {
                 Object.Destroy(sphere.gameObject);
                 sphere = null;
+            }
+            if (sphereHolder != null)
+            {
+                Object.Destroy(sphereHolder);
+                sphereHolder = null;
             }
         }
 

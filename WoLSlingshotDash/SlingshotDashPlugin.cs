@@ -16,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.14.1";
+        public const string PluginVersion = "0.15.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -27,6 +27,7 @@ namespace WoLSlingshotDash
         private ConfigEntry<float> dashCooldownSeconds;
         private ConfigEntry<float> blazingDrag;
         private static ConfigEntry<float> frostFreezeRadius;
+        private static ConfigEntry<float> stormSphereSize;
         private static ConfigEntry<string> vineDark, vineMid, vineLight;
         private ConfigEntry<bool> modEnabled;
 
@@ -50,6 +51,7 @@ namespace WoLSlingshotDash
         public static string VineMidColor => vineMid?.Value;
         public static string VineLightColor => vineLight?.Value;
         public static float FrostFreezeRadius => Mathf.Max(0.25f, frostFreezeRadius?.Value ?? 1f);
+        public static float StormSphereSize => Mathf.Clamp(stormSphereSize?.Value ?? 0.6f, 0.2f, 1.5f);
 
         // The game's own player animation for the chosen name, or null for "None".
         public static string ChargeAnimation(Player player)
@@ -110,6 +112,10 @@ namespace WoLSlingshotDash
                 new ConfigDescription("Radius of Frost Slingshot's freezes at a 0.2 s hold; a full charge adds " +
                     "half again.",
                     new AcceptableValueRange<float>(0.25f, 4f)));
+            stormSphereSize = Config.Bind("Balance", "StormSphereSize", 0.6f,
+                new ConfigDescription("Size of Storm Slingshot's Mag Sphere compared with the Mag Sphere arcana's " +
+                    "(1 = the same size).",
+                    new AcceptableValueRange<float>(0.2f, 1.5f)));
 
             Skills.Register(new SkillInfo
             {
@@ -263,6 +269,14 @@ namespace WoLSlingshotDash
             catch (System.Exception e)
             {
                 Logger.LogError($"Slingshot HUD hook failed to install: {e.Message}");
+            }
+            try
+            {
+                StormGuard.Install(new Harmony(PluginGuid + ".storm"));
+            }
+            catch (System.Exception e)
+            {
+                Logger.LogError($"Storm Slingshot hit guard failed to install: {e.Message}");
             }
 
             Logger.LogInfo($"{PluginName} {PluginVersion} registered Slingshot, Blazing, Frost, Vine and Storm Slingshot");
