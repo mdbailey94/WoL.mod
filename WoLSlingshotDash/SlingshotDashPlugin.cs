@@ -4,7 +4,6 @@ using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
-using HarmonyLib;
 using LegendAPI;
 using UnityEngine;
 
@@ -16,7 +15,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.10.0";
+        public const string PluginVersion = "0.10.1";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -219,16 +218,13 @@ namespace WoLSlingshotDash
                 unlockCondition = () => modEnabled.Value
             });
 
-            try
-            {
-                new Harmony(PluginGuid).CreateClassProcessor(typeof(SlingshotHud)).Patch();
-            }
-            catch (System.Exception e)
-            {
-                Logger.LogError($"Slingshot HUD hook failed to install: {e.Message}");
-            }
-
             Logger.LogInfo($"{PluginName} {PluginVersion} registered Slingshot, Blazing, Frost and Vine Slingshot");
+        }
+
+        // Keeps the slingshot cooldown drawn over its arcana icon.
+        private void LateUpdate()
+        {
+            SlingshotHud.Refresh();
         }
 
         private Sprite LoadIcon(string fileName)

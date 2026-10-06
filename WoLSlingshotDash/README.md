@@ -50,8 +50,9 @@ the launch, gentler where you land. Both get bigger with more charge.
 > to pull yourself in and kick it away!
 
 - Hold dash past a tap and **twin vines shoot out** along your aim (up to 8 tiles).
-- The **first enemy they touch is grabbed**: it takes small hits that keep it stunned for as long
-  as you hold, up to 2 seconds.
+- The **first enemy they touch is grabbed**: vines coil tight around it (on bosses too, even
+  though they can't be held still) and it takes small hits that keep it stunned for as long as
+  you hold, up to 2 seconds.
 - If they touch no enemy, they **latch onto the wall** (or the ground at their reach).
 - Let go, or run out of time, and you **pull yourself in** with a kick that **knocks the target
   back** hard.

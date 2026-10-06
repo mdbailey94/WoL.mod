@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Chaos.AnimatorExtensions;
 using UnityEngine;
 
@@ -43,17 +44,49 @@ namespace WoLSlingshotDash
 
         // The slingshot itself has its own cooldown (one charge): until it's ready again, the
         // dash button is just a normal dash. Game time, so it doesn't run down while paused.
-        private float slingshotReadyAt;
+        // Kept per player and arcana (not on this object) so the HUD can look it up whichever
+        // state object it holds.
+        private static readonly Dictionary<string, KeyValuePair<float, float>> cooldowns =
+            new Dictionary<string, KeyValuePair<float, float>>(); // key -> (ready at, total)
+
         // A dash used by the arcana for something else (e.g. Frost's early swap): stand still.
         private bool standStill;
 
-        private float slingshotCooldownTotal = 1f;
+        private static string CooldownKey(Player player, string id) =>
+            (player != null ? player.GetInstanceID() : 0) + "/" + id;
 
-        protected bool SlingshotReady => Time.time >= slingshotReadyAt;
+        // For the HUD: seconds until this player's slingshot of this arcana is ready, and the full
+        // cooldown. False when it's ready.
+        public static bool TryGetCooldown(Player player, string id, out float remaining, out float total)
+        {
+            KeyValuePair<float, float> entry;
+            remaining = 0f;
+            total = 1f;
+            if (string.IsNullOrEmpty(id) || !cooldowns.TryGetValue(CooldownKey(player, id), out entry))
+                return false;
+            remaining = entry.Key - Time.time;
+            total = entry.Value;
+            return remaining > 0f;
+        }
 
-        // For the HUD: seconds until the slingshot is ready, and the full cooldown.
-        public float SlingshotRemaining => Mathf.Max(0f, slingshotReadyAt - Time.time);
-        public float SlingshotCooldownTotal => slingshotCooldownTotal;
+        public static bool AnyCooldownRunning()
+        {
+            foreach (KeyValuePair<float, float> entry in cooldowns.Values)
+            {
+                if (entry.Key > Time.time)
+                    return true;
+            }
+            return false;
+        }
+
+        protected bool SlingshotReady
+        {
+            get
+            {
+                float remaining, total;
+                return !TryGetCooldown(parent, skillID, out remaining, out total);
+            }
+        }
 
         // Right after a charged launch starts, still at the launch spot; inputVector is the aim.
         protected abstract void OnLaunch(float charge);
@@ -211,8 +244,7 @@ namespace WoLSlingshotDash
             if (charge > 0f && cooldownReady)
             {
                 float cooldown = SlingshotDashPlugin.SlingshotCooldown;
-                slingshotReadyAt = Time.time + cooldown;
-                slingshotCooldownTotal = cooldown;
+                cooldowns[CooldownKey(parent, skillID)] = new KeyValuePair<float, float>(Time.time + cooldown, cooldown);
                 SlingshotDashPlugin.Run(ReadyCue(parent, cooldown));
                 OnLaunch(charge);
             }

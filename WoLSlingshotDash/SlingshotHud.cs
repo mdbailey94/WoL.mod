@@ -1,5 +1,5 @@
 using System;
-using HarmonyLib;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -7,35 +7,77 @@ namespace WoLSlingshotDash
 {
     // The HUD's arcana icons only show the normal dash's cooldown, so while a slingshot recharges
     // this lays a darkening (draining from the top) and a seconds countdown over its icon. It's
-    // our own overlay on top of the game's icon; the game's own display is left alone.
-    [HarmonyPatch(typeof(CooldownUI), nameof(CooldownUI.LateUpdate))]
+    // our own overlay on top of the game's icon; the game's own display is left alone. Driven
+    // from the plugin's LateUpdate, looking the cooldown up by player and arcana ID.
     public static class SlingshotHud
     {
-        private static bool loggedError;
+        private const float SearchInterval = 1f;
 
-        private static void Postfix(CooldownUI __instance)
+        private static CooldownUI[] huds = new CooldownUI[0];
+        private static float nextSearch;
+        private static bool loggedError;
+        private static bool loggedShown;
+        private static float unmatchedSince = -1f;
+        private static bool loggedUnmatched;
+
+        public static void Refresh()
         {
             try
             {
-                if (__instance.cooldownEntries == null)
-                    return;
-                foreach (CooldownEntry entry in __instance.cooldownEntries)
+                if (Time.unscaledTime >= nextSearch)
                 {
-                    if (entry == null || entry.skillIcon == null)
+                    nextSearch = Time.unscaledTime + SearchInterval;
+                    huds = UnityEngine.Object.FindObjectsOfType<CooldownUI>();
+                }
+                bool shownAny = false;
+                var seen = new List<string>();
+                foreach (CooldownUI hud in huds)
+                {
+                    if (hud == null || hud.cooldownEntries == null)
                         continue;
-                    SlingshotOverlay overlay = entry.skillIcon.GetComponentInChildren<SlingshotOverlay>(true);
-                    var dash = entry.skillState as ChargedDashState;
-                    float remaining = dash != null ? dash.SlingshotRemaining : 0f;
-                    if (remaining <= 0f)
+                    foreach (CooldownEntry entry in hud.cooldownEntries)
                     {
-                        if (overlay != null)
-                            overlay.Hide();
-                        continue;
+                        if (entry == null || entry.skillIcon == null)
+                            continue;
+                        Player.SkillState state = entry.skillState;
+                        if (state != null)
+                            seen.Add(state.skillID);
+                        SlingshotOverlay overlay = entry.skillIcon.GetComponentInChildren<SlingshotOverlay>(true);
+                        float remaining, total;
+                        Player owner = state != null ? state.parent : hud.player;
+                        if (state == null || !ChargedDashState.TryGetCooldown(owner, state.skillID, out remaining, out total))
+                        {
+                            if (overlay != null)
+                                overlay.Hide();
+                            continue;
+                        }
+                        if (overlay == null)
+                            overlay = SlingshotOverlay.Create(entry);
+                        // While the normal dash is also cooling down, the game shows its own number.
+                        overlay.Show(entry.skillIcon.sprite, remaining, total, entry.remainingCD <= 0f);
+                        shownAny = true;
+                        if (!loggedShown)
+                        {
+                            loggedShown = true;
+                            SlingshotDashPlugin.Log($"HUD: showing the slingshot cooldown on {state.skillID}");
+                        }
                     }
-                    if (overlay == null)
-                        overlay = SlingshotOverlay.Create(entry);
-                    // While the normal dash is also cooling down, the game shows its own number.
-                    overlay.Show(entry.skillIcon.sprite, remaining, dash.SlingshotCooldownTotal, entry.remainingCD <= 0f);
+                }
+
+                // If a slingshot is recharging but no icon shows it for a while, say what the HUD has.
+                if (shownAny || !ChargedDashState.AnyCooldownRunning())
+                {
+                    unmatchedSince = -1f;
+                }
+                else if (unmatchedSince < 0f)
+                {
+                    unmatchedSince = Time.unscaledTime;
+                }
+                else if (!loggedUnmatched && Time.unscaledTime - unmatchedSince > 2f)
+                {
+                    loggedUnmatched = true;
+                    SlingshotDashPlugin.Log($"HUD: a slingshot is recharging but no icon matched. " +
+                        $"{huds.Length} cooldown HUD(s), arcana on them: {string.Join(", ", seen.ToArray())}");
                 }
             }
             catch (Exception e)

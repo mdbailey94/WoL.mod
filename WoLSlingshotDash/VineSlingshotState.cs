@@ -62,6 +62,8 @@ namespace WoLSlingshotDash
         {
             FollowTarget();
             vines?.Hold(parent.transform.position, anchor);
+            if (target != null)
+                vines?.Ensnare(anchor);
             // Hold the grabbed enemy: small hits that keep it stunned.
             if (target != null && holdTime - MinChargeTime >= nextTick)
             {
@@ -88,6 +90,8 @@ namespace WoLSlingshotDash
                 return;
             FollowTarget();
             vines?.Hold(parent.transform.position, anchor);
+            if (target != null)
+                vines?.Ensnare(anchor);
         }
 
         // Pull yourself along the vines, and kick on arrival.

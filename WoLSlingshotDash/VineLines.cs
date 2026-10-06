@@ -15,7 +15,11 @@ namespace WoLSlingshotDash
         private static Material material;
 
         private LineRenderer[] lines;
+        private LineRenderer[] coils;
+        private int sortingLayer;
+        private int sortingOrder;
         private float shotAt;
+        private float snaredAt = -1f;
 
         public static VineLines Create(Player player)
         {
@@ -24,25 +28,14 @@ namespace WoLSlingshotDash
                 var root = new GameObject("SlingshotVines");
                 VineLines vines = root.AddComponent<VineLines>();
                 SpriteRenderer body = player.GetComponentInChildren<SpriteRenderer>();
+                if (body != null)
+                {
+                    vines.sortingLayer = body.sortingLayerID;
+                    vines.sortingOrder = body.sortingOrder + 1;
+                }
                 vines.lines = new LineRenderer[2];
                 for (int i = 0; i < 2; i++)
-                {
-                    var child = new GameObject("Vine" + i);
-                    child.transform.SetParent(root.transform, false);
-                    LineRenderer line = child.AddComponent<LineRenderer>();
-                    line.material = VineMaterial();
-                    line.textureMode = LineTextureMode.Tile;
-                    line.startWidth = Width;
-                    line.endWidth = Width * 0.75f;
-                    line.positionCount = Segments + 1;
-                    line.useWorldSpace = true;
-                    if (body != null)
-                    {
-                        line.sortingLayerID = body.sortingLayerID;
-                        line.sortingOrder = body.sortingOrder + 1;
-                    }
-                    vines.lines[i] = line;
-                }
+                    vines.lines[i] = vines.NewLine("Vine" + i, Segments + 1, Width, Width * 0.75f, false);
                 return vines;
             }
             catch (System.Exception e)
@@ -76,6 +69,50 @@ namespace WoLSlingshotDash
                     lines[v].SetPosition(i, new Vector3(point.x, point.y, 0f));
                 }
             }
+        }
+
+        // Vine coils tightening around a grabbed enemy's feet, then gently writhing. Purely a
+        // look: it shows on any enemy, including bosses the grip can't hold still.
+        public void Ensnare(Vector2 center)
+        {
+            if (coils == null)
+            {
+                coils = new LineRenderer[2];
+                for (int i = 0; i < 2; i++)
+                    coils[i] = NewLine("Coil" + i, CoilPoints + 1, Width * 0.8f, Width * 0.8f, true);
+                snaredAt = Time.time;
+            }
+            float tighten = Mathf.Clamp01((Time.time - snaredAt) / 0.15f);
+            for (int c = 0; c < coils.Length; c++)
+            {
+                // Wide, then snug; the two coils sit at slightly different heights.
+                float rx = Mathf.Lerp(1.0f, 0.55f, tighten) + Mathf.Sin(Time.time * 8f + c * 2f) * 0.03f;
+                float ry = rx * 0.45f;
+                float lift = 0.1f + c * 0.22f;
+                for (int i = 0; i <= CoilPoints; i++)
+                {
+                    float a = (float)i / CoilPoints * Mathf.PI * 2f + c * 0.9f;
+                    coils[c].SetPosition(i, new Vector3(center.x + Mathf.Cos(a) * rx, center.y + lift + Mathf.Sin(a) * ry, 0f));
+                }
+            }
+        }
+
+        private const int CoilPoints = 16;
+
+        private LineRenderer NewLine(string name, int points, float startWidth, float endWidth, bool loop)
+        {
+            var child = new GameObject(name);
+            child.transform.SetParent(transform, false);
+            LineRenderer line = child.AddComponent<LineRenderer>();
+            line.material = VineMaterial();
+            line.textureMode = LineTextureMode.Tile;
+            line.startWidth = startWidth;
+            line.endWidth = endWidth;
+            line.positionCount = points;
+            line.useWorldSpace = true;
+            line.sortingLayerID = sortingLayer;
+            line.sortingOrder = sortingOrder;
+            return line;
         }
 
         // A 16x4 vine: dark stem, a lighter highlight, and a leaf every few pixels.
