@@ -63,10 +63,10 @@ the launch, gentler where you land. Both get bigger with more charge.
 > **Storm Slingshot**: Hold to gather enemy projectiles into a crackling field around you, then
 > let go to hurl them and yourself at the foe!
 
-- While you hold, a **small Mag Sphere** forms on you (growing a little as you charge). **Every
-  projectile that enters it** is **turned to your side at once** (it can't hit you or your
-  allies) and **orbits you**.
-- Let go and **every projectile in it is turned to your side and fired in a fan along your aim**,
+- While you hold, **Mag Sphere** forms on you, just as the arcana makes it, pulling projectiles
+  in its own way. Anything hostile it catches is **turned to your side at once**, so it can't
+  hit you or your allies.
+- Let go and the sphere ends and **everything it caught is fired in a fan along your aim**,
   hitting harder than before (×1.5), while you **dash after them** and land with a small
   **lightning burst**.
 
