@@ -16,6 +16,10 @@ top of the ones before it.
 | 9 | Enemies deal +30% damage (replaces level 2) |
 | 10 | Healing −50% and enemies 20% faster (replace levels 3 and 4) |
 
+**The reward:** every level also gives **+4% chaos gems** during the run (+40% at level 10). Gems
+come in small amounts, so the bonus builds up fractions between pickups instead of rounding them
+away.
+
 ## Choosing a level
 
 When you step into the portal into the Chaos Trials, the game pauses and an **ASCENSION** prompt

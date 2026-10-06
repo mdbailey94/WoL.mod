@@ -15,6 +15,8 @@ namespace WoLAscension
         public static float Gold(int level) => level >= 5 ? 0.80f : 1f;
         public static float BossHealth(int level) => level >= 6 ? 1.25f : 1f;
         public static float PlayerMaxHealth(int level) => level >= 7 ? 0.85f : 1f;
+        // The reward: +4% chaos gems per level (+40% at 10).
+        public static float Gems(int level) => 1f + 0.04f * UnityEngine.Mathf.Clamp(level, 0, Max);
 
         // One line per active modifier, for the hub panel.
         public static List<string> Describe(int level)
@@ -32,6 +34,7 @@ namespace WoLAscension
             Add(lines, Healing(level), "Your healing {0}");
             Add(lines, PlayerMaxHealth(level), "Your max health {0}");
             Add(lines, Gold(level), "Gold drops {0}");
+            Add(lines, Gems(level), "Chaos gems {0}");
             return lines;
         }
 

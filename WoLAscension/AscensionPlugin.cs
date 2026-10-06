@@ -15,7 +15,7 @@ namespace WoLAscension
     {
         public const string PluginGuid = "mdbailey94.wol.ascension";
         public const string PluginName = "Ascension";
-        public const string PluginVersion = "0.2.2";
+        public const string PluginVersion = "0.3.0";
 
         private const string PlayerDamageTakenMod = "Ascension_DamageTaken";
         private const string PlayerHealingMod = "Ascension_Healing";
@@ -43,6 +43,9 @@ namespace WoLAscension
         private volatile bool runEnded;
         private float nextApply;
         private Wallet hookedWallet;
+        private Wallet hookedGemWallet;
+        // The part of a gem the bonus has earned but not yet paid (gems come one or a few at a time).
+        private float gemCarry;
 
         // -1 = no run in progress (hub / before the portal); otherwise the level locked for this run.
         private int runLevel = -1;
@@ -147,6 +150,7 @@ namespace WoLAscension
                 runEnded = false;
                 Logger.LogInfo("Left the trials - Ascension modifiers off");
                 runLevel = -1;
+                gemCarry = 0f;
                 RemovePlayerMods();
             }
             if (Time.unscaledTime >= nextTrialCheck)
@@ -171,6 +175,7 @@ namespace WoLAscension
                 return;
 
             HookGold();
+            HookGems();
             if (Time.unscaledTime < nextApply)
                 return;
             nextApply = Time.unscaledTime + ApplyInterval;
@@ -341,6 +346,35 @@ namespace WoLAscension
             if (runLevel > 0 && amount > 0 && multiplier < 1f)
                 amount = Mathf.Max(1, Mathf.RoundToInt(amount * multiplier));
         }
+
+        // Chaos gems the same way: a little more at higher Ascension. Pickups are small, so the
+        // fraction the bonus earns is carried over to the next one rather than rounded away.
+        private void HookGems()
+        {
+            Wallet wallet = Player.platWallet;
+            if (wallet == null || wallet == hookedGemWallet)
+                return;
+            wallet.preDepositEventHandlers += OnGemDeposit;
+            hookedGemWallet = wallet;
+        }
+
+        private void OnGemDeposit(ref int amount)
+        {
+            float multiplier = AscensionLevels.Gems(runLevel);
+            if (runLevel <= 0 || amount <= 0 || multiplier <= 1f)
+                return;
+            float exact = amount * multiplier + gemCarry;
+            int paid = Mathf.FloorToInt(exact);
+            gemCarry = exact - paid;
+            if (paid > amount && !loggedGems)
+            {
+                loggedGems = true;
+                Logger.LogInfo($"Chaos gems x{multiplier:0.##}: {amount} became {paid}");
+            }
+            amount = paid;
+        }
+
+        private bool loggedGems;
 
         private void RefreshPlayers()
         {
