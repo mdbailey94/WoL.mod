@@ -14,6 +14,8 @@ namespace WoLSlingshotDash
         public new static string staticID = "BlazingSlingshot";
 
         private const float TrailInterval = 0.1f;
+        // Hit area of each trail burst; the visible flames are smaller.
+        private const float TrailHitScale = 2f;
         private const float FlameInterval = 0.03f;
         private const int VacuumPulses = 4;
         private const float VacuumPulseInterval = 0.15f;
@@ -50,10 +52,16 @@ namespace WoLSlingshotDash
             if (nextTrail <= 0f)
             {
                 nextTrail = TrailInterval;
-                // Knock enemies along the dash so the trail drags them with you.
-                FlameBurst burst = FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1, 0.8f + 0.4f * charge, true);
+                // The hit: a full-size burst with no effect of its own (the small visible flames
+                // are the Blitz trail), so it catches enemies you dash past. Knocks them along the
+                // dash so the trail drags them with you.
+                FlameBurst burst = FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1, TrailHitScale, false);
                 if (burst != null && burst.attack != null)
                     burst.attack.knockbackOverwriteVector = direction;
+                // The small visible burst (same skill, so it can't hit anyone twice; same drag).
+                FlameBurst flames = FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1, 0.8f + 0.4f * charge, true);
+                if (flames != null && flames.attack != null)
+                    flames.attack.knockbackOverwriteVector = direction;
             }
         }
 

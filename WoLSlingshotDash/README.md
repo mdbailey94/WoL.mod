@@ -1,9 +1,9 @@
-# Slingshot, Blazing Slingshot and Frost Slingshot (Wizard of Legend)
+# Slingshot, Blazing, Frost and Vine Slingshot (Wizard of Legend)
 
-Three new **dash** arcana, added with [LegendAPI](https://github.com/yekoc/LegendAPI). Both charge
+Four new **dash** arcana, added with [LegendAPI](https://github.com/yekoc/LegendAPI). Both charge
 the same way; they differ in what the launch does.
 
-### Charging (all three)
+### Charging (all four)
 
 - **Tap** dash: a normal dash. While the slingshot is recharging, holding is a normal dash too.
 - **Hold** dash (slingshot ready): your wizard hops backward, like pulling back a slingshot, then holds that pose
@@ -44,6 +44,18 @@ the launch, gentler where you land. Both get bigger with more charge.
 - **Both spots freeze**: a small Frost Nova bursts at each end, and the copy lingers for a couple
   of seconds so enemies keep going after it.
 
+### Vine Slingshot (Earth)
+
+> **Vine Slingshot**: Hold to lash out twin vines that grab the first foe they touch, then let go
+> to pull yourself in and kick it away!
+
+- Hold dash past a tap and **twin vines shoot out** along your aim (up to 8 tiles).
+- The **first enemy they touch is grabbed**: it takes small hits that keep it stunned for as long
+  as you hold, up to 2 seconds.
+- If they touch no enemy, they **latch onto the wall** (or the ground at their reach).
+- Let go, or run out of time, and you **pull yourself in** with a kick that **knocks the target
+  back** hard.
+
 ### Balance
 
 Slingshot arcana trade a long cooldown and a charge-up for more range and damage than a normal
@@ -57,6 +69,7 @@ slingshot recharges, and a puff of dust and a swish tell you when it's ready aga
 | Slingshot | 10 at launch, 6 where you land (up to 16) | Strong knockback at launch, gentle at landing |
 | Blazing Slingshot | 4 per trail burst, 2 per vacuum pulse (about 20 at most) | Plus burn; pulls instead of pushing |
 | Frost Slingshot | 12 per Frost Nova (one at each end) | Freezes for 1.5 s; the feint draws enemies |
+| Vine Slingshot | 3 per grip tick (every 0.4 s, up to 2 s) and 14 from the kick | Grip stuns; the kick knocks back hard |
 
 You're not invulnerable while charging, so time it. Careful hopping backward near a ledge.
 
@@ -92,8 +105,9 @@ Anything not in the config file lives in the code:
   landing, trail or pulses, as the comments say.
 - **Charging** (time to full charge, tap window, speed/duration bonus, hop timing): the
   constants at the top of `ChargedDashState.cs`.
-- **Each arcana's attacks**: `SlingshotDashState.cs` (Air), `BlazingSlingshotState.cs` (Fire)
-  and `FrostSlingshotState.cs` (Water): burst sizes, intervals, throw distance and so on, as
+- **Each arcana's attacks**: `SlingshotDashState.cs` (Air), `BlazingSlingshotState.cs` (Fire),
+  `FrostSlingshotState.cs` (Water) and `VineSlingshotState.cs` (Earth; the vines are drawn in
+  `VineLines.cs`): burst sizes, intervals, throw distance and so on, as
   constants at the top or numbers in the calls.
 
 To build your change, push it to a branch and open a pull request: GitHub Actions builds every

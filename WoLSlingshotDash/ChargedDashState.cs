@@ -83,6 +83,30 @@ namespace WoLSlingshotDash
         // something else (the wizard then stands still for the dash instead of moving).
         protected virtual bool InterceptDash() => false;
 
+        // When a hold first passes MinChargeTime (the hop starts), and every frame of the hold
+        // after that. holdTime counts from the start of the press.
+        protected virtual void OnChargeStarted()
+        {
+        }
+
+        protected virtual void WhileCharging(float holdTime)
+        {
+        }
+
+        // Launch automatically after holding this long (0 = no limit).
+        protected virtual float MaxHoldTime => SlingshotDashPlugin.MaxHoldSeconds;
+
+        // Every physics step of a charged dash, after the game's own movement: set the velocity
+        // here to steer the dash yourself.
+        protected virtual void DashFixedUpdate(float charge)
+        {
+        }
+
+        // Whenever the state ends, however it ends (clean up anything left over).
+        protected virtual void OnStateExit()
+        {
+        }
+
         public override void OnEnter()
         {
             standStill = false;
@@ -123,16 +147,20 @@ namespace WoLSlingshotDash
             {
                 // Held past a tap: hop backward, then keep turning to face the aim.
                 if (!hopStarted)
+                {
                     StartHop();
+                    OnChargeStarted();
+                }
                 else if (!Hopping)
                     parent.SetFacingDirectionBasedOnInput();
                 PlayChargePose();
                 EmitChargeDust();
+                WhileCharging(chargeTime);
             }
             ApplyChargeVelocity();
 
             bool held = DashButton.Held(parent, skillSlot);
-            float maxHold = SlingshotDashPlugin.MaxHoldSeconds;
+            float maxHold = MaxHoldTime;
             if (!held || (maxHold > 0f && chargeTime >= maxHold))
                 Launch(chargeTime < MinChargeTime ? 0f : Mathf.Clamp01(chargeTime / MaxCharge));
         }
@@ -147,6 +175,8 @@ namespace WoLSlingshotDash
             base.FixedUpdate();
             if ((standStill || (launchCharge > 0f && HoldsStill)) && parent.rigidbody2D != null)
                 parent.rigidbody2D.velocity = Vector2.zero;
+            if (launchCharge > 0f && cooldownReady && !standStill)
+                DashFixedUpdate(launchCharge);
         }
 
         public override void OnExit()
@@ -158,6 +188,14 @@ namespace WoLSlingshotDash
             launchCharge = 0f;
             standStill = false;
             RemoveBoost();
+            try
+            {
+                OnStateExit();
+            }
+            catch (System.Exception e)
+            {
+                SlingshotDashPlugin.Log($"{skillID} cleanup failed: {e.Message}");
+            }
             base.OnExit();
         }
 

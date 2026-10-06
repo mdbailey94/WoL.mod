@@ -16,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.9.0";
+        public const string PluginVersion = "0.10.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -69,7 +69,7 @@ namespace WoLSlingshotDash
             log = Logger;
             instance = this;
             modEnabled = Config.Bind("General", "Enabled", true,
-                "Offer the Slingshot arcana (Air, Fire and Water) in the arcana shop (also in the title screen Mods menu). " +
+                "Offer the Slingshot arcana (Air, Fire, Water and Earth) in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
             chargeAnimation = Config.Bind("Charge", "Animation", "Jump",
                 new ConfigDescription("Animation for the backward hop and the held pose while charging.",
@@ -190,6 +190,35 @@ namespace WoLSlingshotDash
                 unlockCondition = () => modEnabled.Value
             });
 
+            Skills.Register(new SkillInfo
+            {
+                ID = VineSlingshotState.staticID,
+                displayName = "Vine Slingshot",
+                description = "Hold to lash out twin vines that grab the first foe they touch, then let go to pull yourself in and kick it away!",
+                enhancedDescription = "Tougher vines and a harder kick!",
+                icon = LoadIcon("icon_earth.png"),
+                tier = 2,
+                stateType = typeof(VineSlingshotState),
+                skillStats = new SkillStats
+                {
+                    ID = new[] { VineSlingshotState.staticID },
+                    elementType = new[] { "Earth" },
+                    subElementType = new[] { "Earth" },
+                    targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
+                    // Level 1 is the kick, level 2 the grip's ticks (every 0.4 s, up to 2 s).
+                    damage = new[] { 14, 3 },
+                    cooldown = new[] { dashCooldownSeconds.Value },
+                    // The kick knocks along your pull (set on the burst); the grip holds still.
+                    knockbackMultiplier = new[] { 45f, 0f },
+                    knockbackOverwrite = new[] { true, false },
+                    hitStunDurationModifier = new[] { 1.2f, 1.5f },
+                    // Short, so the kick still lands right after the last grip tick.
+                    sameAttackImmunityTime = new[] { 0.1f }
+                },
+                priceMultiplier = 3,
+                unlockCondition = () => modEnabled.Value
+            });
+
             try
             {
                 new Harmony(PluginGuid).CreateClassProcessor(typeof(SlingshotHud)).Patch();
@@ -199,7 +228,7 @@ namespace WoLSlingshotDash
                 Logger.LogError($"Slingshot HUD hook failed to install: {e.Message}");
             }
 
-            Logger.LogInfo($"{PluginName} {PluginVersion} registered Slingshot, Blazing Slingshot and Frost Slingshot");
+            Logger.LogInfo($"{PluginName} {PluginVersion} registered Slingshot, Blazing, Frost and Vine Slingshot");
         }
 
         private Sprite LoadIcon(string fileName)
