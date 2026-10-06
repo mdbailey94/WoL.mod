@@ -7,9 +7,10 @@ the same way; they differ in what the launch does.
 
 - **Tap** dash: a normal dash. While the slingshot is recharging, holding is a normal dash too.
 - **Hold** dash (slingshot ready): your wizard hops backward, like pulling back a slingshot,
-  and holds that pose while their element gathers at their feet: wind for Raging Wind, flames
-  for Vacuum Kick, an icy shimmer for Feint Swap, pebbles and leaves for Vine Slingshot,
-  crackling sparks for Charged Leap. The charge is full after 1 second; after 2 seconds it
+  and holds that pose while their element gathers round them: a fast-spinning whirlwind for
+  Raging Wind, flames (and a trembling wizard) for Vacuum Kick, ice crystals forming in a
+  closing ring for Feint Swap, pebbles and leaves for Vine Slingshot, and electric arcs and
+  sparks for Charged Leap. The charge is full after 1 second; after 2 seconds it
   launches by itself. Keep aiming to turn and line up the shot (Vine Slingshot is the
   exception: no hop, and no turning).
 - **Release**: launch the way you're aiming. A full charge gives **+60% dash speed and +40% dash
@@ -153,6 +154,11 @@ which are then stretched further to reach the enemy, wall or ground they grabbed
 `HoldPoseFrame` (default `0.5`) set the wizard's pose while holding Vine Slingshot.
 
 Changes apply the next time the game starts.
+
+Under `[Icons]`: `MatchGamePalette` (default on) recolours the five icons in the colours of the
+game's own icons for similar spells: same element, frost arcana for Feint Swap, vine arcana for
+Vine Slingshot. The game icons it used are saved to `BepInEx/config/SlingshotDash_IconRefs`,
+next to the recoloured ones (`_<arcana>.png`). Turn it off for the mod's own, toned-down colours.
 
 ## Changing it in code
 

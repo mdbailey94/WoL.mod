@@ -16,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.19.1";
+        public const string PluginVersion = "0.20.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -28,6 +28,7 @@ namespace WoLSlingshotDash
         private ConfigEntry<float> blazingDrag;
         private static ConfigEntry<float> frostFreezeRadius;
         private static ConfigEntry<float> stormSphereSize;
+        private static ConfigEntry<bool> matchIconPalette;
         private static ConfigEntry<float> vineHoldFrame;
         private static ConfigEntry<string> vineHoldAnimation;
         private static ConfigEntry<float> vineHoldPoseFrame;
@@ -55,6 +56,7 @@ namespace WoLSlingshotDash
         public static string VineLightColor => vineLight?.Value;
         public static float FrostFreezeRadius => Mathf.Max(0.25f, frostFreezeRadius?.Value ?? 1f);
         public static float VineHoldFrame => Mathf.Clamp01(vineHoldFrame?.Value ?? 0.95f);
+        public static bool MatchIconPalette => matchIconPalette?.Value ?? true;
         public static float StormSphereSize => Mathf.Clamp(stormSphereSize?.Value ?? 0.6f, 0.2f, 1.5f);
 
         // The game's own player animation for the chosen name, or null for "None".
@@ -133,6 +135,9 @@ namespace WoLSlingshotDash
                 new ConfigDescription("Radius of Feint Swap's freezes at a 0.2 s hold; a full charge adds " +
                     "half again.",
                     new AcceptableValueRange<float>(0.25f, 4f)));
+            matchIconPalette = Config.Bind("Icons", "MatchGamePalette", true,
+                "Recolour the arcana icons in the colours of the game's own icons for similar spells. " +
+                "Turn off to use the mod's own colours.");
             stormSphereSize = Config.Bind("Balance", "StormSphereSize", 0.6f,
                 new ConfigDescription("Size of Charged Leap's Mag Sphere compared with the Mag Sphere arcana's " +
                     "(1 = the same size).",
@@ -297,6 +302,14 @@ namespace WoLSlingshotDash
             catch (System.Exception e)
             {
                 Logger.LogError($"Slingshot HUD hook failed to install: {e.Message}");
+            }
+            try
+            {
+                IconPalette.Install(new Harmony(PluginGuid + ".icons"));
+            }
+            catch (System.Exception e)
+            {
+                Logger.LogError($"Icon recolouring failed to install: {e.Message}");
             }
             try
             {

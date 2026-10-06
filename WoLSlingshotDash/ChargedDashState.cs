@@ -32,6 +32,7 @@ namespace WoLSlingshotDash
         private bool boosted;
         private Vector2 hopVelocity;
         private bool hopStarted;
+        private SpriteShaker shaker;
         // Charge of the dash in flight (0 for a tap).
         private float launchCharge;
 
@@ -224,6 +225,7 @@ namespace WoLSlingshotDash
 
         public override void OnExit()
         {
+            StopShaking();
             if (!charging && launchCharge > 0f && cooldownReady
                 && !fsm.nextStateName.Contains("Hurt") && !fsm.nextStateName.Contains("Dead"))
                 OnLand(launchCharge);
@@ -245,6 +247,7 @@ namespace WoLSlingshotDash
         private void Launch(float charge)
         {
             charging = false;
+            StopShaking();
             launchCharge = charge;
             if (charge > 0f && BoostsDash)
                 ApplyBoost(charge);
@@ -283,13 +286,39 @@ namespace WoLSlingshotDash
             boosted = false;
         }
 
-        // The charge-up effect at your feet, every DustInterval, growing as the charge builds.
+        // The charge-up effect at your feet, every ChargeEffectInterval, growing as the charge
+        // builds; and the wizard trembling, for an arcana that shakes.
         private void EmitChargeDust()
         {
+            float charge = Mathf.Clamp01(chargeTime / MaxCharge);
+            float shake = ChargeShake(charge);
+            if (shake > 0f)
+            {
+                if (shaker == null && parent.spriteRenderer != null)
+                {
+                    GameObject body = parent.spriteRenderer.gameObject;
+                    shaker = body.GetComponent<SpriteShaker>();
+                    if (shaker == null)
+                        shaker = body.AddComponent<SpriteShaker>();
+                }
+                if (shaker != null)
+                    shaker.amount = shake;
+            }
             if (chargeTime < nextDust)
                 return;
-            nextDust = chargeTime + DustInterval;
+            nextDust = chargeTime + ChargeEffectInterval;
             ChargeEffect(parent.transform.position, Mathf.Clamp01(chargeTime / MaxCharge));
+        }
+
+        protected virtual float ChargeEffectInterval => DustInterval;
+
+        // How far the wizard trembles while charging (0 = not at all).
+        protected virtual float ChargeShake(float charge) => 0f;
+
+        private void StopShaking()
+        {
+            if (shaker != null)
+                shaker.Stop();
         }
 
         // Each arcana shows its own element here; plain dust otherwise.

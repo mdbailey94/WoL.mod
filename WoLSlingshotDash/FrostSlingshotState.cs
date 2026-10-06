@@ -53,11 +53,20 @@ namespace WoLSlingshotDash
             return true;
         }
 
-        // Charging: an icy shimmer and a ring of droplets drawing in round your feet.
+        // Charging: ice crystals forming in a ring round your feet, closing in and growing as it
+        // builds, with a frosty glint.
         protected override void ChargeEffect(Vector2 position, float charge)
         {
-            Effects.Shimmer(position, 1 + Mathf.RoundToInt(3 * charge));
-            Effects.Splash(position, 1.2f - 0.6f * charge, 1);
+            float radius = 1.1f - 0.5f * charge;
+            int count = 1 + Mathf.RoundToInt(2 * charge);
+            for (int i = 0; i < count; i++)
+            {
+                float a = Random.value * Mathf.PI * 2f;
+                IceShard.Spawn(position + new Vector2(Mathf.Cos(a), Mathf.Sin(a) * 0.5f) * radius, parent,
+                    0.7f + 0.6f * charge);
+            }
+            if (Random.value < 0.3f)
+                Effects.Shimmer(position, 1);
         }
 
         protected override void OnLaunch(float charge)

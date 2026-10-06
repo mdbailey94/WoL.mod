@@ -39,11 +39,14 @@ namespace WoLSlingshotDash
         private float launchedAt;
         private bool kickPlayed;
 
-        // Charging: flames licking up round your feet, hotter as it builds.
+        // Charging: flames licking up round your feet, hotter as it builds, and the wizard
+        // trembling with the heat.
         protected override void ChargeEffect(Vector2 position, float charge)
         {
             EmitBlitzFlames(position, 2 + Mathf.RoundToInt(5 * charge));
         }
+
+        protected override float ChargeShake(float charge) => 0.03f + 0.04f * charge;
 
         protected override void OnLaunch(float charge)
         {

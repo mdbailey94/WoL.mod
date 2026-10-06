@@ -32,6 +32,7 @@ namespace WoLSlingshotDash
         private const float KeepInFrom = 0.75f;
 
         private MagSphere sphere;
+        private Crackle crackle;
         private GameObject sphereHolder;
         private int seenThisCharge;
         private static bool loggedCatch;
@@ -65,6 +66,8 @@ namespace WoLSlingshotDash
             orbitAngle = 0f;
             nextScan = 0f;
             sphere = SpawnSphere();
+            RemoveCrackle();
+            crackle = Crackle.Create(parent);
             if (sphere == null)
                 ring = StaticRing.Create(parent);
         }
@@ -118,6 +121,7 @@ namespace WoLSlingshotDash
         protected override void WhileCharging(float holdTime)
         {
             Vector2 center = parent.transform.position;
+            crackle?.Draw(center, Mathf.Clamp01(holdTime));
             if (sphere != null)
             {
                 // Leave the sphere to do its thing; just keep what it holds off your side.
@@ -130,7 +134,7 @@ namespace WoLSlingshotDash
             CatchAndOrbit(center, field);
         }
 
-        // Charging: static crackling round you, sparking harder as it builds.
+        // Charging: sparks snapping round you (the arcs themselves are drawn by Crackle).
         protected override void ChargeEffect(Vector2 position, float charge)
         {
             Vector2 offset = Random.insideUnitCircle * (0.4f + 0.6f * charge);
@@ -162,6 +166,7 @@ namespace WoLSlingshotDash
             }
             RemoveSphere();
             RemoveRing();
+            RemoveCrackle();
             ReleaseHeld();
             if (!loggedCatch)
             {
@@ -204,6 +209,7 @@ namespace WoLSlingshotDash
         {
             RemoveSphere();
             RemoveRing();
+            RemoveCrackle();
             ReleaseHeld();
             // Let go without launching (e.g. hit): fling the fallback's caught projectiles outward.
             foreach (Projectile p in caught)
@@ -426,6 +432,15 @@ namespace WoLSlingshotDash
             {
                 Object.Destroy(sphereHolder);
                 sphereHolder = null;
+            }
+        }
+
+        private void RemoveCrackle()
+        {
+            if (crackle != null)
+            {
+                Object.Destroy(crackle.gameObject);
+                crackle = null;
             }
         }
 
