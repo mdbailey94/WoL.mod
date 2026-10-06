@@ -159,7 +159,8 @@ which are then stretched further to reach the enemy, wall or ground they grabbed
 
 Changes apply the next time the game starts.
 
-Under `[Icons]`: `MatchGamePalette` (default on) recolours the five icons in the colours of the
+Under `[Icons]`: `MatchGamePalette` (default on) recolours the five icons, once the game has
+loaded its own (it doesn't hook any game code), in the colours of the
 game's own icons for similar spells: same element, frost arcana for Feint Swap, vine arcana for
 Vine Slingshot. The game icons it used are saved to `BepInEx/config/SlingshotDash_IconRefs`,
 next to the recoloured ones (`_<arcana>.png`). Turn it off for the mod's own, toned-down colours.

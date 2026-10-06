@@ -16,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.21.1";
+        public const string PluginVersion = "0.21.2";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -81,6 +81,17 @@ namespace WoLSlingshotDash
                 case "fall": return player.FallAnimStr;
                 default: return player.JumpAnimStr;
             }
+        }
+
+        private float nextIconCheck;
+
+        // The icon recolouring checks in now and then (it hooks nothing in the game).
+        private void Update()
+        {
+            if (Time.unscaledTime < nextIconCheck)
+                return;
+            nextIconCheck = Time.unscaledTime + 1f;
+            IconPalette.Tick();
         }
 
         private void Awake()
@@ -305,14 +316,6 @@ namespace WoLSlingshotDash
             catch (System.Exception e)
             {
                 Logger.LogError($"Slingshot HUD hook failed to install: {e.Message}");
-            }
-            try
-            {
-                IconPalette.Install(new Harmony(PluginGuid + ".icons"));
-            }
-            catch (System.Exception e)
-            {
-                Logger.LogError($"Icon recolouring failed to install: {e.Message}");
             }
             try
             {

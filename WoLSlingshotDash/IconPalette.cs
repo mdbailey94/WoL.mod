@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using HarmonyLib;
 using UnityEngine;
 
 namespace WoLSlingshotDash
@@ -41,57 +40,62 @@ namespace WoLSlingshotDash
         private static bool done;
         private static bool exported;
 
-        public static void Install(Harmony harmony) => harmony.CreateClassProcessor(typeof(ResetPatch)).Patch();
-
-        // LegendAPI puts our icons in the game's icon list just before this runs.
-        [HarmonyPatch(typeof(LootManager), nameof(LootManager.ResetAvailableSkills))]
-        private static class ResetPatch
+        // Called about once a second by the plugin; nothing in the game is hooked. Waits until the
+        // game has loaded its icons and skill stats, recolours once, and from then on just puts our
+        // recoloured icons back whenever LegendAPI restores the originals.
+        public static void Tick()
         {
-            private static void Postfix()
+            try
             {
-                try
+                if (!SlingshotDashPlugin.MatchIconPalette)
+                    return;
+                // The field, not the property: the property would make the game load its icons early.
+                Dictionary<string, Sprite> icons = IconManager.skillIcons;
+                if (icons == null)
+                    return;
+                if (!done)
                 {
-                    Apply();
+                    if (!Targets.All(t => icons.ContainsKey(t.id)) || StatManager.globalSkillData == null
+                        || StatManager.globalSkillData.Count < 10)
+                        return;
+                    done = true;
+                    Recolour(icons);
                 }
-                catch (Exception e)
+                foreach (KeyValuePair<string, Sprite> entry in recoloured)
                 {
-                    SlingshotDashPlugin.Log($"Icons: couldn't match the game's colours: {e.Message}");
+                    Sprite current;
+                    if (!icons.TryGetValue(entry.Key, out current) || current != entry.Value)
+                        icons[entry.Key] = entry.Value;
                 }
+            }
+            catch (Exception e)
+            {
+                done = true;
+                recoloured.Clear();
+                SlingshotDashPlugin.Log($"Icons: couldn't match the game's colours, keeping ours: {e.Message}");
             }
         }
 
-        private static void Apply()
+        private static void Recolour(Dictionary<string, Sprite> icons)
         {
-            if (!SlingshotDashPlugin.MatchIconPalette)
-                return;
-            Dictionary<string, Sprite> icons = IconManager.SkillIcons;
-            if (icons == null)
-                return;
-            if (!done)
+            foreach (Target target in Targets)
             {
-                done = true;
-                foreach (Target target in Targets)
+                Sprite ours;
+                if (!icons.TryGetValue(target.id, out ours) || ours == null)
+                    continue;
+                List<string> refs = References(icons, target);
+                Color32[] ramp = Ramp(icons, refs);
+                if (ramp == null)
                 {
-                    Sprite ours;
-                    if (!icons.TryGetValue(target.id, out ours) || ours == null)
-                        continue;
-                    List<string> refs = References(icons, target);
-                    Color32[] ramp = Ramp(icons, refs);
-                    if (ramp == null)
-                    {
-                        SlingshotDashPlugin.Log($"Icons: no game icons found for {target.id}, keeping ours");
-                        continue;
-                    }
-                    Sprite sprite = Recolour(ours, ramp);
-                    if (sprite != null)
-                        recoloured[target.id] = sprite;
-                    SlingshotDashPlugin.Log($"Icons: {target.id} recoloured from {string.Join(", ", refs.ToArray())}");
-                    Export(icons, refs, target.id, sprite);
+                    SlingshotDashPlugin.Log($"Icons: no game icons found for {target.id}, keeping ours");
+                    continue;
                 }
+                Sprite sprite = Recolour(ours, ramp);
+                if (sprite != null)
+                    recoloured[target.id] = sprite;
+                SlingshotDashPlugin.Log($"Icons: {target.id} recoloured from {string.Join(", ", refs.ToArray())}");
+                Export(icons, refs, target.id, sprite);
             }
-            // LegendAPI puts the originals back each time, so swap ours in every time.
-            foreach (KeyValuePair<string, Sprite> entry in recoloured)
-                IconManager.skillIcons[entry.Key] = entry.Value;
         }
 
         // The game's own skills of the same element, preferring those whose IDs match the hints.
