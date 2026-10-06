@@ -4,11 +4,11 @@ using UnityEngine;
 namespace WoLSlingshotDash
 {
     // Blazing Slingshot (Fire): a charged launch rushes you forward wrapped in Blazing Blitz's
-    // flame trail, dropping flame bursts that pull enemies into your path. Where you land, a flame
+    // flame trail, dropping flame bursts that drag enemies along your path. Where you land, a flame
     // vacuum keeps sucking everyone nearby in for a moment. Bigger with more charge.
     //
-    // The skill's knockback is negative (a pull, like Gust Burst), so every burst pulls toward its
-    // centre. Level 1 is the trail; level 2 is the vacuum's pulses.
+    // Level 1 is the trail: its knockback is overridden to point along the dash (BlazingPathPull).
+    // Level 2 is the vacuum's pulses: negative knockback, a pull toward the centre like Gust Burst.
     public class BlazingSlingshotState : ChargedDashState
     {
         public new static string staticID = "BlazingSlingshot";
@@ -19,6 +19,7 @@ namespace WoLSlingshotDash
         private const float VacuumPulseInterval = 0.15f;
 
         private float nextTrail;
+        private Vector2 direction;
         private float nextFlame;
 
         public BlazingSlingshotState(FSM fsm, Player parentPlayer) : base(staticID, fsm, parentPlayer)
@@ -29,6 +30,9 @@ namespace WoLSlingshotDash
         {
             nextTrail = 0f;
             nextFlame = 0f;
+            direction = inputVector.sqrMagnitude > 0.01f
+                ? inputVector.normalized
+                : Entity.GetFacingDirectionVector(parent.facingDirection).normalized;
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(parent.transform.position), null, 24f, -1f,
                 0.9f - 0.2f * charge, false);
         }
@@ -46,7 +50,10 @@ namespace WoLSlingshotDash
             if (nextTrail <= 0f)
             {
                 nextTrail = TrailInterval;
-                FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1, 0.8f + 0.4f * charge, true);
+                // Knock enemies along the dash so the trail drags them with you.
+                FlameBurst burst = FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1, 0.8f + 0.4f * charge, true);
+                if (burst != null && burst.attack != null)
+                    burst.attack.knockbackOverwriteVector = direction;
             }
         }
 

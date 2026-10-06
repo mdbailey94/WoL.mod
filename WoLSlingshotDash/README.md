@@ -5,8 +5,8 @@ the same way; they differ in what the launch does.
 
 ### Charging (all three)
 
-- **Tap** dash: a normal dash.
-- **Hold** dash: your wizard hops backward, like pulling back a slingshot, then holds that pose
+- **Tap** dash: a normal dash. While the slingshot is recharging, holding is a normal dash too.
+- **Hold** dash (slingshot ready): your wizard hops backward, like pulling back a slingshot, then holds that pose
   while dust builds at their feet. The charge is full after 1 second, but you can keep holding
   as long as you like. Keep aiming to turn and line up the shot.
 - **Release**: launch the way you're aiming. A full charge gives **+60% dash speed and +40% dash
@@ -25,8 +25,8 @@ the launch, gentler where you land. Both get bigger with more charge.
 > **Blazing Slingshot**: Hold to pull back and charge, then release to blitz across the room in
 > flames, leaving a vacuum that sucks enemies in!
 
-- You rush forward wrapped in **Blazing Blitz's flame trail**, dropping flame bursts that pull
-  nearby enemies into your path.
+- You rush forward wrapped in **Blazing Blitz's flame trail**, dropping flame bursts that drag
+  enemies they hit a little way along your path.
 - Where you land, a **flame vacuum** keeps sucking everyone nearby in for about half a second.
 - Everything scales with charge, and it's Fire, so it can burn.
 
@@ -37,21 +37,23 @@ the launch, gentler where you land. Both get bigger with more charge.
 
 - Instead of dashing, you **throw an ice copy of yourself** (the game's ice decoy) along your aim:
   3 to 9 tiles depending on charge, stopping short of walls.
-- When it lands you **swap places**: you appear where it landed, and it appears where you stood.
-- It bursts with a **small Frost Nova** there, freezing enemies around it, then lingers for a
-  couple of seconds so enemies keep going after it.
+- It **hovers there for up to 2 seconds** while you keep moving. Then, or as soon as you **press
+  dash again**, you **swap places**: you appear where it is, and it appears where you are.
+- **Both spots freeze**: a small Frost Nova bursts at each end, and the copy lingers for a couple
+  of seconds so enemies keep going after it.
 
 ### Balance
 
 Slingshot arcana trade a long cooldown and a charge-up for more range and damage than a normal
-dash, without outclassing standard arcana. Each has **one charge** that recharges in **7 s** (see
-`CooldownSeconds` below), and a tap uses the charge too, since it's the same dash.
+dash, without outclassing standard arcana. The **slingshot** has one charge that recharges in
+**7 s** (`CooldownSeconds`); until then, and for taps, the dash button is a **normal dash** with a
+short cooldown. A puff of dust and a swish tell you when the slingshot is ready again.
 
 | | Damage per enemy | Notes |
 |---|---|---|
 | Slingshot | 10 at launch, 6 where you land (up to 16) | Strong knockback at launch, gentle at landing |
 | Blazing Slingshot | 4 per trail burst, 2 per vacuum pulse (about 20 at most) | Plus burn; pulls instead of pushing |
-| Frost Slingshot | 12 from the Frost Nova | Freezes for 1.5 s; the feint draws enemies |
+| Frost Slingshot | 12 per Frost Nova (one at each end) | Freezes for 1.5 s; the feint draws enemies |
 
 You're not invulnerable while charging, so time it. Careful hopping backward near a ledge.
 
@@ -68,7 +70,10 @@ The hop and the held pose reuse the game's own wizard animations. In
 
 Under `[Balance]`:
 
-- `CooldownSeconds`: cooldown of all three slingshots. Default `7`.
+- `CooldownSeconds`: how long until you can slingshot again. Default `7`.
+- `DashCooldownSeconds`: cooldown of the normal dash in between. Default `0.6`.
+- `BlazingPathPull`: how hard Blazing Slingshot's trail drags enemies along your dash. Default
+  `12`; make it negative if they get pushed the wrong way.
 
 Changes apply the next time the game starts.
 

@@ -15,14 +15,16 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.7.2";
+        public const string PluginVersion = "0.8.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
         private static ConfigEntry<float> chargePoseFrame;
         private static ConfigEntry<float> hopDistance;
         private static ConfigEntry<float> maxHold;
-        private ConfigEntry<float> cooldownSeconds;
+        private static ConfigEntry<float> cooldownSeconds;
+        private ConfigEntry<float> dashCooldownSeconds;
+        private ConfigEntry<float> blazingPathPull;
         private ConfigEntry<bool> modEnabled;
 
         private static SlingshotDashPlugin instance;
@@ -40,6 +42,7 @@ namespace WoLSlingshotDash
         public static float HopDistance => Mathf.Max(0f, hopDistance?.Value ?? 1.5f);
         // 0 = hold as long as you like.
         public static float MaxHoldSeconds => Mathf.Max(0f, maxHold?.Value ?? 0f);
+        public static float SlingshotCooldown => Mathf.Max(0.5f, cooldownSeconds?.Value ?? 7f);
 
         // The game's own player animation for the chosen name, or null for "None".
         public static string ChargeAnimation(Player player)
@@ -79,9 +82,17 @@ namespace WoLSlingshotDash
                     "like). The charge is full after 1 second either way.",
                     new AcceptableValueRange<float>(0f, 10f)));
             cooldownSeconds = Config.Bind("Balance", "CooldownSeconds", 7f,
-                new ConfigDescription("Cooldown of all three slingshots (one charge each). Applies the next " +
-                    "time the game starts.",
+                new ConfigDescription("How long until you can slingshot again (one charge). Until then the " +
+                    "dash button is a normal dash.",
                     new AcceptableValueRange<float>(0.5f, 30f)));
+            dashCooldownSeconds = Config.Bind("Balance", "DashCooldownSeconds", 0.6f,
+                new ConfigDescription("Cooldown of the normal dash these arcana do when not slingshotting. " +
+                    "Applies the next time the game starts.",
+                    new AcceptableValueRange<float>(0.1f, 5f)));
+            blazingPathPull = Config.Bind("Balance", "BlazingPathPull", 12f,
+                new ConfigDescription("How hard Blazing Slingshot's trail drags enemies along your dash. " +
+                    "Make it negative if they get pushed the wrong way. Applies the next time the game starts.",
+                    new AcceptableValueRange<float>(-60f, 60f)));
 
             Skills.Register(new SkillInfo
             {
@@ -100,7 +111,7 @@ namespace WoLSlingshotDash
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
                     // Level 1 is the launch burst, level 2 the landing burst: at most 16 per enemy.
                     damage = new[] { 10, 6 },
-                    cooldown = new[] { cooldownSeconds.Value },
+                    cooldown = new[] { dashCooldownSeconds.Value },
                     // Positive knockback pushes enemies away; gentler where you land.
                     knockbackMultiplier = new[] { 55f, 22f },
                     hitStunDurationModifier = new[] { 1.2f },
@@ -128,9 +139,11 @@ namespace WoLSlingshotDash
                     // Level 1 is the trail, level 2 the vacuum's pulses where you land. About
                     // 3 trail hits x4 + 4 pulses x2 = 20 at most per enemy, plus burn.
                     damage = new[] { 4, 2 },
-                    cooldown = new[] { cooldownSeconds.Value },
-                    // Negative knockback pulls enemies toward each burst.
-                    knockbackMultiplier = new[] { -26f, -32f },
+                    cooldown = new[] { dashCooldownSeconds.Value },
+                    // Level 1 (the trail) knocks enemies along the dash direction, set on each burst,
+                    // so they get dragged with you; level 2 (the vacuum) pulls toward its centre.
+                    knockbackMultiplier = new[] { blazingPathPull.Value, -32f },
+                    knockbackOverwrite = new[] { true, false },
                     hitStunDurationModifier = new[] { 1.2f },
                     // Short, so the trail and vacuum keep grabbing enemies.
                     sameAttackImmunityTime = new[] { 0.12f }
@@ -158,7 +171,7 @@ namespace WoLSlingshotDash
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
                     // One Frost Nova where you stood: 12 damage and a guaranteed freeze.
                     damage = new[] { 12 },
-                    cooldown = new[] { cooldownSeconds.Value },
+                    cooldown = new[] { dashCooldownSeconds.Value },
                     knockbackMultiplier = new[] { 0f },
                     hitStunDurationModifier = new[] { 1f },
                     sameAttackImmunityTime = new[] { 0.5f },

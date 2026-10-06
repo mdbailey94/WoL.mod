@@ -4,19 +4,31 @@ using UnityEngine;
 
 namespace WoLSlingshotDash
 {
-    // Frost Slingshot (Water, the game's frost element): a charged launch throws an ice feint (the game's IceDecoy, which
-    // enemies go after) out along your aim while you stay put. When it lands you swap places: you
-    // appear where it landed, and it appears where you stood and bursts with a small Frost Nova
-    // that freezes enemies around it, then lingers to draw them in. Further with more charge.
+    // Frost Slingshot (Water, the game's frost element): a charged launch throws an ice feint
+    // (the game's IceDecoy, which enemies go after) out along your aim. It hovers there for up to
+    // HoverTime while you keep moving; then, or as soon as you press dash again, you swap places
+    // with it. Both spots burst with a small Frost Nova that freezes enemies, and the feint lingers
+    // where you were to keep drawing them. Further with more charge.
     public class FrostSlingshotState : ChargedDashState
     {
         public new static string staticID = "FrostSlingshot";
 
         private const float FlightTime = 0.3f;
+        private const float HoverTime = 2f;
         private const float MinDistance = 3f;
         private const float ExtraDistance = 6f; // added at full charge
         private const float WallMargin = 0.75f;
-        private const float DecoyDuration = 2.5f;
+        private const float LingerTime = 2.5f;   // how long the feint stays after the swap
+
+        // The feint in flight or hovering, until the swap.
+        private class Feint
+        {
+            public float thrownAt;
+            public bool swapRequested;
+            public bool swapped;
+        }
+
+        private Feint pending;
 
         public FrostSlingshotState(FSM fsm, Player parentPlayer) : base(staticID, fsm, parentPlayer)
         {
@@ -25,6 +37,16 @@ namespace WoLSlingshotDash
         // The feint travels instead of you: no dash boost, and you stand still while throwing.
         protected override bool BoostsDash => false;
         protected override bool HoldsStill => true;
+
+        // Pressing dash while the feint hovers swaps you with it right away.
+        protected override bool InterceptDash()
+        {
+            // Only while a feint can actually be out, so a dash press is never swallowed for good.
+            if (pending == null || pending.swapped || Time.time > pending.thrownAt + FlightTime + HoverTime + 0.5f)
+                return false;
+            pending.swapRequested = true;
+            return true;
+        }
 
         protected override void OnLaunch(float charge)
         {
@@ -40,10 +62,10 @@ namespace WoLSlingshotDash
 
             parent.anim?.PlayDirectional(parent.ForehandAnimStr, -1, 0f);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(start), null, 24f, -1f, 1.5f, false);
-            GameObject decoy = SpawnDecoy(start);
-            // The dash state ends before the feint lands, so the throw runs on the plugin.
-            SlingshotDashPlugin.Run(Feint(parent, decoy, start, start + direction * distance, charge,
-                parent.skillCategory, skillID));
+            pending = new Feint { thrownAt = Time.time };
+            // The dash state ends long before the swap, so the feint runs on the plugin.
+            SlingshotDashPlugin.Run(Throw(parent, pending, SpawnDecoy(start), start, start + direction * distance,
+                1.75f + charge, parent.skillCategory, skillID));
         }
 
         private GameObject SpawnDecoy(Vector2 position)
@@ -54,7 +76,7 @@ namespace WoLSlingshotDash
                 if (decoy == null)
                     return null;
                 decoy.parentEnt = parent;
-                decoy.duration = DecoyDuration;
+                decoy.duration = FlightTime + HoverTime + LingerTime;
                 return decoy.gameObject;
             }
             catch (System.Exception e)
@@ -64,17 +86,17 @@ namespace WoLSlingshotDash
             }
         }
 
-        private static IEnumerator Feint(Player player, GameObject decoy, Vector2 start, Vector2 end, float charge,
-            string skillCategory, string id)
+        private static IEnumerator Throw(Player player, Feint feint, GameObject decoy, Vector2 start, Vector2 end,
+            float freezeRadius, string skillCategory, string id)
         {
+            // Fly out.
             float t = 0f;
             float nextDust = 0f;
             while (t < FlightTime)
             {
                 t += Time.deltaTime;
                 Vector2 position = Vector2.Lerp(start, end, Mathf.SmoothStep(0f, 1f, t / FlightTime));
-                if (decoy != null)
-                    decoy.transform.position = position;
+                MoveDecoy(decoy, position);
                 if (t >= nextDust)
                 {
                     nextDust = t + 0.05f;
@@ -83,22 +105,40 @@ namespace WoLSlingshotDash
                 yield return null;
             }
 
+            // Hover with a slight bob until the time's up or you press dash.
+            t = 0f;
+            while (t < HoverTime && !feint.swapRequested)
+            {
+                t += Time.deltaTime;
+                MoveDecoy(decoy, end + new Vector2(0f, Mathf.Sin(t * 6f) * 0.08f));
+                yield return null;
+            }
+
+            feint.swapped = true;
             if (player == null || !player.gameObject.activeInHierarchy)
                 yield break;
 
-            // Swap: you to where the feint landed, the feint to where you stood.
+            // Swap: you to the feint, the feint to wherever you are now.
+            Vector2 here = player.transform.position;
             player.transform.position = end;
             if (player.rigidbody2D != null)
             {
                 player.rigidbody2D.position = end;
                 player.rigidbody2D.velocity = Vector2.zero;
             }
-            if (decoy != null)
-                decoy.transform.position = start;
+            MoveDecoy(decoy, here);
 
-            FrostNova.CreateFrostNova(start, 1.75f + charge, skillCategory, id, 1);
+            // Freeze at both ends.
+            FrostNova.CreateFrostNova(here, freezeRadius, skillCategory, id, 1);
+            FrostNova.CreateFrostNova(end, freezeRadius, skillCategory, id, 1);
             PoolManager.GetPoolItem<DustEmitter>().EmitCircle(40, 1.2f, -6f, -1f, new Vector3?(end), null);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(end), null, 24f, -1f, 1.7f, false);
+        }
+
+        private static void MoveDecoy(GameObject decoy, Vector2 position)
+        {
+            if (decoy != null)
+                decoy.transform.position = position;
         }
     }
 }

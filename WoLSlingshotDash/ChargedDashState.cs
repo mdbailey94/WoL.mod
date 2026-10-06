@@ -41,25 +41,13 @@ namespace WoLSlingshotDash
             // anything that throws in a constructor stops the wizard spawning at all.
         }
 
-        private bool chargesSet;
+        // The slingshot itself has its own cooldown (one charge): until it's ready again, the
+        // dash button is just a normal dash. Game time, so it doesn't run down while paused.
+        private float slingshotReadyAt;
+        // A dash used by the arcana for something else (e.g. Frost's early swap): stand still.
+        private bool standStill;
 
-        // One dash charge, so the long cooldown means one slingshot at a time. Done on the first
-        // dash rather than in the constructor (skill data isn't ready then), and never allowed
-        // to break the dash.
-        private void EnsureOneCharge()
-        {
-            if (chargesSet)
-                return;
-            chargesSet = true;
-            try
-            {
-                InitChargeSkillSettings(1, 0f, skillData, this);
-            }
-            catch (System.Exception e)
-            {
-                SlingshotDashPlugin.Log($"Couldn't set {skillID} to one charge: {e.Message}");
-            }
-        }
+        protected bool SlingshotReady => Time.time >= slingshotReadyAt;
 
         // Right after a charged launch starts, still at the launch spot; inputVector is the aim.
         protected abstract void OnLaunch(float charge);
@@ -81,11 +69,22 @@ namespace WoLSlingshotDash
         // invulnerability and timing, but doesn't move you).
         protected virtual bool HoldsStill => false;
 
+        // Called first when the dash button starts a dash. Return true to use this press for
+        // something else (the wizard then stands still for the dash instead of moving).
+        protected virtual bool InterceptDash() => false;
+
         public override void OnEnter()
         {
-            EnsureOneCharge();
-            // Without a way to read the button we can't charge; behave like a normal dash.
-            if (!DashButton.Available(parent, skillSlot))
+            standStill = false;
+            launchCharge = 0f;
+            if (InterceptDash())
+            {
+                standStill = true;
+                base.OnEnter();
+                return;
+            }
+            // Slingshot still recharging, or no way to read the button: a normal dash.
+            if (!SlingshotReady || !DashButton.Available(parent, skillSlot))
             {
                 base.OnEnter();
                 return;
@@ -136,7 +135,7 @@ namespace WoLSlingshotDash
                 return;
             }
             base.FixedUpdate();
-            if (launchCharge > 0f && HoldsStill && parent.rigidbody2D != null)
+            if ((standStill || (launchCharge > 0f && HoldsStill)) && parent.rigidbody2D != null)
                 parent.rigidbody2D.velocity = Vector2.zero;
         }
 
@@ -147,6 +146,7 @@ namespace WoLSlingshotDash
                 OnLand(launchCharge);
             charging = false;
             launchCharge = 0f;
+            standStill = false;
             RemoveBoost();
             base.OnExit();
         }
@@ -159,9 +159,14 @@ namespace WoLSlingshotDash
                 ApplyBoost(charge);
             // Start the game's own dash now, aimed wherever the player is holding.
             base.OnEnter();
-            // Like the game's own dash arcana, no attacks when the dash has no charge left.
+            // Like the game's own dash arcana, no attacks when the dash itself is recharging.
             if (charge > 0f && cooldownReady)
+            {
+                float cooldown = SlingshotDashPlugin.SlingshotCooldown;
+                slingshotReadyAt = Time.time + cooldown;
+                SlingshotDashPlugin.Run(ReadyCue(parent, cooldown));
                 OnLaunch(charge);
+            }
         }
 
         private void ApplyBoost(float charge)
@@ -229,6 +234,18 @@ namespace WoLSlingshotDash
             float pose = SlingshotDashPlugin.ChargePoseFrame;
             float time = pose * HopProgress;
             parent.anim.PlayDirectional(anim, -1, time);
+        }
+
+        // A small puff and a high swish when the slingshot is ready again, since the HUD only
+        // shows the normal dash's cooldown.
+        private static System.Collections.IEnumerator ReadyCue(Player player, float delay)
+        {
+            yield return new WaitForSeconds(delay);
+            if (player == null || !player.gameObject.activeInHierarchy)
+                yield break;
+            Vector3 position = player.transform.position;
+            PoolManager.GetPoolItem<DustEmitter>().EmitCircle(16, 0.6f, -3f, -1f, new Vector3?(position), null);
+            SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(position), null, 24f, -1f, 1.8f, false);
         }
     }
 }
