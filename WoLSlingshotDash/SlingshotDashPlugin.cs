@@ -4,6 +4,7 @@ using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
+using HarmonyLib;
 using LegendAPI;
 using UnityEngine;
 
@@ -15,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.11.0";
+        public const string PluginVersion = "0.12.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -26,6 +27,7 @@ namespace WoLSlingshotDash
         private ConfigEntry<float> dashCooldownSeconds;
         private ConfigEntry<float> blazingDrag;
         private static ConfigEntry<float> frostFreezeRadius;
+        private static ConfigEntry<string> vineDark, vineMid, vineLight;
         private ConfigEntry<bool> modEnabled;
 
         private static SlingshotDashPlugin instance;
@@ -44,6 +46,9 @@ namespace WoLSlingshotDash
         // 0 = hold as long as you like.
         public static float MaxHoldSeconds => Mathf.Max(0f, maxHold?.Value ?? 0f);
         public static float SlingshotCooldown => Mathf.Max(0.5f, cooldownSeconds?.Value ?? 7f);
+        public static string VineDarkColor => vineDark?.Value;
+        public static string VineMidColor => vineMid?.Value;
+        public static string VineLightColor => vineLight?.Value;
         public static float FrostFreezeRadius => Mathf.Max(0.25f, frostFreezeRadius?.Value ?? 1f);
 
         // The game's own player animation for the chosen name, or null for "None".
@@ -96,6 +101,10 @@ namespace WoLSlingshotDash
                 new ConfigDescription("How hard Blazing Slingshot's trail drags enemies along your dash. " +
                     "Make it negative if they get pushed the wrong way. Applies the next time the game starts.",
                     new AcceptableValueRange<float>(-80f, 80f)));
+            vineDark = Config.Bind("Vines", "DarkColor", "",
+                "Vine Slingshot's darkest green as a hex colour like #1E4A2A (empty = taken from the game's vines).");
+            vineMid = Config.Bind("Vines", "MidColor", "", "Vine Slingshot's main green (empty = from the game).");
+            vineLight = Config.Bind("Vines", "LightColor", "", "Vine Slingshot's highlight green (empty = from the game).");
             frostFreezeRadius = Config.Bind("Balance", "FrostFreezeRadius", 1f,
                 new ConfigDescription("Radius of Frost Slingshot's freezes at a 0.2 s hold; a full charge adds " +
                     "half again.",
@@ -244,13 +253,16 @@ namespace WoLSlingshotDash
                 unlockCondition = () => modEnabled.Value
             });
 
-            Logger.LogInfo($"{PluginName} {PluginVersion} registered Slingshot, Blazing, Frost, Vine and Storm Slingshot");
-        }
+            try
+            {
+                new Harmony(PluginGuid).CreateClassProcessor(typeof(SlingshotHud)).Patch();
+            }
+            catch (System.Exception e)
+            {
+                Logger.LogError($"Slingshot HUD hook failed to install: {e.Message}");
+            }
 
-        // Keeps the slingshot cooldown drawn over its arcana icon.
-        private void LateUpdate()
-        {
-            SlingshotHud.Refresh();
+            Logger.LogInfo($"{PluginName} {PluginVersion} registered Slingshot, Blazing, Frost, Vine and Storm Slingshot");
         }
 
         private Sprite LoadIcon(string fileName)

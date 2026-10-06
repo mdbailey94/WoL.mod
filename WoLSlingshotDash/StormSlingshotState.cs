@@ -3,8 +3,8 @@ using UnityEngine;
 
 namespace WoLSlingshotDash
 {
-    // Storm Slingshot (Lightning): while you hold, a crackling field around you catches enemy
-    // projectiles (like Mag Sphere), turns them to your side (the game's own reflect) and spins
+    // Storm Slingshot (Lightning): while you hold, a field around you (shown with Mag Sphere's own
+    // look) catches enemy projectiles, turns them to your side (the game's own reflect) and spins
     // them around you. The field grows as you hold. Let go and they all fire in a tight fan along
     // your aim while you dash after them, with a small lightning burst where you land.
     public class StormSlingshotState : ChargedDashState
@@ -27,6 +27,8 @@ namespace WoLSlingshotDash
         private float nextScan;
         private float orbitAngle;
         private StaticRing ring;
+        private GameObject sphere;      // the game's Mag Sphere, as the charge-up look
+        private static bool loggedSphere;
 
         public StormSlingshotState(FSM fsm, Player parentPlayer) : base(staticID, fsm, parentPlayer)
         {
@@ -37,7 +39,55 @@ namespace WoLSlingshotDash
             ReleaseAll(null);
             orbitAngle = 0f;
             nextScan = 0f;
-            ring = StaticRing.Create(parent);
+            sphere = SpawnSphere();
+            // Our own crackling ring only if the game's sphere couldn't be shown.
+            if (sphere == null)
+                ring = StaticRing.Create(parent);
+        }
+
+        // Mag Sphere's own look around you while you charge. Its collider is turned off: the
+        // catching is done here, it's only there to be seen.
+        private GameObject SpawnSphere()
+        {
+            try
+            {
+                MagSphere ms = ChaosInst<MagSphere>(MagSphere.Prefab, new Vector2?(parent.transform.position), null, null);
+                if (ms == null)
+                    return null;
+                ms.parentPlayer = parent;
+                ms.parentObject = parent.gameObject;
+                ms.followTrans = parent.transform;
+                ms.skillCategory = parent.skillCategory;
+                ms.duration = 60f;
+                if (ms.mainCollider != null)
+                    ms.mainCollider.enabled = false;
+                foreach (Collider2D c in ms.GetComponentsInChildren<Collider2D>(true))
+                    c.enabled = false;
+                if (!loggedSphere)
+                {
+                    loggedSphere = true;
+                    SlingshotDashPlugin.Log("Storm: using Mag Sphere's look for the charge-up");
+                }
+                return ms.gameObject;
+            }
+            catch (System.Exception e)
+            {
+                if (!loggedSphere)
+                {
+                    loggedSphere = true;
+                    SlingshotDashPlugin.Log($"Storm: Mag Sphere unavailable, drawing a ring instead: {e.Message}");
+                }
+                return null;
+            }
+        }
+
+        private void RemoveSphere()
+        {
+            if (sphere != null)
+            {
+                Object.Destroy(sphere);
+                sphere = null;
+            }
         }
 
         protected override void WhileCharging(float holdTime)
@@ -46,6 +96,12 @@ namespace WoLSlingshotDash
             float power = Mathf.Clamp01((holdTime - MinChargeTime) / (1f - MinChargeTime));
             float field = MinFieldRadius + ExtraFieldRadius * power;
             ring?.Draw(center, field);
+            if (sphere != null)
+            {
+                // Keep it on you, a little bigger as the field grows.
+                sphere.transform.position = center;
+                sphere.transform.localScale = Vector3.one * (1f + 0.4f * power);
+            }
 
             if (Time.time >= nextScan)
             {
@@ -101,6 +157,7 @@ namespace WoLSlingshotDash
                 ? inputVector.normalized
                 : Entity.GetFacingDirectionVector(parent.facingDirection).normalized;
             RemoveRing();
+            RemoveSphere();
             ReleaseAll(aim);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(parent.transform.position), null, 24f, -1f, 1.6f, false);
         }
@@ -114,6 +171,7 @@ namespace WoLSlingshotDash
         protected override void OnStateExit()
         {
             RemoveRing();
+            RemoveSphere();
             ReleaseAll(null);
         }
 

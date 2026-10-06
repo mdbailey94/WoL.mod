@@ -5,16 +5,27 @@ namespace WoLSlingshotDash
     // Game textures aren't readable from code, so copy a sprite's pixels through a render texture.
     public static class SpriteReader
     {
+        // A whole texture (e.g. a particle material's).
+        public static Color32[] ReadTexture(Texture source)
+        {
+            if (source == null)
+                return null;
+            return ReadRegion(source, new Rect(0, 0, source.width, source.height));
+        }
+
         public static Color32[] Read(Sprite sprite)
         {
             if (sprite == null || sprite.texture == null)
                 return null;
+            return ReadRegion(sprite.texture, sprite.textureRect);
+        }
+
+        private static Color32[] ReadRegion(Texture source, Rect region)
+        {
             RenderTexture previous = RenderTexture.active;
             RenderTexture rt = null;
             try
             {
-                Texture source = sprite.texture;
-                Rect region = sprite.textureRect;
                 int w = Mathf.RoundToInt(region.width), h = Mathf.RoundToInt(region.height);
                 if (w <= 0 || h <= 0)
                     return null;

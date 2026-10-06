@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -153,40 +154,103 @@ namespace WoLSlingshotDash
             return material;
         }
 
-        // Reads the green pixels of the game's vine sprites and picks a dark, mid and light green
-        // from them (by brightness).
+        // Picks a dark, mid and light green for the vines: from the config if set there, else
+        // from the green pixels of the game's own vine art (the vine whips, traps and waves of
+        // Soaring Ivy, Rippling Vines and co., including their particle textures).
         private static void GamePalette(ref Color32 dark, ref Color32 stem, ref Color32 light)
         {
-            var greens = new List<Color32>();
-            foreach (GameObject prefab in new[] { SafePrefab(() => VineTrap.Prefab), SafePrefab(() => VineWave.Prefab) })
+            Color32 configured;
+            bool fromConfig = false;
+            if (TryParse(SlingshotDashPlugin.VineDarkColor, out configured)) { dark = configured; fromConfig = true; }
+            if (TryParse(SlingshotDashPlugin.VineMidColor, out configured)) { stem = configured; fromConfig = true; }
+            if (TryParse(SlingshotDashPlugin.VineLightColor, out configured)) { light = configured; fromConfig = true; }
+            if (fromConfig)
             {
+                SlingshotDashPlugin.Log($"Vines: using the colours from the config {Hex(dark)} {Hex(stem)} {Hex(light)}");
+                return;
+            }
+
+            var greens = new List<Color32>();
+            var report = new List<string>();
+            var sources = new Dictionary<string, Func<GameObject>>
+            {
+                { "VineJumpWhip", () => VineJumpWhip.Prefab },
+                { "VineWhipObject", () => VineWhipObject.Prefab },
+                { "VineTrap", () => VineTrap.Prefab },
+                { "VineWave", () => VineWave.Prefab },
+                { "VinePull", () => VinePull.Prefab },
+                { "VinePullProjectile", () => VinePullProjectile.Prefab },
+            };
+            foreach (KeyValuePair<string, Func<GameObject>> source in sources)
+            {
+                GameObject prefab = SafePrefab(source.Value);
                 if (prefab == null)
+                {
+                    report.Add(source.Key + ": no prefab");
                     continue;
+                }
+                int before = greens.Count, images = 0;
                 foreach (SpriteRenderer renderer in prefab.GetComponentsInChildren<SpriteRenderer>(true))
                 {
-                    Color32[] pixels = SpriteReader.Read(renderer.sprite);
-                    if (pixels == null)
-                        continue;
-                    foreach (Color32 c in pixels)
+                    images++;
+                    AddGreens(SpriteReader.Read(renderer.sprite), greens);
+                }
+                foreach (ParticleSystemRenderer renderer in prefab.GetComponentsInChildren<ParticleSystemRenderer>(true))
+                {
+                    Material m = renderer.sharedMaterial;
+                    if (m != null && m.mainTexture != null)
                     {
-                        if (c.a > 200 && c.g > c.r + 10 && c.g > c.b + 10)
-                            greens.Add(c);
+                        images++;
+                        AddGreens(SpriteReader.ReadTexture(m.mainTexture), greens);
                     }
                 }
+                report.Add($"{source.Key}: {images} image(s), {greens.Count - before} green px");
             }
+            SlingshotDashPlugin.Log("Vines: " + string.Join("; ", report.ToArray()));
             if (greens.Count < 12)
             {
-                SlingshotDashPlugin.Log("Vines: couldn't read the game's vine greens, using the built-in ones");
+                SlingshotDashPlugin.Log("Vines: couldn't read the game's vine greens, using the built-in ones " +
+                    "(set them yourself under [Vines] in the config)");
                 return;
             }
             greens.Sort((x, y) => (x.r + x.g + x.b).CompareTo(y.r + y.g + y.b));
             dark = greens[greens.Count * 15 / 100];
             stem = greens[greens.Count / 2];
             light = greens[greens.Count * 85 / 100];
-            SlingshotDashPlugin.Log($"Vines: using the game's greens {dark} {stem} {light}");
+            SlingshotDashPlugin.Log($"Vines: using the game's greens {Hex(dark)} {Hex(stem)} {Hex(light)}");
         }
 
-        private static GameObject SafePrefab(System.Func<GameObject> get)
+        // Opaque, clearly coloured pixels with a green-ish hue (yellow-green to teal).
+        private static void AddGreens(Color32[] pixels, List<Color32> greens)
+        {
+            if (pixels == null)
+                return;
+            foreach (Color32 c in pixels)
+            {
+                if (c.a < 200)
+                    continue;
+                float h, sat, v;
+                Color.RGBToHSV(c, out h, out sat, out v);
+                if (h >= 0.18f && h <= 0.48f && sat >= 0.25f && v >= 0.15f)
+                    greens.Add(c);
+            }
+        }
+
+        private static bool TryParse(string hex, out Color32 color)
+        {
+            color = new Color32();
+            if (string.IsNullOrEmpty(hex))
+                return false;
+            Color parsed;
+            if (!ColorUtility.TryParseHtmlString(hex.StartsWith("#") ? hex : "#" + hex, out parsed))
+                return false;
+            color = parsed;
+            return true;
+        }
+
+        private static string Hex(Color32 c) => "#" + c.r.ToString("X2") + c.g.ToString("X2") + c.b.ToString("X2");
+
+        private static GameObject SafePrefab(Func<GameObject> get)
         {
             try
             {

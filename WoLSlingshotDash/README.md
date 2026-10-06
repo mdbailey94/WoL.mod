@@ -62,8 +62,8 @@ the launch, gentler where you land. Both get bigger with more charge.
 > **Storm Slingshot**: Hold to gather enemy projectiles into a crackling field around you, then
 > let go to hurl them and yourself at the foe!
 
-- While you hold, a **crackling field** around you (growing as you charge) **catches enemy
-  projectiles**, like Mag Sphere: they turn to your side and **spin around you** (up to 8).
+- While you hold, **Mag Sphere's field** forms around you (growing as you charge) and **catches
+  enemy projectiles**: they turn to your side and **spin around you** (up to 8).
 - Let go and they **all fire in a tight fan along your aim**, hitting harder than before (×1.5),
   while you **dash after them** and land with a small **lightning burst**.
 
@@ -104,6 +104,10 @@ Under `[Balance]`:
   `35`; make it negative if they get pushed the wrong way.
 - `FrostFreezeRadius`: size of Frost Slingshot's freezes at the shortest hold (a full charge adds
   half again). Default `1`.
+
+Under `[Vines]`: `DarkColor`, `MidColor` and `LightColor` set Vine Slingshot's greens as hex
+colours like `#2E6B3A`. Empty (the default) takes them from the game's own vine art; the log
+says which colours it used.
 
 Changes apply the next time the game starts.
 
