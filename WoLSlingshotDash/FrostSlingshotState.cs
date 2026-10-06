@@ -9,7 +9,7 @@ namespace WoLSlingshotDash
     // keep moving; then, or as soon as you press dash again, you swap places with it. Both spots
     // burst with a small Frost Nova that freezes enemies, and the feint lingers where you were to
     // keep drawing them. Holding 0.2 s to 1 s scales both the throw distance and the hover time
-    // (none at 0.2 s, MaxHoverTime at 1 s).
+    // (none at 0.2 s, MaxHoverTime at 1 s); enhanced, both are full at 0.6 s.
     public class FrostSlingshotState : ChargedDashState
     {
         public new static string staticID = "FrostSlingshot";
@@ -55,8 +55,9 @@ namespace WoLSlingshotDash
 
         protected override void OnLaunch(float charge)
         {
-            // Hold time 0.2 s -> 0, 1 s -> 1.
-            float power = Mathf.Clamp01((charge - MinHold) / (1f - MinHold));
+            // Hold time 0.2 s -> 0, 1 s -> 1; enhanced, full range in half the charge-up (0.6 s).
+            float span = (1f - MinHold) * (IsEmpowered ? 0.5f : 1f);
+            float power = Mathf.Clamp01((charge - MinHold) / span);
             Vector2 direction = inputVector.sqrMagnitude > 0.01f
                 ? inputVector.normalized
                 : Entity.GetFacingDirectionVector(parent.facingDirection).normalized;

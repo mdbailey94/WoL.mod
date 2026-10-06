@@ -16,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.18.0";
+        public const string PluginVersion = "0.19.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -142,8 +142,8 @@ namespace WoLSlingshotDash
             {
                 ID = SlingshotDashState.staticID,
                 displayName = "Raging Wind",
-                description = "Hold to pull back and charge, then release to ride a raging wind across the room, blasting enemies away where you leave and land!",
-                enhancedDescription = "Launch sends out a bigger burst!",
+                description = "Hold to charge, then release to ride a raging wind across the room, blasting enemies away where you take off and land!",
+                enhancedDescription = "Leaves a trail of gusts along your path!",
                 icon = LoadIcon("icon.png"),
                 tier = 2,
                 stateType = typeof(SlingshotDashState),
@@ -154,10 +154,11 @@ namespace WoLSlingshotDash
                     subElementType = new[] { "Air" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
                     // Level 1 is the launch burst, level 2 the landing burst: at most 16 per enemy.
-                    damage = new[] { 10, 6 },
+                    // Level 3 is the enhanced trail's gusts (each blows twice).
+                    damage = new[] { 10, 6, 3 },
                     cooldown = new[] { dashCooldownSeconds.Value },
                     // Positive knockback pushes enemies away; gentler where you land.
-                    knockbackMultiplier = new[] { 55f, 22f },
+                    knockbackMultiplier = new[] { 55f, 22f, 18f },
                     hitStunDurationModifier = new[] { 1.2f },
                     sameAttackImmunityTime = new[] { 0.25f }
                 },
@@ -169,8 +170,8 @@ namespace WoLSlingshotDash
             {
                 ID = BlazingSlingshotState.staticID,
                 displayName = "Vacuum Kick",
-                description = "Hold to pull back and charge, then release to blitz across the room in flames, dragging enemies along, and land a kick that pulls them in!",
-                enhancedDescription = "A hotter trail and a stronger pull!",
+                description = "Hold to charge, then release to blitz through enemies in a trail of flame, dragging them along, and finish with a kick that pulls them in!",
+                enhancedDescription = "Sets every enemy it touches on fire!",
                 icon = LoadIcon("icon_fire.png"),
                 tier = 2,
                 stateType = typeof(BlazingSlingshotState),
@@ -181,14 +182,17 @@ namespace WoLSlingshotDash
                     subElementType = new[] { "Fire" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
                     // Level 1 is the trail, level 2 the vacuum's pulses where you land. About
-                    // 3 trail hits x4 + 4 pulses x2 = 20 at most per enemy, plus burn.
-                    damage = new[] { 4, 2 },
+                    // 3 trail hits x4 + 4 pulses x2 = 20 at most per enemy. Levels 3 and 4 are the
+                    // same for the enhanced version, plus a sure burn.
+                    damage = new[] { 4, 2, 4, 2 },
                     cooldown = new[] { dashCooldownSeconds.Value },
                     // Level 1 (the trail) knocks enemies along the dash direction, set on each burst,
                     // so they get dragged with you; level 2 (the vacuum) pulls toward its centre.
-                    knockbackMultiplier = new[] { blazingDrag.Value, -32f },
-                    knockbackOverwrite = new[] { true, false },
+                    knockbackMultiplier = new[] { blazingDrag.Value, -32f, blazingDrag.Value, -32f },
+                    knockbackOverwrite = new[] { true, false, true, false },
                     hitStunDurationModifier = new[] { 1.2f },
+                    burnChance = new[] { 0f, 0f, 1f, 1f },
+                    burnLevel = new[] { 1 },
                     // Short, so the trail and vacuum keep grabbing enemies.
                     sameAttackImmunityTime = new[] { 0.12f }
                 },
@@ -200,8 +204,8 @@ namespace WoLSlingshotDash
             {
                 ID = FrostSlingshotState.staticID,
                 displayName = "Feint Swap",
-                description = "Hold to pull back and charge, then release to throw an ice feint and swap places with it, freezing enemies at both ends!",
-                enhancedDescription = "A longer throw and a colder burst!",
+                description = "Hold to charge, then release to throw an ice feint and swap places with it, freezing enemies at both ends!",
+                enhancedDescription = "Reaches full throwing range in half the charge time!",
                 icon = LoadIcon("icon_ice.png"),
                 tier = 2,
                 stateType = typeof(FrostSlingshotState),
@@ -230,8 +234,8 @@ namespace WoLSlingshotDash
             {
                 ID = VineSlingshotState.staticID,
                 displayName = "Vine Slingshot",
-                description = "Hold to lash out twin vines that grab the first foe they touch, then let go to pull yourself in and kick it away!",
-                enhancedDescription = "Tougher vines and a harder kick!",
+                description = "Hold to lash out twin vines that grab the first foe they touch, then release to pull yourself in and kick it away!",
+                enhancedDescription = "Vines spread to nearby foes and keep them snared for 3 seconds after the kick!",
                 icon = LoadIcon("icon_earth.png"),
                 tier = 2,
                 stateType = typeof(VineSlingshotState),
@@ -242,14 +246,17 @@ namespace WoLSlingshotDash
                     subElementType = new[] { "Earth" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
                     // Level 1 is the kick, level 2 the grip's ticks (every 0.4 s, up to 2 s), level 3
-                    // the game's vine used for the look (harmless).
-                    damage = new[] { 14, 3, 0 },
+                    // the game's vine used for the look (harmless), level 4 the enhanced spread's
+                    // snares (every 0.5 s, rooting).
+                    damage = new[] { 14, 3, 0, 2 },
                     cooldown = new[] { dashCooldownSeconds.Value },
                     // The kick knocks along your pull (set on the burst); the grip holds still.
-                    knockbackMultiplier = new[] { 45f, 0f, 0f },
-                    knockbackOverwrite = new[] { true, false, false },
-                    hitStunDurationModifier = new[] { 1.2f, 1.5f, 0f },
-                    showDamageNumber = new[] { true, true, false },
+                    knockbackMultiplier = new[] { 45f, 0f, 0f, 0f },
+                    knockbackOverwrite = new[] { true, false, false, false },
+                    hitStunDurationModifier = new[] { 1.2f, 1.5f, 0f, 1f },
+                    showDamageNumber = new[] { true, true, false, true },
+                    rootChance = new[] { 0f, 0f, 0f, 1f },
+                    rootDuration = new[] { 0f, 0f, 0f, 0.6f },
                     // Short, so the kick still lands right after the last grip tick.
                     sameAttackImmunityTime = new[] { 0.1f }
                 },
@@ -261,8 +268,8 @@ namespace WoLSlingshotDash
             {
                 ID = StormSlingshotState.staticID,
                 displayName = "Charged Leap",
-                description = "Hold to pull enemy projectiles into orbit around you, then let go to fling them at the foe and leap in after them!",
-                enhancedDescription = "A stronger orbit and a bigger burst!",
+                description = "Hold to pull enemy projectiles into orbit around you, then release to fling them at the foe and leap in after them!",
+                enhancedDescription = "A bigger lightning burst where you land!",
                 icon = LoadIcon("icon_lightning.png"),
                 tier = 2,
                 stateType = typeof(StormSlingshotState),

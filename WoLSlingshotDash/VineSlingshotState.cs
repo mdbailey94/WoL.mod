@@ -9,6 +9,9 @@ namespace WoLSlingshotDash
     // slingshots' max hold); if they touch no enemy they latch onto the wall or the ground at their reach.
     // Let go (or run out of time) and you pull yourself to the target and kick it back hard.
     //
+    // Enhanced, vines also spread from the grab to nearby enemies and snare them, lingering for
+    // 3 s after the kick (VineSpread).
+    //
     // While holding, the wizard stays planted punching the ground and can't turn (the trade-off
     // for a longer reach); the pull trails dust and pebbles, and the kick lands with a hit-stop,
     // a camera shake, a floor crack and a spray of rock, and the target skids away trailing dust.
@@ -38,6 +41,7 @@ namespace WoLSlingshotDash
         private float nextTrail;
         private VineLines vines;        // drawn vines (fallback) and the coils
         private GameVines gameVines;    // the game's own vine, when it works
+        private VineSpread spread;      // enhanced: vines spread to nearby enemies
 
         public VineSlingshotState(FSM fsm, Player parentPlayer) : base(staticID, fsm, parentPlayer)
         {
@@ -77,6 +81,8 @@ namespace WoLSlingshotDash
                 gameVines.Hold(target != null ? target.transform : null, anchor);
             if (gameVines == null || gameVines.Broken)
                 vines?.Shoot(start, anchor);
+            if (IsEmpowered)
+                spread = VineSpread.Begin(parent, parent.skillCategory, skillID, target, anchor);
             // The fist hits the ground; leaves fly where the vines take hold.
             Effects.Crack(start);
             Effects.Leaves(anchor, 6);
@@ -148,6 +154,8 @@ namespace WoLSlingshotDash
 
         protected override void OnStateExit()
         {
+            spread?.Linger();
+            spread = null;
             RemoveVines();
             target = null;
         }
@@ -156,6 +164,8 @@ namespace WoLSlingshotDash
         {
             kicked = true;
             RemoveVines();
+            spread?.Linger();
+            spread = null;
             Enemy kickedEnemy = target;
             Vector2 position = parent.transform.position;
             Vector2 direction = anchor - launchFrom;

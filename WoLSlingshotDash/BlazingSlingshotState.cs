@@ -10,6 +10,7 @@ namespace WoLSlingshotDash
     //
     // Level 1 is the trail: its knockback is overridden to point along the dash (BlazingDrag).
     // Level 2 is the vacuum's pulses: negative knockback, a pull toward the centre like Gust Burst.
+    // Enhanced, levels 3 and 4 stand in for them: the same, but every hit sets enemies on fire.
     public class BlazingSlingshotState : ChargedDashState
     {
         public new static string staticID = "BlazingSlingshot";
@@ -25,6 +26,8 @@ namespace WoLSlingshotDash
 
         private float nextTrail;
         private Vector2 direction;
+        // Enhanced uses the burning copies of the levels (3 and 4).
+        private int LevelOffset => IsEmpowered ? 2 : 0;
         private float nextFlame;
 
         public BlazingSlingshotState(FSM fsm, Player parentPlayer) : base(staticID, fsm, parentPlayer)
@@ -51,7 +54,7 @@ namespace WoLSlingshotDash
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(parent.transform.position), null, 24f, -1f,
                 0.9f - 0.2f * charge, false);
             // A wide hit where you launch (no effect of its own; the trail's flames show it).
-            FlameBurst start = FlameBurst.CreateBurst(parent.transform.position, parent.skillCategory, skillID, 1, LaunchHitScale, false);
+            FlameBurst start = FlameBurst.CreateBurst(parent.transform.position, parent.skillCategory, skillID, 1 + LevelOffset, LaunchHitScale, false);
             if (start != null && start.attack != null)
                 start.attack.knockbackOverwriteVector = direction;
         }
@@ -78,11 +81,11 @@ namespace WoLSlingshotDash
                 // The hit: a full-size burst with no effect of its own (the small visible flames
                 // are the Blitz trail), so it catches enemies you dash past. Knocks them along the
                 // dash so the trail drags them with you.
-                FlameBurst burst = FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1, TrailHitScale, false);
+                FlameBurst burst = FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1 + LevelOffset, TrailHitScale, false);
                 if (burst != null && burst.attack != null)
                     burst.attack.knockbackOverwriteVector = direction;
                 // The small visible burst (same skill, so it can't hit anyone twice; same drag).
-                FlameBurst flames = FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1, 0.8f + 0.4f * charge, true);
+                FlameBurst flames = FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1 + LevelOffset, 0.8f + 0.4f * charge, true);
                 if (flames != null && flames.attack != null)
                     flames.attack.knockbackOverwriteVector = direction;
             }
@@ -106,14 +109,14 @@ namespace WoLSlingshotDash
                 SlingshotDashPlugin.Log($"Vacuum flame effect unavailable: {e.Message}");
             }
             // The dash state ends here, so the vacuum runs on the plugin.
-            SlingshotDashPlugin.Run(Vacuum(position, 1.0f + 0.4f * charge, parent.skillCategory, skillID, vacuum));
+            SlingshotDashPlugin.Run(Vacuum(position, 1.0f + 0.4f * charge, parent.skillCategory, skillID, 2 + LevelOffset, vacuum));
         }
 
-        private static IEnumerator Vacuum(Vector3 position, float scale, string skillCategory, string id, GameObject vacuum)
+        private static IEnumerator Vacuum(Vector3 position, float scale, string skillCategory, string id, int level, GameObject vacuum)
         {
             for (int i = 0; i < VacuumPulses; i++)
             {
-                FlameBurst.CreateBurst(position, skillCategory, id, 2, scale, true);
+                FlameBurst.CreateBurst(position, skillCategory, id, level, scale, true);
                 EmitBlitzFlames(position, 6);
                 yield return new WaitForSeconds(VacuumPulseInterval);
             }

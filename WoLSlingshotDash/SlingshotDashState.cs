@@ -1,10 +1,12 @@
+using System.Collections;
 using UnityEngine;
 
 namespace WoLSlingshotDash
 {
-    // Slingshot (Air): a charged launch bursts with wind where you leave and where you land,
+    // Raging Wind (Air): a charged launch bursts with wind where you leave and where you land,
     // knocking nearby enemies away. Bigger with more charge. The landing burst uses skill level 2,
-    // which has gentler knockback.
+    // which has gentler knockback. Enhanced, it also leaves a trail of gusts along the dash
+    // (level 3) that each blow twice.
     public class SlingshotDashState : ChargedDashState
     {
         public new static string staticID = "SlingshotDash";
@@ -14,7 +16,11 @@ namespace WoLSlingshotDash
         }
 
         private const float GustInterval = 0.035f;
+        private const float TrailInterval = 0.08f;
+        private const float TrailScale = 1.1f;
+        private const float TrailRepeat = 0.35f;
         private float nextGust;
+        private float nextTrail;
 
         protected override void OnLaunch(float charge)
         {
@@ -24,11 +30,18 @@ namespace WoLSlingshotDash
             Effects.AirPuffs(position, 8 + Mathf.RoundToInt(8 * charge));
             Effects.Shake(0.5f + 0.5f * charge);
             nextGust = 0f;
+            nextTrail = 0f;
         }
 
         // Flair only: a streaming gust behind you as you fly.
         protected override void WhileDashing(float charge)
         {
+            // Enhanced: gusts left along the dash line.
+            if (IsEmpowered && Time.time >= nextTrail)
+            {
+                nextTrail = Time.time + TrailInterval;
+                SlingshotDashPlugin.Run(TrailGust(parent.transform.position, parent.skillCategory, skillID));
+            }
             if (Time.time < nextGust)
                 return;
             nextGust = Time.time + GustInterval;
@@ -42,6 +55,20 @@ namespace WoLSlingshotDash
             Burst(charge, true);
             Effects.WindSwirl(parent.transform.position, 2);
             Effects.Shake(0.4f + 0.4f * charge);
+        }
+
+        // One gust on the trail: blows now and once more a moment later.
+        private static IEnumerator TrailGust(Vector2 position, string skillCategory, string id)
+        {
+            for (int i = 0; i < 2; i++)
+            {
+                WindBurst gust = WindBurst.CreateBurst(position, skillCategory, id, 3, TrailScale);
+                if (gust != null)
+                    gust.emitParticles = false;
+                Effects.WindSwirl(position, 1);
+                Effects.AirPuffs(position, 3);
+                yield return new WaitForSeconds(TrailRepeat);
+            }
         }
 
         // The hit area is the burst scale, and the dust ring is drawn to match it.

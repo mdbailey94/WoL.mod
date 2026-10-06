@@ -188,7 +188,9 @@ namespace WoLSlingshotDash
         {
             Effects.Spark(parent.transform.position, HitSparkType.Large);
             Effects.Shake(0.5f + 0.3f * charge);
-            LightningBurst.CreateBurst(parent.transform.position, parent.skillCategory, skillID, 1, 1.2f + 0.4f * charge, false);
+            // Enhanced: half as big again.
+            float scale = (1.2f + 0.4f * charge) * (IsEmpowered ? 1.5f : 1f);
+            LightningBurst.CreateBurst(parent.transform.position, parent.skillCategory, skillID, 1, scale, false);
         }
 
         protected override void OnStateExit()

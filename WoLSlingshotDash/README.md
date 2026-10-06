@@ -14,26 +14,35 @@ the same way; they differ in what the launch does.
 
 ### Raging Wind (Air)
 
-> **Raging Wind**: Hold to pull back and charge, then release to ride a raging wind across the
-> room, blasting enemies away where you leave and land!
+> **Raging Wind**: Hold to charge, then release to ride a raging wind across the room, blasting
+> enemies away where you take off and land!
+>
+> *Enhanced: Leaves a trail of gusts along your path!*
 
-Wind bursts go off **where you leave and where you land**, knocking nearby enemies away: hard at
-the launch, gentler where you land. Both get bigger with more charge.
+- Wind bursts go off **where you take off and where you land**, knocking nearby enemies away:
+  hard at take-off, gentler where you land. Both get bigger with more charge.
+- **Enhanced**: gusts are left all along your path, each blowing twice (3 damage a gust, pushing
+  enemies away from the line).
 
 ### Vacuum Kick (Fire)
 
-> **Vacuum Kick**: Hold to pull back and charge, then release to blitz across the room in
-> flames, dragging enemies along, and land a kick that pulls them in!
+> **Vacuum Kick**: Hold to charge, then release to blitz through enemies in a trail of flame,
+> dragging them along, and finish with a kick that pulls them in!
+>
+> *Enhanced: Sets every enemy it touches on fire!*
 
 - A wide burst catches enemies where you launch, then you rush forward wrapped in **Blazing
   Blitz's flame trail**, dropping flame bursts that drag enemies they hit along your path.
 - Where you land, a **flame vacuum** keeps sucking everyone nearby in for about half a second.
-- Everything scales with charge, and it's Fire, so it can burn.
+- Everything scales with charge.
+- **Enhanced**: every hit, trail and vacuum alike, **sets the enemy on fire**.
 
 ### Feint Swap (Water)
 
-> **Feint Swap**: Hold to pull back and charge, then release to throw an ice feint and swap
-> places with it, freezing enemies at both ends!
+> **Feint Swap**: Hold to charge, then release to throw an ice feint and swap places with it,
+> freezing enemies at both ends!
+>
+> *Enhanced: Reaches full throwing range in half the charge time!*
 
 - Hold **0.2 to 1 second**, then release: instead of dashing, you **throw an ice copy of
   yourself** (the game's ice decoy) along your aim, 3 to 9 tiles depending on how long you held,
@@ -43,11 +52,15 @@ the launch, gentler where you land. Both get bigger with more charge.
   is, and it appears where you are.
 - **Both spots freeze**: a small Frost Nova bursts at each end, and the copy lingers for a couple
   of seconds so enemies keep going after it.
+- **Enhanced**: the throw distance and hover time max out at **0.6 seconds** of holding instead
+  of 1.
 
 ### Vine Slingshot (Earth)
 
-> **Vine Slingshot**: Hold to lash out twin vines that grab the first foe they touch, then let go
-> to pull yourself in and kick it away!
+> **Vine Slingshot**: Hold to lash out twin vines that grab the first foe they touch, then
+> release to pull yourself in and kick it away!
+>
+> *Enhanced: Vines spread to nearby foes and keep them snared for 3 seconds after the kick!*
 
 - Hold dash past a tap and the wizard **punches the ground** as **twin vines** (the game's own
   vine, as thrown by Soaring Ivy) **shoot out** along your aim, up to 10.1 tiles. You stay planted
@@ -60,11 +73,16 @@ the launch, gentler where you land. Both get bigger with more charge.
   that **knocks the target back** hard: a hit-stop, a camera shake, a floor crack and a spray of
   rock, and the target skids away in a cloud of dust. The kick also hits **enemies just behind
   the target**, knocking them the same way.
+- **Enhanced**: when the vines take hold, more vines **spread to up to 5 enemies** within 4 tiles,
+  coiling round them and rooting them (2 damage every 0.5 s) while you hold and for **3 seconds
+  after the kick**, anchored where the kick landed.
 
 ### Charged Leap (Lightning)
 
-> **Charged Leap**: Hold to pull enemy projectiles into orbit around you, then let go to fling
+> **Charged Leap**: Hold to pull enemy projectiles into orbit around you, then release to fling
 > them at the foe and leap in after them!
+>
+> *Enhanced: A bigger lightning burst where you land!*
 
 - While you hold, **Mag Sphere** forms on you and works at full effect, exactly like the arcana,
   just **smaller** (`StormSphereSize`). Nothing it holds can **hit you or your allies** while
@@ -72,6 +90,7 @@ the launch, gentler where you land. Both get bigger with more charge.
 - Let go and the sphere ends and **everything it caught is fired in a fan along your aim**,
   hitting harder than before (×1.5), while you **dash after them** and land with a small
   **lightning burst**.
+- **Enhanced**: the landing burst is half as big again.
 
 ### Flair
 
@@ -92,10 +111,10 @@ swish also tell you it's ready.
 
 | | Damage per enemy | Notes |
 |---|---|---|
-| Raging Wind | 10 at launch, 6 where you land (up to 16) | Strong knockback at launch, gentle at landing |
-| Vacuum Kick | 4 per trail burst, 2 per vacuum pulse (about 20 at most) | Plus burn; pulls instead of pushing |
+| Raging Wind | 10 at launch, 6 where you land (up to 16) | Strong knockback at launch, gentle at landing; enhanced trail gusts 3 each |
+| Vacuum Kick | 4 per trail burst, 2 per vacuum pulse (about 20 at most) | Pulls instead of pushing; enhanced, every hit burns |
 | Feint Swap | 12 per Frost Nova (one at each end) | Freezes for 1.5 s; the feint draws enemies |
-| Vine Slingshot | 3 per grip tick (every 0.4 s, up to 2 s) and 14 from the kick | Grip stuns; the kick knocks back hard |
+| Vine Slingshot | 3 per grip tick (every 0.4 s, up to 2 s) and 14 from the kick | Grip stuns; the kick knocks back hard; enhanced snares 2 every 0.5 s |
 | Charged Leap | Caught projectiles ×1.5, plus 10 from the landing burst | Only as strong as what you catch |
 
 You're not invulnerable while charging, so time it. Careful hopping backward near a ledge.
