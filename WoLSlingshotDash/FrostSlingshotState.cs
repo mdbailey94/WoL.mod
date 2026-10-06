@@ -68,6 +68,9 @@ namespace WoLSlingshotDash
                 distance = Mathf.Max(0f, hit.distance - WallMargin);
 
             parent.anim?.PlayDirectional(parent.ForehandAnimStr, -1, 0f);
+            // Flair only: a splash and a glint as the feint leaves your hand.
+            Effects.Splash(start, 0.8f, 2);
+            Effects.Spark(start + direction * 0.5f, HitSparkType.Small);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(start), null, 24f, -1f, 1.5f, false);
             pending = new Feint { thrownAt = Time.time, hoverTime = MaxHoverTime * power };
             // The dash state ends long before the swap, so the feint runs on the plugin.
@@ -108,6 +111,8 @@ namespace WoLSlingshotDash
                 {
                     nextDust = t + 0.05f;
                     PoolManager.GetPoolItem<DustEmitter>().EmitCircle(6, 0.4f, -3f, -1f, new Vector3?(position), null);
+                    // Flair only: an icy shimmer trailing the feint.
+                    Effects.Shimmer(position, 2);
                 }
                 yield return null;
             }
@@ -139,6 +144,16 @@ namespace WoLSlingshotDash
             FrostNova.CreateFrostNova(here, freezeRadius, skillCategory, id, 1);
             FrostNova.CreateFrostNova(end, freezeRadius, skillCategory, id, 1);
             PoolManager.GetPoolItem<DustEmitter>().EmitCircle(40, 1.2f, -6f, -1f, new Vector3?(end), null);
+            // Flair only: a frosty streak along the swap, splashes and glints at both ends, a shake.
+            for (int i = 1; i < 6; i++)
+                Effects.Shimmer(Vector2.Lerp(here, end, i / 6f), 2);
+            foreach (Vector2 spot in new[] { here, end })
+            {
+                Effects.Splash(spot, freezeRadius, 3);
+                Effects.Shimmer(spot, 6);
+                Effects.Spark(spot, HitSparkType.Medium);
+            }
+            Effects.Shake(0.7f);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(end), null, 24f, -1f, 1.7f, false);
         }
 

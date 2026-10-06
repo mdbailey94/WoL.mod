@@ -1,3 +1,4 @@
+using Chaos.AnimatorExtensions;
 using System.Collections;
 using UnityEngine;
 
@@ -30,10 +31,20 @@ namespace WoLSlingshotDash
         {
         }
 
+        // When in the dash the wizard swings into the kick (flair only), and whether it has.
+        private const float KickAt = 0.55f;
+        private float launchedAt;
+        private bool kickPlayed;
+
         protected override void OnLaunch(float charge)
         {
             nextTrail = 0f;
             nextFlame = 0f;
+            launchedAt = Time.time;
+            kickPlayed = false;
+            // Flair only: a fiery blast and a shake as you take off.
+            Effects.FireBlast(parent.transform.position, 6 + Mathf.RoundToInt(6 * charge));
+            Effects.Shake(0.5f + 0.4f * charge);
             direction = inputVector.sqrMagnitude > 0.01f
                 ? inputVector.normalized
                 : Entity.GetFacingDirectionVector(parent.facingDirection).normalized;
@@ -48,6 +59,12 @@ namespace WoLSlingshotDash
         protected override void WhileDashing(float charge)
         {
             Vector3 position = parent.transform.position;
+            // Flair only: swing into the kick for the end of the rush.
+            if (!kickPlayed && Time.time - launchedAt >= dashDuration * KickAt)
+            {
+                kickPlayed = true;
+                parent.anim?.PlayDirectional(parent.KickAnimStr, -1, 0f);
+            }
             nextFlame -= Time.deltaTime;
             if (nextFlame <= 0f)
             {
@@ -74,6 +91,10 @@ namespace WoLSlingshotDash
         protected override void OnLand(float charge)
         {
             Vector3 position = parent.transform.position;
+            // Flair only: the kick lands in a blast, with dust streaming in to it.
+            Effects.FireBlast(position, 10 + Mathf.RoundToInt(8 * charge));
+            Effects.DustSuction(position, 30);
+            Effects.Shake(0.8f + 0.4f * charge);
             GameObject vacuum = null;
             try
             {

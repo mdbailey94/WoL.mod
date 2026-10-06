@@ -50,7 +50,7 @@ the launch, gentler where you land. Both get bigger with more charge.
 > to pull yourself in and kick it away!
 
 - Hold dash past a tap and the wizard **punches the ground** as **twin vines** (the game's own
-  vine, as thrown by Soaring Ivy) **shoot out** along your aim, up to 9.2 tiles. You stay planted
+  vine, as thrown by Soaring Ivy) **shoot out** along your aim, up to 10.1 tiles. You stay planted
   and **can't turn** while holding; that's the trade-off for the longer reach.
 - The **first enemy they touch is grabbed**: vines coil tight around it (on bosses too, even
   though they can't be held still) and it takes small hits that keep it stunned for as long as
@@ -58,7 +58,8 @@ the launch, gentler where you land. Both get bigger with more charge.
 - If they touch no enemy, they **latch onto the wall** (or the ground at their reach).
 - Let go, or run out of time, and you **pull yourself in** trailing dust and pebbles, with a kick
   that **knocks the target back** hard: a hit-stop, a camera shake, a floor crack and a spray of
-  rock, and the target skids away in a cloud of dust.
+  rock, and the target skids away in a cloud of dust. The kick also hits **enemies just behind
+  the target**, knocking them the same way.
 
 ### Charged Leap (Lightning)
 
@@ -71,6 +72,14 @@ the launch, gentler where you land. Both get bigger with more charge.
 - Let go and the sphere ends and **everything it caught is fired in a fan along your aim**,
   hitting harder than before (×1.5), while you **dash after them** and land with a small
   **lightning burst**.
+
+### Flair
+
+Every arcana has extra effects that are only for show (they never hit anything or change the
+timing): Raging Wind's take-off puff and streaming gust, Vacuum Kick's fiery blasts, the kick it
+swings into at the end of its rush and the dust drawn into its landing, Feint Swap's splashes,
+shimmering trail and glints at both ends, and Charged Leap's lightning flash and crackling sparks.
+Most come with a small camera shake.
 
 ### Balance
 

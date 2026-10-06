@@ -25,6 +25,8 @@ namespace WoLSlingshotDash
         private const float FanDegrees = 8f;
         private const float ReflectDamage = 1.5f;
         private const float ScanInterval = 0.05f;
+        private const float CrackleInterval = 0.04f;
+        private float nextCrackle;
         // Past this share of the sphere's radius, a held projectile heading out is turned back
         // along its orbit (the smaller sphere can't always bend fast ones round by itself).
         private const float KeepInFrom = 0.75f;
@@ -161,6 +163,11 @@ namespace WoLSlingshotDash
                     $"({seenThisCharge} caught while charging, {nearby.Length} in the room)");
             }
             Fan(toFire, center, aim);
+            // Flair only: a lightning flash along the leap, sparks and a shake.
+            Effects.LightningFlash(center, aim);
+            Effects.Spark(center, HitSparkType.Medium);
+            Effects.Shake(0.6f + 0.4f * charge);
+            nextCrackle = 0f;
             caught.Clear();
             converted.Clear();
             held.Clear();
@@ -168,8 +175,19 @@ namespace WoLSlingshotDash
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(center), null, 24f, -1f, 1.6f, false);
         }
 
+        // Flair only: crackling sparks behind you through the leap.
+        protected override void WhileDashing(float charge)
+        {
+            if (Time.time < nextCrackle)
+                return;
+            nextCrackle = Time.time + CrackleInterval;
+            Effects.Spark(parent.transform.position, HitSparkType.Small);
+        }
+
         protected override void OnLand(float charge)
         {
+            Effects.Spark(parent.transform.position, HitSparkType.Large);
+            Effects.Shake(0.5f + 0.3f * charge);
             LightningBurst.CreateBurst(parent.transform.position, parent.skillCategory, skillID, 1, 1.2f + 0.4f * charge, false);
         }
 

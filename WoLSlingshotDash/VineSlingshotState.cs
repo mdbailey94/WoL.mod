@@ -16,7 +16,10 @@ namespace WoLSlingshotDash
     {
         public new static string staticID = "VineSlingshot";
 
-        private const float Range = 9.2f; // 15% over the original 8, for not being able to turn
+        private const float Range = 10.1f; // 8, +15% for not being able to turn, then +10%
+        // The kick also hits a little way behind the target, along the kick.
+        private const float BehindDistance = 2.4f;
+        private const float BehindScale = 1.1f;
         private const float TrailInterval = 0.035f;
         private const float SkidTime = 0.45f;
         private const float SkidInterval = 0.05f;
@@ -74,8 +77,9 @@ namespace WoLSlingshotDash
                 gameVines.Hold(target != null ? target.transform : null, anchor);
             if (gameVines == null || gameVines.Broken)
                 vines?.Shoot(start, anchor);
-            // The fist hits the ground.
+            // The fist hits the ground; leaves fly where the vines take hold.
             Effects.Crack(start);
+            Effects.Leaves(anchor, 6);
             Effects.Dust(start, 14, 0.5f);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(start), null, 24f, -1f, 0.8f, false);
         }
@@ -164,12 +168,19 @@ namespace WoLSlingshotDash
             // Knock the target on, away from you.
             if (burst != null && burst.attack != null)
                 burst.attack.knockbackOverwriteVector = direction;
+            // And whoever's just behind it (same attack, so nobody is hit twice).
+            Vector2 behind = position + direction * BehindDistance;
+            EarthBurst behindBurst = EarthBurst.CreateBurst(behind, parent.skillCategory, skillID, 1, BehindScale);
+            if (behindBurst != null && behindBurst.attack != null)
+                behindBurst.attack.knockbackOverwriteVector = direction;
+            Effects.Dust(behind, 20, 0.8f);
 
             // The impact: a short hit-stop, a shake, a crack and a spray of rock along the kick.
             Effects.HitStop(4);
             Effects.Shake(1.6f);
             Effects.Crack(impact);
             Effects.RockSpray(impact, direction, 14);
+            Effects.Leaves(impact, 8);
             Effects.Dust(position, 50, 1.2f);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(position), null, 24f, -1f, 0.7f, false);
             if (kickedEnemy != null)

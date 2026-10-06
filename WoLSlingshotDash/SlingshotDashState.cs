@@ -13,9 +13,36 @@ namespace WoLSlingshotDash
         {
         }
 
-        protected override void OnLaunch(float charge) => Burst(charge, false);
+        private const float GustInterval = 0.035f;
+        private float nextGust;
 
-        protected override void OnLand(float charge) => Burst(charge, true);
+        protected override void OnLaunch(float charge)
+        {
+            Burst(charge, false);
+            // Flair only (no hits): a kick of wind and a shake as you take off.
+            Vector2 position = parent.transform.position;
+            Effects.AirPuffs(position, 8 + Mathf.RoundToInt(8 * charge));
+            Effects.Shake(0.5f + 0.5f * charge);
+            nextGust = 0f;
+        }
+
+        // Flair only: a streaming gust behind you as you fly.
+        protected override void WhileDashing(float charge)
+        {
+            if (Time.time < nextGust)
+                return;
+            nextGust = Time.time + GustInterval;
+            Vector2 position = parent.transform.position;
+            Effects.AirPuffs(position, 2);
+            Effects.Dust(position, 3, 0.25f);
+        }
+
+        protected override void OnLand(float charge)
+        {
+            Burst(charge, true);
+            Effects.WindSwirl(parent.transform.position, 2);
+            Effects.Shake(0.4f + 0.4f * charge);
+        }
 
         // The hit area is the burst scale, and the dust ring is drawn to match it.
         private void Burst(float charge, bool landing)

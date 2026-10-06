@@ -29,6 +29,51 @@ namespace WoLSlingshotDash
             Try("floor crack", () => PoolManager.GetPoolItem<FloorCrackEmitter>().Emit(null, new Vector3?(position),
                 null, null, 0f, null, null));
 
+        public static void AirPuffs(Vector2 position, int count) =>
+            Try("air puffs", () => PoolManager.GetPoolItem<AirWalkEmitter>().EmitSingle(new int?(count),
+                new Vector3?(position), null, null, 0f, null));
+
+        // The swirl Gust Burst and Raging Wind's bursts show.
+        public static void WindSwirl(Vector2 position, int count) =>
+            Try("wind swirl", () => PoolManager.GetPoolItem<ParticleEffect>("WindBurstEffect").Emit(new int?(count),
+                new Vector3?(position), null, null, 0f, null, null));
+
+        public static void FireBlast(Vector2 position, int count) =>
+            Try("fire blast", () => PoolManager.GetPoolItem<FireExplosionEffect>().EmitSingle(new int?(count),
+                new Vector3?(position), null, null, 0f, null));
+
+        // Dust streaming in to a point.
+        public static void DustSuction(Vector2 position, int count) =>
+            Try("dust suction", () => PoolManager.GetPoolItem<DustSuctionEffect>().Emit(new int?(count),
+                new Vector3?(position), null, null, 0f, null, null));
+
+        public static void Splash(Vector2 position, float radius, int count) =>
+            Try("water splash", () => WaterDropEmitter.EmitCircle(position, count, 18, radius, null, 0f));
+
+        public static void Shimmer(Vector2 position, int count) =>
+            Try("water shimmer", () => PoolManager.GetPoolItem<WaterHitEffect>().EmitSingle(new int?(count),
+                new Vector3?(position), null, null, 0f, null));
+
+        public static void Spark(Vector2 position, HitSparkType size) =>
+            Try("hit spark", () => PoolManager.GetPoolItem<HitSparkEmitter>().EmitSingle(size, position, position,
+                null, null, 0f));
+
+        public static void Leaves(Vector2 position, int count) =>
+            Try("leaves", () => PoolManager.GetPoolItem<LeafEmitter>().EmitSingle(new int?(count),
+                new Vector3?(position), null, null, 0f, null, LeafEmitter.LeafColor.Green));
+
+        // A lightning flash pointing along a direction (cleared away after a second).
+        public static void LightningFlash(Vector2 position, Vector2 direction)
+        {
+            float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+            Try("lightning flash", () =>
+            {
+                GameObject go = Object.Instantiate(LightningBlastEffect.Prefab, position, Quaternion.identity);
+                go.GetComponent<LightningBlastEffect>().Play(position, new Vector3(0f, 0f, angle));
+                Object.Destroy(go, 1.5f);
+            });
+        }
+
         public static void Shake(float intensity) =>
             Try("camera shake", () => CameraController.ShakeCamera(intensity, false));
 
