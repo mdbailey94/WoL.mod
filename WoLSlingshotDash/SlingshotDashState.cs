@@ -22,6 +22,14 @@ namespace WoLSlingshotDash
         private float nextGust;
         private float nextTrail;
 
+        // Charging: wind gathering at your feet, swirling harder as it builds.
+        protected override void ChargeEffect(Vector2 position, float charge)
+        {
+            Effects.AirPuffs(position, 2 + Mathf.RoundToInt(5 * charge));
+            if (charge >= 0.5f && Random.value < 0.35f)
+                Effects.WindSwirl(position, 1);
+        }
+
         protected override void OnLaunch(float charge)
         {
             Burst(charge, false);

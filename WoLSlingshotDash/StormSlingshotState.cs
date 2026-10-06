@@ -130,6 +130,13 @@ namespace WoLSlingshotDash
             CatchAndOrbit(center, field);
         }
 
+        // Charging: static crackling round you, sparking harder as it builds.
+        protected override void ChargeEffect(Vector2 position, float charge)
+        {
+            Vector2 offset = Random.insideUnitCircle * (0.4f + 0.6f * charge);
+            Effects.Spark(position + offset, charge >= 0.7f ? HitSparkType.Medium : HitSparkType.Small);
+        }
+
         protected override void OnLaunch(float charge)
         {
             Vector2 aim = inputVector.sqrMagnitude > 0.01f

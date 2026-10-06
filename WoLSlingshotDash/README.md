@@ -6,9 +6,12 @@ the same way; they differ in what the launch does.
 ### Charging (all five)
 
 - **Tap** dash: a normal dash. While the slingshot is recharging, holding is a normal dash too.
-- **Hold** dash (slingshot ready): your wizard hops backward, like pulling back a slingshot, then holds that pose
-  while dust builds at their feet. The charge is full after 1 second; after 2 seconds it
-  launches by itself. Keep aiming to turn and line up the shot.
+- **Hold** dash (slingshot ready): your wizard hops backward, like pulling back a slingshot,
+  and holds that pose while their element gathers at their feet: wind for Raging Wind, flames
+  for Vacuum Kick, an icy shimmer for Feint Swap, pebbles and leaves for Vine Slingshot,
+  crackling sparks for Charged Leap. The charge is full after 1 second; after 2 seconds it
+  launches by itself. Keep aiming to turn and line up the shot (Vine Slingshot is the
+  exception: no hop, and no turning).
 - **Release**: launch the way you're aiming. A full charge gives **+60% dash speed and +40% dash
   time** (about 2.2× the distance).
 

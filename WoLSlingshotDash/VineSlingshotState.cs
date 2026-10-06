@@ -102,6 +102,14 @@ namespace WoLSlingshotDash
             }
         }
 
+        // Charging: pebbles and leaves kicked up by the fist in the ground.
+        protected override void ChargeEffect(Vector2 position, float charge)
+        {
+            Effects.Pebbles(position, 1 + Mathf.RoundToInt(3 * charge));
+            if (Random.value < 0.3f + 0.4f * charge)
+                Effects.Leaves(position, 1);
+        }
+
         protected override void OnLaunch(float charge)
         {
             launchFrom = parent.transform.position;

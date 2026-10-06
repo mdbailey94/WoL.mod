@@ -283,15 +283,19 @@ namespace WoLSlingshotDash
             boosted = false;
         }
 
-        // Little dust puffs at your feet that get bigger as the charge builds.
+        // The charge-up effect at your feet, every DustInterval, growing as the charge builds.
         private void EmitChargeDust()
         {
             if (chargeTime < nextDust)
                 return;
             nextDust = chargeTime + DustInterval;
-            float charge = Mathf.Clamp01(chargeTime / MaxCharge);
-            PoolManager.GetPoolItem<DustEmitter>().EmitCircle(6 + Mathf.RoundToInt(14 * charge), 0.4f + 0.8f * charge,
-                -3f, -1f, new Vector3?(parent.transform.position), null);
+            ChargeEffect(parent.transform.position, Mathf.Clamp01(chargeTime / MaxCharge));
+        }
+
+        // Each arcana shows its own element here; plain dust otherwise.
+        protected virtual void ChargeEffect(Vector2 position, float charge)
+        {
+            Effects.Dust(position, 6 + Mathf.RoundToInt(14 * charge), 0.4f + 0.8f * charge);
         }
 
         private float HopProgress => Mathf.Clamp01((chargeTime - MinChargeTime) / HopTime);

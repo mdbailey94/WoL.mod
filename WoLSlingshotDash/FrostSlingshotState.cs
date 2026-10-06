@@ -53,6 +53,13 @@ namespace WoLSlingshotDash
             return true;
         }
 
+        // Charging: an icy shimmer and a ring of droplets drawing in round your feet.
+        protected override void ChargeEffect(Vector2 position, float charge)
+        {
+            Effects.Shimmer(position, 1 + Mathf.RoundToInt(3 * charge));
+            Effects.Splash(position, 1.2f - 0.6f * charge, 1);
+        }
+
         protected override void OnLaunch(float charge)
         {
             // Hold time 0.2 s -> 0, 1 s -> 1; enhanced, full range in half the charge-up (0.6 s).
