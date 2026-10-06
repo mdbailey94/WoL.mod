@@ -114,7 +114,8 @@ Under `[Balance]`:
 Under `[Vines]`: `DarkColor`, `MidColor` and `LightColor` set Vine Slingshot's greens as hex
 colours like `#2E6B3A`. Empty (the default) takes them from the game's own vine art; the log
 says which colours it used. `HoldFrame` picks the moment of the game's vine animation that's held
-for the whole grab (`0` = its start, `1` = its end). Default `0.95`, the fully stretched vines.
+for the whole grab (`0` = its start, `1` = its end). Default `0.95`, the fully stretched vines,
+which are then stretched further to reach the enemy, wall or ground they grabbed.
 
 Changes apply the next time the game starts.
 

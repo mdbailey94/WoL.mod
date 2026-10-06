@@ -7,7 +7,7 @@ namespace WoLSlingshotDash
     // arcana throw), stretched from the wizard to the target at our range. Their attack uses a
     // harmless skill level (no damage or knockback): they're only the look. Each vine's animation
     // is held on its last part (fully stretched; Vines.HoldFrame) the whole time rather than
-    // playing the throw over and over. If the game retracts them early they're put back; if they
+    // playing the throw over and over, and stretched to reach the target (VineStretch). If the game retracts them early they're put back; if they
     // keep disappearing, Broken tells the caller to fall back to drawn vines.
     public class GameVines
     {
@@ -136,6 +136,7 @@ namespace WoLSlingshotDash
                     logged = true;
                     Log("Vines: using the game's vine");
                 }
+                go.AddComponent<VineStretch>().vine = vine;
                 return vine;
             }
             catch (System.Exception e)
@@ -179,5 +180,109 @@ namespace WoLSlingshotDash
         }
 
         private static void Log(string message) => SlingshotDashPlugin.Log(message);
+    }
+
+    // Stretches a game vine along its length so its far end reaches its target (the enemy, or
+    // the spot on the wall or ground). Runs after the vine's animation each frame, so it works
+    // whether or not the animation sets the vine's scale itself.
+    public class VineStretch : MonoBehaviour
+    {
+        public VinePull vine;
+        private Vector3 applied;
+        private Vector3 baseScale;
+        private bool hasBase;
+        private SpriteRenderer[] sprites;
+        private static bool loggedNoSprites;
+        private static bool loggedStretch;
+
+        private void LateUpdate()
+        {
+            try
+            {
+                Stretch();
+            }
+            catch
+            {
+            }
+        }
+
+        private void Stretch()
+        {
+            if (vine == null || vine.destroyQueued)
+                return;
+            Vector3 targetPos = vine.targetTrans != null ? vine.targetTrans.position : vine.targetPos;
+            Vector2 toTarget = targetPos - transform.position;
+            float distance = toTarget.magnitude;
+            if (distance < 0.05f)
+                return;
+
+            // Something else (the animation) set the scale since we last did: that's the new base.
+            if (!hasBase || transform.localScale != applied)
+            {
+                baseScale = transform.localScale;
+                hasBase = true;
+            }
+
+            // The vine's length runs along whichever of its own axes points most at the target.
+            Vector3 local = transform.InverseTransformDirection(toTarget.normalized);
+            bool alongX = Mathf.Abs(local.x) >= Mathf.Abs(local.y);
+            float sign = Mathf.Sign(alongX ? local.x : local.y);
+
+            // From the art's reach in the vine's own units to world units at the unstretched size.
+            float reach = Reach(alongX, sign);
+            if (reach <= 0.01f)
+                return;
+            float baseAxis = alongX ? baseScale.x : baseScale.y;
+            float current = alongX ? transform.localScale.x : transform.localScale.y;
+            float lossy = alongX ? transform.lossyScale.x : transform.lossyScale.y;
+            if (Mathf.Abs(current) < 0.0001f)
+                return;
+            float naturalLength = reach * Mathf.Abs(lossy * baseAxis / current);
+            float factor = Mathf.Clamp(distance / Mathf.Max(0.01f, naturalLength), 0.2f, 20f);
+
+            Vector3 scale = baseScale;
+            if (alongX)
+                scale.x = baseScale.x * factor;
+            else
+                scale.y = baseScale.y * factor;
+            transform.localScale = scale;
+            applied = scale;
+            if (!loggedStretch)
+            {
+                loggedStretch = true;
+                SlingshotDashPlugin.Log($"Vines: stretching the game's vine from {naturalLength:0.0} to {distance:0.0} " +
+                    $"(along its {(alongX ? "x" : "y")})");
+            }
+        }
+
+        // How far the vine's art reaches from its pivot toward the target, in the vine's own
+        // units (before its scale).
+        private float Reach(bool alongX, float sign)
+        {
+            if (sprites == null)
+                sprites = GetComponentsInChildren<SpriteRenderer>(true);
+            float reach = 0f;
+            bool any = false;
+            foreach (SpriteRenderer sr in sprites)
+            {
+                if (sr == null || sr.sprite == null || !sr.enabled || !sr.gameObject.activeInHierarchy)
+                    continue;
+                Bounds b = sr.sprite.bounds;
+                for (int c = 0; c < 4; c++)
+                {
+                    var corner = new Vector3(c % 2 == 0 ? b.min.x : b.max.x, c < 2 ? b.min.y : b.max.y, 0f);
+                    Vector3 p = transform.InverseTransformPoint(sr.transform.TransformPoint(corner));
+                    float along = (alongX ? p.x : p.y) * sign;
+                    reach = Mathf.Max(reach, along);
+                    any = true;
+                }
+            }
+            if (!any && !loggedNoSprites)
+            {
+                loggedNoSprites = true;
+                SlingshotDashPlugin.Log("Vines: couldn't measure the game's vine to stretch it");
+            }
+            return reach;
+        }
     }
 }
