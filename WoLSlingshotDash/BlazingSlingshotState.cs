@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace WoLSlingshotDash
 {
-    // Vacuum Kick (Fire): a charged launch rushes you forward wrapped in Blazing Blitz's
+    // Blazing Kick (Fire): a charged launch rushes you forward wrapped in Blazing Blitz's
     // flame trail, dropping flame bursts that shove enemies out of your path. The kick at the end
     // lands in a fiery blast that throws everyone nearby away. Bigger with more charge.
     //

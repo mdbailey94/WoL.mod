@@ -1,4 +1,4 @@
-# Vacuum Fist, Vacuum Kick, Feint Swap, Vine Slingshot and Charged Leap (Wizard of Legend)
+# Vacuum Fist, Blazing Kick, Feint Swap, Vine Slingshot and Charged Leap (Wizard of Legend)
 
 Five new **dash** arcana, added with [LegendAPI](https://github.com/yekoc/LegendAPI). Both charge
 the same way; they differ in what the launch does.
@@ -8,7 +8,7 @@ the same way; they differ in what the launch does.
 - **Tap** dash: a normal dash. While the slingshot is recharging, holding is a normal dash too.
 - **Hold** dash (slingshot ready): your wizard hops backward, like pulling back a slingshot,
   and holds that pose while their element gathers round them: a fast-spinning whirlwind for
-  Vacuum Fist, flames (and a trembling wizard) for Vacuum Kick, ice crystals forming in a
+  Vacuum Fist, flames (and a trembling wizard) for Blazing Kick, ice crystals forming in a
   closing ring for Feint Swap, pebbles and leaves for Vine Slingshot, and electric arcs and
   sparks for Charged Leap. The charge is full after 1 second; after 2 seconds it
   launches by itself. Keep aiming to turn and line up the shot (Vine Slingshot is the
@@ -31,9 +31,9 @@ the same way; they differ in what the launch does.
 - **Enhanced**: gusts are left all along your path, each blowing twice (3 damage a gust, pushing
   enemies away from the line).
 
-### Vacuum Kick (Fire)
+### Blazing Kick (Fire)
 
-> **Vacuum Kick**: Hold to charge, then release to blitz through enemies in a trail of flame,
+> **Blazing Kick**: Hold to charge, then release to blitz through enemies in a trail of flame,
 > shoving them aside, and finish with a kick that blasts them away!
 >
 > *Enhanced: Sets every enemy it touches on fire!*
@@ -104,7 +104,7 @@ the same way; they differ in what the launch does.
 
 Every arcana has extra effects that are only for show (they never hit anything or change the
 timing): Vacuum Fist's whirl of wind, the punch it winds up and the dust drawn into its vacuum,
-Vacuum Kick's fiery blasts and the kick it swings into at the end of its rush, Feint Swap's splashes,
+Blazing Kick's fiery blasts and the kick it swings into at the end of its rush, Feint Swap's splashes,
 shimmering trail and glints at both ends, and Charged Leap's lightning flash and crackling sparks.
 Most come with a small camera shake.
 
@@ -120,7 +120,7 @@ swish also tell you it's ready.
 | | Damage per enemy | Notes |
 |---|---|---|
 | Vacuum Fist | 4 per drag, 2 per vacuum pulse (about 20 at most) | Drags along, then pulls in; enhanced trail gusts 3 each |
-| Vacuum Kick | 4 per trail burst, 10 from the blast (about 18 at most) | Shoves aside, then throws away; enhanced, every hit burns |
+| Blazing Kick | 4 per trail burst, 10 from the blast (about 18 at most) | Shoves aside, then throws away; enhanced, every hit burns |
 | Feint Swap | 12 per Frost Nova (one at each end) | Freezes for 1.5 s; the feint draws enemies |
 | Vine Slingshot | 3 per grip tick (every 0.4 s, up to 2 s) and 14 from the kick | Grip stuns; the kick knocks back hard; enhanced snares 2 every 0.5 s |
 | Charged Leap | Caught projectiles ×1.5, plus 10 from the landing burst | Only as strong as what you catch |

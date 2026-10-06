@@ -16,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.21.0";
+        public const string PluginVersion = "0.21.1";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -39,7 +39,7 @@ namespace WoLSlingshotDash
 
         public static void Log(string message) => log?.LogInfo(message);
 
-        // Runs effects that outlive the dash state (e.g. Vacuum Kick's vacuum).
+        // Runs effects that outlive the dash state (e.g. Blazing Kick's vacuum).
         public static void Run(IEnumerator routine)
         {
             if (instance != null)
@@ -178,7 +178,7 @@ namespace WoLSlingshotDash
             Skills.Register(new SkillInfo
             {
                 ID = BlazingSlingshotState.staticID,
-                displayName = "Vacuum Kick",
+                displayName = "Blazing Kick",
                 description = "Hold to charge, then release to blitz through enemies in a trail of flame, shoving them aside, and finish with a kick that blasts them away!",
                 enhancedDescription = "Sets every enemy it touches on fire!",
                 icon = LoadIcon("icon_fire.png"),
@@ -323,7 +323,7 @@ namespace WoLSlingshotDash
                 Logger.LogError($"Charged Leap hit guard failed to install: {e.Message}");
             }
 
-            Logger.LogInfo($"{PluginName} {PluginVersion} registered Vacuum Fist, Vacuum Kick, Feint Swap, Vine Slingshot and Charged Leap");
+            Logger.LogInfo($"{PluginName} {PluginVersion} registered Vacuum Fist, Blazing Kick, Feint Swap, Vine Slingshot and Charged Leap");
         }
 
         private Sprite LoadIcon(string fileName)
