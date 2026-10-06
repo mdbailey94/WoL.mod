@@ -37,8 +37,28 @@ namespace WoLSlingshotDash
         protected ChargedDashState(string skillID, FSM fsm, Player parentPlayer) : base(skillID, fsm, parentPlayer)
         {
             applyStopElementStatus = true;
-            // One dash charge, so the long cooldown means one slingshot at a time.
-            InitChargeSkillSettings(1, 0f, skillData, this);
+            // Nothing else here: the game builds every dash state while the wizard spawns, and
+            // anything that throws in a constructor stops the wizard spawning at all.
+        }
+
+        private bool chargesSet;
+
+        // One dash charge, so the long cooldown means one slingshot at a time. Done on the first
+        // dash rather than in the constructor (skill data isn't ready then), and never allowed
+        // to break the dash.
+        private void EnsureOneCharge()
+        {
+            if (chargesSet)
+                return;
+            chargesSet = true;
+            try
+            {
+                InitChargeSkillSettings(1, 0f, skillData, this);
+            }
+            catch (System.Exception e)
+            {
+                SlingshotDashPlugin.Log($"Couldn't set {skillID} to one charge: {e.Message}");
+            }
         }
 
         // Right after a charged launch starts, still at the launch spot; inputVector is the aim.
@@ -63,6 +83,7 @@ namespace WoLSlingshotDash
 
         public override void OnEnter()
         {
+            EnsureOneCharge();
             // Without a way to read the button we can't charge; behave like a normal dash.
             if (!DashButton.Available(parent, skillSlot))
             {
