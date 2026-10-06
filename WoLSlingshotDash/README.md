@@ -49,7 +49,8 @@ the launch, gentler where you land. Both get bigger with more charge.
 Slingshot arcana trade a long cooldown and a charge-up for more range and damage than a normal
 dash, without outclassing standard arcana. The **slingshot** has one charge that recharges in
 **7 s** (`CooldownSeconds`); until then, and for taps, the dash button is a **normal dash** with a
-short cooldown. A puff of dust and a swish tell you when the slingshot is ready again.
+short cooldown. The arcana's icon on the HUD darkens and counts down the seconds while the
+slingshot recharges, and a puff of dust and a swish tell you when it's ready again.
 
 | | Damage per enemy | Notes |
 |---|---|---|
@@ -74,8 +75,10 @@ Under `[Balance]`:
 
 - `CooldownSeconds`: how long until you can slingshot again. Default `7`.
 - `DashCooldownSeconds`: cooldown of the normal dash in between. Default `0.6`.
-- `BlazingPathPull`: how hard Blazing Slingshot's trail drags enemies along your dash. Default
-  `12`; make it negative if they get pushed the wrong way.
+- `BlazingDrag`: how hard Blazing Slingshot's trail drags enemies along your dash. Default
+  `35`; make it negative if they get pushed the wrong way.
+- `FrostFreezeRadius`: size of Frost Slingshot's freezes at the shortest hold (a full charge adds
+  half again). Default `1`.
 
 Changes apply the next time the game starts.
 

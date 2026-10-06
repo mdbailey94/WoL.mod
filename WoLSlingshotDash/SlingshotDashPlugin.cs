@@ -4,6 +4,7 @@ using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
+using HarmonyLib;
 using LegendAPI;
 using UnityEngine;
 
@@ -15,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.8.1";
+        public const string PluginVersion = "0.9.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -24,7 +25,8 @@ namespace WoLSlingshotDash
         private static ConfigEntry<float> maxHold;
         private static ConfigEntry<float> cooldownSeconds;
         private ConfigEntry<float> dashCooldownSeconds;
-        private ConfigEntry<float> blazingPathPull;
+        private ConfigEntry<float> blazingDrag;
+        private static ConfigEntry<float> frostFreezeRadius;
         private ConfigEntry<bool> modEnabled;
 
         private static SlingshotDashPlugin instance;
@@ -43,6 +45,7 @@ namespace WoLSlingshotDash
         // 0 = hold as long as you like.
         public static float MaxHoldSeconds => Mathf.Max(0f, maxHold?.Value ?? 0f);
         public static float SlingshotCooldown => Mathf.Max(0.5f, cooldownSeconds?.Value ?? 7f);
+        public static float FrostFreezeRadius => Mathf.Max(0.25f, frostFreezeRadius?.Value ?? 1f);
 
         // The game's own player animation for the chosen name, or null for "None".
         public static string ChargeAnimation(Player player)
@@ -89,10 +92,15 @@ namespace WoLSlingshotDash
                 new ConfigDescription("Cooldown of the normal dash these arcana do when not slingshotting. " +
                     "Applies the next time the game starts.",
                     new AcceptableValueRange<float>(0.1f, 5f)));
-            blazingPathPull = Config.Bind("Balance", "BlazingPathPull", 12f,
+            // Replaces BlazingPathPull (default 12, too weak to notice) with a stronger default.
+            blazingDrag = Config.Bind("Balance", "BlazingDrag", 35f,
                 new ConfigDescription("How hard Blazing Slingshot's trail drags enemies along your dash. " +
                     "Make it negative if they get pushed the wrong way. Applies the next time the game starts.",
-                    new AcceptableValueRange<float>(-60f, 60f)));
+                    new AcceptableValueRange<float>(-80f, 80f)));
+            frostFreezeRadius = Config.Bind("Balance", "FrostFreezeRadius", 1f,
+                new ConfigDescription("Radius of Frost Slingshot's freezes at a 0.2 s hold; a full charge adds " +
+                    "half again.",
+                    new AcceptableValueRange<float>(0.25f, 4f)));
 
             Skills.Register(new SkillInfo
             {
@@ -142,7 +150,7 @@ namespace WoLSlingshotDash
                     cooldown = new[] { dashCooldownSeconds.Value },
                     // Level 1 (the trail) knocks enemies along the dash direction, set on each burst,
                     // so they get dragged with you; level 2 (the vacuum) pulls toward its centre.
-                    knockbackMultiplier = new[] { blazingPathPull.Value, -32f },
+                    knockbackMultiplier = new[] { blazingDrag.Value, -32f },
                     knockbackOverwrite = new[] { true, false },
                     hitStunDurationModifier = new[] { 1.2f },
                     // Short, so the trail and vacuum keep grabbing enemies.
@@ -181,6 +189,15 @@ namespace WoLSlingshotDash
                 priceMultiplier = 3,
                 unlockCondition = () => modEnabled.Value
             });
+
+            try
+            {
+                new Harmony(PluginGuid).CreateClassProcessor(typeof(SlingshotHud)).Patch();
+            }
+            catch (System.Exception e)
+            {
+                Logger.LogError($"Slingshot HUD hook failed to install: {e.Message}");
+            }
 
             Logger.LogInfo($"{PluginName} {PluginVersion} registered Slingshot, Blazing Slingshot and Frost Slingshot");
         }

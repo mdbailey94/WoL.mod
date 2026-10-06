@@ -72,7 +72,7 @@ namespace WoLSlingshotDash
             pending = new Feint { thrownAt = Time.time, hoverTime = MaxHoverTime * power };
             // The dash state ends long before the swap, so the feint runs on the plugin.
             SlingshotDashPlugin.Run(Throw(parent, pending, SpawnDecoy(start), start, start + direction * distance,
-                1.75f + power, parent.skillCategory, skillID));
+                SlingshotDashPlugin.FrostFreezeRadius * (1f + 0.5f * power), parent.skillCategory, skillID));
         }
 
         private GameObject SpawnDecoy(Vector2 position)

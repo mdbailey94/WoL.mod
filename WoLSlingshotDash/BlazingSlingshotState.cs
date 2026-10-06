@@ -7,13 +7,13 @@ namespace WoLSlingshotDash
     // flame trail, dropping flame bursts that drag enemies along your path. Where you land, a flame
     // vacuum keeps sucking everyone nearby in for a moment. Bigger with more charge.
     //
-    // Level 1 is the trail: its knockback is overridden to point along the dash (BlazingPathPull).
+    // Level 1 is the trail: its knockback is overridden to point along the dash (BlazingDrag).
     // Level 2 is the vacuum's pulses: negative knockback, a pull toward the centre like Gust Burst.
     public class BlazingSlingshotState : ChargedDashState
     {
         public new static string staticID = "BlazingSlingshot";
 
-        private const float TrailInterval = 0.15f;
+        private const float TrailInterval = 0.1f;
         private const float FlameInterval = 0.03f;
         private const int VacuumPulses = 4;
         private const float VacuumPulseInterval = 0.15f;

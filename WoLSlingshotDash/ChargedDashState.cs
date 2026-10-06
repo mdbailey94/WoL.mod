@@ -47,7 +47,13 @@ namespace WoLSlingshotDash
         // A dash used by the arcana for something else (e.g. Frost's early swap): stand still.
         private bool standStill;
 
+        private float slingshotCooldownTotal = 1f;
+
         protected bool SlingshotReady => Time.time >= slingshotReadyAt;
+
+        // For the HUD: seconds until the slingshot is ready, and the full cooldown.
+        public float SlingshotRemaining => Mathf.Max(0f, slingshotReadyAt - Time.time);
+        public float SlingshotCooldownTotal => slingshotCooldownTotal;
 
         // Right after a charged launch starts, still at the launch spot; inputVector is the aim.
         protected abstract void OnLaunch(float charge);
@@ -168,6 +174,7 @@ namespace WoLSlingshotDash
             {
                 float cooldown = SlingshotDashPlugin.SlingshotCooldown;
                 slingshotReadyAt = Time.time + cooldown;
+                slingshotCooldownTotal = cooldown;
                 SlingshotDashPlugin.Run(ReadyCue(parent, cooldown));
                 OnLaunch(charge);
             }
