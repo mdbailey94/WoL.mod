@@ -16,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.22.0";
+        public const string PluginVersion = "0.22.1";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -345,7 +345,7 @@ namespace WoLSlingshotDash
 
                 var texture = new Texture2D(2, 2) { filterMode = FilterMode.Point };
                 texture.LoadImage(data);
-                return Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
+                return GameIcon.Create(texture, Logger);
             }
         }
     }

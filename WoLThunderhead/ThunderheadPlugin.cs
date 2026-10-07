@@ -13,7 +13,7 @@ namespace WoLThunderhead
     {
         public const string PluginGuid = "mdbailey94.wol.thunderhead";
         public const string PluginName = "Thunderhead";
-        public const string PluginVersion = "0.2.1";
+        public const string PluginVersion = "0.2.2";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -138,7 +138,7 @@ namespace WoLThunderhead
                 stream.Read(data, 0, data.Length);
                 var texture = new Texture2D(2, 2) { filterMode = FilterMode.Point };
                 texture.LoadImage(data);
-                return Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
+                return GameIcon.Create(texture, Logger);
             }
         }
     }
