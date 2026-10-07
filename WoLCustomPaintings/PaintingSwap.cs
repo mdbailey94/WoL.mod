@@ -15,9 +15,14 @@ namespace WoLCustomPaintings
         private Sprite lastOriginal;
         private Sprite replacement;
         private bool logged;
+        private int swaps;
+        private float checkAt = -1f;
+
+        private float startTime;
 
         private void Start()
         {
+            startTime = Time.time;
             destructible = GetComponent<Destructible>();
         }
 
@@ -30,6 +35,8 @@ namespace WoLCustomPaintings
             }
             if (destructible != null && destructible.destroyed)
             {
+                if (swaps == 0)
+                    CustomPaintingsPlugin.Log($"Painting '{name}' counts as broken already, leaving it alone");
                 if (target != null && target.sprite == replacement && lastOriginal != null)
                     target.sprite = lastOriginal;
                 enabled = false;
@@ -42,13 +49,32 @@ namespace WoLCustomPaintings
                 if (target == null)
                     return;
                 intactSize = target.sprite.rect.size;
+                CustomPaintingsPlugin.Log($"Painting '{name}': showing a picture on '{target.name}' (sprite '{target.sprite.name}', " +
+                    $"{intactSize.x}x{intactSize.y}, {Renderers()} sprite renderer(s), visible={target.enabled && target.gameObject.activeInHierarchy})");
+            }
+            // A second after the picture first goes up: say whether it's still up, or the game keeps
+            // putting its own sprite back.
+            if (checkAt > 0f && Time.time >= checkAt)
+            {
+                checkAt = 0f;
+                CustomPaintingsPlugin.Log($"Painting '{name}': picture " +
+                    (target.sprite == replacement ? "up" : "replaced by the game") +
+                    (swaps > 5 ? $" (set {swaps} times: the game keeps changing the sprite back)" : "") +
+                    $", visible={target.enabled && target.gameObject.activeInHierarchy}");
             }
             Sprite current = target.sprite;
             if (current == null || current == replacement)
                 return;
             // Only the intact painting's frames (the broken one is a different size).
             if (current.rect.size != intactSize)
+            {
+                if (!logged)
+                {
+                    logged = true;
+                    CustomPaintingsPlugin.Log($"Painting '{name}' changed to '{current.name}' ({current.rect.width}x{current.rect.height}), not swapping that");
+                }
                 return;
+            }
             if (current != lastOriginal)
             {
                 Sprite built = PaintingBuilder.Build(current, picture);
@@ -66,26 +92,40 @@ namespace WoLCustomPaintings
                 replacement = built;
             }
             target.sprite = replacement;
+            swaps++;
+            if (checkAt < 0f)
+                checkAt = Time.time + 1f;
         }
 
-        // The painting's biggest sprite (not a shadow or a small decoration on it).
+        private int Renderers() => GetComponentsInChildren<SpriteRenderer>(true).Length;
+
+        // The painting's biggest sprite that's actually showing (not a shadow, a small decoration, or
+        // a hidden one such as its broken look). Hidden ones only if nothing else has a sprite yet.
         private SpriteRenderer MainRenderer()
         {
-            SpriteRenderer best = null;
-            float bestArea = 0f;
+            SpriteRenderer best = null, bestHidden = null;
+            float bestArea = 0f, bestHiddenArea = 0f;
             foreach (SpriteRenderer renderer in GetComponentsInChildren<SpriteRenderer>(true))
             {
                 if (renderer.sprite == null)
                     continue;
                 Vector2 size = renderer.sprite.rect.size;
                 float area = size.x * size.y;
-                if (area > bestArea)
+                if (renderer.enabled && renderer.gameObject.activeInHierarchy)
                 {
-                    bestArea = area;
-                    best = renderer;
+                    if (area > bestArea)
+                    {
+                        bestArea = area;
+                        best = renderer;
+                    }
+                }
+                else if (area > bestHiddenArea)
+                {
+                    bestHiddenArea = area;
+                    bestHidden = renderer;
                 }
             }
-            return best;
+            return best != null ? best : (Time.time - startTime > 2f ? bestHidden : null);
         }
     }
 }
