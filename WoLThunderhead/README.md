@@ -14,7 +14,8 @@ A leap like Heroic Leap's:
   jumping arcana work: their hurtbox is switched off (attacks and projectiles pass through) and
   they count as airborne. Their shadow stays on the ground below.
 - While up (1 second), **lightning crashes down** around the spot below in volleys of three every
-  quarter second (5 damage each, can shock).
+  quarter second (5 damage each, can shock), spread evenly: over the leap they cover the whole
+  area without bunching up, each volley striking near, middle and far all round you.
 - Then they **crash back down** in a **lightning slam**: 14 damage, a big knockback and a likely
   shock, with a camera shake and a short hit-stop. About 1.4 seconds in the air in all.
 - Dash to cancel only before take-off. Cooldown 6 seconds.
@@ -39,6 +40,7 @@ you start the game with the mod), or in-game with a config manager mod if you ha
 | Lightning | `Radius` / `EnhancedRadius` | 2.2 / 2.8 | How far from you the strikes land |
 | Lightning | `VolleyInterval` | 0.25 | Seconds between volleys |
 | Lightning | `VolleySize` | 3 | Strikes per volley |
+| Lightning | `EvenSpread` | true | Spread the strikes evenly over the area (off: random spots) |
 | Lightning | `StrikeSize` | 1 | Each strike's hit area |
 | Lightning | `SlamSize` / `EnhancedSlamSize` | 2.4 / 3 | The landing slam's hit area |
 | Balance | `StrikeDamage` / `SlamDamage` | 5 / 14 | Damage |

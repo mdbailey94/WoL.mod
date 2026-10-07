@@ -23,6 +23,8 @@ namespace WoLThunderhead
 
         private float time;
         private float nextVolley;
+        private int volleyCount;
+        private float spiralTurn;
         private bool done;
         private bool tookOff;
         private bool landed;
@@ -53,6 +55,8 @@ namespace WoLThunderhead
             base.OnEnter();
             time = 0f;
             nextVolley = 0f;
+            volleyCount = 0;
+            spiralTurn = Random.value * 2f * Mathf.PI;
             done = false;
             tookOff = false;
             landed = false;
@@ -203,18 +207,40 @@ namespace WoLThunderhead
 
         // ---- Lightning ----
 
-        // A few strikes at once, scattered round the spot below you.
+        // A few strikes at once round the spot below you. Spread evenly (the default): all the
+        // strikes of the whole leap are laid out as a sunflower spiral over the circle (even
+        // coverage, nothing bunched up), turned a random way each cast, and each volley takes
+        // every so-many of them, so every volley strikes near, middle and far all round you.
+        // Otherwise each lands at random.
         private void Volley(Vector2 ground)
         {
-            for (int i = 0; i < VolleySize; i++)
+            int size = VolleySize;
+            float radius = RadiusNow;
+            bool even = ThunderheadPlugin.EvenSpread;
+            int volleys = Mathf.Max(1, Mathf.CeilToInt(HoverTimeNow / VolleyInterval - 0.001f));
+            int total = volleys * size;
+            for (int i = 0; i < size; i++)
             {
-                Vector2 offset = Random.insideUnitCircle * RadiusNow;
+                Vector2 offset;
+                if (even)
+                {
+                    int j = (i * volleys + volleyCount) % total;
+                    float distance = radius * Mathf.Sqrt((j + 0.5f) / total);
+                    float angle = spiralTurn + j * GoldenAngle;
+                    offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance
+                        + Random.insideUnitCircle * 0.08f * radius;
+                }
+                else
+                    offset = Random.insideUnitCircle * radius;
                 Vector2 spot = ground + new Vector2(offset.x, offset.y * 0.7f);
                 LightningBurst.CreateBurst(spot, parent.skillCategory, skillID, 1, ThunderheadPlugin.StrikeSize, false);
                 Bolt(spot, 1f);
             }
+            volleyCount++;
             Spark(ground + new Vector2(0f, Height + 0.6f));
         }
+
+        private const float GoldenAngle = 2.39996f; // radians
 
         // Crashing down: a big lightning slam that throws enemies back.
         private void Slam(Vector2 ground)

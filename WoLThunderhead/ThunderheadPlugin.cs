@@ -13,7 +13,7 @@ namespace WoLThunderhead
     {
         public const string PluginGuid = "mdbailey94.wol.thunderhead";
         public const string PluginName = "Thunderhead";
-        public const string PluginVersion = "0.2.2";
+        public const string PluginVersion = "0.3.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -25,6 +25,7 @@ namespace WoLThunderhead
         private static ConfigEntry<float> height, windupTime, riseTime, airTime, enhancedAirTime, crashTime, recoverTime;
         private static ConfigEntry<float> radius, enhancedRadius, volleyInterval, strikeSize, slamSize, enhancedSlamSize;
         private static ConfigEntry<int> volleySize;
+        private static ConfigEntry<bool> evenSpread;
         private static ConfigEntry<int> strikeDamage, slamDamage;
         private static ConfigEntry<float> strikeKnockback, slamKnockback, strikeShockChance, slamShockChance, cooldown;
 
@@ -39,6 +40,7 @@ namespace WoLThunderhead
         public static float EnhancedRadius => Get(enhancedRadius, 2.8f, 0.5f, 8f);
         public static float VolleyInterval => Get(volleyInterval, 0.25f, 0.05f, 2f);
         public static int VolleySize => Mathf.Clamp(volleySize?.Value ?? 3, 1, 12);
+        public static bool EvenSpread => evenSpread?.Value ?? true;
         public static float StrikeSize => Get(strikeSize, 1f, 0.3f, 4f);
         public static float SlamSize => Get(slamSize, 2.4f, 0.5f, 6f);
         public static float EnhancedSlamSize => Get(enhancedSlamSize, 3f, 0.5f, 6f);
@@ -105,6 +107,9 @@ namespace WoLThunderhead
             volleyInterval = Float("Lightning", "VolleyInterval", 0.25f, 0.05f, 2f, "Seconds between volleys of strikes while up.");
             volleySize = Config.Bind("Lightning", "VolleySize", 3,
                 new ConfigDescription("Strikes in each volley.", new AcceptableValueRange<int>(1, 12)));
+            evenSpread = Config.Bind("Lightning", "EvenSpread", true,
+                "Spread the strikes evenly over the whole area through the leap, each volley striking near, " +
+                "middle and far all round you. Off: each strike lands at a random spot.");
             strikeSize = Float("Lightning", "StrikeSize", 1f, 0.3f, 4f, "Size of each strike's hit area.");
             slamSize = Float("Lightning", "SlamSize", 2.4f, 0.5f, 6f, "Size of the landing slam's hit area.");
             enhancedSlamSize = Float("Lightning", "EnhancedSlamSize", 3f, 0.5f, 6f, "SlamSize when enhanced.");
