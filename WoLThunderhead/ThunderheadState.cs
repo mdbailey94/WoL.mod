@@ -3,11 +3,12 @@ using UnityEngine;
 
 namespace WoLThunderhead
 {
-    // Thunderhead (Lightning, standard arcana): the wizard rises into the air, crackling, and for
-    // 1.5 seconds (2.2 enhanced) lightning rains down on a small area beneath them: scattered
-    // strikes all over it (level 1) and a big strike right below every half second (level 2), which
-    // can shock. Then they drift back down. Like the game's jumping arcana, the wizard is airborne
-    // and can't be hurt while up there.
+    // Thunderhead (Lightning, standard arcana): after a very short wind-up on the ground (still
+    // vulnerable), the wizard rises into the air, crackling, for about 1.5 seconds. Up there they're
+    // airborne and can't be hurt, like the game's jumping arcana, while lightning rains down on a
+    // small area beneath them for 1.2 seconds (1.7 enhanced): scattered strikes all over it (level
+    // 1) and a big strike right below every half second (level 2), which can shock. Then they drift
+    // back down.
     //
     // The hits are the game's lightning bursts; each strike also shows the game's own lightning
     // bolt from the sky (stripped down to its animation, so it can't hit anything itself).
@@ -15,10 +16,11 @@ namespace WoLThunderhead
     {
         public new static string staticID = "Thunderhead";
 
-        private const float RiseTime = 0.2f;
-        private const float StormTime = 1.5f;
-        private const float EnhancedStormTime = 2.2f;
-        private const float FallTime = 0.2f;
+        private const float WindupTime = 0.12f;      // on the ground, still vulnerable
+        private const float RiseTime = 0.15f;
+        private const float StormTime = 1.2f;        // about 1.5 s in the air in all
+        private const float EnhancedStormTime = 1.7f;
+        private const float FallTime = 0.15f;
         private const float Height = 0.9f;
         private const float Radius = 1.8f;          // the area beneath you
         private const float EnhancedRadius = 2.4f;
@@ -36,6 +38,7 @@ namespace WoLThunderhead
         private bool done;
         private Levitator levitator;
         private bool airborne;
+        private bool tookOff;
         private const string AirborneModID = "Thunderhead_Airborne";
         private static bool loggedBolt;
 
@@ -63,7 +66,7 @@ namespace WoLThunderhead
             nextSpark = 0f;
             done = false;
             levitator = Levitator.On(parent);
-            TakeOff();
+            tookOff = false;
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(parent.transform.position), null, 24f, -1f, 0.7f, false);
         }
 
@@ -78,6 +81,21 @@ namespace WoLThunderhead
                 return;
 
             time += Time.deltaTime;
+
+            // A moment's wind-up on the ground (still vulnerable), then up into the air.
+            if (time < WindupTime)
+            {
+                if (parent.rigidbody2D != null)
+                    parent.rigidbody2D.velocity = Vector2.zero;
+                parent.anim?.PlayDirectional(parent.ChargeAnimStr, -1, 0.15f);
+                return;
+            }
+            if (!tookOff)
+            {
+                tookOff = true;
+                TakeOff();
+            }
+            float t = time - WindupTime;
             float stormEnd = RiseTime + StormTimeNow;
             float end = stormEnd + FallTime;
 
@@ -85,39 +103,39 @@ namespace WoLThunderhead
             if (parent.rigidbody2D != null)
                 parent.rigidbody2D.velocity = Vector2.zero;
             parent.anim?.PlayDirectional(parent.ChargeAnimStr, -1, 0.5f);
-            float lift = time < RiseTime ? time / RiseTime
-                : time < stormEnd ? 1f
-                : 1f - Mathf.Clamp01((time - stormEnd) / FallTime);
+            float lift = t < RiseTime ? t / RiseTime
+                : t < stormEnd ? 1f
+                : 1f - Mathf.Clamp01((t - stormEnd) / FallTime);
             if (levitator != null)
-                levitator.height = Height * Mathf.SmoothStep(0f, 1f, lift) + (lift >= 1f ? Mathf.Sin(time * 9f) * 0.04f : 0f);
+                levitator.height = Height * Mathf.SmoothStep(0f, 1f, lift) + (lift >= 1f ? Mathf.Sin(t * 9f) * 0.04f : 0f);
 
             Vector2 ground = parent.transform.position;
-            if (time >= RiseTime && time < stormEnd)
+            if (t >= RiseTime && t < stormEnd)
             {
-                if (time >= nextStrike)
+                if (t >= nextStrike)
                 {
-                    nextStrike = time + (IsEmpowered ? EnhancedStrikeInterval : StrikeInterval);
+                    nextStrike = t + (IsEmpowered ? EnhancedStrikeInterval : StrikeInterval);
                     Vector2 offset = Random.insideUnitCircle * RadiusNow;
                     Strike(ground + new Vector2(offset.x, offset.y * 0.7f), 1, StrikeScale);
                 }
-                if (time >= nextBigStrike)
+                if (t >= nextBigStrike)
                 {
-                    nextBigStrike = time + BigStrikeInterval;
+                    nextBigStrike = t + BigStrikeInterval;
                     Strike(ground, 2, BigStrikeScale);
                     Shake(0.5f);
                 }
-                if (time >= nextSpark)
+                if (t >= nextSpark)
                 {
-                    nextSpark = time + SparkInterval;
+                    nextSpark = t + SparkInterval;
                     Spark(ground + new Vector2(0f, Height + 0.5f) + Random.insideUnitCircle * 0.5f);
                 }
             }
 
             // Back on the ground (with the fall nearly done): can be hurt again.
-            if (airborne && time >= stormEnd + FallTime * 0.7f)
+            if (airborne && t >= stormEnd + FallTime * 0.7f)
                 Touchdown();
 
-            if (time >= end)
+            if (t >= end)
             {
                 done = true;
                 Land();

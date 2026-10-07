@@ -13,7 +13,7 @@ namespace WoLThunderhead
     {
         public const string PluginGuid = "mdbailey94.wol.thunderhead";
         public const string PluginName = "Thunderhead";
-        public const string PluginVersion = "0.1.1";
+        public const string PluginVersion = "0.1.2";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -42,10 +42,10 @@ namespace WoLThunderhead
                     elementType = new[] { "Lightning" },
                     subElementType = new[] { "Lightning" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
-                    // Level 1 is the scattered strikes (one every 0.12 s for 1.5 s over the area),
+                    // Level 1 is the scattered strikes (one every 0.12 s for 1.2 s over the area),
                     // level 2 the big strike right beneath you (every 0.5 s), level 3 the game's
                     // lightning bolts used only for the look (harmless). An enemy in the middle
-                    // the whole time: roughly 3 big strikes and 4-5 small ones, about 45.
+                    // the whole time: roughly 3 big strikes and 4 small ones, about 40.
                     damage = new[] { 5, 8, 0 },
                     cooldown = new[] { 6f },
                     knockbackMultiplier = new[] { 6f, 14f, 0f },

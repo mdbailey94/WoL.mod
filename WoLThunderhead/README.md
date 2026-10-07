@@ -7,13 +7,14 @@ A new **Lightning standard arcana**, added with [LegendAPI](https://github.com/y
 >
 > *Enhanced: The storm lasts longer and strikes wider!*
 
-- Your wizard **rises into the air**, arms raised and crackling, and hovers there. Like the game's
-  jumping arcana, they're **airborne and can't be hurt** until they're nearly back down.
-- For **1.5 seconds**, lightning rains down on a **small area beneath you**: bolts strike all over it
-  (5 damage each, one every 0.12 s) and a **big strike** lands right below you every half second
-  (8 damage, with a camera jolt). Strikes can **shock**.
+- After a **very short wind-up** on the ground (about a tenth of a second, when you can still be
+  hit), your wizard **rises into the air**, arms raised and crackling, for about **1.5 seconds**.
+  Like the game's jumping arcana, they're **airborne and can't be hurt** while up there.
+- For **1.2 seconds** of that, lightning rains down on a **small area beneath you**: bolts strike
+  all over it (5 damage each, one every 0.12 s) and a **big strike** lands right below you every
+  half second (8 damage, with a camera jolt). Strikes can **shock**.
 - Then you drift back down. Dash to cancel at any time. Cooldown 6 seconds.
-- **Enhanced**: the storm lasts 2.2 seconds, strikes more often (every 0.09 s) and covers a wider
+- **Enhanced**: the storm lasts 1.7 seconds, strikes more often (every 0.09 s) and covers a wider
   area.
 
 The bolts are the game's own lightning from the sky (just its animation; the hits come from the
