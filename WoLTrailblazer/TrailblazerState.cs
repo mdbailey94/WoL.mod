@@ -70,8 +70,10 @@ namespace WoLTrailblazer
             FlameTrail.Light(parent, this, duration);
             try
             {
-                FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1, 2.5f, true);
-                PoolManager.GetPoolItem<FireBurst>()?.EmitSingle(new int?(14), new Vector3?(position));
+                // The hit is wide, but its visible burst small, so it doesn't blind.
+                FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1, 2.5f, false);
+                FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1, 0.9f, true);
+                PoolManager.GetPoolItem<FireBurst>()?.EmitSingle(new int?(8), new Vector3?(position));
                 CameraController.ShakeCamera(0.4f, false);
             }
             catch

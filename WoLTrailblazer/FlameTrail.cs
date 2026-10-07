@@ -5,7 +5,7 @@ namespace WoLTrailblazer
 {
     // The fire on a wizard for a few seconds after casting Trailblazer:
     // - a ring of fire round them that burns and shoves aside any enemy who touches it, all the
-    //   time it's lit (moving or not);
+    //   time it's lit (moving or not), shown as flames licking up from their feet;
     // - a trail: as they move (running, dashing, or carried by any movement arcana) they leave
     //   patches of fire behind them every so often, which burn on the ground for a while and hurt
     //   enemies who walk into them.
@@ -23,6 +23,7 @@ namespace WoLTrailblazer
             public float until;
             public float nextHit;
             public float nextFlame;
+            public int level;
         }
 
         private Player player;
@@ -64,7 +65,7 @@ namespace WoLTrailblazer
                 if (player != null && litUntil > 0f)
                 {
                     // Burnt out: a last puff of flame.
-                    Flames(player.transform.position, 8);
+                    Flames(player.transform.position, 6, 0.8f);
                     litUntil = 0f;
                 }
                 if (patches.Count == 0)
@@ -84,15 +85,13 @@ namespace WoLTrailblazer
                 nextAura = now + TrailblazerPlugin.AuraInterval;
                 Burst(position, level, TrailblazerPlugin.AuraSize * size, false);
             }
+            // Burning feet: small flames licking up right at the wizard's feet (the ring's hit has
+            // no look of its own).
             if (now >= nextAuraFlame)
             {
-                nextAuraFlame = now + 0.06f;
-                float radius = 0.45f * TrailblazerPlugin.AuraSize * size;
-                for (int i = 0; i < 2; i++)
-                {
-                    float a = Random.value * Mathf.PI * 2f;
-                    Flames(position + new Vector2(Mathf.Cos(a), Mathf.Sin(a) * 0.7f) * radius, 1);
-                }
+                nextAuraFlame = now + 0.035f;
+                Flames(position + new Vector2(Random.Range(-0.18f, 0.18f), Random.Range(-0.06f, 0.06f)), 1,
+                    FlameScale(level) * 0.8f);
             }
 
             // The trail: by distance covered, so it doesn't matter how the wizard moves or how the
@@ -124,10 +123,9 @@ namespace WoLTrailblazer
                 position = position,
                 until = now + TrailblazerPlugin.TrailLinger * (0.8f + 0.2f * size),
                 nextHit = now + TrailblazerPlugin.TrailHitInterval,
-                nextFlame = now
+                nextFlame = now,
+                level = level
             });
-            // A visible flare as it catches.
-            Burst(position, level, 0.8f + 0.3f * size, true);
             if (!loggedPatch)
             {
                 loggedPatch = true;
@@ -152,11 +150,13 @@ namespace WoLTrailblazer
                     patches.RemoveAt(i);
                     continue;
                 }
+                // Small flames at normal speed, bigger (and more of them) the harder the patch hits.
                 if (now >= patch.nextFlame)
                 {
                     patch.nextFlame = now + 0.1f;
-                    Flames(patch.position + Random.insideUnitCircle * 0.25f * size,
-                        Mathf.Max(1, Mathf.RoundToInt(TrailblazerPlugin.FlameAmount * size)));
+                    float spread = 0.08f + 0.05f * patch.level;
+                    int count = Mathf.Max(1, Mathf.RoundToInt(TrailblazerPlugin.FlameAmount * (0.4f + 0.15f * patch.level)));
+                    Flames(patch.position + Random.insideUnitCircle * spread, count, FlameScale(patch.level));
                 }
                 if (now >= patch.nextHit)
                 {
@@ -165,6 +165,11 @@ namespace WoLTrailblazer
                 }
             }
         }
+
+        // How big the flames are, against Blazing Blitz's own: small at level 1 (normal speed),
+        // growing with each level to a bit over full size at level 5.
+        private static float FlameScale(int level) =>
+            TrailblazerPlugin.FlameSize * (0.45f + 0.17f * (level - 1));
 
         private static int Level(float speed, bool empowered) =>
             Mathf.Clamp(1 + Mathf.RoundToInt((speed - 1f) / TrailblazerPlugin.SpeedPerLevel) + (empowered ? 1 : 0), 1, 5);
@@ -213,12 +218,28 @@ namespace WoLTrailblazer
             return Mathf.Clamp(factor, 0.75f, 2.5f);
         }
 
-        // Blazing Blitz's flame particles.
-        private static void Flames(Vector2 position, int count)
+        // Blazing Blitz's flame particles, scaled (1 = their own size).
+        private static float baseFlameSize = -1f;
+
+        private static void Flames(Vector2 position, int count, float scale)
         {
             try
             {
-                PoolManager.GetPoolItem<FireBurst>()?.EmitSingle(new int?(count), new Vector3?(position));
+                FireBurst fire = PoolManager.GetPoolItem<FireBurst>();
+                if (fire == null)
+                    return;
+                if (baseFlameSize < 0f)
+                {
+                    baseFlameSize = 0f;
+                    ParticleSystem system = fire.effectEmitter != null ? fire.effectEmitter : fire.GetComponentInChildren<ParticleSystem>();
+                    if (system != null)
+                        baseFlameSize = system.main.startSizeMultiplier;
+                    TrailblazerPlugin.Log($"Trailblazer: flame size {baseFlameSize:0.###}");
+                }
+                ParticleSystemOverride sized = baseFlameSize > 0f
+                    ? new ParticleSystemOverride { startSize = new float?(baseFlameSize * scale) }
+                    : null;
+                fire.EmitSingle(new int?(count), new Vector3?(position), sized);
             }
             catch
             {
