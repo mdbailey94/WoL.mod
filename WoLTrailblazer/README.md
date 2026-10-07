@@ -1,24 +1,26 @@
 # Trailblazer (Wizard of Legend)
 
-A new **Fire dash arcana**, added with [LegendAPI](https://github.com/yekoc/LegendAPI).
+A new **Fire standard arcana**, added with [LegendAPI](https://github.com/yekoc/LegendAPI).
 
-> **Trailblazer**: Running, dashing and every movement arcana leave a trail of fire, scorching and
-> shoving aside any enemy you run into. The faster you are, the bigger it burns!
+> **Trailblazer**: Set your feet ablaze! For a few seconds, running, dashing and movement arcana
+> leave a trail of fire, scorching and shoving aside any enemy you run into. The faster you are,
+> the bigger it burns!
 >
-> *Enhanced: Burns bigger and hotter!*
+> *Enhanced: Lasts longer and burns bigger and hotter!*
 
-- Equip it as your dash. The dash itself is a normal dash.
-- While it's equipped, whenever your wizard is moving (running, dashing, or carried by any
-  movement arcana) they leave **flames on the ground behind them**, and anyone they run into is
-  hit by a small fire burst: about **3 damage**, a **small knockback** and a **chance to burn**
-  (50%). The same enemy is hit at most about three times a second.
+- **Cast it** and your wizard stamps the ground in a small fire burst, setting their feet ablaze
+  for **6 seconds** (cooldown 12). Dash to cut the stamp short; the fire stays lit.
+- While ablaze, whenever your wizard is moving (running, dashing, or carried by any movement
+  arcana) they leave **flames on the ground behind them**, and anyone they run into is hit by a
+  small fire burst: about **3 damage**, a **small knockback** and a **chance to burn** (50%). The
+  same enemy is hit at most about three times a second. Standing still, their feet just
+  smoulder.
 - **It grows with your run speed** after relics and other bonuses: every +15% run speed is one
   level stronger, up to five levels. Each level means more flames, a wider hit, +25% damage, +30%
   knockback and +12.5% burn chance (sure burns from level 5).
-- **Enhanced**: one level stronger and a bigger trail.
+- **Enhanced**: 9 seconds, one level stronger and a bigger trail.
 
-The log says `Trailblazer: the trail is on` when it starts following your wizard, and
-`Trailblazer: run speed X of base Y` the first time it reads your speed.
+The log says `Trailblazer: run speed X of base Y` the first time it reads your speed.
 
 ## Settings
 
@@ -26,6 +28,7 @@ The log says `Trailblazer: the trail is on` when it starts following your wizard
 
 | Section | Setting | Default | What it does |
 | --- | --- | --- | --- |
+| Trail | `Duration` / `EnhancedDuration` | 6 / 9 | Seconds your feet stay ablaze |
 | Trail | `MinSpeed` | 1.5 | How fast you must be moving (units a second) to leave fire |
 | Trail | `FlameInterval` | 0.04 | Seconds between puffs of flame |
 | Trail | `FlameAmount` | 2 | Flames per puff at normal speed |
@@ -36,7 +39,7 @@ The log says `Trailblazer: the trail is on` when it starts following your wizard
 | Balance | `Damage` | 3 | Damage per hit at normal speed |
 | Balance | `Knockback` | 8 | Knockback at normal speed |
 | Balance | `BurnChance` | 0.5 | Burn chance at normal speed (0 to 1) |
-| Balance | `DashCooldown` | 0.6 | The dash's cooldown |
+| Balance | `Cooldown` | 12 | Cooldown in seconds |
 
 **Trail** settings take effect straight away; **Balance** settings after restarting the game.
 

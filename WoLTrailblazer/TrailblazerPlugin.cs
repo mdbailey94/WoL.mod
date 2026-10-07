@@ -13,7 +13,7 @@ namespace WoLTrailblazer
     {
         public const string PluginGuid = "mdbailey94.wol.trailblazer";
         public const string PluginName = "Trailblazer";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.2.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -22,10 +22,13 @@ namespace WoLTrailblazer
 
         // ---- Settings (BepInEx\config\mdbailey94.wol.trailblazer.cfg) ----
         // [Trail] applies straight away; [Balance] after restarting the game.
+        private static ConfigEntry<float> duration, enhancedDuration;
         private static ConfigEntry<float> minSpeed, flameInterval, flameAmount, trailLinger, hitInterval, hitSize, speedPerLevel;
         private ConfigEntry<int> damage;
-        private ConfigEntry<float> knockback, burnChance, dashCooldown;
+        private ConfigEntry<float> knockback, burnChance, cooldown;
 
+        public static float Duration => Get(duration, 6f, 1f, 30f);
+        public static float EnhancedDuration => Get(enhancedDuration, 9f, 1f, 30f);
         public static float MinSpeed => Get(minSpeed, 1.5f, 0.1f, 10f);
         public static float FlameInterval => Get(flameInterval, 0.04f, 0.01f, 0.5f);
         public static float FlameAmount => Get(flameAmount, 2f, 0.5f, 10f);
@@ -37,8 +40,6 @@ namespace WoLTrailblazer
 
         private static float Get(ConfigEntry<float> entry, float fallback, float min, float max) =>
             Mathf.Clamp(entry?.Value ?? fallback, min, max);
-
-        private float nextScan;
 
         private void Awake()
         {
@@ -64,8 +65,8 @@ namespace WoLTrailblazer
             {
                 ID = TrailblazerState.staticID,
                 displayName = "Trailblazer",
-                description = "Running, dashing and every movement arcana leave a trail of fire, scorching and shoving aside any enemy you run into. The faster you are, the bigger it burns!",
-                enhancedDescription = "Burns bigger and hotter!",
+                description = "Set your feet ablaze! For a few seconds, running, dashing and movement arcana leave a trail of fire, scorching and shoving aside any enemy you run into. The faster you are, the bigger it burns!",
+                enhancedDescription = "Lasts longer and burns bigger and hotter!",
                 icon = LoadIcon("icon.png"),
                 tier = 2,
                 stateType = typeof(TrailblazerState),
@@ -76,7 +77,7 @@ namespace WoLTrailblazer
                     subElementType = new[] { "Fire" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
                     damage = damages,
-                    cooldown = new[] { Mathf.Clamp(dashCooldown.Value, 0.1f, 5f) },
+                    cooldown = new[] { Mathf.Clamp(cooldown.Value, 1f, 60f) },
                     knockbackMultiplier = knockbacks,
                     hitStunDurationModifier = new[] { 0.6f },
                     burnChance = burns,
@@ -93,6 +94,8 @@ namespace WoLTrailblazer
 
         private void BindSettings()
         {
+            duration = Float("Trail", "Duration", 6f, 1f, 30f, "Seconds your feet stay ablaze after casting it.");
+            enhancedDuration = Float("Trail", "EnhancedDuration", 9f, 1f, 30f, "Duration when enhanced.");
             minSpeed = Float("Trail", "MinSpeed", 1.5f, 0.1f, 10f, "How fast the wizard must be moving (units a second) to leave fire.");
             flameInterval = Float("Trail", "FlameInterval", 0.04f, 0.01f, 0.5f, "Seconds between puffs of flame on the trail.");
             flameAmount = Float("Trail", "FlameAmount", 2f, 0.5f, 10f, "Flames in each puff at normal speed (more when faster).");
@@ -108,62 +111,11 @@ namespace WoLTrailblazer
                     new AcceptableValueRange<int>(0, 100)));
             knockback = Float("Balance", "Knockback", 8f, 0f, 100f, "Knockback at normal speed (+30% for each level above)." + restart);
             burnChance = Float("Balance", "BurnChance", 0.5f, 0f, 1f, "Chance to burn at normal speed, 0 to 1 (+0.125 for each level above)." + restart);
-            dashCooldown = Float("Balance", "DashCooldown", 0.6f, 0.1f, 5f, "Cooldown of the dash in seconds." + restart);
+            cooldown = Float("Balance", "Cooldown", 12f, 1f, 60f, "Cooldown in seconds (counting from the cast)." + restart);
         }
 
         private ConfigEntry<float> Float(string section, string key, float value, float min, float max, string description) =>
             Config.Bind(section, key, value, new ConfigDescription(description, new AcceptableValueRange<float>(min, max)));
-
-        // Twice a second: give the trail to each wizard with Trailblazer equipped, take it away
-        // from those without.
-        private void Update()
-        {
-            if (Time.unscaledTime < nextScan)
-                return;
-            nextScan = Time.unscaledTime + 0.5f;
-            Player[] players;
-            try
-            {
-                players = FindObjectsOfType<Player>();
-            }
-            catch
-            {
-                return;
-            }
-            foreach (Player player in players)
-            {
-                Player.SkillState equipped = Equipped(player);
-                FlameTrail trail = player.GetComponent<FlameTrail>();
-                if (equipped == null)
-                {
-                    if (trail != null && trail.enabled)
-                        trail.enabled = false;
-                    continue;
-                }
-                if (trail == null)
-                {
-                    trail = player.gameObject.AddComponent<FlameTrail>();
-                    Log("Trailblazer: the trail is on");
-                }
-                trail.player = player;
-                trail.skill = equipped;
-                if (!trail.enabled)
-                    trail.enabled = true;
-            }
-        }
-
-        private static Player.SkillState Equipped(Player player)
-        {
-            Player.SkillState[] skills = player != null ? player.assignedSkills : null;
-            if (skills == null)
-                return null;
-            foreach (Player.SkillState skill in skills)
-            {
-                if (skill != null && skill.skillID == TrailblazerState.staticID)
-                    return skill;
-            }
-            return null;
-        }
 
         private Sprite LoadIcon(string fileName)
         {

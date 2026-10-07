@@ -2,18 +2,20 @@ using UnityEngine;
 
 namespace WoLTrailblazer
 {
-    // The fire that follows a wizard who has Trailblazer equipped. Whenever they're moving
-    // (running, dashing, or carried by any movement arcana) it leaves flames on the ground behind
-    // them and scorches enemies they run into: a small fire burst at their feet that burns and
-    // knocks back a little.
+    // The fire on a wizard's feet for a few seconds after casting Trailblazer. Whenever they're
+    // moving (running, dashing, or carried by any movement arcana) it leaves flames on the ground
+    // behind them and scorches enemies they run into: a small fire burst at their feet that burns
+    // and knocks back a little. Standing still, their feet just smoulder.
     //
     // Everything grows with the wizard's run speed after relics and the like (their move speed
     // stat against its base): the flames, the hit area, and the hit's level (damage, knockback
     // and burn chance, levels 1-5). Enhanced counts as one level more and a bigger trail.
     public class FlameTrail : MonoBehaviour
     {
-        public Player player;
-        public Player.SkillState skill;
+        private Player player;
+        private Player.SkillState skill;
+        private float litUntil;
+        private float nextEmber;
 
         private Vector2 last;
         private bool hasLast;
@@ -21,6 +23,20 @@ namespace WoLTrailblazer
         private float nextHit;
         private float moving; // seconds the wizard has been moving
         private static bool loggedSpeed;
+
+        // Sets (or re-sets) the wizard's feet alight for this long.
+        public static void Light(Player player, Player.SkillState skill, float duration)
+        {
+            if (player == null)
+                return;
+            FlameTrail trail = player.GetComponent<FlameTrail>();
+            if (trail == null)
+                trail = player.gameObject.AddComponent<FlameTrail>();
+            trail.player = player;
+            trail.skill = skill;
+            trail.litUntil = Time.time + duration;
+            trail.enabled = true;
+        }
 
         private void OnEnable()
         {
@@ -37,6 +53,13 @@ namespace WoLTrailblazer
             }
             float dt = Time.deltaTime;
             Vector2 position = player.transform.position;
+            if (Time.time >= litUntil)
+            {
+                // Burnt out: a last puff of smoke and flame.
+                Flames(position, 2f);
+                enabled = false;
+                return;
+            }
             if (!hasLast || dt <= 0f)
             {
                 last = position;
@@ -49,6 +72,12 @@ namespace WoLTrailblazer
             if (step > TrailblazerPlugin.TeleportDistance || step / dt < TrailblazerPlugin.MinSpeed)
             {
                 moving = 0f;
+                nextEmber -= dt;
+                if (nextEmber <= 0f)
+                {
+                    nextEmber = 0.25f;
+                    Flames(position, 0.5f);
+                }
                 return;
             }
             moving += dt;

@@ -1,17 +1,82 @@
+using Chaos.AnimatorExtensions;
+using UnityEngine;
+
 namespace WoLTrailblazer
 {
-    // Trailblazer (Fire dash arcana): the dash itself is the game's own plain dash. What the arcana
-    // does is FlameTrail, which follows the wizard while Trailblazer is equipped: running, dashing
-    // and every movement arcana leave a trail of fire that scorches whoever the wizard runs into.
-    public class TrailblazerState : Player.BaseDashState
+    // Trailblazer (Fire, standard arcana), an active effect: a quick stamp sets the wizard's feet
+    // ablaze with a small fire burst, and for the next few seconds (FlameTrail) running, dashing
+    // and every movement arcana leave a trail of fire that scorches whoever they run into.
+    public class TrailblazerState : Player.SkillState
     {
         public new static string staticID = "Trailblazer";
 
-        public TrailblazerState(FSM fsm, Player parentPlayer) : base(staticID, fsm, parentPlayer)
+        private const float CastTime = 0.2f;   // the stamp; dash to cancel it (the fire stays lit)
+
+        private float time;
+        private bool lit;
+        private bool done;
+
+        public TrailblazerState(FSM newFSM, Player newEnt) : base(staticID, newFSM, newEnt)
         {
             applyStopElementStatus = true;
-            // Nothing else here: the game builds every dash state while the wizard spawns, and
-            // anything that throws in a constructor stops the wizard spawning at all.
+            SetAnimTimes(
+                0.05f, // start
+                0.1f,  // hold
+                0.05f, // execute
+                0.4f,  // cancel
+                0.5f,  // run
+                0.6f); // exit
+        }
+
+        public override void OnEnter()
+        {
+            base.OnEnter();
+            time = 0f;
+            lit = false;
+            done = false;
+        }
+
+        public override void ExecuteSkill()
+        {
+            if (done)
+            {
+                base.ExecuteSkill();
+                return;
+            }
+            if (!lit)
+            {
+                lit = true;
+                Ignite();
+            }
+            if (CancelToDash(false))
+                return;
+
+            time += Time.deltaTime;
+            if (parent.rigidbody2D != null)
+                parent.rigidbody2D.velocity = Vector2.zero;
+            parent.anim?.PlayDirectional(parent.GSlamAnimStr, -1, 0.5f);
+            if (time >= CastTime)
+            {
+                done = true;
+                base.ExecuteSkill();
+            }
+        }
+
+        private void Ignite()
+        {
+            Vector2 position = parent.transform.position;
+            float duration = IsEmpowered ? TrailblazerPlugin.EnhancedDuration : TrailblazerPlugin.Duration;
+            FlameTrail.Light(parent, this, duration);
+            try
+            {
+                FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1, 1.4f, true);
+                PoolManager.GetPoolItem<FireBurst>()?.EmitSingle(new int?(14), new Vector3?(position));
+                CameraController.ShakeCamera(0.4f, false);
+            }
+            catch
+            {
+            }
+            SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(position), null, 24f, -1f, 0.8f, false);
         }
     }
 }
