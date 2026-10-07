@@ -16,7 +16,7 @@ namespace WoLCustomPaintings
     {
         public const string PluginGuid = "mdbailey94.wol.custompaintings";
         public const string PluginName = "Custom Paintings";
-        public const string PluginVersion = "0.4.2";
+        public const string PluginVersion = "0.4.3";
 
         private static ManualLogSource log;
         private static ConfigEntry<bool> modEnabled;
@@ -52,8 +52,8 @@ namespace WoLCustomPaintings
                     "The default 0.5 makes them a rare find.",
                     new AcceptableValueRange<float>(0f, 100f)));
             detail = Config.Bind("General", "Detail", 2,
-                new ConfigDescription("How finely your picture is drawn inside the frame: 1 = the game's own pixel size " +
-                    "(blockier, matches the game), 2-4 = more detail in the same space.",
+                new ConfigDescription("For Fit and Stretch only (Fill uses your picture's own pixels): how finely your picture is " +
+                    "redrawn inside the frame: 1 = the game's own pixel size (blockier, matches the game), 2-4 = more detail.",
                     new AcceptableValueRange<int>(1, 4)));
             // A new key ("PictureFit" defaulted to Fit) so the new default replaces an already saved Fit.
             pictureFit = Config.Bind("General", "Fitting", "Fill",

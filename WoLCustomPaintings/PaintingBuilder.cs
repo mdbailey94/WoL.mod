@@ -51,6 +51,19 @@ namespace WoLCustomPaintings
             int h = Mathf.RoundToInt(area.height * ppu);
             if (w < 6 || h < 6)
                 return null;
+            // Fill: the picture's own pixels, untouched. Its size is read, it's cropped to the
+            // opening's shape, and the sprite is scaled (pixels per unit) to fit the opening, so
+            // nothing is resampled.
+            if (CustomPaintingsPlugin.PictureFit == "Fill")
+            {
+                Sprite own = OwnPixels(picture, area, original.name, from);
+                if (own != null)
+                {
+                    cache[key] = own;
+                    return own;
+                }
+            }
+
             int d = Mathf.Clamp(detail, 1, 4);
             int bw = w * d, bh = h * d;
 
@@ -70,6 +83,47 @@ namespace WoLCustomPaintings
             CustomPaintingsPlugin.Log($"Picture over artwork '{original.name}' ({original.rect.width}x{original.rect.height}): " +
                 $"{w}x{h} from {from}, picture {picture.width}x{picture.height} ({CustomPaintingsPlugin.PictureFit}), detail x{d}" +
                 (nudge != 0 ? $", nudged up {nudge}" : ""));
+            return sprite;
+        }
+
+        // The picture cropped to the area's shape (centred across, keeping the top, where faces
+        // usually are), at its own pixels, the sprite sized to the area.
+        private static Sprite OwnPixels(Texture2D picture, Rect area, string artName, string from)
+        {
+            int pw = picture.width, ph = picture.height;
+            float areaAspect = area.width / area.height;
+            int cw = pw, ch = ph;
+            if (pw / (float)ph > areaAspect)
+                cw = Mathf.Clamp(Mathf.RoundToInt(ph * areaAspect), 1, pw);
+            else
+                ch = Mathf.Clamp(Mathf.RoundToInt(pw / areaAspect), 1, ph);
+            int cx = (pw - cw) / 2;
+            int fromTop = Mathf.RoundToInt((ph - ch) * 0.15f);
+            int cy = ph - fromTop - ch; // texture rows start at the bottom
+            if (cw < 2 || ch < 2)
+                return null;
+
+            var texture = new Texture2D(cw, ch, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp
+            };
+            Color32[] src = picture.GetPixels32();
+            var pixels = new Color32[cw * ch];
+            for (int y = 0; y < ch; y++)
+                for (int x = 0; x < cw; x++)
+                {
+                    Color32 c = src[(y + cy) * pw + (x + cx)];
+                    pixels[y * cw + x] = new Color32(c.r, c.g, c.b, 255);
+                }
+            texture.SetPixels32(pixels);
+            texture.Apply();
+            // Pixels per unit so the crop spans the area exactly (its shape matches, to a pixel).
+            float ppu = cw / area.width;
+            Vector2 pivot = new Vector2(-area.xMin / area.width, -area.yMin / area.height);
+            Sprite sprite = Sprite.Create(texture, new Rect(0, 0, cw, ch), pivot, ppu);
+            CustomPaintingsPlugin.Log($"Picture over artwork '{artName}': picture {pw}x{ph} at its own pixels, " +
+                $"cropped to {cw}x{ch} for the opening from {from}");
             return sprite;
         }
 
