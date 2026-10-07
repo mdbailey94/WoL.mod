@@ -10,7 +10,7 @@ BepInEx 5 mods for Wizard of Legend.
 | [WoLExtendedStats](WoLExtendedStats/) | Working | Hidden arcana and wizard stats in the character menu info box, plus a post-run report: crits, biggest crit, pit knock-offs, top speed and more. Co-op aware. |
 | [WoLAscension](WoLAscension/) | Working (0.4.0 untested) | Ascension levels 1–10: stacking difficulty modifiers, set at an altar beside the trials portal, with +4% chaos gems per level. |
 | [WoLCloakUpgrades](WoLCloakUpgrades/) | Untested | Permanent cloak upgrades bought with chaos gems in the wardrobe screen: four tiers, up to doubled bonuses (strong stats capped at +50%). |
-| [WoLUnlockModContent](WoLUnlockModContent/) | Untested | Mods-menu toggle that unlocks all mod-added arcana and relics for easy testing (reversible). Needs LegendAPI. |
+| [WoLUnlockModContent](WoLUnlockModContent/) | Fixed (0.2.0 untested) | Mods-menu toggle that unlocks all mod-added arcana and relics for easy testing (reversible). Needs LegendAPI. |
 | [WoLCustomPaintings](WoLCustomPaintings/) | Untested | Puts your own pictures on some of the breakable paintings in the Chaos Trials, framed and pixelated to fit. |
 | [WoLModMenu](WoLModMenu/) | Working | A MODS panel on the title screen to switch the mods above on and off instantly (Select / M). |
 
