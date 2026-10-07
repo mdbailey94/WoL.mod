@@ -4,8 +4,8 @@ using System.IO;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
-using HarmonyLib;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace WoLCustomPaintings
 {
@@ -16,13 +16,18 @@ namespace WoLCustomPaintings
     {
         public const string PluginGuid = "mdbailey94.wol.custompaintings";
         public const string PluginName = "Custom Paintings";
-        public const string PluginVersion = "0.1.1";
+        public const string PluginVersion = "0.2.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<bool> modEnabled;
         private static ConfigEntry<float> chance;
         private static ConfigEntry<int> frameInset;
         private static readonly List<Texture2D> pictures = new List<Texture2D>();
+        // Paintings already given (or not given) a picture in this scene, by instance id.
+        private readonly HashSet<int> rolled = new HashSet<int>();
+        private int sceneSeen, sceneFramed;
+        private string sceneName;
+        private float nextScan;
 
         public static int FrameInset => frameInset != null ? frameInset.Value : 0;
 
@@ -44,15 +49,66 @@ namespace WoLCustomPaintings
                     new AcceptableValueRange<int>(0, 32)));
 
             LoadPictures();
+            SceneManager.activeSceneChanged += (from, to) => NewScene();
+            Logger.LogInfo($"{PluginName} {PluginVersion} loaded with {pictures.Count} picture(s), " +
+                $"{chance.Value}% of paintings");
+        }
+
+        // A new floor: re-read the config (so a changed ChancePercent counts without restarting)
+        // and start counting again.
+        private void NewScene()
+        {
+            ReportScene();
+            rolled.Clear();
+            sceneName = SceneManager.GetActiveScene().name;
+            sceneSeen = 0;
+            sceneFramed = 0;
             try
             {
-                new Harmony(PluginGuid).CreateClassProcessor(typeof(PaintingPatch)).Patch();
+                Config.Reload();
             }
             catch (Exception e)
             {
-                Logger.LogError($"Painting hook failed to install: {e.Message}");
+                Logger.LogWarning($"Couldn't re-read the config: {e.Message}");
             }
-            Logger.LogInfo($"{PluginName} {PluginVersion} loaded with {pictures.Count} picture(s)");
+        }
+
+        private void ReportScene()
+        {
+            if (sceneSeen > 0)
+                Logger.LogInfo($"{sceneName}: {sceneFramed} of {sceneSeen} painting(s) showed your pictures");
+        }
+
+        // Every half second, any painting not yet seen rolls the chance once.
+        private void Update()
+        {
+            if (Time.unscaledTime < nextScan)
+                return;
+            nextScan = Time.unscaledTime + 0.5f;
+            if (!modEnabled.Value || pictures.Count == 0)
+                return;
+            Painting[] paintings;
+            try
+            {
+                paintings = FindObjectsOfType<Painting>();
+            }
+            catch (Exception e)
+            {
+                Logger.LogError($"Couldn't look for paintings: {e.Message}");
+                nextScan = float.MaxValue;
+                return;
+            }
+            foreach (Painting painting in paintings)
+            {
+                if (painting == null || !rolled.Add(painting.GetInstanceID()))
+                    continue;
+                sceneSeen++;
+                if (painting.destroyed || UnityEngine.Random.value * 100f >= chance.Value)
+                    continue;
+                if (painting.GetComponent<PaintingSwap>() == null)
+                    painting.gameObject.AddComponent<PaintingSwap>().picture = pictures[UnityEngine.Random.Range(0, pictures.Count)];
+                sceneFramed++;
+            }
         }
 
         private void LoadPictures()
@@ -62,8 +118,11 @@ namespace WoLCustomPaintings
             {
                 if (!Directory.Exists(folder))
                     Directory.CreateDirectory(folder);
-                foreach (string file in Directory.GetFiles(folder, "*.png"))
+                foreach (string file in Directory.GetFiles(folder))
                 {
+                    string extension = Path.GetExtension(file).ToLowerInvariant();
+                    if (extension != ".png" && extension != ".jpg" && extension != ".jpeg")
+                        continue;
                     var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
                     if (texture.LoadImage(File.ReadAllBytes(file)))
                     {
@@ -77,26 +136,7 @@ namespace WoLCustomPaintings
                 Logger.LogError($"Couldn't read pictures from {folder}: {e.Message}");
             }
             if (pictures.Count == 0)
-                Logger.LogInfo($"No pictures yet - put PNG files in {folder}");
-        }
-
-        [HarmonyPatch(typeof(Painting), nameof(Painting.Start))]
-        private static class PaintingPatch
-        {
-            private static void Postfix(Painting __instance)
-            {
-                try
-                {
-                    if (!modEnabled.Value || pictures.Count == 0 || UnityEngine.Random.value * 100f >= chance.Value)
-                        return;
-                    Texture2D picture = pictures[UnityEngine.Random.Range(0, pictures.Count)];
-                    __instance.gameObject.AddComponent<PaintingSwap>().picture = picture;
-                }
-                catch (Exception e)
-                {
-                    log?.LogError(e);
-                }
-            }
+                Logger.LogWarning($"No pictures yet - put PNG or JPG files in {folder}");
         }
     }
 }

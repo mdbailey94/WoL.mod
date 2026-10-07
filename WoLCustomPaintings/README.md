@@ -12,7 +12,7 @@ your Wizard of Legend folder. Needs BepInEx only.
 
 ## Adding pictures
 
-Put PNG files in `BepInEx\plugins\WoLCustomPaintings\Paintings\` (the folder is created the
+Put PNG or JPG files in `BepInEx\plugins\WoLCustomPaintings\Paintings\` (the folder is created the
 first time the game runs with the mod). Each painting that gets swapped picks one at random.
 
 For the best look, use a **pixel-art picture about 64 pixels wide with up to 64 colours**: the mod
@@ -26,10 +26,13 @@ cropped to the frame's shape, since that's usually where faces are.
 
 - `Enabled`: on or off.
 - `ChancePercent`: percent of paintings that show one of your pictures. Default `0.5`, so
-  they're a rare find; raise it (up to `100`) to see them more often.
+  they're a rare find; raise it (up to `100`) to see them more often. A change counts from the
+  next floor you enter, no restart needed.
 - `FrameInset`: how many pixels of the game's frame to keep around your picture. `0` (default)
   picks about 16% of the painting's size; raise it if your picture covers the frame, lower it if
   the old canvas peeks out.
 
-`BepInEx\LogOutput.log` lists each picture loaded and each painting framed (with its size), which
-helps when tuning `FrameInset`.
+`BepInEx\LogOutput.log` lists each picture loaded, the chance in use, each painting framed (with
+its size, which helps when tuning `FrameInset`) and, on leaving each floor, how many of its
+paintings showed your pictures. If it says `No pictures yet`, it also shows the folder it looked
+in.
