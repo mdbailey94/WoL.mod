@@ -16,28 +16,46 @@ namespace WoLCustomPaintings
         private static readonly Color32 FrameShade = new Color32(122, 84, 24, 255);
 
         // The game's breakable paintings are layered: a frame sprite, and the artwork as its own
-        // sprite on top. This replaces the artwork: the picture fills it, at `detail` times the
-        // game's pixel count in the same space (1 = the game's own pixel size, sharper above),
-        // nudged up by NudgeUp of the game's pixels if asked.
-        public static Sprite BuildArt(Sprite original, Texture2D picture, int detail)
+        // sprite on top. This makes the sprite that replaces the artwork: the picture fills the
+        // frame's opening (the frame's visible outline, shrunk by FrameBorder), whatever the
+        // artwork's own size, at `detail` times the game's pixel count (1 = the game's own pixel
+        // size, sharper above), nudged up by NudgeUp of the game's pixels if asked. Without a
+        // frame, the artwork's own visible area is filled.
+        public static Sprite BuildArt(SpriteRenderer art, SpriteRenderer frame, Texture2D picture, int detail)
         {
-            string key = original.GetInstanceID() + "/" + picture.GetInstanceID() + "/art" + detail + "/" + CustomPaintingsPlugin.NudgeUp;
+            Sprite original = art.sprite;
+            int border = CustomPaintingsPlugin.FrameBorder;
+            int nudge = CustomPaintingsPlugin.NudgeUp;
+            string key = original.GetInstanceID() + "/" + (frame != null && frame.sprite != null ? frame.sprite.GetInstanceID() : 0) +
+                "/" + picture.GetInstanceID() + "/art" + detail + "/" + nudge + "/" + border;
             Sprite cached;
             if (cache.TryGetValue(key, out cached) && cached != null)
                 return cached;
 
-            int w = Mathf.RoundToInt(original.rect.width);
-            int h = Mathf.RoundToInt(original.rect.height);
-            if (w < 8 || h < 8)
+            float ppu = original.pixelsPerUnit;
+            Rect area; // in the artwork's local space, in units
+            string from;
+            if (frame != null && frame.sprite != null && OutlineIn(frame, art.transform, out area))
+            {
+                float inset = border / ppu;
+                area = Rect.MinMaxRect(area.xMin + inset, area.yMin + inset, area.xMax - inset, area.yMax - inset);
+                from = $"frame '{frame.sprite.name}' less {border}px";
+            }
+            else if (OutlineIn(art, art.transform, out area))
+                from = "the artwork's outline";
+            else
+                return null;
+            area.y += nudge / ppu;
+
+            int w = Mathf.RoundToInt(area.width * ppu);
+            int h = Mathf.RoundToInt(area.height * ppu);
+            if (w < 6 || h < 6)
                 return null;
             int d = Mathf.Clamp(detail, 1, 4);
             int bw = w * d, bh = h * d;
 
-            // The whole artwork rectangle is filled (the game's artworks are plain rectangles; cutting
-            // to a copied shape could shift the picture if the copy came out offset).
             var pixels = new Color32[bw * bh];
             PaintCanvas(pixels, bw, bh, 0, picture);
-
             var texture = new Texture2D(bw, bh, TextureFormat.RGBA32, false)
             {
                 filterMode = FilterMode.Point,
@@ -45,13 +63,42 @@ namespace WoLCustomPaintings
             };
             texture.SetPixels32(pixels);
             texture.Apply();
-            int nudge = CustomPaintingsPlugin.NudgeUp;
-            Vector2 pivot = new Vector2(original.pivot.x / original.rect.width, (original.pivot.y - nudge) / original.rect.height);
-            Sprite sprite = Sprite.Create(texture, new Rect(0, 0, bw, bh), pivot, original.pixelsPerUnit * d);
+            // The renderer's own position is the sprite's pivot: place the area round it.
+            Vector2 pivot = new Vector2(-area.xMin / area.width, -area.yMin / area.height);
+            Sprite sprite = Sprite.Create(texture, new Rect(0, 0, bw, bh), pivot, ppu * d);
             cache[key] = sprite;
-            CustomPaintingsPlugin.Log($"Painted a picture over artwork '{original.name}' ({w}x{h}, pivot {original.pivot.x:0.#},{original.pivot.y:0.#}, " +
-                $"detail x{d}, nudged up {nudge})");
+            CustomPaintingsPlugin.Log($"Picture over artwork '{original.name}' ({original.rect.width}x{original.rect.height}): " +
+                $"{w}x{h} from {from}, detail x{d}" + (nudge != 0 ? $", nudged up {nudge}" : ""));
             return sprite;
+        }
+
+        // The bounds of a sprite's visible part (its mesh outline), in another transform's local
+        // space, in units.
+        private static bool OutlineIn(SpriteRenderer renderer, Transform space, out Rect area)
+        {
+            area = new Rect();
+            try
+            {
+                Vector2[] vertices = renderer.sprite.vertices;
+                if (vertices == null || vertices.Length == 0)
+                    return false;
+                float minX = float.MaxValue, minY = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue;
+                foreach (Vector2 v in vertices)
+                {
+                    Vector3 world = renderer.transform.TransformPoint(new Vector3(renderer.flipX ? -v.x : v.x, renderer.flipY ? -v.y : v.y, 0f));
+                    Vector3 local = space.InverseTransformPoint(world);
+                    minX = Mathf.Min(minX, local.x);
+                    minY = Mathf.Min(minY, local.y);
+                    maxX = Mathf.Max(maxX, local.x);
+                    maxY = Mathf.Max(maxY, local.y);
+                }
+                area = Rect.MinMaxRect(minX, minY, maxX, maxY);
+                return area.width > 0f && area.height > 0f;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public static Sprite Build(Sprite original, Texture2D picture)

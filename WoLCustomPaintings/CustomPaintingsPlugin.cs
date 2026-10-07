@@ -16,7 +16,7 @@ namespace WoLCustomPaintings
     {
         public const string PluginGuid = "mdbailey94.wol.custompaintings";
         public const string PluginName = "Custom Paintings";
-        public const string PluginVersion = "0.3.1";
+        public const string PluginVersion = "0.4.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<bool> modEnabled;
@@ -24,6 +24,7 @@ namespace WoLCustomPaintings
         private static ConfigEntry<int> frameInset;
         private static ConfigEntry<int> detail;
         private static ConfigEntry<int> nudgeUp;
+        private static ConfigEntry<int> frameBorder;
         private static readonly List<Texture2D> pictures = new List<Texture2D>();
         // Paintings already given (or not given) a picture in this scene, by instance id.
         private readonly HashSet<int> rolled = new HashSet<int>();
@@ -31,6 +32,7 @@ namespace WoLCustomPaintings
         private string sceneName;
         private float nextScan;
 
+        public static int FrameBorder => Mathf.Clamp(frameBorder?.Value ?? 2, 0, 16);
         public static int NudgeUp => Mathf.Clamp(nudgeUp?.Value ?? 0, -48, 48);
         public static int Detail => Mathf.Clamp(detail?.Value ?? 2, 1, 4);
         public static int FrameInset => frameInset != null ? frameInset.Value : 0;
@@ -51,6 +53,10 @@ namespace WoLCustomPaintings
                 new ConfigDescription("How finely your picture is drawn inside the frame: 1 = the game's own pixel size " +
                     "(blockier, matches the game), 2-4 = more detail in the same space.",
                     new AcceptableValueRange<int>(1, 4)));
+            frameBorder = Config.Bind("General", "FrameBorder", 2,
+                new ConfigDescription("How many of the game's pixels of the frame show round your picture. " +
+                    "Raise it if your picture covers the frame, lower it if the old painting peeks out.",
+                    new AcceptableValueRange<int>(0, 16)));
             nudgeUp = Config.Bind("General", "NudgeUp", 0,
                 new ConfigDescription("Move your picture up inside the frame by this many of the game's pixels " +
                     "(negative moves it down). The artwork is about 42 pixels tall.",

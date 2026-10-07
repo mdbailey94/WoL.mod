@@ -86,7 +86,7 @@ namespace WoLCustomPaintings
             if (current != lastOriginal)
             {
                 Sprite built = isArt
-                    ? PaintingBuilder.BuildArt(current, picture, CustomPaintingsPlugin.Detail)
+                    ? PaintingBuilder.BuildArt(target, Frame(), picture, CustomPaintingsPlugin.Detail)
                     : PaintingBuilder.Build(current, picture);
                 if (built == null)
                 {
@@ -122,6 +122,18 @@ namespace WoLCustomPaintings
         private int Renderers() => GetComponentsInChildren<SpriteRenderer>(true).Length;
 
         private const string ArtLayer = "DestructibleSprite";
+
+        // The painting's frame layer, if it has one.
+        private SpriteRenderer Frame()
+        {
+            foreach (SpriteRenderer renderer in GetComponentsInChildren<SpriteRenderer>(true))
+            {
+                if (renderer != target && renderer.sprite != null
+                    && renderer.name.IndexOf("Frame", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    return renderer;
+            }
+            return null;
+        }
 
         // The painting's artwork layer if it has one; otherwise its biggest sprite that's showing
         // and isn't a shadow (hidden ones only if nothing else has a sprite yet).
