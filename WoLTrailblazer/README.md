@@ -18,14 +18,16 @@ A new **Fire standard arcana**, added with [LegendAPI](https://github.com/yekoc/
   hurts enemies who walk into it. It burns with **Searing Rush's fire** (the game's own fire
   columns), small at normal speed and growing to full size as the hits get stronger. The same enemy is hit at most about three times a second, ring
   and trail together.
-- **It grows with your run speed** after relics and other bonuses: every +15% run speed is one
-  level stronger, up to five levels. Each level means a bigger ring and trail, +25% damage, +30%
-  knockback and +12.5% burn chance (sure burns from level 5).
-- **Enhanced**: 9 seconds, one level stronger and bigger fire.
+- **It grows with your speed** (relics and sprinting count) over **ten levels**: running at base
+  speed is level 1, the fire at **half size**; sprinting at base speed is level 2, **full size**;
+  then **every 5% faster** is one more level and **+10% size**, up to level 10 (1.8x). Each level
+  hits harder too: +12% damage, +15% knockback and +6% burn chance per level.
+- **Enhanced**: 9 seconds and one level higher.
 
 The log says `Trailblazer: using Searing Rush's fire` the first time it lights the trail,
 `Trailblazer: lit for 6 s` when cast, `Trailblazer: fire bursts working` on the first
-hit, `Trailblazer: leaving a trail` on the first patch, and `Trailblazer: run speed X of base Y`.
+hit, `Trailblazer: leaving a trail` on the first patch, `Trailblazer: a sprint is +X% speed`, and
+`Trailblazer: speed xA (sprint xB) -> level N` as the level changes.
 
 ## Settings
 
@@ -43,7 +45,8 @@ hit, `Trailblazer: leaving a trail` on the first patch, and `Trailblazer: run sp
 | Trail | `FlameAmount` | 2 | How many flames flicker on each patch |
 | Trail | `SearingRushFire` | true | Burn with Searing Rush's fire columns (off: plain flames) |
 | Trail | `FlameSize` | 1 | Size of all the flames (small at normal speed, growing with damage) |
-| Trail | `SpeedPerLevel` | 0.15 | Extra run speed per stronger level |
+| Trail | `SpeedStep` | 0.05 | Above a base-speed sprint, how much faster for each further level |
+| Trail | `SprintBonus` | 0 | How much faster a sprint is than a run (0 = read it from the game) |
 | Balance | `Damage` | 3 | Damage per hit at normal speed |
 | Balance | `Knockback` | 8 | Knockback at normal speed |
 | Balance | `BurnChance` | 0.5 | Burn chance at normal speed (0 to 1) |
