@@ -13,7 +13,7 @@ namespace WoLTrailblazer
     {
         public const string PluginGuid = "mdbailey94.wol.trailblazer";
         public const string PluginName = "Trailblazer";
-        public const string PluginVersion = "0.2.0";
+        public const string PluginVersion = "0.3.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -23,18 +23,19 @@ namespace WoLTrailblazer
         // ---- Settings (BepInEx\config\mdbailey94.wol.trailblazer.cfg) ----
         // [Trail] applies straight away; [Balance] after restarting the game.
         private static ConfigEntry<float> duration, enhancedDuration;
-        private static ConfigEntry<float> minSpeed, flameInterval, flameAmount, trailLinger, hitInterval, hitSize, speedPerLevel;
+        private static ConfigEntry<float> auraSize, auraInterval, patchSpacing, trailLinger, trailHitSize, trailHitInterval, flameAmount, speedPerLevel;
         private ConfigEntry<int> damage;
         private ConfigEntry<float> knockback, burnChance, cooldown;
 
         public static float Duration => Get(duration, 6f, 1f, 30f);
         public static float EnhancedDuration => Get(enhancedDuration, 9f, 1f, 30f);
-        public static float MinSpeed => Get(minSpeed, 1.5f, 0.1f, 10f);
-        public static float FlameInterval => Get(flameInterval, 0.04f, 0.01f, 0.5f);
+        public static float AuraSize => Get(auraSize, 2f, 0.5f, 6f);
+        public static float AuraInterval => Get(auraInterval, 0.15f, 0.05f, 1f);
+        public static float PatchSpacing => Get(patchSpacing, 0.6f, 0.2f, 4f);
+        public static float TrailLinger => Get(trailLinger, 1.5f, 0.2f, 6f);
+        public static float TrailHitSize => Get(trailHitSize, 1.6f, 0.3f, 5f);
+        public static float TrailHitInterval => Get(trailHitInterval, 0.3f, 0.1f, 2f);
         public static float FlameAmount => Get(flameAmount, 2f, 0.5f, 10f);
-        public static float TrailLinger => Get(trailLinger, 0.5f, 0.1f, 3f);
-        public static float HitInterval => Get(hitInterval, 0.1f, 0.03f, 1f);
-        public static float HitSize => Get(hitSize, 0.8f, 0.2f, 4f);
         public static float SpeedPerLevel => Get(speedPerLevel, 0.15f, 0.02f, 1f);
         public const float TeleportDistance = 3f;
 
@@ -65,7 +66,7 @@ namespace WoLTrailblazer
             {
                 ID = TrailblazerState.staticID,
                 displayName = "Trailblazer",
-                description = "Set your feet ablaze! For a few seconds, running, dashing and movement arcana leave a trail of fire, scorching and shoving aside any enemy you run into. The faster you are, the bigger it burns!",
+                description = "Set yourself ablaze! For a few seconds a ring of fire scorches any enemy you touch, and running, dashing and movement arcana leave a burning trail behind you. The faster you are, the bigger it burns!",
                 enhancedDescription = "Lasts longer and burns bigger and hotter!",
                 icon = LoadIcon("icon.png"),
                 tier = 2,
@@ -96,12 +97,13 @@ namespace WoLTrailblazer
         {
             duration = Float("Trail", "Duration", 6f, 1f, 30f, "Seconds your feet stay ablaze after casting it.");
             enhancedDuration = Float("Trail", "EnhancedDuration", 9f, 1f, 30f, "Duration when enhanced.");
-            minSpeed = Float("Trail", "MinSpeed", 1.5f, 0.1f, 10f, "How fast the wizard must be moving (units a second) to leave fire.");
-            flameInterval = Float("Trail", "FlameInterval", 0.04f, 0.01f, 0.5f, "Seconds between puffs of flame on the trail.");
-            flameAmount = Float("Trail", "FlameAmount", 2f, 0.5f, 10f, "Flames in each puff at normal speed (more when faster).");
-            trailLinger = Float("Trail", "TrailLinger", 0.5f, 0.1f, 3f, "Roughly how long the trail's flames last, in seconds.");
-            hitInterval = Float("Trail", "HitInterval", 0.1f, 0.03f, 1f, "Seconds between scorching hits while moving.");
-            hitSize = Float("Trail", "HitSize", 0.8f, 0.2f, 4f, "Size of the scorching hit at normal speed (bigger when faster).");
+            auraSize = Float("Trail", "AuraSize", 2f, 0.5f, 6f, "Size of the ring of fire round the wizard that hurts enemies who touch it.");
+            auraInterval = Float("Trail", "AuraInterval", 0.15f, 0.05f, 1f, "Seconds between the ring's hits.");
+            patchSpacing = Float("Trail", "PatchSpacing", 0.6f, 0.2f, 4f, "Distance moved between patches of fire on the trail.");
+            trailLinger = Float("Trail", "TrailLinger", 1.5f, 0.2f, 6f, "Seconds each patch of the trail keeps burning.");
+            trailHitSize = Float("Trail", "TrailHitSize", 1.6f, 0.3f, 5f, "Size of each patch's hit.");
+            trailHitInterval = Float("Trail", "TrailHitInterval", 0.3f, 0.1f, 2f, "Seconds between each patch's hits.");
+            flameAmount = Float("Trail", "FlameAmount", 2f, 0.5f, 10f, "Flames flickering on each patch at normal speed (more when faster).");
             speedPerLevel = Float("Trail", "SpeedPerLevel", 0.15f, 0.02f, 1f,
                 "Extra run speed for each stronger hit level (0.15 = every +15% speed, up to level 5).");
 

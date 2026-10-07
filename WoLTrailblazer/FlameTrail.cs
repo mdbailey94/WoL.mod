@@ -1,30 +1,42 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace WoLTrailblazer
 {
-    // The fire on a wizard's feet for a few seconds after casting Trailblazer. Whenever they're
-    // moving (running, dashing, or carried by any movement arcana) it leaves flames on the ground
-    // behind them and scorches enemies they run into: a small fire burst at their feet that burns
-    // and knocks back a little. Standing still, their feet just smoulder.
+    // The fire on a wizard for a few seconds after casting Trailblazer:
+    // - a ring of fire round them that burns and shoves aside any enemy who touches it, all the
+    //   time it's lit (moving or not);
+    // - a trail: as they move (running, dashing, or carried by any movement arcana) they leave
+    //   patches of fire behind them every so often, which burn on the ground for a while and hurt
+    //   enemies who walk into them.
     //
     // Everything grows with the wizard's run speed after relics and the like (their move speed
-    // stat against its base): the flames, the hit area, and the hit's level (damage, knockback
-    // and burn chance, levels 1-5). Enhanced counts as one level more and a bigger trail.
+    // stat against its base): the ring, the patches, and the hits' level (damage, knockback and
+    // burn chance, levels 1-5). Enhanced counts as one level more and a bigger fire.
     public class FlameTrail : MonoBehaviour
     {
+        private const int MaxPatches = 40;
+
+        private class Patch
+        {
+            public Vector2 position;
+            public float until;
+            public float nextHit;
+            public float nextFlame;
+        }
+
         private Player player;
         private Player.SkillState skill;
         private float litUntil;
-        private float nextEmber;
-
         private Vector2 last;
         private bool hasLast;
-        private float nextFlame;
-        private float nextHit;
-        private float moving; // seconds the wizard has been moving
-        private static bool loggedSpeed;
+        private float travelled;
+        private float nextAura;
+        private float nextAuraFlame;
+        private readonly List<Patch> patches = new List<Patch>();
+        private static bool loggedSpeed, loggedHit, loggedPatch;
 
-        // Sets (or re-sets) the wizard's feet alight for this long.
+        // Sets (or re-sets) the wizard alight for this long.
         public static void Light(Player player, Player.SkillState skill, float duration)
         {
             if (player == null)
@@ -35,32 +47,57 @@ namespace WoLTrailblazer
             trail.player = player;
             trail.skill = skill;
             trail.litUntil = Time.time + duration;
+            trail.hasLast = false;
+            trail.travelled = 0f;
+            trail.nextAura = 0f;
             trail.enabled = true;
+            TrailblazerPlugin.Log($"Trailblazer: lit for {duration:0.#} s");
         }
 
-        private void OnEnable()
+        private void Update()
         {
-            hasLast = false;
-            moving = 0f;
-        }
-
-        private void LateUpdate()
-        {
-            if (player == null)
+            float now = Time.time;
+            bool lit = player != null && now < litUntil;
+            UpdatePatches(now);
+            if (!lit)
             {
-                enabled = false;
+                if (player != null && litUntil > 0f)
+                {
+                    // Burnt out: a last puff of flame.
+                    Flames(player.transform.position, 8);
+                    litUntil = 0f;
+                }
+                if (patches.Count == 0)
+                    enabled = false;
                 return;
             }
-            float dt = Time.deltaTime;
+
             Vector2 position = player.transform.position;
-            if (Time.time >= litUntil)
+            float speed = SpeedFactor();
+            bool empowered = skill != null && skill.IsEmpowered;
+            float size = speed * (empowered ? 1.25f : 1f);
+            int level = Level(speed, empowered);
+
+            // The ring round the wizard.
+            if (now >= nextAura)
             {
-                // Burnt out: a last puff of smoke and flame.
-                Flames(position, 2f);
-                enabled = false;
-                return;
+                nextAura = now + TrailblazerPlugin.AuraInterval;
+                Burst(position, level, TrailblazerPlugin.AuraSize * size, false);
             }
-            if (!hasLast || dt <= 0f)
+            if (now >= nextAuraFlame)
+            {
+                nextAuraFlame = now + 0.06f;
+                float radius = 0.45f * TrailblazerPlugin.AuraSize * size;
+                for (int i = 0; i < 2; i++)
+                {
+                    float a = Random.value * Mathf.PI * 2f;
+                    Flames(position + new Vector2(Mathf.Cos(a), Mathf.Sin(a) * 0.7f) * radius, 1);
+                }
+            }
+
+            // The trail: by distance covered, so it doesn't matter how the wizard moves or how the
+            // frames fall.
+            if (!hasLast)
             {
                 last = position;
                 hasLast = true;
@@ -68,44 +105,89 @@ namespace WoLTrailblazer
             }
             float step = Vector2.Distance(position, last);
             last = position;
-            // A jump of several tiles in one frame is a teleport (a new floor, a swap), not a run.
-            if (step > TrailblazerPlugin.TeleportDistance || step / dt < TrailblazerPlugin.MinSpeed)
+            if (step > TrailblazerPlugin.TeleportDistance)
+                return; // a teleport (a new floor, a swap), not a run
+            travelled += step;
+            if (travelled >= TrailblazerPlugin.PatchSpacing)
             {
-                moving = 0f;
-                nextEmber -= dt;
-                if (nextEmber <= 0f)
-                {
-                    nextEmber = 0.25f;
-                    Flames(position, 0.5f);
-                }
-                return;
+                travelled = 0f;
+                DropPatch(position, now, level, size);
             }
-            moving += dt;
+        }
 
-            float speed = SpeedFactor();
+        private void DropPatch(Vector2 position, float now, int level, float size)
+        {
+            if (patches.Count >= MaxPatches)
+                patches.RemoveAt(0);
+            patches.Add(new Patch
+            {
+                position = position,
+                until = now + TrailblazerPlugin.TrailLinger * (0.8f + 0.2f * size),
+                nextHit = now + TrailblazerPlugin.TrailHitInterval,
+                nextFlame = now
+            });
+            // A visible flare as it catches.
+            Burst(position, level, 0.8f + 0.3f * size, true);
+            if (!loggedPatch)
+            {
+                loggedPatch = true;
+                TrailblazerPlugin.Log("Trailblazer: leaving a trail");
+            }
+        }
+
+        // The patches burn on the ground, flickering and hurting whoever walks into them.
+        private void UpdatePatches(float now)
+        {
+            if (patches.Count == 0)
+                return;
+            float speed = player != null ? SpeedFactor() : 1f;
             bool empowered = skill != null && skill.IsEmpowered;
             float size = speed * (empowered ? 1.25f : 1f);
-
-            nextFlame -= dt;
-            if (nextFlame <= 0f)
+            int level = Level(speed, empowered);
+            for (int i = patches.Count - 1; i >= 0; i--)
             {
-                nextFlame = TrailblazerPlugin.FlameInterval;
-                Flames(position, size);
+                Patch patch = patches[i];
+                if (now >= patch.until)
+                {
+                    patches.RemoveAt(i);
+                    continue;
+                }
+                if (now >= patch.nextFlame)
+                {
+                    patch.nextFlame = now + 0.1f;
+                    Flames(patch.position + Random.insideUnitCircle * 0.25f * size,
+                        Mathf.Max(1, Mathf.RoundToInt(TrailblazerPlugin.FlameAmount * size)));
+                }
+                if (now >= patch.nextHit)
+                {
+                    patch.nextHit = now + TrailblazerPlugin.TrailHitInterval;
+                    Burst(patch.position, level, TrailblazerPlugin.TrailHitSize * size, false);
+                }
             }
-            // A moment's movement first, so a twitch of the stick doesn't set anything alight.
-            if (moving < 0.05f || Time.time < nextHit)
-                return;
-            nextHit = Time.time + TrailblazerPlugin.HitInterval;
-            int level = Mathf.Clamp(1 + Mathf.RoundToInt((speed - 1f) / TrailblazerPlugin.SpeedPerLevel) + (empowered ? 1 : 0), 1, 5);
+        }
+
+        private static int Level(float speed, bool empowered) =>
+            Mathf.Clamp(1 + Mathf.RoundToInt((speed - 1f) / TrailblazerPlugin.SpeedPerLevel) + (empowered ? 1 : 0), 1, 5);
+
+        private void Burst(Vector2 position, int level, float scale, bool effects)
+        {
             try
             {
-                FlameBurst.CreateBurst(position, player.skillCategory, TrailblazerState.staticID, level,
-                    TrailblazerPlugin.HitSize * size, false);
+                FlameBurst.CreateBurst(position, player != null ? player.skillCategory : "", TrailblazerState.staticID,
+                    level, scale, effects);
+                if (!loggedHit)
+                {
+                    loggedHit = true;
+                    TrailblazerPlugin.Log($"Trailblazer: fire bursts working (level {level}, size {scale:0.##})");
+                }
             }
             catch (System.Exception e)
             {
-                TrailblazerPlugin.Log($"Trailblazer: couldn't make a fire burst: {e.Message}");
-                nextHit = float.MaxValue;
+                if (!loggedHit)
+                {
+                    loggedHit = true;
+                    TrailblazerPlugin.Log($"Trailblazer: couldn't make a fire burst: {e.Message}");
+                }
             }
         }
 
@@ -131,20 +213,12 @@ namespace WoLTrailblazer
             return Mathf.Clamp(factor, 0.75f, 2.5f);
         }
 
-        // Blazing Blitz's flame particles, more of them and lingering longer the faster you are.
-        private static void Flames(Vector2 position, float size)
+        // Blazing Blitz's flame particles.
+        private static void Flames(Vector2 position, int count)
         {
             try
             {
-                FireBurst fire = PoolManager.GetPoolItem<FireBurst>();
-                if (fire == null)
-                    return;
-                var linger = new ParticleSystemOverride
-                {
-                    startLifetime = new float?(TrailblazerPlugin.TrailLinger * (0.8f + 0.4f * size))
-                };
-                fire.EmitSingle(new int?(Mathf.Max(1, Mathf.RoundToInt(TrailblazerPlugin.FlameAmount * size))),
-                    new Vector3?(position), linger);
+                PoolManager.GetPoolItem<FireBurst>()?.EmitSingle(new int?(count), new Vector3?(position));
             }
             catch
             {

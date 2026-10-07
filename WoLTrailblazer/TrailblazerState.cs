@@ -3,9 +3,10 @@ using UnityEngine;
 
 namespace WoLTrailblazer
 {
-    // Trailblazer (Fire, standard arcana), an active effect: a quick stamp sets the wizard's feet
-    // ablaze with a small fire burst, and for the next few seconds (FlameTrail) running, dashing
-    // and every movement arcana leave a trail of fire that scorches whoever they run into.
+    // Trailblazer (Fire, standard arcana), an active effect: a quick stamp sets the wizard
+    // ablaze with a fire burst, and for the next few seconds (FlameTrail) a ring of fire round them
+    // hurts enemies who touch it, and running, dashing and every movement arcana leave a burning
+    // trail behind them.
     public class TrailblazerState : Player.SkillState
     {
         public new static string staticID = "Trailblazer";
@@ -69,7 +70,7 @@ namespace WoLTrailblazer
             FlameTrail.Light(parent, this, duration);
             try
             {
-                FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1, 1.4f, true);
+                FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1, 2.5f, true);
                 PoolManager.GetPoolItem<FireBurst>()?.EmitSingle(new int?(14), new Vector3?(position));
                 CameraController.ShakeCamera(0.4f, false);
             }

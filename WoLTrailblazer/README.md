@@ -2,25 +2,27 @@
 
 A new **Fire standard arcana**, added with [LegendAPI](https://github.com/yekoc/LegendAPI).
 
-> **Trailblazer**: Set your feet ablaze! For a few seconds, running, dashing and movement arcana
-> leave a trail of fire, scorching and shoving aside any enemy you run into. The faster you are,
-> the bigger it burns!
+> **Trailblazer**: Set yourself ablaze! For a few seconds a ring of fire scorches any enemy you
+> touch, and running, dashing and movement arcana leave a burning trail behind you. The faster you
+> are, the bigger it burns!
 >
 > *Enhanced: Lasts longer and burns bigger and hotter!*
 
-- **Cast it** and your wizard stamps the ground in a small fire burst, setting their feet ablaze
-  for **6 seconds** (cooldown 12). Dash to cut the stamp short; the fire stays lit.
-- While ablaze, whenever your wizard is moving (running, dashing, or carried by any movement
-  arcana) they leave **flames on the ground behind them**, and anyone they run into is hit by a
-  small fire burst: about **3 damage**, a **small knockback** and a **chance to burn** (50%). The
-  same enemy is hit at most about three times a second. Standing still, their feet just
-  smoulder.
+- **Cast it** and your wizard stamps the ground in a fire burst and is ablaze for **6 seconds**
+  (cooldown 12). Dash to cut the stamp short; the fire stays lit.
+- While ablaze, a **ring of fire** round your wizard hits any enemy touching it: about **3
+  damage**, a **small knockback** and a **chance to burn** (50%), moving or not.
+- As they move (running, dashing, or carried by any movement arcana) they leave **patches of
+  fire** behind them every short distance. Each burns on the ground for about 1.5 seconds and
+  hurts enemies who walk into it. The same enemy is hit at most about three times a second, ring
+  and trail together.
 - **It grows with your run speed** after relics and other bonuses: every +15% run speed is one
-  level stronger, up to five levels. Each level means more flames, a wider hit, +25% damage, +30%
+  level stronger, up to five levels. Each level means a bigger ring and trail, +25% damage, +30%
   knockback and +12.5% burn chance (sure burns from level 5).
-- **Enhanced**: 9 seconds, one level stronger and a bigger trail.
+- **Enhanced**: 9 seconds, one level stronger and bigger fire.
 
-The log says `Trailblazer: run speed X of base Y` the first time it reads your speed.
+The log says `Trailblazer: lit for 6 s` when cast, `Trailblazer: fire bursts working` on the first
+hit, `Trailblazer: leaving a trail` on the first patch, and `Trailblazer: run speed X of base Y`.
 
 ## Settings
 
@@ -29,12 +31,13 @@ The log says `Trailblazer: run speed X of base Y` the first time it reads your s
 | Section | Setting | Default | What it does |
 | --- | --- | --- | --- |
 | Trail | `Duration` / `EnhancedDuration` | 6 / 9 | Seconds your feet stay ablaze |
-| Trail | `MinSpeed` | 1.5 | How fast you must be moving (units a second) to leave fire |
-| Trail | `FlameInterval` | 0.04 | Seconds between puffs of flame |
-| Trail | `FlameAmount` | 2 | Flames per puff at normal speed |
-| Trail | `TrailLinger` | 0.5 | Roughly how long the flames last |
-| Trail | `HitInterval` | 0.1 | Seconds between scorching hits while moving |
-| Trail | `HitSize` | 0.8 | Size of the hit at normal speed |
+| Trail | `AuraSize` | 2 | Size of the ring of fire round the wizard |
+| Trail | `AuraInterval` | 0.15 | Seconds between the ring's hits |
+| Trail | `PatchSpacing` | 0.6 | Distance moved between patches of the trail |
+| Trail | `TrailLinger` | 1.5 | Seconds each patch keeps burning |
+| Trail | `TrailHitSize` | 1.6 | Size of each patch's hit |
+| Trail | `TrailHitInterval` | 0.3 | Seconds between each patch's hits |
+| Trail | `FlameAmount` | 2 | Flames flickering on each patch |
 | Trail | `SpeedPerLevel` | 0.15 | Extra run speed per stronger level |
 | Balance | `Damage` | 3 | Damage per hit at normal speed |
 | Balance | `Knockback` | 8 | Knockback at normal speed |
