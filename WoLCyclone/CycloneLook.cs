@@ -4,284 +4,158 @@ using UnityEngine;
 namespace WoLCyclone
 {
     // What Cyclone looks like, all from the game's own wind effects:
-    // - the Twister arcana's little tornado, pinned in place and made harmless, growing with the
-    //   charge (its particles scaled up as well as its size);
+    // - the Twister arcana's little tornado, growing from tiny to big with the charge;
     // - the air boss's storm vortex (dust, debris and light streaks), fading in around it as it
-    //   grows, for the hurricane at full power (its pull and attack switched off);
-    // - the air vortex swirls, which also stand in if the others can't be made.
+    //   grows, for the hurricane at full power;
+    // - the air vortex swirls (drawn by the state), which also stand in if these can't be made.
+    //
+    // Each is made from the game's prefab and stripped down to just its looks: every script,
+    // collider and rigidbody is removed, so nothing of the original (its flight time, its hit count,
+    // its attack, the storm's pull) can hurt anyone or make it vanish early. What's left (sprites,
+    // animations, particles, sound) is kept looping and scaled as one with the object.
     public class CycloneLook
     {
-        private const int HarmlessLevel = 6;
-        private const float TwisterStart = 0.6f;   // twister size, small to big
-        private const float TwisterEnd = 2.2f;
+        private const float TwisterStart = 0.3f;   // twister size, tiny to big
+        private const float TwisterEnd = 2.1f;
         private const float StormFrom = 0.35f;     // progress at which the storm starts showing
-        private const float StormStart = 0.5f;     // storm size as it appears and at full power
+        private const float StormStart = 0.4f;     // storm size as it appears and at full power
         private const float StormEnd = 1.3f;
 
-        private readonly Player player;
-        private readonly string skillCategory;
-        private readonly string skillID;
-        private Twister twister;
-        private AirBossVortex storm;
-        private readonly Dictionary<ParticleSystem, float> baseSizes = new Dictionary<ParticleSystem, float>();
-        private readonly Dictionary<ParticleSystem, float> baseRates = new Dictionary<ParticleSystem, float>();
+        private Look twister;
+        private Look storm;
+        private bool stormTried;
         private static bool loggedTwister, loggedStorm;
 
-        public CycloneLook(Player player, string skillCategory, string skillID, Vector2 position)
+        public CycloneLook(Vector2 position)
         {
-            this.player = player;
-            this.skillCategory = skillCategory;
-            this.skillID = skillID;
-            SpawnTwister(position);
+            twister = Look.Make(() => Twister.Prefab, position, TwisterStart, "twister", ref loggedTwister);
         }
 
         public void Update(Vector2 position, float progress)
         {
-            UpdateTwister(position, progress);
-            if (storm == null && progress >= StormFrom)
-                SpawnStorm(position);
-            UpdateStorm(position, progress);
+            twister?.Set(position, Mathf.Lerp(TwisterStart, TwisterEnd, progress), 0.5f + progress);
+            if (!stormTried && progress >= StormFrom)
+            {
+                stormTried = true;
+                storm = Look.Make(() => AirBossVortex.Prefab, position, StormStart, "storm vortex", ref loggedStorm);
+            }
+            if (storm != null)
+            {
+                float t = Mathf.Clamp01((progress - StormFrom) / (1f - StormFrom));
+                storm.Set(position, Mathf.Lerp(StormStart, StormEnd, t), 0.15f + 0.85f * t);
+            }
         }
 
         public void Remove()
         {
-            if (twister != null)
+            twister?.Remove();
+            storm?.Remove();
+            twister = null;
+            storm = null;
+        }
+
+        // One stripped-down game effect.
+        private class Look
+        {
+            private GameObject root;
+            private readonly List<KeyValuePair<ParticleSystem, float>> rates = new List<KeyValuePair<ParticleSystem, float>>();
+
+            public static Look Make(System.Func<GameObject> prefab, Vector2 position, float size, string name, ref bool logged)
             {
+                GameObject go = null;
                 try
                 {
-                    twister.SetAudioStatus(false);
-                }
-                catch
-                {
-                }
-                Object.Destroy(twister.gameObject);
-                twister = null;
-            }
-            if (storm != null)
-            {
-                Object.Destroy(storm.gameObject);
-                storm = null;
-            }
-        }
-
-        // ---- The twister ----
-
-        private void SpawnTwister(Vector2 position)
-        {
-            try
-            {
-                GameObject go = Object.Instantiate(Twister.Prefab, position, Quaternion.identity);
-                twister = go != null ? go.GetComponent<Twister>() : null;
-                if (twister == null)
-                {
-                    if (go != null)
-                        Object.Destroy(go);
-                    Log(ref loggedTwister, "Cyclone: the game's twister is unavailable");
-                    return;
-                }
-                // Yours, harmless, going nowhere and never running out. Each step on its own, so one
-                // the game objects to doesn't lose the rest.
-                Step("own", () =>
-                {
-                    twister.parentEntity = player;
-                    twister.parentObject = player.gameObject;
-                });
-                Step("disarm", () =>
-                {
-                    if (twister.attackBox != null)
+                    GameObject source = prefab();
+                    if (source == null)
+                        throw new System.Exception("no prefab");
+                    go = Object.Instantiate(source, position, Quaternion.identity);
+                    var look = new Look { root = go };
+                    look.Strip();
+                    look.Loop();
+                    look.Set(position, size, 0.5f);
+                    if (!logged)
                     {
-                        twister.attackBox.enabled = false;
-                        if (twister.attackBox.collider != null)
-                            twister.attackBox.collider.enabled = false;
+                        logged = true;
+                        CyclonePlugin.Log($"Cyclone: using the game's {name}");
                     }
-                    if (twister.atkCollider != null)
-                        twister.atkCollider.enabled = false;
-                });
-                Step("attack info", () => twister.attackBox?.SetAttackInfo(skillCategory, skillID, HarmlessLevel, false));
-                twister.moveSpeed = 0f;
-                twister.baseMoveSpeed = 0f;
-                twister.finalMoveSpeed = 0f;
-                twister.moveVector = Vector2.zero;
-                twister.lifeTime = 9999f;
-                twister.goThroughWalls = true;
-                twister.ignoreReflect = true;
-                twister.ignoreNegate = true;
-                twister.transform.localScale = Vector3.one * TwisterStart;
-                Remember(twister.startPartSys);
-                Remember(twister.frontPartSys);
-                Remember(twister.backPartSys);
-                Step("sound", () => twister.SetAudioStatus(true));
-                Log(ref loggedTwister, "Cyclone: using the game's twister");
-            }
-            catch (System.Exception e)
-            {
-                Log(ref loggedTwister, $"Cyclone: the game's twister is unavailable: {e.Message}");
-                twister = null;
-            }
-        }
-
-        private void UpdateTwister(Vector2 position, float progress)
-        {
-            if (twister == null)
-                return;
-            try
-            {
-                if (!twister.gameObject.activeInHierarchy)
-                {
-                    // Something reset it (e.g. a wall): make a fresh one.
-                    Object.Destroy(twister.gameObject);
-                    twister = null;
-                    SpawnTwister(position);
-                    if (twister == null)
-                        return;
+                    return look;
                 }
-                float size = Mathf.Lerp(TwisterStart, TwisterEnd, progress);
-                twister.transform.position = position;
-                twister.transform.localScale = Vector3.one * size;
-                twister.moveVector = Vector2.zero;
-                twister.moveSpeed = 0f;
-                if (twister.rigidbody2D != null)
-                {
-                    twister.rigidbody2D.position = position;
-                    twister.rigidbody2D.velocity = Vector2.zero;
-                }
-                twister.RefreshFlightTime(false);
-                Scale(twister.startPartSys, size, 1f + progress);
-                Scale(twister.frontPartSys, size, 1f + progress);
-                Scale(twister.backPartSys, size, 1f + progress);
-            }
-            catch
-            {
-            }
-        }
-
-        // ---- The storm ----
-
-        private void SpawnStorm(Vector2 position)
-        {
-            try
-            {
-                GameObject go = Object.Instantiate(AirBossVortex.Prefab, position, Quaternion.identity);
-                storm = go != null ? go.GetComponent<AirBossVortex>() : null;
-                if (storm == null)
+                catch (System.Exception e)
                 {
                     if (go != null)
                         Object.Destroy(go);
-                    Log(ref loggedStorm, "Cyclone: the game's storm vortex is unavailable");
-                    StormFailed();
-                    return;
+                    if (!logged)
+                    {
+                        logged = true;
+                        CyclonePlugin.Log($"Cyclone: the game's {name} is unavailable: {e.Message}");
+                    }
+                    return null;
                 }
-                // Only the look: no pull on anyone (you included), no attack, not following the boss.
-                // (Fields only, nothing that can object.)
-                storm.useGravityEffector = false;
-                if (storm.gravityEffector != null)
-                    storm.gravityEffector.enabled = false;
-                if (storm.gravityCollider != null)
-                    storm.gravityCollider.enabled = false;
-                storm.useAttackBox = false;
-                if (storm.attackObj != null)
-                    storm.attackObj.SetActive(false);
-                if (storm.attack != null)
-                    storm.attack.enabled = false;
-                if (storm.attackCollider != null)
-                    storm.attackCollider.enabled = false;
-                if (storm.followTrans != null)
-                    storm.followTrans.enabled = false;
-                storm.skillCategory = skillCategory;
-                storm.skillID = skillID;
-                storm.skillLevel = HarmlessLevel;
-                storm.useParticleEffects = true;
-                storm.transform.localScale = Vector3.one * StormStart;
-                Remember(storm.dustEmitter);
-                Remember(storm.debrisEmitter);
-                Remember(storm.lightStreakEmitter);
-                Log(ref loggedStorm, "Cyclone: using the game's storm vortex");
             }
-            catch (System.Exception e)
+
+            // Off with everything but the looks.
+            private void Strip()
             {
-                Log(ref loggedStorm, $"Cyclone: the game's storm vortex is unavailable: {e.Message}");
-                if (storm != null)
-                    Object.Destroy(storm.gameObject);
-                StormFailed();
+                foreach (MonoBehaviour script in root.GetComponentsInChildren<MonoBehaviour>(true))
+                    Object.Destroy(script);
+                foreach (Collider2D collider in root.GetComponentsInChildren<Collider2D>(true))
+                    Object.Destroy(collider);
+                foreach (Rigidbody2D body in root.GetComponentsInChildren<Rigidbody2D>(true))
+                    Object.Destroy(body);
             }
-        }
 
-        private bool stormFailed;
-
-        private void StormFailed()
-        {
-            storm = null;
-            stormFailed = true;
-        }
-
-        private void UpdateStorm(Vector2 position, float progress)
-        {
-            if (storm == null || stormFailed)
-                return;
-            try
+            // Particles loop and scale with the object; sound loops.
+            private void Loop()
             {
-                // Fades in from StormFrom to full, growing with it.
-                float t = Mathf.Clamp01((progress - StormFrom) / (1f - StormFrom));
-                float size = Mathf.Lerp(StormStart, StormEnd, t);
-                storm.transform.position = position;
-                storm.transform.localScale = Vector3.one * size;
-                if (storm.gravityEffector != null && storm.gravityEffector.enabled)
-                    storm.gravityEffector.enabled = false;
-                Scale(storm.dustEmitter, size, 0.2f + 0.8f * t);
-                Scale(storm.debrisEmitter, size, 0.2f + 0.8f * t);
-                Scale(storm.lightStreakEmitter, size, 0.1f + 0.9f * t);
+                foreach (ParticleSystem system in root.GetComponentsInChildren<ParticleSystem>(true))
+                {
+                    ParticleSystem.MainModule main = system.main;
+                    main.loop = true;
+                    main.scalingMode = ParticleSystemScalingMode.Hierarchy;
+                    // Some of the game's emitters are switched on by the scripts we removed: give
+                    // those a steady stream of their own.
+                    float rate = system.emission.rateOverTimeMultiplier;
+                    if (rate < 0.01f)
+                        rate = 20f;
+                    ParticleSystem.EmissionModule emission = system.emission;
+                    emission.enabled = true;
+                    rates.Add(new KeyValuePair<ParticleSystem, float>(system, rate));
+                    if (!system.isPlaying)
+                        system.Play();
+                }
+                foreach (AudioSource audio in root.GetComponentsInChildren<AudioSource>(true))
+                {
+                    audio.loop = true;
+                    if (!audio.isPlaying)
+                        audio.Play();
+                }
+                foreach (Animator anim in root.GetComponentsInChildren<Animator>(true))
+                    anim.enabled = true;
             }
-            catch
+
+            public void Set(Vector2 position, float size, float density)
             {
+                if (root == null)
+                    return;
+                if (!root.activeSelf)
+                    root.SetActive(true);
+                root.transform.position = position;
+                root.transform.localScale = new Vector3(size, size, 1f);
+                foreach (KeyValuePair<ParticleSystem, float> entry in rates)
+                {
+                    if (entry.Key == null)
+                        continue;
+                    ParticleSystem.EmissionModule emission = entry.Key.emission;
+                    emission.rateOverTime = new ParticleSystem.MinMaxCurve(entry.Value * density);
+                }
             }
-        }
 
-        // ---- Particles ----
-
-        private void Remember(ParticleSystem system)
-        {
-            if (system == null || baseSizes.ContainsKey(system))
-                return;
-            ParticleSystem.MainModule main = system.main;
-            baseSizes[system] = main.startSizeMultiplier;
-            baseRates[system] = system.emission.rateOverTimeMultiplier;
-        }
-
-        // Bigger particles with the size (scaling the object alone may not reach them), and
-        // a denser emission as it builds.
-        private void Scale(ParticleSystem system, float size, float density)
-        {
-            float baseSize, baseRate;
-            if (system == null || !baseSizes.TryGetValue(system, out baseSize) || !baseRates.TryGetValue(system, out baseRate))
-                return;
-            ParticleSystem.MainModule main = system.main;
-            // Particles that already scale with the object don't need it twice.
-            main.startSizeMultiplier = main.scalingMode == ParticleSystemScalingMode.Hierarchy ? baseSize : baseSize * size;
-            ParticleSystem.EmissionModule emission = system.emission;
-            emission.rateOverTimeMultiplier = baseRate * density;
-        }
-
-        private static readonly HashSet<string> failedSteps = new HashSet<string>();
-
-        private static void Step(string name, System.Action action)
-        {
-            try
+            public void Remove()
             {
-                action();
+                if (root != null)
+                    Object.Destroy(root);
+                root = null;
             }
-            catch (System.Exception e)
-            {
-                if (failedSteps.Add(name))
-                    CyclonePlugin.Log($"Cyclone: twister step '{name}' failed: {e.Message}");
-            }
-        }
-
-        private static void Log(ref bool logged, string message)
-        {
-            if (logged)
-                return;
-            logged = true;
-            CyclonePlugin.Log(message);
         }
     }
 }

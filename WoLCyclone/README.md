@@ -7,7 +7,7 @@ A new **Air standard arcana**, added with [LegendAPI](https://github.com/yekoc/L
 >
 > *Enhanced: Reaches full strength sooner and bursts wider!*
 
-- **Hold** the button: a small twister (the Twister arcana's own) spins up about **two tiles in
+- **Hold** the button: a tiny twister (the Twister arcana's own) spins up about **three tiles in
   front** of you while you stay planted, channeling. **Steer it slowly** with your aim; it moves
   more slowly as it grows, never through walls, and up to 9 away from you.
 - Over **4 seconds** it grows into a **hurricane**: the twister swells and the air boss's storm
@@ -18,8 +18,9 @@ A new **Air standard arcana**, added with [LegendAPI](https://github.com/yekoc/L
 - **Enhanced**: full size in 3 seconds (bursting at 4), and a wider burst.
 - Dash to cancel at any time. Cooldown 5 seconds.
 
-Everything you see is the game's own wind effects, made harmless and pinned in place (the hits come
-from invisible wind bursts); the log says `Cyclone: using the game's twister` and
+Everything you see is the game's own wind effects, stripped down to just their looks (no scripts,
+so nothing of the originals can hurt anyone or vanish early) and kept going for as long as you hold;
+the hits come from invisible wind bursts; the log says `Cyclone: using the game's twister` and
 `... storm vortex`, or which one it couldn't use.
 
 ## Install

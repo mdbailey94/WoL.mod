@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace WoLCyclone
 {
-    // Cyclone (Air, standard arcana): hold the button and a small twister spins up about two tiles
+    // Cyclone (Air, standard arcana): hold the button and a tiny twister spins up about three tiles
     // in front of the wizard; steer it slowly with your aim (not through walls, up to 9 away). Over 4 seconds (3 enhanced) it grows into a
     // hurricane: bigger, hitting faster and harder (skill levels 1-4 as it grows). Let go and it dies
     // down; hold on a second more at full power and it bursts, throwing everyone around it away
@@ -18,7 +18,7 @@ namespace WoLCyclone
         private const float EnhancedGrowTime = 3f;
         private const float FullPowerTime = 1f;    // then this long at full power, and it bursts
         private const float MinTime = 0.35f;       // a tap still gives a brief twister
-        private const float Distance = 2.6f;       // starts about two tiles in front of the wizard
+        private const float Distance = 4f;         // starts about three tiles in front of the wizard
         private const float SteerSpeed = 2.4f;     // how fast you can move it, small to full size
         private const float FullSteerSpeed = 1.4f;
         private const float MaxRange = 9f;         // how far from the wizard it can be steered
@@ -69,7 +69,7 @@ namespace WoLCyclone
                 distance = Mathf.Max(0.8f, wall.distance - 0.4f);
             center = (Vector2)parent.transform.position + aim * distance;
             look?.Remove();
-            look = new CycloneLook(parent, parent.skillCategory, skillID, center);
+            look = new CycloneLook(center);
         }
 
         public override void ExecuteSkill()
