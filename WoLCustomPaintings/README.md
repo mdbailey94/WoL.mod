@@ -32,14 +32,16 @@ it's just shrunk and kept as is. Each picture's own size is read and it's scaled
 - `ChancePercent`: percent of paintings that show one of your pictures. Default `0.5`, so
   they're a rare find; raise it (up to `100`) to see them more often. A change counts from the
   next floor you enter, no restart needed.
-- `Detail` (`Fit` and `Stretch` only): how finely your picture is redrawn inside the frame.
-  `1` is the game's own pixel size
-  (blockier, matches the game's paintings); `2` (default) to `4` fit more detail in the same space.
-- `Fitting`: how your picture is fitted to the frame. `Fill` (default) fills the frame, cropping
-  the sides (or the bottom), and keeps **your picture's own pixels**: its size is read, it's
-  cropped to the frame's shape and scaled as a whole, never redrawn; `Fit` shows the whole picture, scaled to fit, over a dimmed copy of
-  itself where its shape differs from the frame's; `Stretch` stretches the whole picture to the
-  frame's shape.
+- `Fitting`: how your picture is fitted to the frame.
+  - `Fill` (default) fills the frame, cropping the sides (or the bottom), and keeps **your
+    picture's own pixels**: its size is read, it's cropped to the frame's shape and scaled as a
+    whole, never redrawn.
+  - `Fit` shows the whole picture, scaled to fit, over a dimmed copy of itself where its shape
+    differs from the frame's.
+  - `Stretch` stretches the whole picture to the frame's shape.
+- `Detail` (`Fit` and `Stretch` only): how finely your picture is redrawn inside the frame. `1`
+  is the game's own pixel size (blockier, matches the game's paintings); `2` (default) to `4` fit
+  more detail in the same space.
 - `FrameBorder`: how many of the game's pixels of the frame show round your picture (default 2).
   The picture fills the frame's opening whatever the painting's size; raise this if it covers
   the frame, lower it if the old painting peeks out. Applies from the next floor.
