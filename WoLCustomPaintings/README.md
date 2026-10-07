@@ -13,7 +13,10 @@ your Wizard of Legend folder. Needs BepInEx only.
 ## Adding pictures
 
 Put PNG or JPG files in `BepInEx\plugins\WoLCustomPaintings\Paintings\` (the folder is created the
-first time the game runs with the mod). Each painting that gets swapped picks one at random.
+first time the game runs with the mod), or in folders inside it. Each painting that gets swapped
+picks one at random. Pictures added while the game is running are picked up on the next floor.
+Other kinds of pictures (WEBP, HEIC from a phone, GIF...) don't work: save them as PNG or JPG
+first. The log names every file it skips, and why.
 
 For the best look, use a **pixel-art picture about 64 pixels wide with up to 64 colours**: the mod
 then snaps the shrunk picture back to those colours, so it matches the game's style. Any other

@@ -16,7 +16,7 @@ namespace WoLCustomPaintings
     {
         public const string PluginGuid = "mdbailey94.wol.custompaintings";
         public const string PluginName = "Custom Paintings";
-        public const string PluginVersion = "0.2.0";
+        public const string PluginVersion = "0.2.1";
 
         private static ManualLogSource log;
         private static ConfigEntry<bool> modEnabled;
@@ -59,6 +59,13 @@ namespace WoLCustomPaintings
         private void NewScene()
         {
             ReportScene();
+            // Pictures added while the game is running count from the next floor.
+            if (pictures.Count == 0)
+            {
+                LoadPictures(true);
+                if (pictures.Count > 0)
+                    Logger.LogInfo($"Found {pictures.Count} new picture(s)");
+            }
             rolled.Clear();
             sceneName = SceneManager.GetActiveScene().name;
             sceneSeen = 0;
@@ -111,23 +118,38 @@ namespace WoLCustomPaintings
             }
         }
 
-        private void LoadPictures()
+        // Reads the pictures in the Paintings folder and any folders inside it. Everything found is
+        // logged, including files it can't use and why, so it's clear what the mod sees.
+        private void LoadPictures(bool quiet = false)
         {
             string folder = Path.Combine(Path.GetDirectoryName(Info.Location), "Paintings");
+            int skipped = 0;
             try
             {
                 if (!Directory.Exists(folder))
                     Directory.CreateDirectory(folder);
-                foreach (string file in Directory.GetFiles(folder))
+                foreach (string file in Directory.GetFiles(folder, "*", SearchOption.AllDirectories))
                 {
+                    string name = file.Substring(folder.Length).TrimStart('\\', '/');
                     string extension = Path.GetExtension(file).ToLowerInvariant();
                     if (extension != ".png" && extension != ".jpg" && extension != ".jpeg")
+                    {
+                        skipped++;
+                        if (!quiet)
+                            Logger.LogWarning($"Skipping {name}: only PNG and JPG pictures work (save it as one of those)");
                         continue;
+                    }
                     var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
-                    if (texture.LoadImage(File.ReadAllBytes(file)))
+                    if (texture.LoadImage(File.ReadAllBytes(file)) && texture.width > 2)
                     {
                         pictures.Add(texture);
-                        Logger.LogInfo($"Picture: {Path.GetFileName(file)} ({texture.width}x{texture.height})");
+                        Logger.LogInfo($"Picture: {name} ({texture.width}x{texture.height})");
+                    }
+                    else
+                    {
+                        skipped++;
+                        Logger.LogWarning($"Skipping {name}: it couldn't be read as a picture " +
+                            "(it may be another kind of file with a .png or .jpg name)");
                     }
                 }
             }
@@ -135,8 +157,9 @@ namespace WoLCustomPaintings
             {
                 Logger.LogError($"Couldn't read pictures from {folder}: {e.Message}");
             }
-            if (pictures.Count == 0)
-                Logger.LogWarning($"No pictures yet - put PNG or JPG files in {folder}");
+            if (pictures.Count == 0 && !quiet)
+                Logger.LogWarning($"No pictures yet - put PNG or JPG files in {folder} " +
+                    (skipped > 0 ? $"({skipped} other file(s) there were skipped)" : "(the folder is empty)"));
         }
     }
 }
