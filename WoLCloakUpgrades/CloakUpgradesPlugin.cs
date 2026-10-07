@@ -7,28 +7,37 @@ using UnityEngine;
 
 namespace WoLCloakUpgrades
 {
-    // Permanent cloak upgrades bought with chaos gems at the wardrobe. While the wardrobe is open,
-    // a pixel-art panel beside it shows the highlighted cloak's tier (four pips), what the next
-    // tier does and costs, and your gems; press U (keyboard) or Y / Triangle (controller) to buy it.
-    // Tiers are kept per cloak in this mod's config file, so they last across runs and restarts.
+    // Permanent cloak upgrades bought with chaos gems at the wardrobe, all in the wardrobe's own
+    // screen: the highlighted cloak's info box gains its upgrade tier and the price of the next one,
+    // pressing Interact (the button that opened the wardrobe) asks with the game's own yes/no box,
+    // and a purchase is announced by the game's notice banner. Tiers are kept per cloak in this
+    // mod's config file, so they last across runs and restarts.
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     public class CloakUpgradesPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "mdbailey94.wol.cloakupgrades";
         public const string PluginName = "Cloak Upgrades";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.2.0";
 
-        private const float MessageTime = 1.6f;
+        private const string InteractAction = "Interact";
+        // Ignore Interact right after the wardrobe opens: it's the press that opened it.
+        private const float OpenGrace = 0.35f;
+        // Without the game's yes/no box: press Interact again within this long to confirm.
+        private const float SecondPressWindow = 2.5f;
+        private const float ConfirmTimeout = 30f;
 
         private static CloakUpgradesPlugin instance;
         private static BepInEx.Logging.ManualLogSource log;
         private static WardrobeUI openWardrobe;
+        private static float openedAt;
 
         private ConfigEntry<bool> modEnabled;
         private readonly Dictionary<string, ConfigEntry<int>> tiers = new Dictionary<string, ConfigEntry<int>>();
-        private string message;
-        private Color messageColor;
-        private float messageUntil;
+
+        // A purchase waiting for the yes/no answer (or, without the box, a second press).
+        private Outfit pending;
+        private bool pendingUsesBox;
+        private float pendingSince;
 
         public static void Log(string text) => log?.LogInfo(text);
 
@@ -41,21 +50,66 @@ namespace WoLCloakUpgrades
             CloakScaling.TierOf = id => modEnabled.Value ? Tier(id) : 0;
             var harmony = new Harmony(PluginGuid);
             CloakScaling.Install(harmony);
-            harmony.CreateClassProcessor(typeof(WardrobePatch)).Patch();
+            harmony.CreateClassProcessor(typeof(WardrobeUpdatePatch)).Patch();
+            harmony.CreateClassProcessor(typeof(WardrobeInfoPatch)).Patch();
             Logger.LogInfo($"{PluginName} {PluginVersion} loaded");
         }
 
-        // The wardrobe screen tells us when it's open and which cloak is highlighted.
+        // Knows when the wardrobe is open, and holds its own input back while the yes/no box is up
+        // (so answering doesn't also equip a cloak or close the wardrobe).
         [HarmonyPatch(typeof(WardrobeUI), nameof(WardrobeUI.Update))]
-        private static class WardrobePatch
+        private static class WardrobeUpdatePatch
         {
+            private static bool Prefix() => instance == null || instance.pending == null || !instance.pendingUsesBox;
+
             private static void Postfix(WardrobeUI __instance)
             {
                 if (__instance.isActive)
+                {
+                    if (openWardrobe != __instance)
+                        openedAt = Time.unscaledTime;
                     openWardrobe = __instance;
+                }
                 else if (openWardrobe == __instance)
                     openWardrobe = null;
             }
+        }
+
+        // The wardrobe's info box for the highlighted cloak: add its tier and the next upgrade.
+        [HarmonyPatch(typeof(WardrobeUI), nameof(WardrobeUI.LoadInfo))]
+        private static class WardrobeInfoPatch
+        {
+            private static void Postfix(WardrobeUI __instance, Outfit givenOutfit)
+            {
+                try
+                {
+                    instance?.AddUpgradeInfo(__instance, givenOutfit);
+                }
+                catch (Exception e)
+                {
+                    log?.LogWarning($"Couldn't add the upgrade to the wardrobe's info: {e.Message}");
+                }
+            }
+        }
+
+        private void AddUpgradeInfo(WardrobeUI ui, Outfit outfit)
+        {
+            if (!modEnabled.Value || outfit == null || ui.wrRef == null || ui.wrRef.infoDescText == null)
+                return;
+            ui.wrRef.infoDescText.text = ui.wrRef.infoDescText.text.TrimEnd() + "\n\n" + UpgradeLines(outfit);
+        }
+
+        private string UpgradeLines(Outfit outfit)
+        {
+            if (!outfit.unlocked)
+                return "Unlock this cloak to upgrade it.";
+            int tier = Tier(outfit.outfitID);
+            string now = $"Upgrade tier {tier}/{CloakTiers.Max}: {CloakTiers.Short(tier)}";
+            if (tier >= CloakTiers.Max)
+                return now + " (max)";
+            if (pending == outfit && !pendingUsesBox)
+                return now + $"\nInteract again to spend {CloakTiers.Cost(tier)} gems";
+            return now + $"\nInteract: tier {tier + 1} for {CloakTiers.Cost(tier)} gems (you have {Gems()})";
         }
 
         private int Tier(string outfitID)
@@ -91,32 +145,148 @@ namespace WoLCloakUpgrades
 
         private void Update()
         {
-            if (!modEnabled.Value || openWardrobe == null || !openWardrobe.isActive)
-                return;
-            if (UpgradeInput.Pressed())
-                TryUpgrade(openWardrobe);
+            try
+            {
+                Tick();
+            }
+            catch (Exception e)
+            {
+                Logger.LogError(e);
+                CancelPending();
+            }
         }
 
-        private void TryUpgrade(WardrobeUI ui)
+        private void Tick()
         {
+            WardrobeUI ui = openWardrobe;
+            if (!modEnabled.Value || ui == null || !ui.isActive)
+            {
+                CancelPending();
+                return;
+            }
+            if (pending != null && pendingUsesBox)
+            {
+                WaitForAnswer(ui);
+                return;
+            }
+            if (pending != null && Time.unscaledTime - pendingSince > SecondPressWindow)
+            {
+                CancelPending();
+                Refresh(ui, Highlighted(ui));
+            }
+            if (Time.unscaledTime - openedAt < OpenGrace || !InteractPressed(ui))
+                return;
+
             Outfit outfit = Highlighted(ui);
-            if (outfit == null || !outfit.unlocked)
+            if (outfit == null || !outfit.unlocked || Tier(outfit.outfitID) >= CloakTiers.Max)
+                return;
+            int cost = CloakTiers.Cost(Tier(outfit.outfitID));
+            if (Gems() < cost)
             {
-                Say("Unlock this cloak first", PixelUI.Dim);
+                SoundManager.PlayAudio("StandardHeavySwing", 0.6f, false, -1f, -1f);
                 return;
             }
+            if (pending == outfit)
+            {
+                // The second press, when the game's yes/no box isn't available.
+                pending = null;
+                Buy(ui, outfit);
+                return;
+            }
+            Ask(ui, outfit, cost);
+        }
+
+        private static bool InteractPressed(WardrobeUI ui)
+        {
+            try
+            {
+                return ui.player != null && ui.player.inputDevice != null && ui.player.inputDevice.GetButtonDown(InteractAction);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        // The game's own yes/no box; if it can't be used, the info box asks for a second press.
+        private void Ask(WardrobeUI ui, Outfit outfit, int cost)
+        {
+            pending = outfit;
+            pendingSince = Time.unscaledTime;
+            pendingUsesBox = false;
+            try
+            {
+                ConfirmHandlerUI.RequestConfirmation(0);
+                if (ConfirmHandlerUI.RequestInProgress)
+                {
+                    pendingUsesBox = true;
+                    if (ConfirmHandlerUI.titleText != null)
+                        ConfirmHandlerUI.titleText.text = $"Upgrade to tier {Tier(outfit.outfitID) + 1} for {cost} gems?";
+                    return;
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.LogInfo($"The game's yes/no box isn't available, asking for a second press: {e.Message}");
+            }
+            Refresh(ui, outfit);
+        }
+
+        private void WaitForAnswer(WardrobeUI ui)
+        {
+            bool yes = false;
+            try
+            {
+                yes = ConfirmHandlerUI.RequestConfirmation(0);
+                if (!yes && ConfirmHandlerUI.RequestInProgress && Time.unscaledTime - pendingSince < ConfirmTimeout)
+                    return;
+            }
+            catch (Exception e)
+            {
+                Logger.LogWarning($"The yes/no box failed: {e.Message}");
+            }
+            if (!yes && ConfirmHandlerUI.RequestInProgress)
+            {
+                try
+                {
+                    ConfirmHandlerUI.ForceQuitConfirmation();
+                }
+                catch
+                {
+                }
+            }
+            Outfit outfit = pending;
+            pending = null;
+            pendingUsesBox = false;
+            if (yes && outfit != null && Gems() >= CloakTiers.Cost(Tier(outfit.outfitID)))
+                Buy(ui, outfit);
+        }
+
+        private void CancelPending()
+        {
+            if (pending == null)
+                return;
+            if (pendingUsesBox)
+            {
+                try
+                {
+                    if (ConfirmHandlerUI.RequestInProgress)
+                        ConfirmHandlerUI.ForceQuitConfirmation();
+                }
+                catch
+                {
+                }
+            }
+            pending = null;
+            pendingUsesBox = false;
+        }
+
+        private void Buy(WardrobeUI ui, Outfit outfit)
+        {
             int tier = Tier(outfit.outfitID);
-            if (tier >= CloakTiers.Max)
-            {
-                Say("Fully upgraded", PixelUI.Dim);
-                return;
-            }
             int cost = CloakTiers.Cost(tier);
-            if (Player.platWallet == null || Player.platWallet.balance < cost || !Player.platWallet.Withdraw(cost))
-            {
-                Say("Not enough chaos gems", new Color32(0xe0, 0x5a, 0x4a, 0xff));
+            if (tier >= CloakTiers.Max || Player.platWallet == null || !Player.platWallet.Withdraw(cost))
                 return;
-            }
 
             // Take the cloak's bonuses off whoever is wearing it, raise the tier, put them back.
             List<Player> wearers = Wearers(outfit.outfitID);
@@ -126,13 +296,7 @@ namespace WoLCloakUpgrades
             CloakScaling.Scale(outfit);
             foreach (Player p in wearers)
                 SetMods(p, true);
-            try
-            {
-                ui.LoadInfo(outfit);
-            }
-            catch
-            {
-            }
+            Refresh(ui, outfit);
             try
             {
                 GameDataManager.Save(true, false);
@@ -142,7 +306,33 @@ namespace WoLCloakUpgrades
                 Logger.LogWarning($"Couldn't save the game after the upgrade: {e.Message}");
             }
             Logger.LogInfo($"{outfit.outfitID} upgraded to tier {tier + 1} for {cost} gems ({Gems()} left)");
-            Say($"TIER {tier + 1}!", PixelUI.Accent);
+            GameBanner.Show("CLOAK UPGRADED", $"Tier {tier + 1}: {CloakTiers.Short(tier + 1)}", Picture(ui));
+        }
+
+        private static void Refresh(WardrobeUI ui, Outfit outfit)
+        {
+            if (ui == null || outfit == null)
+                return;
+            try
+            {
+                ui.LoadInfo(outfit);
+            }
+            catch
+            {
+            }
+        }
+
+        // The wardrobe's picture of the wizard in the cloak, for the banner.
+        private static Sprite Picture(WardrobeUI ui)
+        {
+            try
+            {
+                return ui.wrRef != null && ui.wrRef.playerImage != null ? ui.wrRef.playerImage.sprite : null;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private static List<Player> Wearers(string outfitID)
@@ -168,81 +358,6 @@ namespace WoLCloakUpgrades
             catch (Exception e)
             {
                 Logger.LogWarning($"Couldn't refresh the worn cloak: {e.Message}");
-            }
-        }
-
-        private void Say(string text, Color color)
-        {
-            message = text;
-            messageColor = color;
-            messageUntil = Time.unscaledTime + MessageTime;
-        }
-
-        // ---- Drawing ----
-
-        private void OnGUI()
-        {
-            if (!modEnabled.Value || openWardrobe == null || !openWardrobe.isActive)
-                return;
-            Outfit outfit = Highlighted(openWardrobe);
-            if (outfit == null)
-                return;
-
-            int u = PixelUI.Unit;
-            GUIStyle title = PixelUI.Style(6 * u, PixelUI.Border, TextAnchor.MiddleCenter);
-            GUIStyle body = PixelUI.Style(4 * u, PixelUI.Text, TextAnchor.MiddleCenter);
-            GUIStyle hint = PixelUI.Style(4 * u, PixelUI.Dim, TextAnchor.MiddleCenter);
-            GUIStyle accent = PixelUI.Style(4 * u, PixelUI.Accent, TextAnchor.MiddleCenter);
-
-            int tier = Tier(outfit.outfitID);
-            bool maxed = tier >= CloakTiers.Max;
-            int cost = CloakTiers.Cost(tier);
-            int gems = Gems();
-            string now = CloakTiers.Describe(tier);
-            string next = maxed ? "Fully upgraded" : "Next: " + CloakTiers.Describe(tier + 1);
-            string price = maxed ? "" : $"Upgrade for {cost} gems  (you have {gems})";
-            string action = !outfit.unlocked ? "Unlock this cloak to upgrade it"
-                : maxed ? "" : "Press U  /  Y  to upgrade";
-            bool showMessage = Time.unscaledTime < messageUntil && !string.IsNullOrEmpty(message);
-
-            var lines = new List<KeyValuePair<string, GUIStyle>>
-            {
-                new KeyValuePair<string, GUIStyle>(now, body),
-                new KeyValuePair<string, GUIStyle>(next, maxed ? accent : hint),
-            };
-            if (price.Length > 0)
-                lines.Add(new KeyValuePair<string, GUIStyle>(price, gems >= cost ? body : hint));
-            if (showMessage)
-                lines.Add(new KeyValuePair<string, GUIStyle>(message, PixelUI.Style(4 * u, messageColor, TextAnchor.MiddleCenter)));
-            else if (action.Length > 0)
-                lines.Add(new KeyValuePair<string, GUIStyle>(action, accent));
-
-            float lineHeight = body.CalcSize(new GUIContent("Ag")).y;
-            float textWidth = 0f;
-            foreach (KeyValuePair<string, GUIStyle> line in lines)
-                textWidth = Mathf.Max(textWidth, line.Value.CalcSize(new GUIContent(line.Key)).x);
-            const int pips = CloakTiers.Max;
-            int pipSize = 6 * u, pipGap = 2 * u;
-            float pipRow = pips * pipSize + (pips - 1) * pipGap;
-            float titleHeight = title.CalcSize(new GUIContent("CLOAK UPGRADE")).y;
-            float width = Mathf.Max(textWidth, pipRow, title.CalcSize(new GUIContent("CLOAK UPGRADE")).x) + 16 * u;
-            float height = 5 * u + titleHeight + 3 * u + pipSize + 4 * u + lines.Count * lineHeight + 5 * u;
-
-            // Along the bottom of the screen, clear of the wardrobe's own cloak wheel and info box.
-            var panel = new Rect(Mathf.Round((Screen.width - width) / 2f), Mathf.Round(Screen.height - height - 8 * u),
-                                 Mathf.Round(width), Mathf.Round(height));
-            PixelUI.Panel(panel, u);
-            float y = panel.y + 5 * u;
-            GUI.Label(new Rect(panel.x, y, panel.width, titleHeight), "CLOAK UPGRADE", title);
-            y += titleHeight + 3 * u;
-            float pipX = panel.x + (panel.width - pipRow) / 2f;
-            for (int i = 0; i < pips; i++)
-                PixelUI.Pip(new Rect(pipX + i * (pipSize + pipGap), y, pipSize, pipSize), i < tier, u);
-            y += pipSize + 4 * u;
-            foreach (KeyValuePair<string, GUIStyle> line in lines)
-            {
-                GUI.Label(new Rect(panel.x, y, panel.width, lineHeight), line.Key, line.Value);
-                y += lineHeight;
             }
         }
     }

@@ -18,7 +18,35 @@ namespace WoLAscension
         // The reward: +4% chaos gems per level (+40% at 10).
         public static float Gems(int level) => 1f + 0.04f * UnityEngine.Mathf.Clamp(level, 0, Max);
 
-        // One line per active modifier, for the hub panel.
+        // What a level adds on top of the one below it (as in the README's table).
+        public static string Added(int level)
+        {
+            switch (level)
+            {
+                case 1: return "Enemies +15% health";
+                case 2: return "Enemies deal +15% damage";
+                case 3: return "Your healing -25%";
+                case 4: return "Enemies move 10% faster";
+                case 5: return "Gold drops -20%";
+                case 6: return "Bosses +25% health";
+                case 7: return "Your max health -15%";
+                case 8: return "Enemies +30% health";
+                case 9: return "Enemies deal +30% damage";
+                case 10: return "Healing -50%, enemies 20% faster";
+                default: return "";
+            }
+        }
+
+        // One short line for the game's notice banner.
+        public static string Summary(int level)
+        {
+            if (level <= 0)
+                return "Off: the normal game";
+            int gems = UnityEngine.Mathf.RoundToInt((Gems(level) - 1f) * 100f);
+            return $"Adds: {Added(level)}. Chaos gems +{gems}%";
+        }
+
+        // One line per active modifier.
         public static List<string> Describe(int level)
         {
             var lines = new List<string>();

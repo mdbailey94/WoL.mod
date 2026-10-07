@@ -20,23 +20,24 @@ top of the ones before it.
 come in small amounts, so the bonus builds up fractions between pickups instead of rounding them
 away.
 
-## Choosing a level
+## Choosing a level: the Ascension altar
 
-When you step into the portal into the Chaos Trials, the game pauses and an **ASCENSION** prompt
-appears, drawn in the game's pixel style with the game's own font:
+In the plaza, an **Ascension altar** stands beside the Chaos Trials portal: a stone pedestal with
+a floating chaos crystal. Walk up to it and the game's own button prompt appears; **interact** to
+raise the level by one (after 10 it goes back to OFF). The crystal burns brighter the higher the
+level, and the game's notice banner shows the level, what it adds and the gem bonus.
 
-- **Left / right** (either stick, the d-pad, arrow keys, or click the arrows): change the level.
-  The pips fill up and the list shows what that level adds.
-- **A** (or Enter / Space): begin the run at that level.
+Then just take the portal: the run starts at the altar's level, with no pause or menu, and the
+banner shows it as you go in. The level is locked for the run, a small "ASCENSION n" tag shows in
+the corner (`ShowLevelInRun`), and all modifiers come off when you leave the trials (dying,
+quitting or finishing). The modifiers use the game's own stat system, so they stack normally with
+relics. The altar remembers your level between runs and sessions. You can also turn the whole mod
+off in the title screen Mods menu.
 
-It starts at the level you picked last time. Level 0 (OFF) is normal difficulty. The level is
-locked for the run, a small "ASCENSION n" tag shows in the corner, and all modifiers come off when
-you leave the trials (dying, quitting or finishing). The modifiers use the game's own stat system, so they stack normally with
-relics. You can also turn the whole mod off in the title screen Mods menu.
-
-The prompt only appears for the trials: leaving your house or fighting the plaza's training
-dummies never brings it up. If a run starts from somewhere the portal hook doesn't catch, it
-appears (paused) as soon as the first enemies on a trial floor do.
+If the altar is in an awkward spot, move it with `[Altar] OffsetX` / `OffsetY` in
+`BepInEx/config/mdbailey94.wol.ascension.cfg` (game units from the portal; default 3.5 to the
+left). If a run starts some way that skips the portal, the altar's level is applied as soon as
+the first enemies appear.
 
 ## Install
 

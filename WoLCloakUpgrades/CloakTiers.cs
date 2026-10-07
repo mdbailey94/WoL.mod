@@ -47,14 +47,14 @@ namespace WoLCloakUpgrades
         public static bool IsBonus(OutfitModStat stat) =>
             stat.modType == OutfitModStat.OutfitModType.Cooldown ? !stat.isIncrease : stat.isIncrease;
 
-        // "+25% / +50% ..." summary of a tier for the panel.
-        public static string Describe(int tier)
+        // A tier in a few words, for the wardrobe's info box and the banner.
+        public static string Short(int tier)
         {
             if (tier <= 0)
-                return "Not upgraded";
-            int full = Mathf.RoundToInt((Factor(OutfitModStat.OutfitModType.Damage, tier) - 1f) * 100f);
-            int capped = Mathf.RoundToInt((Factor(OutfitModStat.OutfitModType.Speed, tier) - 1f) * 100f);
-            return $"Bonuses +{full}% (speed, evade, armour, cooldown, gold, gems +{capped}%)";
+                return "not upgraded";
+            if (tier >= Max)
+                return "bonuses doubled";
+            return $"bonuses +{Mathf.RoundToInt((Factor(OutfitModStat.OutfitModType.Damage, tier) - 1f) * 100f)}%";
         }
     }
 }

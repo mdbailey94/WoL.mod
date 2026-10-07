@@ -7,15 +7,17 @@ using UnityEngine;
 
 namespace WoLAscension
 {
-    // Ascension levels 1-10. Stepping into a portal that starts a run pauses the game and shows a
-    // pixel-art prompt to pick the level; the run then gets that level's cumulative modifiers,
-    // applied as the game's own stat modifiers so they stack with relics and are removed in the hub.
+    // Ascension levels 1-10. The level is set at an Ascension altar standing beside the Chaos
+    // Trials portal in the plaza (interact to raise it; the game's own notice banner shows the level
+    // and what it does). Stepping into the portal starts the run at that level, with no pause: the
+    // run gets the level's cumulative modifiers, applied as the game's own stat modifiers so they
+    // stack with relics and are removed in the hub.
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     public class AscensionPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "mdbailey94.wol.ascension";
         public const string PluginName = "Ascension";
-        public const string PluginVersion = "0.3.0";
+        public const string PluginVersion = "0.4.0";
 
         private const string PlayerDamageTakenMod = "Ascension_DamageTaken";
         private const string PlayerHealingMod = "Ascension_Healing";
@@ -25,11 +27,11 @@ namespace WoLAscension
 
         private const float ApplyInterval = 0.25f;
         private const float TrialCheckInterval = 0.5f;
-        // Ignore confirm presses right after opening, so the button that entered the portal
-        // doesn't also start the run.
-        private const float ConfirmDelay = 0.3f;
+        private const float AltarCheckInterval = 1f;
 
         private static AscensionPlugin instance;
+
+        public static void Log(string message) => instance?.Logger.LogInfo(message);
 
         private ConfigEntry<bool> modEnabled;
         private ConfigEntry<int> level;
@@ -50,13 +52,8 @@ namespace WoLAscension
         // -1 = no run in progress (hub / before the portal); otherwise the level locked for this run.
         private int runLevel = -1;
 
-        // Prompt state. `pendingLoader` is the portal whose level load we're holding back.
-        private bool promptOpen;
-        private NextLevelLoader pendingLoader;
-        private bool bypassPrompt;
-        private float savedTimeScale = 1f;
-        private bool savedInputLock;
-        private float promptOpenedAt;
+        private AscensionAltar altar;
+        private float nextAltarCheck;
 
         private void Awake()
         {
@@ -64,10 +61,13 @@ namespace WoLAscension
             modEnabled = Config.Bind("General", "Enabled", true,
                 "Turn the mod on or off (also in the title screen Mods menu). Off = normal difficulty.");
             level = Config.Bind("General", "Level", 0,
-                new ConfigDescription("Last Ascension level picked; the portal prompt starts here (0 = off).",
+                new ConfigDescription("The Ascension level set at the altar; runs start at it (0 = off).",
                     new AcceptableValueRange<int>(0, AscensionLevels.Max)));
             showInRun = Config.Bind("General", "ShowLevelInRun", true,
                 "Show a small 'ASCENSION n' tag in the corner during a run.");
+            AscensionAltar.Offset = new Vector2(
+                Config.Bind("Altar", "OffsetX", -3.5f, "Where the altar stands, in game units from the trials portal (negative = left).").Value,
+                Config.Bind("Altar", "OffsetY", 0f, "Where the altar stands, in game units from the trials portal (negative = down).").Value);
 
             try
             {
@@ -75,7 +75,7 @@ namespace WoLAscension
             }
             catch (Exception e)
             {
-                Logger.LogError($"Portal hook failed to install; the prompt will only appear when enemies show up: {e.Message}");
+                Logger.LogError($"Portal hook failed to install; the level will be set when enemies show up: {e.Message}");
             }
 
             GameController.levelLoadEventHandlers += (next, previous) =>
@@ -92,7 +92,7 @@ namespace WoLAscension
         [HarmonyPatch(typeof(NextLevelLoader), nameof(NextLevelLoader.LoadNextLevel))]
         private static class PortalPatch
         {
-            // Returning false holds the portal back until the prompt is confirmed.
+            // Never holds the portal back: the level is already chosen at the altar.
             private static bool Prefix(NextLevelLoader __instance)
             {
                 try
@@ -109,17 +109,24 @@ namespace WoLAscension
 
         private bool OnPortalEntered(NextLevelLoader loader)
         {
-            if (bypassPrompt || promptOpen || !modEnabled.Value || GameController.pvpOn || runLevel >= 0)
+            if (!modEnabled.Value || GameController.pvpOn || runLevel >= 0)
                 return true;
 
             string destination = loader.nextLevelName;
             bool startsRun = IsTrialScene(destination) && !IsTrialScene();
             Logger.LogInfo($"Portal to '{destination}' (starts a run: {startsRun})");
-            if (!startsRun)
-                return true;
+            if (startsRun)
+                StartRun();
+            return true;
+        }
 
-            OpenPrompt(loader);
-            return false;
+        // The run is locked to the altar's level; the banner says so as you go in.
+        private void StartRun()
+        {
+            runLevel = Mathf.Clamp(level.Value, 0, AscensionLevels.Max);
+            Logger.LogInfo($"Starting run at Ascension {runLevel}");
+            if (runLevel > 0)
+                GameBanner.Show($"ASCENSION {runLevel}", AscensionLevels.Summary(runLevel), AscensionAltar.CrystalSprite(runLevel));
         }
 
         // ---- Main loop ----
@@ -138,12 +145,6 @@ namespace WoLAscension
 
         private void Tick()
         {
-            if (promptOpen)
-            {
-                HandlePromptInput();
-                return;
-            }
-
             RefreshPlayers();
             if (runEnded)
             {
@@ -162,13 +163,21 @@ namespace WoLAscension
             if (!modEnabled.Value || players.Count == 0 || GameController.pvpOn)
                 return;
 
-            // Backup: on a trial floor without having picked at the portal (e.g. a different
-            // entrance) - ask now. Only on trial floors, so the plaza's training dummies don't count.
+            // In the hub: make sure the plaza has its altar by the trials portal.
+            if (!inTrials && Time.unscaledTime >= nextAltarCheck)
+            {
+                nextAltarCheck = Time.unscaledTime + AltarCheckInterval;
+                if (altar == null)
+                    altar = AscensionAltar.SpawnBesideTrialsPortal(level, Logger);
+            }
+
+            // Backup: on a trial floor without coming through the portal hook (e.g. a different
+            // entrance): start at the altar's level now. Only on trial floors, so the plaza's
+            // training dummies don't count.
             if (runLevel < 0 && inTrials && AnyEnemy())
             {
-                Logger.LogInfo("Run started without the portal prompt; asking now");
-                OpenPrompt(null);
-                return;
+                Logger.LogInfo("Run started without the portal hook; using the altar's level");
+                StartRun();
             }
 
             if (runLevel <= 0)
@@ -194,51 +203,6 @@ namespace WoLAscension
             catch
             {
                 return false;
-            }
-        }
-
-        // ---- Prompt ----
-
-        private void OpenPrompt(NextLevelLoader loader)
-        {
-            promptOpen = true;
-            promptOpenedAt = Time.unscaledTime;
-            pendingLoader = loader;
-            savedTimeScale = Time.timeScale;
-            savedInputLock = ChaosInputDevice.lockControllerInput;
-            Time.timeScale = 0f;
-            ChaosInputDevice.lockControllerInput = true;
-        }
-
-        private void HandlePromptInput()
-        {
-            int step = PadInput.Horizontal();
-            if (step != 0)
-                level.Value = Mathf.Clamp(level.Value + step, 0, AscensionLevels.Max);
-            if (PadInput.Confirm() && Time.unscaledTime - promptOpenedAt >= ConfirmDelay)
-                ConfirmPrompt();
-        }
-
-        private void ConfirmPrompt()
-        {
-            promptOpen = false;
-            runLevel = Mathf.Clamp(level.Value, 0, AscensionLevels.Max);
-            Time.timeScale = savedTimeScale;
-            ChaosInputDevice.lockControllerInput = savedInputLock;
-            Logger.LogInfo($"Starting run at Ascension {runLevel}");
-
-            NextLevelLoader loader = pendingLoader;
-            pendingLoader = null;
-            if (loader == null)
-                return;
-            bypassPrompt = true;
-            try
-            {
-                loader.LoadNextLevel();
-            }
-            finally
-            {
-                bypassPrompt = false;
             }
         }
 
@@ -393,80 +357,8 @@ namespace WoLAscension
 
         private void OnGUI()
         {
-            if (promptOpen)
-                DrawPrompt();
-            else if (modEnabled.Value && showInRun.Value && runLevel > 0 && players.Count > 0 && inTrials)
+            if (modEnabled.Value && showInRun.Value && runLevel > 0 && players.Count > 0 && inTrials)
                 DrawRunTag();
-        }
-
-        private void DrawPrompt()
-        {
-            int u = PixelUI.Unit;
-            int lvl = Mathf.Clamp(level.Value, 0, AscensionLevels.Max);
-
-            // Dim the paused game behind the prompt.
-            PixelUI.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.55f));
-
-            GUIStyle title = PixelUI.Style(9 * u, PixelUI.Border, TextAnchor.MiddleCenter);
-            GUIStyle levelStyle = PixelUI.Style(6 * u, PixelUI.Accent, TextAnchor.MiddleCenter);
-            GUIStyle body = PixelUI.Style(4 * u, PixelUI.Text, TextAnchor.MiddleCenter);
-            GUIStyle hint = PixelUI.Style(4 * u, PixelUI.Dim, TextAnchor.MiddleCenter);
-
-            List<string> lines = AscensionLevels.Describe(lvl);
-            float lineHeight = body.CalcSize(new GUIContent("Ag")).y;
-            float bodyWidth = 0f;
-            foreach (string line in lines)
-                bodyWidth = Mathf.Max(bodyWidth, body.CalcSize(new GUIContent(line)).x);
-
-            const int pips = AscensionLevels.Max;
-            int pipSize = 6 * u;
-            int pipGap = 2 * u;
-            float pipRowWidth = pips * pipSize + (pips - 1) * pipGap;
-            float arrowGap = 6 * u;
-
-            float width = Mathf.Max(pipRowWidth + 2 * (arrowGap + 5 * u), bodyWidth) + 24 * u;
-            float titleHeight = title.CalcSize(new GUIContent("ASCENSION")).y;
-            float levelHeight = levelStyle.CalcSize(new GUIContent("LEVEL 10")).y;
-            float height = 6 * u + titleHeight + 4 * u + pipSize + 4 * u + levelHeight + 4 * u
-                           + lines.Count * lineHeight + 6 * u + lineHeight + 8 * u;
-
-            var panel = new Rect(Mathf.Round((Screen.width - width) / 2f), Mathf.Round((Screen.height - height) / 2f),
-                                 Mathf.Round(width), Mathf.Round(height));
-            PixelUI.Panel(panel, u);
-
-            float y = panel.y + 6 * u;
-            GUI.Label(new Rect(panel.x, y, panel.width, titleHeight), "ASCENSION", title);
-            y += titleHeight + 4 * u;
-
-            // < pips >
-            float pipX = panel.x + (panel.width - pipRowWidth) / 2f;
-            float pipCenterY = y + pipSize / 2f;
-            Rect left = PixelUI.Arrow(pipX - arrowGap - 4 * u, pipCenterY, 7, false, lvl > 0 ? PixelUI.Border : PixelUI.PipEmpty, u);
-            for (int i = 0; i < pips; i++)
-                PixelUI.Pip(new Rect(pipX + i * (pipSize + pipGap), y, pipSize, pipSize), i < lvl, u);
-            Rect right = PixelUI.Arrow(pipX + pipRowWidth + arrowGap, pipCenterY, 7, true,
-                                       lvl < AscensionLevels.Max ? PixelUI.Border : PixelUI.PipEmpty, u);
-            y += pipSize + 4 * u;
-
-            GUI.Label(new Rect(panel.x, y, panel.width, levelHeight), lvl == 0 ? "OFF" : $"LEVEL {lvl}", levelStyle);
-            y += levelHeight + 4 * u;
-
-            foreach (string line in lines)
-            {
-                GUI.Label(new Rect(panel.x, y, panel.width, lineHeight), line, body);
-                y += lineHeight;
-            }
-            y += 6 * u;
-            GUI.Label(new Rect(panel.x, y, panel.width, lineHeight), "< >  choose        A / Enter  begin", hint);
-
-            if (Event.current.type == EventType.MouseDown)
-            {
-                if (left.Contains(Event.current.mousePosition))
-                    level.Value = Mathf.Max(0, lvl - 1);
-                else if (right.Contains(Event.current.mousePosition))
-                    level.Value = Mathf.Min(AscensionLevels.Max, lvl + 1);
-                Event.current.Use();
-            }
         }
 
         private void DrawRunTag()
