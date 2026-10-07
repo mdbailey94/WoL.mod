@@ -15,15 +15,16 @@ A new **Fire standard arcana**, added with [LegendAPI](https://github.com/yekoc/
   **chance to burn** (50%), moving or not.
 - As they move (running, dashing, or carried by any movement arcana) they leave **patches of
   fire** behind them every short distance. Each burns on the ground for about 1.5 seconds and
-  hurts enemies who walk into it. The flames are small at normal speed and grow, with more of
-  them, as the hits get stronger. The same enemy is hit at most about three times a second, ring
+  hurts enemies who walk into it. It burns with **Searing Rush's fire** (the game's own fire
+  columns), small at normal speed and growing to full size as the hits get stronger. The same enemy is hit at most about three times a second, ring
   and trail together.
 - **It grows with your run speed** after relics and other bonuses: every +15% run speed is one
   level stronger, up to five levels. Each level means a bigger ring and trail, +25% damage, +30%
   knockback and +12.5% burn chance (sure burns from level 5).
 - **Enhanced**: 9 seconds, one level stronger and bigger fire.
 
-The log says `Trailblazer: lit for 6 s` when cast, `Trailblazer: fire bursts working` on the first
+The log says `Trailblazer: using Searing Rush's fire` the first time it lights the trail,
+`Trailblazer: lit for 6 s` when cast, `Trailblazer: fire bursts working` on the first
 hit, `Trailblazer: leaving a trail` on the first patch, and `Trailblazer: run speed X of base Y`.
 
 ## Settings
@@ -40,6 +41,7 @@ hit, `Trailblazer: leaving a trail` on the first patch, and `Trailblazer: run sp
 | Trail | `TrailHitSize` | 1.6 | Size of each patch's hit |
 | Trail | `TrailHitInterval` | 0.3 | Seconds between each patch's hits |
 | Trail | `FlameAmount` | 2 | How many flames flicker on each patch |
+| Trail | `SearingRushFire` | true | Burn with Searing Rush's fire columns (off: plain flames) |
 | Trail | `FlameSize` | 1 | Size of all the flames (small at normal speed, growing with damage) |
 | Trail | `SpeedPerLevel` | 0.15 | Extra run speed per stronger level |
 | Balance | `Damage` | 3 | Damage per hit at normal speed |

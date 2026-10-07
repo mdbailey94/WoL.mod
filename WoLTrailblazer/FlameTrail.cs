@@ -24,6 +24,7 @@ namespace WoLTrailblazer
             public float nextHit;
             public float nextFlame;
             public int level;
+            public GameObject column; // Searing Rush's fire, if available
         }
 
         private Player player;
@@ -117,14 +118,20 @@ namespace WoLTrailblazer
         private void DropPatch(Vector2 position, float now, int level, float size)
         {
             if (patches.Count >= MaxPatches)
+            {
+                SearingLook.PutOut(patches[0].column);
                 patches.RemoveAt(0);
+            }
             patches.Add(new Patch
             {
                 position = position,
                 until = now + TrailblazerPlugin.TrailLinger * (0.8f + 0.2f * size),
                 nextHit = now + TrailblazerPlugin.TrailHitInterval,
                 nextFlame = now,
-                level = level
+                level = level,
+                column = TrailblazerPlugin.SearingFire
+                    ? SearingLook.Light(position, ColumnScale(level), player != null ? player.spriteRenderer : null)
+                    : null
             });
             if (!loggedPatch)
             {
@@ -147,11 +154,13 @@ namespace WoLTrailblazer
                 Patch patch = patches[i];
                 if (now >= patch.until)
                 {
+                    SearingLook.PutOut(patch.column);
                     patches.RemoveAt(i);
                     continue;
                 }
-                // Small flames at normal speed, bigger (and more of them) the harder the patch hits.
-                if (now >= patch.nextFlame)
+                // Small flames at normal speed, bigger (and more of them) the harder the patch hits
+                // (only when there's no Searing Rush fire column on it).
+                if (patch.column == null && now >= patch.nextFlame)
                 {
                     patch.nextFlame = now + 0.1f;
                     float spread = 0.08f + 0.05f * patch.level;
@@ -170,6 +179,18 @@ namespace WoLTrailblazer
         // growing with each level to a bit over full size at level 5.
         private static float FlameScale(int level) =>
             TrailblazerPlugin.FlameSize * (0.45f + 0.17f * (level - 1));
+
+        // Searing Rush's fire columns: smaller than the game's own at normal speed, growing with
+        // each level to its full size at level 5.
+        private static float ColumnScale(int level) =>
+            TrailblazerPlugin.FlameSize * (0.5f + 0.125f * (level - 1));
+
+        private void OnDestroy()
+        {
+            foreach (Patch patch in patches)
+                SearingLook.PutOut(patch.column);
+            patches.Clear();
+        }
 
         private static int Level(float speed, bool empowered) =>
             Mathf.Clamp(1 + Mathf.RoundToInt((speed - 1f) / TrailblazerPlugin.SpeedPerLevel) + (empowered ? 1 : 0), 1, 5);

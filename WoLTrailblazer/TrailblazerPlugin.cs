@@ -13,7 +13,7 @@ namespace WoLTrailblazer
     {
         public const string PluginGuid = "mdbailey94.wol.trailblazer";
         public const string PluginName = "Trailblazer";
-        public const string PluginVersion = "0.4.0";
+        public const string PluginVersion = "0.5.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -23,6 +23,7 @@ namespace WoLTrailblazer
         // ---- Settings (BepInEx\config\mdbailey94.wol.trailblazer.cfg) ----
         // [Trail] applies straight away; [Balance] after restarting the game.
         private static ConfigEntry<float> duration, enhancedDuration;
+        private static ConfigEntry<bool> searingFire;
         private static ConfigEntry<float> auraSize, auraInterval, patchSpacing, trailLinger, trailHitSize, trailHitInterval, flameAmount, flameSize, speedPerLevel;
         private ConfigEntry<int> damage;
         private ConfigEntry<float> knockback, burnChance, cooldown;
@@ -35,6 +36,7 @@ namespace WoLTrailblazer
         public static float TrailLinger => Get(trailLinger, 1.5f, 0.2f, 6f);
         public static float TrailHitSize => Get(trailHitSize, 1.6f, 0.3f, 5f);
         public static float TrailHitInterval => Get(trailHitInterval, 0.3f, 0.1f, 2f);
+        public static bool SearingFire => searingFire?.Value ?? true;
         public static float FlameSize => Get(flameSize, 1f, 0.2f, 4f);
         public static float FlameAmount => Get(flameAmount, 2f, 0.5f, 10f);
         public static float SpeedPerLevel => Get(speedPerLevel, 0.15f, 0.02f, 1f);
@@ -105,6 +107,8 @@ namespace WoLTrailblazer
             trailHitSize = Float("Trail", "TrailHitSize", 1.6f, 0.3f, 5f, "Size of each patch's hit.");
             trailHitInterval = Float("Trail", "TrailHitInterval", 0.3f, 0.1f, 2f, "Seconds between each patch's hits.");
             flameAmount = Float("Trail", "FlameAmount", 2f, 0.5f, 10f, "How many flames flicker on each patch (more the harder it hits).");
+            searingFire = Config.Bind("Trail", "SearingRushFire", true,
+                "The trail burns with Searing Rush's fire columns. Off: plain flickering flames.");
             flameSize = Float("Trail", "FlameSize", 1f, 0.2f, 4f,
                 "Size of all the flames (feet and trail). They start small at normal speed and grow with each damage level.");
             speedPerLevel = Float("Trail", "SpeedPerLevel", 0.15f, 0.02f, 1f,
