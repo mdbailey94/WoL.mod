@@ -47,6 +47,13 @@ namespace WoLCustomPaintings
                 return null;
             area.y += nudge / ppu;
 
+            // The painting can be drawn stretched (its transform scaled unevenly): shape the picture
+            // by how the opening looks on screen, not by its unscaled pixels.
+            Vector3 scale = art.transform.lossyScale;
+            float squash = Mathf.Abs(scale.y) > 0.0001f ? Mathf.Abs(scale.x) / Mathf.Abs(scale.y) : 1f;
+            if (squash <= 0f || float.IsNaN(squash))
+                squash = 1f;
+
             int w = Mathf.RoundToInt(area.width * ppu);
             int h = Mathf.RoundToInt(area.height * ppu);
             if (w < 6 || h < 6)
@@ -56,7 +63,7 @@ namespace WoLCustomPaintings
             // nothing is resampled.
             if (CustomPaintingsPlugin.PictureFit == "Fill")
             {
-                Sprite own = OwnPixels(picture, area, original.name, from);
+                Sprite own = OwnPixels(picture, area, squash, original.name, from);
                 if (own != null)
                 {
                     cache[key] = own;
@@ -68,7 +75,15 @@ namespace WoLCustomPaintings
             int bw = w * d, bh = h * d;
 
             var pixels = new Color32[bw * bh];
-            PaintCanvas(pixels, bw, bh, 0, picture);
+            canvasSquash = squash;
+            try
+            {
+                PaintCanvas(pixels, bw, bh, 0, picture);
+            }
+            finally
+            {
+                canvasSquash = 1f;
+            }
             var texture = new Texture2D(bw, bh, TextureFormat.RGBA32, false)
             {
                 filterMode = FilterMode.Point,
@@ -88,10 +103,11 @@ namespace WoLCustomPaintings
 
         // The picture cropped to the area's shape (centred across, keeping the top, where faces
         // usually are), at its own pixels, the sprite sized to the area.
-        private static Sprite OwnPixels(Texture2D picture, Rect area, string artName, string from)
+        private static Sprite OwnPixels(Texture2D picture, Rect area, float squash, string artName, string from)
         {
             int pw = picture.width, ph = picture.height;
-            float areaAspect = area.width / area.height;
+            // The opening's shape as it shows on screen.
+            float areaAspect = area.width / area.height * squash;
             int cw = pw, ch = ph;
             if (pw / (float)ph > areaAspect)
                 cw = Mathf.Clamp(Mathf.RoundToInt(ph * areaAspect), 1, pw);
@@ -103,27 +119,38 @@ namespace WoLCustomPaintings
             if (cw < 2 || ch < 2)
                 return null;
 
-            var texture = new Texture2D(cw, ch, TextureFormat.RGBA32, false)
+            // The painting may be drawn stretched (squash != 1), which stretches any sprite on it, so
+            // the picture's rows are pre-shrunk to cancel that out. To keep its pixels crisp, each
+            // is first made a k x k block, so the adjustment only trims or repeats fine rows.
+            bool stretched = Mathf.Abs(squash - 1f) > 0.01f;
+            int k = stretched ? 4 : 1;
+            int tw = cw * k;
+            int th = Mathf.Max(1, Mathf.RoundToInt(ch * k * squash));
+            var texture = new Texture2D(tw, th, TextureFormat.RGBA32, false)
             {
                 filterMode = FilterMode.Point,
                 wrapMode = TextureWrapMode.Clamp
             };
             Color32[] src = picture.GetPixels32();
-            var pixels = new Color32[cw * ch];
-            for (int y = 0; y < ch; y++)
-                for (int x = 0; x < cw; x++)
+            var pixels = new Color32[tw * th];
+            for (int y = 0; y < th; y++)
+            {
+                int sy = Mathf.Clamp(Mathf.FloorToInt((y + 0.5f) * ch / th), 0, ch - 1);
+                for (int x = 0; x < tw; x++)
                 {
-                    Color32 c = src[(y + cy) * pw + (x + cx)];
-                    pixels[y * cw + x] = new Color32(c.r, c.g, c.b, 255);
+                    Color32 c = src[(sy + cy) * pw + (x / k + cx)];
+                    pixels[y * tw + x] = new Color32(c.r, c.g, c.b, 255);
                 }
+            }
             texture.SetPixels32(pixels);
             texture.Apply();
-            // Pixels per unit so the crop spans the area exactly (its shape matches, to a pixel).
-            float ppu = cw / area.width;
+            // Pixels per unit so the sprite spans the area (its height matches too, by the above).
+            float ppu = tw / area.width;
             Vector2 pivot = new Vector2(-area.xMin / area.width, -area.yMin / area.height);
-            Sprite sprite = Sprite.Create(texture, new Rect(0, 0, cw, ch), pivot, ppu);
+            Sprite sprite = Sprite.Create(texture, new Rect(0, 0, tw, th), pivot, ppu);
             CustomPaintingsPlugin.Log($"Picture over artwork '{artName}': picture {pw}x{ph} at its own pixels, " +
-                $"cropped to {cw}x{ch} for the opening from {from}");
+                $"cropped to {cw}x{ch} for the opening from {from}" +
+                (stretched ? $" (the painting is drawn {1f / squash:0.##}x as tall as wide, made up for)" : ""));
             return sprite;
         }
 
@@ -265,6 +292,9 @@ namespace WoLCustomPaintings
         // - Fit: the whole picture, scaled to fit, over a dimmed stretched copy of itself where the
         //   shapes differ (no dark bars);
         // - Stretch: the whole picture, stretched to the canvas's shape.
+        // How much wider than its pixels the canvas shows on screen (1 = square pixels).
+        private static float canvasSquash = 1f;
+
         private static void PaintCanvas(Color32[] pixels, int w, int h, int inset, Texture2D picture)
         {
             int cw = w - 2 * inset, ch = h - 2 * inset;
@@ -275,7 +305,8 @@ namespace WoLCustomPaintings
             // The part of the picture used, and where in the canvas it goes.
             float cropX = 0f, cropY = 0f, cropW = pw, cropH = ph;
             int dx = 0, dy = 0, dw = cw, dh = ch;
-            float canvasAspect = (float)cw / ch;
+            // As it shows on screen (the painting may be drawn stretched).
+            float canvasAspect = (float)cw / ch * canvasSquash;
             float pictureAspect = pw / (float)ph;
             if (fit == "Fill")
             {
@@ -290,9 +321,9 @@ namespace WoLCustomPaintings
             else if (fit != "Stretch")
             {
                 if (pictureAspect > canvasAspect)
-                    dh = Mathf.Max(1, Mathf.RoundToInt(cw / pictureAspect));
+                    dh = Mathf.Clamp(Mathf.RoundToInt(ch * canvasAspect / pictureAspect), 1, ch);
                 else
-                    dw = Mathf.Max(1, Mathf.RoundToInt(ch * pictureAspect));
+                    dw = Mathf.Clamp(Mathf.RoundToInt(cw * pictureAspect / canvasAspect), 1, cw);
                 dx = (cw - dw) / 2;
                 dy = (ch - dh) / 2;
                 if (dw < cw || dh < ch)
