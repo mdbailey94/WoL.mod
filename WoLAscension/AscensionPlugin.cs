@@ -17,7 +17,7 @@ namespace WoLAscension
     {
         public const string PluginGuid = "mdbailey94.wol.ascension";
         public const string PluginName = "Ascension";
-        public const string PluginVersion = "0.4.0";
+        public const string PluginVersion = "0.4.1";
 
         private const string PlayerDamageTakenMod = "Ascension_DamageTaken";
         private const string PlayerHealingMod = "Ascension_Healing";
@@ -65,6 +65,8 @@ namespace WoLAscension
                     new AcceptableValueRange<int>(0, AscensionLevels.Max)));
             showInRun = Config.Bind("General", "ShowLevelInRun", true,
                 "Show a small 'ASCENSION n' tag in the corner during a run.");
+            AscensionAltar.RememberedPortal = Config.Bind("Altar", "LastPortal", string.Empty,
+                "Where the trials portal was when a run last started (found automatically). Don't edit.");
             AscensionAltar.Offset = new Vector2(
                 Config.Bind("Altar", "OffsetX", -3.5f, "Where the altar stands, in game units from the trials portal (negative = left).").Value,
                 Config.Bind("Altar", "OffsetY", 0f, "Where the altar stands, in game units from the trials portal (negative = down).").Value);
@@ -116,7 +118,10 @@ namespace WoLAscension
             bool startsRun = IsTrialScene(destination) && !IsTrialScene();
             Logger.LogInfo($"Portal to '{destination}' (starts a run: {startsRun})");
             if (startsRun)
+            {
+                AscensionAltar.RememberPortal(loader);
                 StartRun();
+            }
             return true;
         }
 

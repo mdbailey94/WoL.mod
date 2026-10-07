@@ -4,12 +4,12 @@ Spend chaos gems on **permanent** upgrades for your cloaks, at the wardrobe in y
 
 ## How it works
 
-Everything happens in the wardrobe's own screen. Highlight a cloak and its info box shows its
-upgrade tier and the next upgrade, e.g. `Upgrade tier 1/4: bonuses +25%` /
-`Interact: tier 2 for 200 gems (you have 812)`. Press **Interact** (the button you opened the
-wardrobe with) and the game's own yes/no box asks to confirm; a purchase is announced by the game's
-notice banner. If the yes/no box can't be used, the info box asks you to press Interact again
-instead. You can only upgrade cloaks you've unlocked.
+Everything happens in the wardrobe's own screen. Highlight a cloak and its info box shows its tier
+and the next upgrade, e.g. `Tier 1/4: bonuses +25%` / `Press Y to upgrade: 200 gems` (the box's
+text shrinks to fit). Press **Y** on a controller (Triangle on PlayStation pads) or **U** on the
+keyboard and the game's own yes/no box asks to confirm; a purchase is announced by the game's notice
+banner. If the yes/no box can't be used, press the button a second time instead. You can only
+upgrade cloaks you've unlocked.
 
 | Tier | Cost | The cloak's bonuses |
 |------|------|---------------------|

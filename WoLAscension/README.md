@@ -34,7 +34,10 @@ quitting or finishing). The modifiers use the game's own stat system, so they st
 relics. The altar remembers your level between runs and sessions. You can also turn the whole mod
 off in the title screen Mods menu.
 
-If the altar is in an awkward spot, move it with `[Altar] OffsetX` / `OffsetY` in
+The altar finds the portal by itself; if it can't, it uses where your last run's portal was (so
+after one run it's there for good). The log says where it put it (`Ascension altar placed in ...`)
+or lists the level loaders it saw. If the altar is in an awkward spot, move it with
+`[Altar] OffsetX` / `OffsetY` in
 `BepInEx/config/mdbailey94.wol.ascension.cfg` (game units from the portal; default 3.5 to the
 left). If a run starts some way that skips the portal, the altar's level is applied as soon as
 the first enemies appear.

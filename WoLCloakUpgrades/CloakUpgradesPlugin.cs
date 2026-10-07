@@ -8,21 +8,20 @@ using UnityEngine;
 namespace WoLCloakUpgrades
 {
     // Permanent cloak upgrades bought with chaos gems at the wardrobe, all in the wardrobe's own
-    // screen: the highlighted cloak's info box gains its upgrade tier and the price of the next one,
-    // pressing Interact (the button that opened the wardrobe) asks with the game's own yes/no box,
-    // and a purchase is announced by the game's notice banner. Tiers are kept per cloak in this
+    // screen: the highlighted cloak's info box gains its upgrade tier and the price of the next one
+    // (the box's text shrinks to fit), pressing Y (controller) or U (keyboard) asks with the game's
+    // own yes/no box, and a purchase is announced by the game's notice banner. Tiers are kept per cloak in this
     // mod's config file, so they last across runs and restarts.
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     public class CloakUpgradesPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "mdbailey94.wol.cloakupgrades";
         public const string PluginName = "Cloak Upgrades";
-        public const string PluginVersion = "0.2.0";
+        public const string PluginVersion = "0.3.0";
 
-        private const string InteractAction = "Interact";
-        // Ignore Interact right after the wardrobe opens: it's the press that opened it.
+        // Ignore presses right after the wardrobe opens.
         private const float OpenGrace = 0.35f;
-        // Without the game's yes/no box: press Interact again within this long to confirm.
+        // Without the game's yes/no box: press again within this long to confirm.
         private const float SecondPressWindow = 2.5f;
         private const float ConfirmTimeout = 30f;
 
@@ -96,20 +95,51 @@ namespace WoLCloakUpgrades
         {
             if (!modEnabled.Value || outfit == null || ui.wrRef == null || ui.wrRef.infoDescText == null)
                 return;
-            ui.wrRef.infoDescText.text = ui.wrRef.infoDescText.text.TrimEnd() + "\n\n" + UpgradeLines(outfit);
+            UnityEngine.UI.Text text = ui.wrRef.infoDescText;
+            FitToBox(text);
+            text.text = text.text.TrimEnd() + "\n" + UpgradeLines(outfit, OnController(ui));
         }
 
-        private string UpgradeLines(Outfit outfit)
+        // Let the info box shrink its text to fit instead of running off the screen (down to half
+        // its size, only as much as it needs).
+        private static void FitToBox(UnityEngine.UI.Text text)
+        {
+            if (text.resizeTextForBestFit)
+                return;
+            int size = text.fontSize;
+            text.resizeTextMaxSize = size;
+            text.resizeTextMinSize = Mathf.Max(6, size / 2);
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.verticalOverflow = VerticalWrapMode.Truncate;
+            text.resizeTextForBestFit = true;
+        }
+
+        private static bool OnController(WardrobeUI ui)
+        {
+            try
+            {
+                return ui.player != null && ui.player.inputDevice != null
+                    && ui.player.inputDevice.inputScheme == ChaosInputDevice.InputScheme.Gamepad;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        // Kept short: one line for the tier, one for the button and price.
+        private string UpgradeLines(Outfit outfit, bool controller)
         {
             if (!outfit.unlocked)
-                return "Unlock this cloak to upgrade it.";
+                return "Unlock to upgrade";
             int tier = Tier(outfit.outfitID);
-            string now = $"Upgrade tier {tier}/{CloakTiers.Max}: {CloakTiers.Short(tier)}";
+            string now = $"Tier {tier}/{CloakTiers.Max}: {CloakTiers.Short(tier)}";
             if (tier >= CloakTiers.Max)
                 return now + " (max)";
+            string button = controller ? "Y" : "U";
             if (pending == outfit && !pendingUsesBox)
-                return now + $"\nInteract again to spend {CloakTiers.Cost(tier)} gems";
-            return now + $"\nInteract: tier {tier + 1} for {CloakTiers.Cost(tier)} gems (you have {Gems()})";
+                return now + $"\nPress {button} again to confirm";
+            return now + $"\nPress {button} to upgrade: {CloakTiers.Cost(tier)} gems";
         }
 
         private int Tier(string outfitID)
@@ -174,7 +204,7 @@ namespace WoLCloakUpgrades
                 CancelPending();
                 Refresh(ui, Highlighted(ui));
             }
-            if (Time.unscaledTime - openedAt < OpenGrace || !InteractPressed(ui))
+            if (Time.unscaledTime - openedAt < OpenGrace || !UpgradeInput.Pressed())
                 return;
 
             Outfit outfit = Highlighted(ui);
@@ -194,18 +224,6 @@ namespace WoLCloakUpgrades
                 return;
             }
             Ask(ui, outfit, cost);
-        }
-
-        private static bool InteractPressed(WardrobeUI ui)
-        {
-            try
-            {
-                return ui.player != null && ui.player.inputDevice != null && ui.player.inputDevice.GetButtonDown(InteractAction);
-            }
-            catch
-            {
-                return false;
-            }
         }
 
         // The game's own yes/no box; if it can't be used, the info box asks for a second press.

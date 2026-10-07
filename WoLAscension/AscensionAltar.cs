@@ -35,29 +35,63 @@ namespace WoLAscension
 
         // Finds the portal into the trials in this scene and puts an altar beside it (null if this
         // scene has no such portal).
+        // Where the portal into the trials was last seen (scene name and position), remembered when
+        // a run starts through it, for scenes where it can't be found by looking.
+        public static ConfigEntry<string> RememberedPortal;
+        private static readonly HashSet<string> loggedScenes = new HashSet<string>();
+
         public static AscensionAltar SpawnBesideTrialsPortal(ConfigEntry<int> level, ManualLogSource log)
         {
-            NextLevelLoader portal = null;
-            foreach (NextLevelLoader loader in FindObjectsOfType<NextLevelLoader>())
+            string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            bool firstLook = loggedScenes.Add(scene);
+            Vector2? spot = null;
+            string why = null;
+
+            // Every level loader in the scene, hidden ones too (the trials portal may be switched
+            // off until something opens it, or get its destination later).
+            foreach (NextLevelLoader loader in Resources.FindObjectsOfTypeAll<NextLevelLoader>())
             {
-                if (loader != null && IsTrialScene(loader.nextLevelName))
+                if (loader == null || loader.gameObject.scene.name != scene)
+                    continue;
+                if (firstLook)
+                    log.LogInfo($"Altar: level loader '{loader.name}' to '{loader.nextLevelName}' at {loader.transform.position} " +
+                        $"(active: {loader.gameObject.activeInHierarchy})");
+                if (spot == null && IsTrialScene(loader.nextLevelName))
                 {
-                    portal = loader;
-                    break;
+                    spot = loader.transform.position;
+                    why = $"beside the portal to '{loader.nextLevelName}'";
                 }
             }
-            if (portal == null)
+            // Otherwise where a run was last started from, if it was this scene.
+            if (spot == null && RememberedPortal != null && !string.IsNullOrEmpty(RememberedPortal.Value))
+            {
+                string[] parts = RememberedPortal.Value.Split('|');
+                float x, y;
+                if (parts.Length == 3 && parts[0] == scene && float.TryParse(parts[1], System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out x)
+                    && float.TryParse(parts[2], System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out y))
+                {
+                    spot = new Vector2(x, y);
+                    why = "where the last run's portal was";
+                }
+            }
+            if (spot == null)
+            {
+                if (firstLook)
+                    log.LogInfo($"Altar: no trials portal found in '{scene}'");
                 return null;
+            }
             try
             {
                 ReadPixelSize();
                 var go = new GameObject("AscensionAltar");
-                go.transform.position = (Vector2)portal.transform.position + Offset;
+                go.transform.position = spot.Value + Offset;
                 AscensionAltar altar = go.AddComponent<AscensionAltar>();
                 altar.level = level;
                 altar.log = log;
                 altar.Build();
-                log.LogInfo($"Ascension altar placed at {go.transform.position} beside the portal to '{portal.nextLevelName}'");
+                log.LogInfo($"Ascension altar placed in '{scene}' at {go.transform.position}, {why} ({pixelsPerUnit} px per unit)");
                 return altar;
             }
             catch (Exception e)
@@ -65,6 +99,17 @@ namespace WoLAscension
                 log.LogError($"Couldn't place the Ascension altar: {e.Message}");
                 return null;
             }
+        }
+
+        // Called when a run starts through a portal: remember where it was.
+        public static void RememberPortal(NextLevelLoader portal)
+        {
+            if (RememberedPortal == null || portal == null)
+                return;
+            Vector3 p = portal.transform.position;
+            RememberedPortal.Value = portal.gameObject.scene.name + "|"
+                + p.x.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|"
+                + p.y.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
         private static bool IsTrialScene(string name)
