@@ -16,20 +16,10 @@ namespace WoLThunderhead
     {
         public new static string staticID = "Thunderhead";
 
-        private const float WindupTime = 0.12f;      // on the ground, still vulnerable
-        private const float RiseTime = 0.25f;        // up...
-        private const float HoverTime = 1.0f;        // ...hanging there while the lightning falls...
-        private const float EnhancedHoverTime = 1.5f;
-        private const float CrashTime = 0.12f;       // ...and slamming down
-        private const float RecoverTime = 0.15f;     // on the ground after the slam
-        private const float Height = 4f;             // how high the leap goes
-        private const float Radius = 2.2f;           // the area around the landing spot
-        private const float EnhancedRadius = 2.8f;
-        private const float VolleyInterval = 0.25f;  // a volley of strikes this often while up
-        private const int VolleySize = 3;
-        private const float StrikeScale = 1f;
-        private const float SlamScale = 2.4f;
-        private const float EnhancedSlamScale = 3f;
+        // Timings and sizes come from the config (ThunderheadPlugin), read as each cast starts.
+        private float WindupTime, RiseTime, CrashTime, RecoverTime, Height;
+        private float VolleyInterval;
+        private int VolleySize;
 
         private float time;
         private float nextVolley;
@@ -54,8 +44,9 @@ namespace WoLThunderhead
                 0.6f); // exit
         }
 
-        private float HoverTimeNow => IsEmpowered ? EnhancedHoverTime : HoverTime;
-        private float RadiusNow => IsEmpowered ? EnhancedRadius : Radius;
+        private float HoverTimeNow => IsEmpowered ? ThunderheadPlugin.EnhancedAirTime : ThunderheadPlugin.AirTime;
+        private float RadiusNow => IsEmpowered ? ThunderheadPlugin.EnhancedRadius : ThunderheadPlugin.Radius;
+        private float SlamScaleNow => IsEmpowered ? ThunderheadPlugin.EnhancedSlamSize : ThunderheadPlugin.SlamSize;
 
         public override void OnEnter()
         {
@@ -65,6 +56,13 @@ namespace WoLThunderhead
             done = false;
             tookOff = false;
             landed = false;
+            WindupTime = ThunderheadPlugin.WindupTime;
+            RiseTime = ThunderheadPlugin.RiseTime;
+            CrashTime = ThunderheadPlugin.CrashTime;
+            RecoverTime = ThunderheadPlugin.RecoverTime;
+            Height = ThunderheadPlugin.Height;
+            VolleyInterval = ThunderheadPlugin.VolleyInterval;
+            VolleySize = ThunderheadPlugin.VolleySize;
             levitator = Levitator.On(parent);
         }
 
@@ -212,7 +210,7 @@ namespace WoLThunderhead
             {
                 Vector2 offset = Random.insideUnitCircle * RadiusNow;
                 Vector2 spot = ground + new Vector2(offset.x, offset.y * 0.7f);
-                LightningBurst.CreateBurst(spot, parent.skillCategory, skillID, 1, StrikeScale, false);
+                LightningBurst.CreateBurst(spot, parent.skillCategory, skillID, 1, ThunderheadPlugin.StrikeSize, false);
                 Bolt(spot, 1f);
             }
             Spark(ground + new Vector2(0f, Height + 0.6f));
@@ -222,7 +220,7 @@ namespace WoLThunderhead
         private void Slam(Vector2 ground)
         {
             Touchdown();
-            float scale = IsEmpowered ? EnhancedSlamScale : SlamScale;
+            float scale = SlamScaleNow;
             LightningBurst.CreateBurst(ground, parent.skillCategory, skillID, 2, scale, false);
             Bolt(ground, 1.6f);
             Dust(ground, 80, scale);
