@@ -22,7 +22,7 @@ For the best look, use a **pixel-art picture with up to 64 colours**, ideally ab
 is wide or taller (the frames are portrait-shaped, roughly 3:4): the mod then snaps the shrunk
 picture back to those colours, so it matches the game's style. Any other PNG or JPG works too;
 it's just shrunk and kept as is. Each picture's own size is read and it's scaled to the frame
-(see `PictureFit`).
+(see `Fitting`).
 
 ## Settings
 
@@ -34,9 +34,10 @@ it's just shrunk and kept as is. Each picture's own size is read and it's scaled
   next floor you enter, no restart needed.
 - `Detail`: how finely your picture is drawn inside the frame. `1` is the game's own pixel size
   (blockier, matches the game's paintings); `2` (default) to `4` fit more detail in the same space.
-- `PictureFit`: how your picture is fitted to the frame. `Fit` (default) shows the whole picture,
-  scaled to fit, on a dark mat where its shape differs from the frame's; `Fill` fills the frame,
-  cropping the sides (or the bottom); `Stretch` stretches the whole picture to the frame's shape.
+- `Fitting`: how your picture is fitted to the frame. `Fill` (default) fills the frame, cropping
+  the sides (or the bottom); `Fit` shows the whole picture, scaled to fit, over a dimmed copy of
+  itself where its shape differs from the frame's; `Stretch` stretches the whole picture to the
+  frame's shape.
 - `FrameBorder`: how many of the game's pixels of the frame show round your picture (default 2).
   The picture fills the frame's opening whatever the painting's size; raise this if it covers
   the frame, lower it if the old painting peeks out. Applies from the next floor.

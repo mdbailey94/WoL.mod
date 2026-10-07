@@ -206,9 +206,10 @@ namespace WoLCustomPaintings
         // shrinks it and snaps each pixel to the nearest of the picture's own colours.
         // Paints the picture into the canvas (the area inside `inset`), shrunk with a box filter
         // and snapped to the picture's own colours. How it's fitted (PictureFit):
-        // - Fit: the whole picture, scaled to fit, centred on a dark mat where the shapes differ;
         // - Fill: fills the canvas, cropping the sides or the bottom (keeping the top, where faces
         //   usually are);
+        // - Fit: the whole picture, scaled to fit, over a dimmed stretched copy of itself where the
+        //   shapes differ (no dark bars);
         // - Stretch: the whole picture, stretched to the canvas's shape.
         private static void PaintCanvas(Color32[] pixels, int w, int h, int inset, Texture2D picture)
         {
@@ -241,12 +242,7 @@ namespace WoLCustomPaintings
                 dx = (cw - dw) / 2;
                 dy = (ch - dh) / 2;
                 if (dw < cw || dh < ch)
-                {
-                    Color32 mat = Mat(src);
-                    for (int y = 0; y < ch; y++)
-                        for (int x = 0; x < cw; x++)
-                            pixels[(y + inset) * w + (x + inset)] = mat;
-                }
+                    Backdrop(pixels, w, inset, cw, ch, src, pw, ph);
             }
 
             List<Color32> palette = Palette(src);
@@ -275,16 +271,31 @@ namespace WoLCustomPaintings
             }
         }
 
-        // The mat round a fitted picture: its average colour, darkened well down.
-        private static Color32 Mat(Color32[] src)
+        // Behind a fitted picture: the picture itself stretched over the whole canvas, blurred
+        // (big blocks averaged) and dimmed, so the gaps carry its colours instead of a dark bar.
+        private static void Backdrop(Color32[] pixels, int w, int inset, int cw, int ch, Color32[] src, int pw, int ph)
         {
-            long r = 0, g = 0, b = 0;
-            foreach (Color32 c in src)
+            const int Blocks = 6;
+            for (int y = 0; y < ch; y++)
             {
-                r += c.r; g += c.g; b += c.b;
+                for (int x = 0; x < cw; x++)
+                {
+                    // The block of the picture this canvas pixel falls in.
+                    int bx = x * Blocks / cw, by = y * Blocks / ch;
+                    int x0 = bx * pw / Blocks, x1 = Mathf.Max(x0 + 1, (bx + 1) * pw / Blocks);
+                    int y0 = by * ph / Blocks, y1 = Mathf.Max(y0 + 1, (by + 1) * ph / Blocks);
+                    long r = 0, g = 0, b = 0, n = 0;
+                    for (int sy = y0; sy < y1; sy += 2)
+                        for (int sx = x0; sx < x1; sx += 2)
+                        {
+                            Color32 c = src[sy * pw + sx];
+                            r += c.r; g += c.g; b += c.b; n++;
+                        }
+                    n = System.Math.Max(1L, n);
+                    pixels[(y + inset) * w + (x + inset)] =
+                        new Color32((byte)(r / n * 0.55f), (byte)(g / n * 0.55f), (byte)(b / n * 0.55f), 255);
+                }
             }
-            int n = Mathf.Max(1, src.Length);
-            return new Color32((byte)(r / n * 0.3f), (byte)(g / n * 0.3f), (byte)(b / n * 0.3f), 255);
         }
 
         private static List<Color32> Palette(Color32[] src)
