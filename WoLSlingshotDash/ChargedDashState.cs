@@ -164,66 +164,35 @@ namespace WoLSlingshotDash
         {
         }
 
-        // How far a plain dash carries this wizard: measured from their plain dashes (the longest,
-        // since walls only cut one short), or the game's dash speed x duration until there is one.
-        private static readonly Dictionary<int, float> measuredDash = new Dictionary<int, float>();
+        // How far a plain dash carries this wizard: the game's dash speed x dash duration (with
+        // relics), or 3 if that can't be read or looks wrong. Never throws.
         private static bool loggedDash;
-        private Vector2 plainDashStart;
-        private bool measuringDash;
 
         protected float PlainDashDistance()
         {
-            float measured;
-            if (parent != null && measuredDash.TryGetValue(parent.GetInstanceID(), out measured))
-                return measured;
             float computed = 0f;
             try
             {
-                Movement movement = parent.movement;
+                Movement movement = parent != null ? parent.movement : null;
                 if (movement != null && movement.dashSpeedStat != null && movement.dashDurationStat != null)
                     computed = movement.dashSpeedStat.ModifiedValue * movement.dashDurationStat.ModifiedValue;
             }
             catch
             {
+                computed = 0f;
             }
+            bool usable = computed >= 1f && computed <= 12f;
             if (!loggedDash)
             {
                 loggedDash = true;
-                SlingshotDashPlugin.Log($"Dash length from speed x duration: {computed:0.##}");
+                SlingshotDashPlugin.Log($"Dash length from speed x duration: {computed:0.##}" + (usable ? "" : " (using 3)"));
             }
-            return computed >= 1f && computed <= 12f ? computed : 3f;
-        }
-
-        private void StartPlainDash()
-        {
-            plainDashStart = parent.transform.position;
-            measuringDash = true;
-            base.OnEnter();
-        }
-
-        private void FinishMeasuring()
-        {
-            if (!measuringDash)
-                return;
-            measuringDash = false;
-            if (fsm.nextStateName.Contains("Hurt") || fsm.nextStateName.Contains("Dead"))
-                return;
-            float distance = Vector2.Distance(plainDashStart, parent.transform.position);
-            if (distance < 1f || distance > 12f)
-                return;
-            int key = parent.GetInstanceID();
-            float before;
-            if (!measuredDash.TryGetValue(key, out before) || distance > before + 0.05f)
-            {
-                measuredDash[key] = distance;
-                SlingshotDashPlugin.Log($"Measured a plain dash: {distance:0.##}");
-            }
+            return usable ? computed : 3f;
         }
 
         public override void OnEnter()
         {
             standStill = false;
-            measuringDash = false;
             launchCharge = 0f;
             slingshotting = false;
             if (InterceptDash())
@@ -235,7 +204,7 @@ namespace WoLSlingshotDash
             // Slingshot still recharging, or no way to read the button: a normal dash.
             if (!SlingshotReady || !DashButton.Available(parent, skillSlot))
             {
-                StartPlainDash();
+                base.OnEnter();
                 return;
             }
 
@@ -297,7 +266,6 @@ namespace WoLSlingshotDash
         public override void OnExit()
         {
             StopShaking();
-            FinishMeasuring();
             if (!charging && slingshotting && cooldownReady
                 && !fsm.nextStateName.Contains("Hurt") && !fsm.nextStateName.Contains("Dead"))
                 OnLand(launchCharge);
@@ -326,7 +294,7 @@ namespace WoLSlingshotDash
             launchCharge = charge;
             if (tap && TapIsPlainDash)
             {
-                StartPlainDash();
+                base.OnEnter();
                 return;
             }
             if (charge > 0f && BoostsDash)

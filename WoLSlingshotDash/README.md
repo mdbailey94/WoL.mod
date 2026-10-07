@@ -58,8 +58,8 @@ the same way; they differ in what the launch does.
 - Hold **0.2 to 1 second**, then release: instead of dashing, you **throw an ice copy of
   yourself** (the game's ice decoy) along your aim, from **a normal dash's length** up to 9
   depending on how long you held, stopping short of walls. Shorter than 0.2 seconds is a plain
-  dash and throws nothing (the dash length is measured from those plain dashes; the log says
-  `Measured a plain dash: X`).
+  dash and throws nothing (the dash length is the game's dash speed x duration; the log says
+  `Dash length from speed x duration: X`).
 - It **hovers** while you keep moving: from no hover at 0.2 seconds up to **2 seconds** at a full
   charge. Then, or as soon as you **press dash again**, you **swap places**: you appear where it
   is, and it appears where you are.
