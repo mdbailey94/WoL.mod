@@ -79,10 +79,25 @@ namespace WoLCyclone
                     Log(ref loggedTwister, "Cyclone: the game's twister is unavailable");
                     return;
                 }
-                // Yours, harmless, going nowhere and never running out.
-                twister.parentEntity = player;
-                twister.parentObject = player.gameObject;
-                twister.attackBox?.SetAttackInfo(skillCategory, skillID, HarmlessLevel, false);
+                // Yours, harmless, going nowhere and never running out. Each step on its own, so one
+                // the game objects to doesn't lose the rest.
+                Step("own", () =>
+                {
+                    twister.parentEntity = player;
+                    twister.parentObject = player.gameObject;
+                });
+                Step("disarm", () =>
+                {
+                    if (twister.attackBox != null)
+                    {
+                        twister.attackBox.enabled = false;
+                        if (twister.attackBox.collider != null)
+                            twister.attackBox.collider.enabled = false;
+                    }
+                    if (twister.atkCollider != null)
+                        twister.atkCollider.enabled = false;
+                });
+                Step("attack info", () => twister.attackBox?.SetAttackInfo(skillCategory, skillID, HarmlessLevel, false));
                 twister.moveSpeed = 0f;
                 twister.baseMoveSpeed = 0f;
                 twister.finalMoveSpeed = 0f;
@@ -95,7 +110,7 @@ namespace WoLCyclone
                 Remember(twister.startPartSys);
                 Remember(twister.frontPartSys);
                 Remember(twister.backPartSys);
-                twister.SetAudioStatus(true);
+                Step("sound", () => twister.SetAudioStatus(true));
                 Log(ref loggedTwister, "Cyclone: using the game's twister");
             }
             catch (System.Exception e)
@@ -157,6 +172,7 @@ namespace WoLCyclone
                     return;
                 }
                 // Only the look: no pull on anyone (you included), no attack, not following the boss.
+                // (Fields only, nothing that can object.)
                 storm.useGravityEffector = false;
                 if (storm.gravityEffector != null)
                     storm.gravityEffector.enabled = false;
@@ -243,6 +259,21 @@ namespace WoLCyclone
             main.startSizeMultiplier = main.scalingMode == ParticleSystemScalingMode.Hierarchy ? baseSize : baseSize * size;
             ParticleSystem.EmissionModule emission = system.emission;
             emission.rateOverTimeMultiplier = baseRate * density;
+        }
+
+        private static readonly HashSet<string> failedSteps = new HashSet<string>();
+
+        private static void Step(string name, System.Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (System.Exception e)
+            {
+                if (failedSteps.Add(name))
+                    CyclonePlugin.Log($"Cyclone: twister step '{name}' failed: {e.Message}");
+            }
         }
 
         private static void Log(ref bool logged, string message)

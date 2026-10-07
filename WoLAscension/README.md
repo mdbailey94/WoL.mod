@@ -37,9 +37,9 @@ off in the title screen Mods menu.
 The altar finds the portal by itself; if it can't, it uses where your last run's portal was (so
 after one run it's there for good). The log says where it put it (`Ascension altar placed in ...`)
 or lists the level loaders it saw. If the altar is in an awkward spot, move it with
-`[Altar] OffsetX` / `OffsetY` in
-`BepInEx/config/mdbailey94.wol.ascension.cfg` (game units from the portal; default 3.5 to the
-left). If a run starts some way that skips the portal, the altar's level is applied as soon as
+`[Altar] PortalOffsetX` / `PortalOffsetY` in
+`BepInEx/config/mdbailey94.wol.ascension.cfg` (game units from the portal; default 2.5 to the left
+and 2.5 down, beside the path up to it). If a run starts some way that skips the portal, the altar's level is applied as soon as
 the first enemies appear.
 
 ## Install

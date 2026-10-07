@@ -17,7 +17,7 @@ namespace WoLAscension
     {
         public const string PluginGuid = "mdbailey94.wol.ascension";
         public const string PluginName = "Ascension";
-        public const string PluginVersion = "0.4.1";
+        public const string PluginVersion = "0.4.2";
 
         private const string PlayerDamageTakenMod = "Ascension_DamageTaken";
         private const string PlayerHealingMod = "Ascension_Healing";
@@ -68,8 +68,8 @@ namespace WoLAscension
             AscensionAltar.RememberedPortal = Config.Bind("Altar", "LastPortal", string.Empty,
                 "Where the trials portal was when a run last started (found automatically). Don't edit.");
             AscensionAltar.Offset = new Vector2(
-                Config.Bind("Altar", "OffsetX", -3.5f, "Where the altar stands, in game units from the trials portal (negative = left).").Value,
-                Config.Bind("Altar", "OffsetY", 0f, "Where the altar stands, in game units from the trials portal (negative = down).").Value);
+                Config.Bind("Altar", "PortalOffsetX", -2.5f, "Where the altar stands, in game units from the trials portal (negative = left).").Value,
+                Config.Bind("Altar", "PortalOffsetY", -2.5f, "Where the altar stands, in game units from the trials portal (negative = down).").Value);
 
             try
             {

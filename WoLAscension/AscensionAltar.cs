@@ -18,7 +18,7 @@ namespace WoLAscension
         private const float BobSpeed = 2.2f;
         private const float BobHeight = 0.08f;
 
-        public static Vector2 Offset = new Vector2(-3.5f, 0f);
+        public static Vector2 Offset = new Vector2(-2.5f, -2.5f);
 
         private static readonly Dictionary<int, Sprite> crystalSprites = new Dictionary<int, Sprite>();
         private static Sprite pedestalSprite;
@@ -46,6 +46,7 @@ namespace WoLAscension
             bool firstLook = loggedScenes.Add(scene);
             Vector2? spot = null;
             string why = null;
+            NextLevelLoader blank = null;
 
             // Every level loader in the scene, hidden ones too (the trials portal may be switched
             // off until something opens it, or get its destination later).
@@ -61,6 +62,15 @@ namespace WoLAscension
                     spot = loader.transform.position;
                     why = $"beside the portal to '{loader.nextLevelName}'";
                 }
+                // The plaza's trials portal has no destination until you step in (the game picks the
+                // floor then): the active loader with none.
+                else if (blank == null && string.IsNullOrEmpty(loader.nextLevelName) && loader.gameObject.activeInHierarchy)
+                    blank = loader;
+            }
+            if (spot == null && blank != null)
+            {
+                spot = blank.transform.position;
+                why = "beside the trials portal";
             }
             // Otherwise where a run was last started from, if it was this scene.
             if (spot == null && RememberedPortal != null && !string.IsNullOrEmpty(RememberedPortal.Value))
