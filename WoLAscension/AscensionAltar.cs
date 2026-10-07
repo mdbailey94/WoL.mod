@@ -6,28 +6,32 @@ using UnityEngine;
 
 namespace WoLAscension
 {
-    // The Ascension altar: a stone pedestal with a floating chaos crystal, standing beside the Chaos
+    // The Ascension altar: a stone pedestal with a flame on top and the level on its face, standing
+    // beside the Chaos
     // Trials portal in the plaza. Walk up and the game's own button prompt appears over it; interact
-    // to raise the level by one (after 10 it goes back to off). The crystal burns brighter the
+    // to raise the level by one (after 10 it goes back to off). The flame grows from a small cold
+    // blue one to a big white-hot one with the level, and the number on the front shows it; the
     // higher the level, and the game's notice banner says what the level adds. Runs then start at
     // that level.
     public class AscensionAltar : MonoBehaviour
     {
         private const float Range = 2.4f;         // from the middle of the altar
         private const string InteractAction = "Interact";
-        private const float BobSpeed = 2.2f;
-        private const float BobHeight = 0.08f;
 
-        public static Vector2 Offset = new Vector2(-2.5f, -2.5f);
+        public static Vector2 Offset = new Vector2(-3.5f, 0f);
 
-        private static readonly Dictionary<int, Sprite> crystalSprites = new Dictionary<int, Sprite>();
+        private static readonly Dictionary<int, Sprite> flameSprites = new Dictionary<int, Sprite>();
+        private static readonly Dictionary<int, Sprite> numberSprites = new Dictionary<int, Sprite>();
+        private const int FlameFrames = 3;
+        private const float FlameFps = 9f;
         private static Sprite pedestalSprite;
         private static float pixelsPerUnit = 16f;
 
         private ConfigEntry<int> level;
         private ManualLogSource log;
         private SpriteRenderer pedestal;
-        private SpriteRenderer crystal;
+        private SpriteRenderer crystal;   // the flame
+        private SpriteRenderer number;
         private Vector3 crystalHome;
         private OverheadPrompt prompt;
         private bool promptShown;
@@ -154,12 +158,61 @@ namespace WoLAscension
         {
             pedestal = gameObject.AddComponent<SpriteRenderer>();
             pedestal.sprite = PedestalSprite();
-            var top = new GameObject("Crystal");
+            var top = new GameObject("Flame");
             top.transform.SetParent(transform, false);
-            crystalHome = new Vector3(0f, 14f / pixelsPerUnit, 0f);
+            crystalHome = new Vector3(0f, 12f / pixelsPerUnit, 0f);
             top.transform.localPosition = crystalHome;
             crystal = top.AddComponent<SpriteRenderer>();
-            crystal.sprite = CrystalSprite(Level);
+            var face = new GameObject("Number");
+            face.transform.SetParent(transform, false);
+            face.transform.localPosition = new Vector3(0f, 6.5f / pixelsPerUnit, 0f);
+            number = face.AddComponent<SpriteRenderer>();
+            ShowLevel();
+            AddCollider();
+        }
+
+        // The flame's size and heat, and the number, for the current level.
+        private void ShowLevel()
+        {
+            int lvl = Level;
+            float size = lvl <= 0 ? 0.45f : 0.6f + 0.1f * lvl;
+            crystal.transform.localScale = new Vector3(size, size, 1f);
+            number.sprite = NumberSprite(lvl);
+        }
+
+        // Solid to walk into, like the game's own props: a box over the pedestal's footprint, on the
+        // layer the game uses for obstacles.
+        private void AddCollider()
+        {
+            try
+            {
+                var go = new GameObject("Base");
+                go.transform.SetParent(transform, false);
+                go.layer = ObstacleLayer();
+                BoxCollider2D box = go.AddComponent<BoxCollider2D>();
+                box.size = new Vector2(13f / pixelsPerUnit, 5f / pixelsPerUnit);
+                box.offset = new Vector2(0f, 3f / pixelsPerUnit);
+                log?.LogInfo($"Ascension altar: solid on layer '{LayerMask.LayerToName(go.layer)}'");
+            }
+            catch (Exception e)
+            {
+                log?.LogInfo($"Ascension altar: couldn't make it solid ({e.Message})");
+            }
+        }
+
+        private static int ObstacleLayer()
+        {
+            int named = LayerMask.NameToLayer("Obstacle");
+            if (named >= 0)
+                return named;
+            int obstacles = ChaosCollisions.layerAllWallAndObst & ~ChaosCollisions.layerAllWall;
+            int mask = obstacles != 0 ? obstacles : ChaosCollisions.layerAllWallAndObst;
+            for (int i = 0; i < 32; i++)
+            {
+                if ((mask & (1 << i)) != 0)
+                    return i;
+            }
+            return 0;
         }
 
         private int Level => Mathf.Clamp(level.Value, 0, AscensionLevels.Max);
@@ -179,7 +232,8 @@ namespace WoLAscension
 
         private void Tick()
         {
-            crystal.transform.localPosition = crystalHome + new Vector3(0f, Mathf.Sin(Time.time * BobSpeed) * BobHeight, 0f);
+            // The flame flickers through its frames.
+            crystal.sprite = FlameSprite(Level, Mathf.FloorToInt(Time.time * FlameFps) % FlameFrames);
 
             Player near = NearestPlayer();
             SortAgainst(near);
@@ -203,7 +257,7 @@ namespace WoLAscension
             if (InteractPressed(near))
             {
                 level.Value = Level >= AscensionLevels.Max ? 0 : Level + 1;
-                crystal.sprite = CrystalSprite(Level);
+                ShowLevel();
                 log?.LogInfo($"Ascension altar: level set to {Level}");
                 Announce(null);
                 SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(transform.position), null, 24f, -1f,
@@ -218,7 +272,7 @@ namespace WoLAscension
             string info = AscensionLevels.Summary(lvl);
             if (!string.IsNullOrEmpty(extra))
                 info = extra + " - " + info;
-            GameBanner.Show(header, info, CrystalSprite(lvl));
+            GameBanner.Show(header, info, Icon(lvl));
         }
 
         // The game's Interact button, read two ways (the game's own input, then Rewired's).
@@ -278,9 +332,10 @@ namespace WoLAscension
             if (any == null || any.spriteRenderer == null)
                 return;
             int order = any.spriteRenderer.sortingOrder + (any.transform.position.y > transform.position.y ? 1 : -1);
-            pedestal.sortingLayerID = crystal.sortingLayerID = any.spriteRenderer.sortingLayerID;
+            pedestal.sortingLayerID = crystal.sortingLayerID = number.sortingLayerID = any.spriteRenderer.sortingLayerID;
             pedestal.sortingOrder = order;
             crystal.sortingOrder = order + 1;
+            number.sortingOrder = order + 1;
         }
 
         // The game's own "press this button" prompt over the altar.
@@ -347,29 +402,15 @@ namespace WoLAscension
             ".sLLLLLLLLLLLLs.",
             ".MMMMMMMMMMMMMM.",
             "...LMMMMMMMMD...",
-            "...LMMMLMMMMD...",
-            "...LMMMLMMMMD...",
-            "...LMMLMMMMMD...",
-            "...LMMLMMMMDD...",
-            "...LMMMLMMMDD...",
+            "...LMDDDDDDMD...",
+            "...LMDDDDDDMD...",
+            "...LMDDDDDDMD...",
+            "...LMDDDDDDDD...",
+            "...LMMMMMMMDD...",
             "..sLLLLLLLLLLM..",
             ".LMMMMMMMMMMMMD.",
             ".DDDDDDDDDDDDDD.",
             "hhhhhhhhhhhhhhhh",
-        };
-
-        private static readonly string[] CrystalRows =
-        {
-            "...WL...",
-            "..WWLM..",
-            ".WWWLMD.",
-            ".WWLLMD.",
-            "WWWLLMMD",
-            "WWLLMMDD",
-            ".WLLMMD.",
-            ".LLMMDD.",
-            "..LMDD..",
-            "...MD...",
         };
 
         private static Sprite PedestalSprite()
@@ -379,27 +420,147 @@ namespace WoLAscension
             return pedestalSprite;
         }
 
-        // The crystal, from a dim grey-violet when off to the Ascension orange at level 10.
-        public static Sprite CrystalSprite(int lvl)
+        // Three flicker frames of a flame, in outer, middle and core colours (no outline).
+        private static readonly string[][] FlameRows =
         {
+            new[]
+            {
+                "....o.....",
+                "....oo....",
+                "...ooo..o.",
+                "...omo..o.",
+                "..oomoo.o.",
+                "..ommmooo.",
+                ".oomcmmoo.",
+                ".ommccmmo.",
+                ".omccccmo.",
+                "oommcccmoo",
+                "ommcccccmo",
+                "ommcccccmo",
+                ".ommcccmo.",
+                "..ommmmo..",
+            },
+            new[]
+            {
+                ".....o....",
+                "....oo....",
+                ".o..ooo...",
+                ".o..omo...",
+                ".o.oomoo..",
+                ".ooommmo..",
+                ".oommcmoo.",
+                ".ommccmmo.",
+                ".omccccmo.",
+                "oommcccmoo",
+                "ommcccccmo",
+                "ommcccccmo",
+                ".ommcccmo.",
+                "..ommmmo..",
+            },
+            new[]
+            {
+                "..........",
+                ".....o....",
+                "....ooo...",
+                "...oomo...",
+                "...ommoo..",
+                "..oommmo..",
+                "..ommcmoo.",
+                ".oomccmmo.",
+                ".omccccmo.",
+                "oommcccmoo",
+                "ommcccccmo",
+                "ommcccccmo",
+                ".ommcccmo.",
+                "..ommmmo..",
+            },
+        };
+
+        // Outer, middle and core colours at levels 1, 4, 7 and 10.
+        private static readonly Color[][] Heat =
+        {
+            new Color[] { new Color32(0x2c, 0x4c, 0xc8, 0xff), new Color32(0x5c, 0x9c, 0xff, 0xff), new Color32(0xcc, 0xec, 0xff, 0xff) },
+            new Color[] { new Color32(0x7a, 0x34, 0xc8, 0xff), new Color32(0xb0, 0x70, 0xff, 0xff), new Color32(0xf0, 0xdc, 0xff, 0xff) },
+            new Color[] { new Color32(0xd0, 0x2a, 0x2a, 0xff), new Color32(0xff, 0x6a, 0x3a, 0xff), new Color32(0xff, 0xd8, 0xb0, 0xff) },
+            new Color[] { new Color32(0xf0, 0x40, 0x10, 0xff), new Color32(0xff, 0xa0, 0x20, 0xff), new Color32(0xff, 0xf8, 0xd0, 0xff) },
+        };
+
+        // Cold blue when low, through to a white-hot orange at 10 (a grey ember when off).
+        private static void FlameColours(int lvl, out Color outer, out Color mid, out Color core)
+        {
+            if (lvl <= 0)
+            {
+                outer = new Color32(0x5a, 0x58, 0x6e, 0xff);
+                mid = new Color32(0x80, 0x7c, 0x96, 0xff);
+                core = new Color32(0xa8, 0xa4, 0xbc, 0xff);
+                return;
+            }
+            // Blue, then violet, then red, then orange with a white-hot core.
+            float t = (lvl - 1) / (float)(AscensionLevels.Max - 1) * (Heat.Length - 1);
+            int a = Mathf.Min(Heat.Length - 2, Mathf.FloorToInt(t));
+            float f = t - a;
+            outer = Color.Lerp(Heat[a][0], Heat[a + 1][0], f);
+            mid = Color.Lerp(Heat[a][1], Heat[a + 1][1], f);
+            core = Color.Lerp(Heat[a][2], Heat[a + 1][2], f);
+        }
+
+        public static Sprite FlameSprite(int lvl, int frame)
+        {
+            int key = lvl * 10 + frame;
             Sprite sprite;
-            if (crystalSprites.TryGetValue(lvl, out sprite) && sprite != null)
+            if (flameSprites.TryGetValue(key, out sprite) && sprite != null)
                 return sprite;
-            float t = Mathf.Clamp01(lvl / (float)AscensionLevels.Max);
-            Color low = new Color32(0x7a, 0x70, 0xa8, 0xff), high = new Color32(0xff, 0x7a, 0x30, 0xff);
-            Color tint = Color.Lerp(low, high, t);
-            sprite = Make(CrystalRows, c =>
+            Color outer, mid, core;
+            FlameColours(lvl, out outer, out mid, out core);
+            sprite = Make(FlameRows[frame], c =>
             {
                 switch (c)
                 {
-                    case 'W': return (Color32?)Color.Lerp(tint, Color.white, 0.75f);
-                    case 'L': return Color.Lerp(tint, Color.white, 0.35f);
-                    case 'M': return tint;
-                    case 'D': return Color.Lerp(tint, Color.black, 0.25f);
+                    case 'o': return (Color32?)outer;
+                    case 'm': return mid;
+                    case 'c': return core;
                     default: return null;
                 }
             }, new Vector2(0.5f, 0f));
-            crystalSprites[lvl] = sprite;
+            flameSprites[key] = sprite;
+            return sprite;
+        }
+
+        // For the banner.
+        public static Sprite Icon(int lvl) => FlameSprite(lvl, 0);
+
+        // 3x5 pixel digits for the number on the altar's face.
+        private static readonly string[] Digits =
+        {
+            "###,#.#,#.#,#.#,###", ".#.,##.,.#.,.#.,###", "###,..#,###,#..,###", "###,..#,.##,..#,###",
+            "#.#,#.#,###,..#,..#", "###,#..,###,..#,###", "###,#..,###,#.#,###", "###,..#,..#,.#.,.#.",
+            "###,#.#,###,#.#,###", "###,#.#,###,..#,###",
+        };
+
+        // The level carved into the front, glowing in the flame's colour.
+        private static Sprite NumberSprite(int lvl)
+        {
+            Sprite sprite;
+            if (numberSprites.TryGetValue(lvl, out sprite) && sprite != null)
+                return sprite;
+            string text = lvl.ToString();
+            var rows = new string[5];
+            for (int r = 0; r < 5; r++)
+            {
+                var line = new System.Text.StringBuilder();
+                for (int d = 0; d < text.Length; d++)
+                {
+                    if (d > 0)
+                        line.Append('.');
+                    line.Append(Digits[text[d] - '0'].Split(',')[r]);
+                }
+                rows[r] = line.ToString();
+            }
+            Color outer, mid, core;
+            FlameColours(lvl, out outer, out mid, out core);
+            Color glow = lvl <= 0 ? (Color)new Color32(0x4a, 0x46, 0x5e, 0xff) : mid;
+            sprite = Make(rows, c => c == '#' ? (Color32?)glow : null, new Vector2(0.5f, 0.5f));
+            numberSprites[lvl] = sprite;
             return sprite;
         }
 

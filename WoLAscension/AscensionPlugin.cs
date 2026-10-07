@@ -17,7 +17,7 @@ namespace WoLAscension
     {
         public const string PluginGuid = "mdbailey94.wol.ascension";
         public const string PluginName = "Ascension";
-        public const string PluginVersion = "0.4.3";
+        public const string PluginVersion = "0.5.0";
 
         private const string PlayerDamageTakenMod = "Ascension_DamageTaken";
         private const string PlayerHealingMod = "Ascension_Healing";
@@ -68,8 +68,8 @@ namespace WoLAscension
             AscensionAltar.RememberedPortal = Config.Bind("Altar", "LastPortal", string.Empty,
                 "Where the trials portal was when a run last started (found automatically). Don't edit.");
             AscensionAltar.Offset = new Vector2(
-                Config.Bind("Altar", "PortalOffsetX", -2.5f, "Where the altar stands, in game units from the trials portal (negative = left).").Value,
-                Config.Bind("Altar", "PortalOffsetY", -2.5f, "Where the altar stands, in game units from the trials portal (negative = down).").Value);
+                Config.Bind("Altar", "LeftOfPortalX", -3.5f, "Where the altar stands, in game units from the trials portal (negative = left).").Value,
+                Config.Bind("Altar", "LeftOfPortalY", 0f, "Where the altar stands, in game units from the trials portal (negative = down).").Value);
 
             try
             {
@@ -131,7 +131,7 @@ namespace WoLAscension
             runLevel = Mathf.Clamp(level.Value, 0, AscensionLevels.Max);
             Logger.LogInfo($"Starting run at Ascension {runLevel}");
             if (runLevel > 0)
-                GameBanner.Show($"ASCENSION {runLevel}", AscensionLevels.Summary(runLevel), AscensionAltar.CrystalSprite(runLevel));
+                GameBanner.Show($"ASCENSION {runLevel}", AscensionLevels.Summary(runLevel), AscensionAltar.Icon(runLevel));
         }
 
         // ---- Main loop ----

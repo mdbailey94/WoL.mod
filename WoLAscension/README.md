@@ -22,11 +22,13 @@ away.
 
 ## Choosing a level: the Ascension altar
 
-In the plaza, an **Ascension altar** stands beside the Chaos Trials portal: a stone pedestal with
-a floating chaos crystal, softly shaded like the game's own props. Walk up to it and the game's own
+In the plaza, an **Ascension altar** stands to the left of the Chaos Trials portal: a stone
+pedestal, softly shaded like the game's own props, that you can't walk through. A **flame** burns on
+top, growing from a small cold blue one to a big white-hot one as the level rises (a grey ember when
+off), and the **level number** glows on its front. Walk up to it and the game's own
 button prompt appears; **interact** to
-raise the level by one (after 10 it goes back to OFF). The crystal burns brighter the higher the
-level, and the game's notice banner shows the level, what it adds and the gem bonus.
+raise the level by one (after 10 it goes back to OFF); the game's notice banner shows the level,
+what it adds and the gem bonus.
 
 Then just take the portal: the run starts at the altar's level, with no pause or menu, and the
 banner shows it as you go in. The level is locked for the run, a small "ASCENSION n" tag shows in
@@ -38,9 +40,9 @@ off in the title screen Mods menu.
 The altar finds the portal by itself; if it can't, it uses where your last run's portal was (so
 after one run it's there for good). The log says where it put it (`Ascension altar placed in ...`)
 or lists the level loaders it saw. If the altar is in an awkward spot, move it with
-`[Altar] PortalOffsetX` / `PortalOffsetY` in
-`BepInEx/config/mdbailey94.wol.ascension.cfg` (game units from the portal; default 2.5 to the left
-and 2.5 down, beside the path up to it). If a run starts some way that skips the portal, the altar's level is applied as soon as
+`[Altar] LeftOfPortalX` / `LeftOfPortalY` in
+`BepInEx/config/mdbailey94.wol.ascension.cfg` (game units from the portal; default 3.5 to the left,
+level with it). If a run starts some way that skips the portal, the altar's level is applied as soon as
 the first enemies appear.
 
 ## Install
