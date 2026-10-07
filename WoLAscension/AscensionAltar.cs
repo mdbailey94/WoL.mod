@@ -13,7 +13,7 @@ namespace WoLAscension
     // that level.
     public class AscensionAltar : MonoBehaviour
     {
-        private const float Range = 1.6f;
+        private const float Range = 2.4f;         // from the middle of the altar
         private const string InteractAction = "Interact";
         private const float BobSpeed = 2.2f;
         private const float BobHeight = 0.08f;
@@ -32,6 +32,7 @@ namespace WoLAscension
         private OverheadPrompt prompt;
         private bool promptShown;
         private bool greeted;
+        private bool loggedNear;
 
         // Finds the portal into the trials in this scene and puts an altar beside it (null if this
         // scene has no such portal).
@@ -193,11 +194,17 @@ namespace WoLAscension
             {
                 greeted = true;
                 Announce("Interact to raise");
+                if (!loggedNear)
+                {
+                    loggedNear = true;
+                    log?.LogInfo("Ascension altar: a wizard is in reach");
+                }
             }
-            if (near.inputDevice != null && near.inputDevice.GetButtonDown(InteractAction))
+            if (InteractPressed(near))
             {
                 level.Value = Level >= AscensionLevels.Max ? 0 : Level + 1;
                 crystal.sprite = CrystalSprite(Level);
+                log?.LogInfo($"Ascension altar: level set to {Level}");
                 Announce(null);
                 SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(transform.position), null, 24f, -1f,
                     0.8f + 0.06f * Level, false);
@@ -214,6 +221,30 @@ namespace WoLAscension
             GameBanner.Show(header, info, CrystalSprite(lvl));
         }
 
+        // The game's Interact button, read two ways (the game's own input, then Rewired's).
+        private static bool InteractPressed(Player p)
+        {
+            ChaosInputDevice device = p.inputDevice;
+            if (device == null)
+                return false;
+            try
+            {
+                if (device.GetButtonDown(InteractAction))
+                    return true;
+            }
+            catch
+            {
+            }
+            try
+            {
+                return device.rewiredPlayer != null && device.rewiredPlayer.GetButtonDown(InteractAction);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private Player NearestPlayer()
         {
             Player[] players = GameController.activePlayers;
@@ -225,7 +256,7 @@ namespace WoLAscension
             {
                 if (p == null || !p.gameObject.activeInHierarchy)
                     continue;
-                float d = Vector2.Distance(p.transform.position, transform.position);
+                float d = Vector2.Distance(p.transform.position, (Vector2)transform.position + new Vector2(0f, 0.5f));
                 if (d <= bestDistance)
                 {
                     bestDistance = d;
@@ -299,44 +330,46 @@ namespace WoLAscension
 
         // ---- Art ----
 
+        // Soft-shaded like the game's own props: no dark outline, just light on top and shade
+        // below.
         private static readonly Dictionary<char, Color32> Stone = new Dictionary<char, Color32>
         {
-            { 'o', new Color32(0x1e, 0x1a, 0x2a, 0xff) },
-            { 'D', new Color32(0x3e, 0x3a, 0x52, 0xff) },
-            { 'M', new Color32(0x5e, 0x5a, 0x78, 0xff) },
-            { 'L', new Color32(0x86, 0x82, 0xa0, 0xff) },
-            { 's', new Color32(0xb4, 0xb0, 0xc8, 0xff) },
+            { 'D', new Color32(0x5a, 0x55, 0x70, 0xff) },
+            { 'M', new Color32(0x7c, 0x77, 0x94, 0xff) },
+            { 'L', new Color32(0xa2, 0x9d, 0xb8, 0xff) },
+            { 's', new Color32(0xc8, 0xc4, 0xd8, 0xff) },
+            { 'h', new Color32(0x45, 0x41, 0x58, 0x90) }, // soft ground shadow
         };
 
         private static readonly string[] PedestalRows =
         {
-            "..oooooooooooo..",
-            ".osssssssssssso.",
-            ".oLLLLLLLLLLLLo.",
-            "..oDDDDDDDDDDo..",
-            "...oMMMLMMMMo...",
-            "...oMMMLMMMMo...",
-            "...oMMLMMMMMo...",
-            "...oMMLMMMMDo...",
-            "...oMMMLMMMDo...",
-            "..oLLLLLLLLLLo..",
-            ".oMMMMMMMMMMMMo.",
-            ".oDDDDDDDDDDDDo.",
-            "..oooooooooooo..",
+            "..ssssssssssss..",
+            ".sLLLLLLLLLLLLs.",
+            ".MMMMMMMMMMMMMM.",
+            "...LMMMMMMMMD...",
+            "...LMMMLMMMMD...",
+            "...LMMMLMMMMD...",
+            "...LMMLMMMMMD...",
+            "...LMMLMMMMDD...",
+            "...LMMMLMMMDD...",
+            "..sLLLLLLLLLLM..",
+            ".LMMMMMMMMMMMMD.",
+            ".DDDDDDDDDDDDDD.",
+            "hhhhhhhhhhhhhhhh",
         };
 
         private static readonly string[] CrystalRows =
         {
-            "...oo...",
-            "..oWLo..",
-            ".oWWLMo.",
-            ".oWLLMo.",
-            "oWWLLMDo",
-            "oWLLMMDo",
-            ".oLLMDo.",
-            ".oLMMDo.",
-            "..oMDo..",
-            "...oo...",
+            "...WL...",
+            "..WWLM..",
+            ".WWWLMD.",
+            ".WWLLMD.",
+            "WWWLLMMD",
+            "WWLLMMDD",
+            ".WLLMMD.",
+            ".LLMMDD.",
+            "..LMDD..",
+            "...MD...",
         };
 
         private static Sprite PedestalSprite()
@@ -359,11 +392,10 @@ namespace WoLAscension
             {
                 switch (c)
                 {
-                    case 'o': return (Color32?)new Color32(0x1e, 0x1a, 0x2a, 0xff);
-                    case 'W': return Color.Lerp(tint, Color.white, 0.75f);
+                    case 'W': return (Color32?)Color.Lerp(tint, Color.white, 0.75f);
                     case 'L': return Color.Lerp(tint, Color.white, 0.35f);
                     case 'M': return tint;
-                    case 'D': return Color.Lerp(tint, Color.black, 0.35f);
+                    case 'D': return Color.Lerp(tint, Color.black, 0.25f);
                     default: return null;
                 }
             }, new Vector2(0.5f, 0f));

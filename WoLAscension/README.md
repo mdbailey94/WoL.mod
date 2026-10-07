@@ -23,7 +23,8 @@ away.
 ## Choosing a level: the Ascension altar
 
 In the plaza, an **Ascension altar** stands beside the Chaos Trials portal: a stone pedestal with
-a floating chaos crystal. Walk up to it and the game's own button prompt appears; **interact** to
+a floating chaos crystal, softly shaded like the game's own props. Walk up to it and the game's own
+button prompt appears; **interact** to
 raise the level by one (after 10 it goes back to OFF). The crystal burns brighter the higher the
 level, and the game's notice banner shows the level, what it adds and the gem bonus.
 

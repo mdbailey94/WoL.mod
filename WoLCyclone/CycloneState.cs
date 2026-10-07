@@ -19,8 +19,9 @@ namespace WoLCyclone
         private const float FullPowerTime = 1f;    // then this long at full power, and it bursts
         private const float MinTime = 0.35f;       // a tap still gives a brief twister
         private const float Distance = 4f;         // starts about three tiles in front of the wizard
-        private const float SteerSpeed = 2.4f;     // how fast you can move it, small to full size
-        private const float FullSteerSpeed = 1.4f;
+        private const float SteerSpeed = 3.5f;     // how fast you can move it when it's small...
+        private const float HeavyAt = 0.5f;        // ...slowing until, this far into the growth,
+        private const float HeavySteerSpeed = 0.15f; // it barely moves
         private const float MaxRange = 9f;         // how far from the wizard it can be steered
         private const float StartHitScale = 0.9f;  // hit area, small to big
         private const float EndHitScale = 2.4f;
@@ -58,6 +59,7 @@ namespace WoLCyclone
             held = 0f;
             nextHit = 0f;
             nextSwirl = 0f;
+            nextRumble = 0f;
             done = false;
             aim = GetInputVector();
             if (aim.sqrMagnitude < 0.01f)
@@ -87,9 +89,10 @@ namespace WoLCyclone
 
             // Steer it slowly with your aim (slower as it grows); the wizard stays put, facing it,
             // in a casting pose.
-            Vector2 input = GetInputVector(false, true, true);
-            if (input.sqrMagnitude > 0.01f)
-                Steer(input.normalized * Mathf.Lerp(SteerSpeed, FullSteerSpeed, progress) * Time.deltaTime);
+            // Only while you're actually pushing a direction (not the last aim, which would drift it).
+            Vector2 input = GetInputVector(false, false, false);
+            if (input.sqrMagnitude > 0.04f)
+                Steer(input.normalized * SteerSpeedAt(progress) * Time.deltaTime);
             if (parent.rigidbody2D != null)
                 parent.rigidbody2D.velocity = Vector2.zero;
             parent.FaceTarget(center);
@@ -132,6 +135,13 @@ namespace WoLCyclone
             base.ExecuteSkill();
         }
 
+        // Quick while small, heavier and heavier, and barely moving from halfway on.
+        private static float SteerSpeedAt(float progress)
+        {
+            float t = Mathf.Clamp01(progress / HeavyAt);
+            return Mathf.Lerp(SteerSpeed, HeavySteerSpeed, 1f - (1f - t) * (1f - t));
+        }
+
         // Moves the twister, but not through walls or too far from the wizard.
         private void Steer(Vector2 step)
         {
@@ -169,21 +179,70 @@ namespace WoLCyclone
         // The game's air vortex swirling at the twister, growing with it.
         private void Swirl(float progress)
         {
+            float scale = Mathf.Lerp(StartHitScale, EndHitScale, progress);
+            Try(() =>
+            {
+                // Layered swirls: more of them, wider and slower, as it builds.
+                int layers = 1 + Mathf.FloorToInt(progress * 2.5f);
+                for (int i = 0; i < layers; i++)
+                {
+                    var vortex = new ParticleSystemOverride
+                    {
+                        startSize = new float?(2.0f * scale * (1f + 0.45f * i)),
+                        startLifetime = new float?(0.45f + 0.2f * i)
+                    };
+                    PoolManager.GetPoolItem<ParticleEffect>("AirVortex").Emit(new int?(1), new Vector3?(center), vortex,
+                        new Vector3?(new Vector3(0f, 0f, Random.Range(0f, 360f))), 0f, null, null);
+                }
+                PoolManager.GetPoolItem<DustEmitter>().EmitCircle(4 + Mathf.RoundToInt(12 * progress), 0.4f + scale * 0.5f,
+                    -4f, -1f, new Vector3?(center), null);
+            });
+            if (progress < 0.3f)
+                return;
+            // The hurricane's pull: dust streaming in to it, debris and leaves whirling round it.
+            Try(() => PoolManager.GetPoolItem<DustSuctionEffect>().Emit(new int?(6 + Mathf.RoundToInt(14 * progress)),
+                new Vector3?(center), null, null, 0f, null, null));
+            Try(() =>
+            {
+                for (int i = 0; i < 1 + Mathf.RoundToInt(2 * progress); i++)
+                {
+                    float a = Random.value * Mathf.PI * 2f;
+                    var ring = center + new Vector2(Mathf.Cos(a), Mathf.Sin(a) * 0.6f) * scale * 1.1f;
+                    PoolManager.GetPoolItem<RockDebrisEmitter>().EmitSingle(new int?(1), new Vector3?(ring), null, null, 0f, null);
+                    PoolManager.GetPoolItem<LeafEmitter>().EmitSingle(new int?(1), new Vector3?(ring), null, null, 0f, null,
+                        LeafEmitter.LeafColor.Green);
+                }
+            });
+            // A rumble that grows into a shake at full power.
+            if (progress >= 0.6f && Time.time >= nextRumble)
+            {
+                nextRumble = Time.time + 0.5f;
+                Try(() => CameraController.ShakeCamera(0.15f + 0.45f * progress, false));
+            }
+            // Gusts bursting out of it near full power.
+            if (progress >= 0.8f && Random.value < 0.3f)
+                Try(() => PoolManager.GetPoolItem<ParticleEffect>("WindBurstEffect").Emit(new int?(1), new Vector3?(center),
+                    null, null, 0f, null, null));
+        }
+
+        private float nextRumble;
+
+        // Effects are flair: if one isn't available, skip it (and stop trying it).
+        private readonly System.Collections.Generic.HashSet<int> brokenEffects = new System.Collections.Generic.HashSet<int>();
+
+        private void Try(System.Action effect)
+        {
+            int key = effect.Method.GetHashCode();
+            if (brokenEffects.Contains(key))
+                return;
             try
             {
-                float scale = Mathf.Lerp(StartHitScale, EndHitScale, progress);
-                var vortex = new ParticleSystemOverride
-                {
-                    startSize = new float?(2.0f * scale),
-                    startLifetime = new float?(0.45f)
-                };
-                PoolManager.GetPoolItem<ParticleEffect>("AirVortex").Emit(new int?(1), new Vector3?(center), vortex,
-                    new Vector3?(new Vector3(0f, 0f, Random.Range(0f, 360f))), 0f, null, null);
-                PoolManager.GetPoolItem<DustEmitter>().EmitCircle(4 + Mathf.RoundToInt(8 * progress), 0.4f + scale * 0.4f,
-                    -4f, -1f, new Vector3?(center), null);
+                effect();
             }
-            catch
+            catch (System.Exception e)
             {
+                brokenEffects.Add(key);
+                CyclonePlugin.Log($"Cyclone: an effect is unavailable, skipping it: {e.Message}");
             }
         }
 
