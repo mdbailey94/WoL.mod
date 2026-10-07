@@ -13,7 +13,7 @@ namespace WoLRollingGale
     {
         public const string PluginGuid = "mdbailey94.wol.rollinggale";
         public const string PluginName = "Rolling Gale";
-        public const string PluginVersion = "0.3.0";
+        public const string PluginVersion = "0.3.2";
 
         private ConfigEntry<bool> modEnabled;
 
@@ -72,7 +72,7 @@ namespace WoLRollingGale
 
                 var texture = new Texture2D(2, 2) { filterMode = FilterMode.Point };
                 texture.LoadImage(data);
-                return Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
+                return GameIcon.Create(texture, Logger);
             }
         }
     }
