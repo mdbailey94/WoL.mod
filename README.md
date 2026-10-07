@@ -29,4 +29,39 @@ BepInEx 5 mods for Wizard of Legend.
 
 Every push to `main` rebuilds the mods and replaces the downloads on the `latest` release.
 
-To build locally instead, see each mod's README.
+## Changing the mods yourself
+
+**Without code:** most mods have settings in `BepInEx\config\mdbailey94.wol.<mod>.cfg` (created the
+first time the game runs with the mod). Edit the file with Notepad while the game is closed; each
+setting has a comment saying what it does.
+
+**In the code:** every number that shapes how a mod plays is a named constant near the top of its
+`...State.cs` (or `...Plugin.cs` for damage and cooldowns), with a comment saying what it does. For
+example, in `WoLThunderhead\ThunderheadState.cs`:
+
+```csharp
+private const float Height = 4f;             // how high the leap goes
+private const float HoverTime = 1.0f;        // ...hanging there while the lightning falls...
+```
+
+and its damage per hit is in `WoLThunderhead\ThunderheadPlugin.cs`
+(`damage = new[] { 5, 14, 0 }`: one number per skill level, explained just above it).
+
+To build your change into the game (Windows):
+
+1. Install the [.NET SDK](https://dotnet.microsoft.com/download) (version 8) once.
+2. Download this repository (green **Code** button > **Download ZIP** on the branch you want, or
+   `git clone`), and unzip it anywhere.
+3. Change the numbers you want, save.
+4. Open PowerShell in the repository folder and run, for example:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\build.ps1 WoLThunderhead
+   ```
+
+   (leave the mod name off to build them all; add `-GameDir "D:\path\to\Wizard of Legend"` if the
+   game isn't in Steam's default folder). It builds the mod and copies the DLL straight into
+   `BepInEx\plugins`, so just start the game.
+
+If the build fails, it prints the file and line with the problem (usually a missing `;` or `f`
+after a decimal number, like `1.5f`).
