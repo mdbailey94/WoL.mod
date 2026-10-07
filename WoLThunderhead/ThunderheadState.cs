@@ -18,7 +18,6 @@ namespace WoLThunderhead
 
         // Timings and sizes come from the config (ThunderheadPlugin), read as each cast starts.
         private float WindupTime, RiseTime, CrashTime, RecoverTime, Height;
-        private float VolleyInterval;
         private int VolleySize;
 
         private float time;
@@ -31,6 +30,7 @@ namespace WoLThunderhead
         private bool airborne;
         private bool hurtBoxWasOn;
         private Levitator levitator;
+        private ElectricLook electric;
         private static bool loggedBolt;
         private const string AirborneModID = "Thunderhead_Airborne";
 
@@ -48,6 +48,7 @@ namespace WoLThunderhead
 
         private float HoverTimeNow => IsEmpowered ? ThunderheadPlugin.EnhancedAirTime : ThunderheadPlugin.AirTime;
         private float RadiusNow => IsEmpowered ? ThunderheadPlugin.EnhancedRadius : ThunderheadPlugin.Radius;
+        private float VolleyInterval => IsEmpowered ? ThunderheadPlugin.EnhancedVolleyInterval : ThunderheadPlugin.VolleyInterval;
         private float SlamScaleNow => IsEmpowered ? ThunderheadPlugin.EnhancedSlamSize : ThunderheadPlugin.SlamSize;
 
         public override void OnEnter()
@@ -65,7 +66,6 @@ namespace WoLThunderhead
             CrashTime = ThunderheadPlugin.CrashTime;
             RecoverTime = ThunderheadPlugin.RecoverTime;
             Height = ThunderheadPlugin.Height;
-            VolleyInterval = ThunderheadPlugin.VolleyInterval;
             VolleySize = ThunderheadPlugin.VolleySize;
             levitator = Levitator.On(parent);
         }
@@ -135,6 +135,7 @@ namespace WoLThunderhead
                 }
                 parent.anim?.PlayDirectional(parent.GSlamAnimStr, -1, 0.6f);
             }
+            electric?.Update(lift);
             if (levitator != null)
                 levitator.height = Height * lift + (t >= RiseTime && t < hoverEnd ? Mathf.Sin(t * 7f) * 0.06f : 0f);
 
@@ -172,6 +173,8 @@ namespace WoLThunderhead
             }
             if (parent.health != null)
                 parent.health.invulnerable = true;
+            electric?.Off();
+            electric = ElectricLook.On(parent);
             Dust(ground, 30, 0.9f);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(ground), null, 24f, -1f, 0.6f, false);
         }
@@ -193,11 +196,15 @@ namespace WoLThunderhead
             // Always back to hurtable (restoring "already invulnerable" could leave it on for good).
             if (parent.health != null)
                 parent.health.invulnerable = false;
+            electric?.Off();
+            electric = null;
         }
 
         private void Land()
         {
             Touchdown();
+            electric?.Off();
+            electric = null;
             if (levitator != null)
             {
                 levitator.Off();
@@ -331,12 +338,21 @@ namespace WoLThunderhead
 
     // Lifts the wizard's picture into the air (the wizard themself, their shadow and their hitbox
     // stay on the ground). Applied after the animation each frame and taken back off the next.
+    //
+    // The game draws things lower on screen in front, and it can judge the wizard by where their
+    // picture is: lifted, they'd count as further back and slip behind statues and pillars they
+    // stand in front of. So while lifted they keep the draw order they had on the ground (they
+    // don't move sideways during the leap), set again just before each frame is drawn.
     public class Levitator : MonoBehaviour
     {
         public float height;
         private Vector3 applied;
         private Vector3 lastSet;
         private bool active;
+        private SpriteRenderer body;
+        private int groundOrder;
+        private int groundLayer;
+        private static bool loggedSorting;
 
         public static Levitator On(Player player)
         {
@@ -350,6 +366,16 @@ namespace WoLThunderhead
                     levitator = body.AddComponent<Levitator>();
                 levitator.enabled = true;
                 levitator.height = 0f;
+                levitator.body = player.spriteRenderer;
+                levitator.groundOrder = player.spriteRenderer.sortingOrder;
+                levitator.groundLayer = player.spriteRenderer.sortingLayerID;
+                if (!loggedSorting)
+                {
+                    loggedSorting = true;
+                    foreach (SortGenericLayer sorter in player.GetComponentsInChildren<SortGenericLayer>(true))
+                        ThunderheadPlugin.Log($"Thunderhead: sorter on '{sorter.name}', by sprite transform={sorter.sortBySpriteTransform}, " +
+                            $"order {player.spriteRenderer.sortingOrder}");
+                }
                 return levitator;
             }
             catch
@@ -367,6 +393,15 @@ namespace WoLThunderhead
             lastSet = position + applied;
             transform.localPosition = lastSet;
             active = true;
+        }
+
+        // Right before the frame is drawn, after the game's own sorting.
+        private void OnWillRenderObject()
+        {
+            if (!active || body == null || height <= 0.01f)
+                return;
+            body.sortingLayerID = groundLayer;
+            body.sortingOrder = groundOrder;
         }
 
         public void Off()

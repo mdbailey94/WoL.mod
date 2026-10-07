@@ -13,7 +13,7 @@ namespace WoLThunderhead
     {
         public const string PluginGuid = "mdbailey94.wol.thunderhead";
         public const string PluginName = "Thunderhead";
-        public const string PluginVersion = "0.3.0";
+        public const string PluginVersion = "0.4.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -23,9 +23,9 @@ namespace WoLThunderhead
         // ---- Settings (BepInEx\config\mdbailey94.wol.thunderhead.cfg) ----
         // [Leap] and [Lightning] apply the next time you cast it; [Balance] after restarting the game.
         private static ConfigEntry<float> height, windupTime, riseTime, airTime, enhancedAirTime, crashTime, recoverTime;
-        private static ConfigEntry<float> radius, enhancedRadius, volleyInterval, strikeSize, slamSize, enhancedSlamSize;
+        private static ConfigEntry<float> radius, enhancedRadius, volleyInterval, enhancedVolleyInterval, auraSize, strikeSize, slamSize, enhancedSlamSize;
         private static ConfigEntry<int> volleySize;
-        private static ConfigEntry<bool> evenSpread;
+        private static ConfigEntry<bool> evenSpread, electricLook;
         private static ConfigEntry<int> strikeDamage, slamDamage;
         private static ConfigEntry<float> strikeKnockback, slamKnockback, strikeShockChance, slamShockChance, cooldown;
 
@@ -39,6 +39,9 @@ namespace WoLThunderhead
         public static float Radius => Get(radius, 2.2f, 0.5f, 8f);
         public static float EnhancedRadius => Get(enhancedRadius, 2.8f, 0.5f, 8f);
         public static float VolleyInterval => Get(volleyInterval, 0.25f, 0.05f, 2f);
+        public static float EnhancedVolleyInterval => Get(enhancedVolleyInterval, 0.25f, 0.05f, 2f);
+        public static bool ElectricLook => electricLook?.Value ?? true;
+        public static float AuraSize => Get(auraSize, 1f, 0.2f, 4f);
         public static int VolleySize => Mathf.Clamp(volleySize?.Value ?? 3, 1, 12);
         public static bool EvenSpread => evenSpread?.Value ?? true;
         public static float StrikeSize => Get(strikeSize, 1f, 0.3f, 4f);
@@ -105,6 +108,8 @@ namespace WoLThunderhead
             radius = Float("Lightning", "Radius", 2.2f, 0.5f, 8f, "How far from the spot below the strikes can land.");
             enhancedRadius = Float("Lightning", "EnhancedRadius", 2.8f, 0.5f, 8f, "Radius when enhanced.");
             volleyInterval = Float("Lightning", "VolleyInterval", 0.25f, 0.05f, 2f, "Seconds between volleys of strikes while up.");
+            enhancedVolleyInterval = Float("Lightning", "EnhancedVolleyInterval", 0.25f, 0.05f, 2f,
+                "VolleyInterval when enhanced (lower = more often).");
             volleySize = Config.Bind("Lightning", "VolleySize", 3,
                 new ConfigDescription("Strikes in each volley.", new AcceptableValueRange<int>(1, 12)));
             evenSpread = Config.Bind("Lightning", "EvenSpread", true,
@@ -113,6 +118,10 @@ namespace WoLThunderhead
             strikeSize = Float("Lightning", "StrikeSize", 1f, 0.3f, 4f, "Size of each strike's hit area.");
             slamSize = Float("Lightning", "SlamSize", 2.4f, 0.5f, 6f, "Size of the landing slam's hit area.");
             enhancedSlamSize = Float("Lightning", "EnhancedSlamSize", 3f, 0.5f, 6f, "SlamSize when enhanced.");
+
+            electricLook = Config.Bind("Look", "Electric", true,
+                "Crackle with electricity while up in the air (the game's electric aura, sparks and a flickering glow).");
+            auraSize = Float("Look", "AuraSize", 1f, 0.2f, 4f, "Size of the electric aura round the wizard in the air.");
 
             const string restart = " Applies after restarting the game.";
             strikeDamage = Config.Bind("Balance", "StrikeDamage", 5,
