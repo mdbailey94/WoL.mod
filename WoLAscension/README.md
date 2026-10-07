@@ -27,11 +27,11 @@ pedestal, softly shaded like the game's own props, that you can't walk through. 
 top, growing from a small cold blue one to a big white-hot one as the level rises (a grey ember when
 off), and the **level number** glows on its front. Walk up to it and the game's own
 button prompt appears; **interact** to
-raise the level by one (after 10 it goes back to OFF); the game's notice banner shows the level,
+raise the level by one (after 10 it goes back to OFF); the game's on-screen notice shows the level,
 what it adds and the gem bonus.
 
 Then just take the portal: the run starts at the altar's level, with no pause or menu, and the
-banner shows it as you go in. The level is locked for the run, a small "ASCENSION n" tag shows in
+notice shows it as you go in. The level is locked for the run, a small "ASCENSION n" tag shows in
 the corner (`ShowLevelInRun`), and all modifiers come off when you leave the trials (dying,
 quitting or finishing). The modifiers use the game's own stat system, so they stack normally with
 relics. The altar remembers your level between runs and sessions. You can also turn the whole mod

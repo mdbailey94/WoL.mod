@@ -10,14 +10,14 @@ namespace WoLCloakUpgrades
     // Permanent cloak upgrades bought with chaos gems at the wardrobe, all in the wardrobe's own
     // screen: the highlighted cloak's info box gains its upgrade tier and the price of the next one
     // (the box's text shrinks to fit), pressing Y (controller) or U (keyboard) asks with the game's
-    // own yes/no box, and a purchase is announced by the game's notice banner. Tiers are kept per cloak in this
+    // own yes/no box, and a purchase is announced by the game's on-screen notice. Tiers are kept per cloak in this
     // mod's config file, so they last across runs and restarts.
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     public class CloakUpgradesPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "mdbailey94.wol.cloakupgrades";
         public const string PluginName = "Cloak Upgrades";
-        public const string PluginVersion = "0.3.1";
+        public const string PluginVersion = "0.3.2";
 
         // Ignore presses right after the wardrobe opens.
         private const float OpenGrace = 0.35f;

@@ -37,7 +37,7 @@ namespace WoLAscension
             }
         }
 
-        // One short line for the game's notice banner.
+        // One short line for the game's on-screen notice.
         public static string Summary(int level)
         {
             if (level <= 0)

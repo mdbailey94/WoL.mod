@@ -11,7 +11,7 @@ namespace WoLAscension
     // Trials portal in the plaza. Walk up and the game's own button prompt appears over it; interact
     // to raise the level by one (after 10 it goes back to off). The flame grows from a small cold
     // blue one to a big white-hot one with the level, and the number on the front shows it; the
-    // higher the level, and the game's notice banner says what the level adds. Runs then start at
+    // higher the level, and the game's on-screen notice says what the level adds. Runs then start at
     // that level.
     public class AscensionAltar : MonoBehaviour
     {

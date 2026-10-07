@@ -8,7 +8,7 @@ using UnityEngine;
 namespace WoLAscension
 {
     // Ascension levels 1-10. The level is set at an Ascension altar standing beside the Chaos
-    // Trials portal in the plaza (interact to raise it; the game's own notice banner shows the level
+    // Trials portal in the plaza (interact to raise it; the game's own on-screen notice shows the level
     // and what it does). Stepping into the portal starts the run at that level, with no pause: the
     // run gets the level's cumulative modifiers, applied as the game's own stat modifiers so they
     // stack with relics and are removed in the hub.
@@ -17,7 +17,7 @@ namespace WoLAscension
     {
         public const string PluginGuid = "mdbailey94.wol.ascension";
         public const string PluginName = "Ascension";
-        public const string PluginVersion = "0.5.0";
+        public const string PluginVersion = "0.5.1";
 
         private const string PlayerDamageTakenMod = "Ascension_DamageTaken";
         private const string PlayerHealingMod = "Ascension_Healing";

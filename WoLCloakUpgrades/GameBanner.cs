@@ -3,32 +3,21 @@ using UnityEngine;
 
 namespace WoLCloakUpgrades
 {
-    // Shows a message in the game's own notice banner (the one that announces a new arcana or
-    // relic): queued like the game's own notices, with our header, line of text and icon.
+    // Shows a message with the game's own on-screen notice (GameUI's broadcast notice line, the
+    // one the game uses for its own short announcements). Queuing into the arcana/relic unlock
+    // banner didn't show anything, so this is used instead. The icon is kept for callers but the
+    // notice line is text only.
     public static class GameBanner
     {
+        private const float Seconds = 3.5f;
         private static bool loggedError;
 
         public static bool Show(string header, string info, Sprite icon)
         {
             try
             {
-                UnlockNotifier notifier = UnlockNotifier.Instance;
-                if (notifier == null || notifier.noticeQueue == null)
-                    return false;
-                // Only the latest of ours waits its turn (buying quickly shouldn't queue
-                // up a string of banners).
-                var keep = new System.Collections.Generic.List<UnlockNotifier.NoticeVars>();
-                foreach (UnlockNotifier.NoticeVars vars in notifier.noticeQueue)
-                {
-                    if (vars == null || vars.noticeID == null || !vars.noticeID.StartsWith("CloakUpgrade_"))
-                        keep.Add(vars);
-                }
-                notifier.noticeQueue.Clear();
-                foreach (UnlockNotifier.NoticeVars vars in keep)
-                    notifier.noticeQueue.Enqueue(vars);
-                notifier.noticeQueue.Enqueue(new UnlockNotifier.NoticeVars("CloakUpgrade_" + header, header, info, icon,
-                    UnlockNotifier.NoticeType.Relic));
+                string message = string.IsNullOrEmpty(info) ? header : header + " - " + info;
+                GameUI.BroadcastNoticeMessage(message, Seconds);
                 return true;
             }
             catch (Exception e)
@@ -36,7 +25,7 @@ namespace WoLCloakUpgrades
                 if (!loggedError)
                 {
                     loggedError = true;
-                    CloakUpgradesPlugin.Log($"Couldn't show the game's banner: {e.Message}");
+                    CloakUpgradesPlugin.Log($"Couldn't show the game's notice: {e.Message}");
                 }
                 return false;
             }
