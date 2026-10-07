@@ -1,13 +1,13 @@
 # Vacuum Fist, Blazing Kick, Feint Swap, Vine Slingshot and Charged Leap (Wizard of Legend)
 
-Five new **dash** arcana, added with [LegendAPI](https://github.com/yekoc/LegendAPI). Both charge
-the same way; they differ in what the launch does.
+Four new **dash** arcana and one standard arcana (Feint Swap), added with
+[LegendAPI](https://github.com/yekoc/LegendAPI). The dashes all charge the same way; they differ
+in what the launch does.
 
-### Charging (all five)
+### Charging (the four dashes)
 
 - **Tap** dash (slingshot ready): the arcana's own dash at **normal dash length**, with its
-  effects at their smallest; it uses the slingshot's charge like a charged one (except Feint
-  Swap, where a tap is just a plain dash and keeps the charge). While the
+  effects at their smallest; it uses the slingshot's charge like a charged one. While the
   slingshot is recharging, tapping or holding is a plain dash.
 - **Hold** dash (slingshot ready): your wizard hops backward, like pulling back a slingshot,
   and holds that pose while their element gathers round them: a fast-spinning whirlwind for
@@ -48,25 +48,31 @@ the same way; they differ in what the launch does.
 - Everything scales with charge.
 - **Enhanced**: every hit, trail and blast alike, **sets the enemy on fire**.
 
-### Feint Swap (Water)
+### Feint Swap (Water) - a standard arcana
 
-> **Feint Swap**: Hold to charge, then release to throw an ice feint and swap places with it,
-> freezing enemies at both ends!
+> **Feint Swap**: Hold to charge, then release to throw an ice feint; swap places with it when it
+> stops or when you press again, freezing enemies at both ends!
 >
 > *Enhanced: Reaches full throwing range in half the charge time!*
 
-- Hold **0.2 to 1 second**, then release: instead of dashing, you **throw an ice copy of
-  yourself** (the game's ice decoy) along your aim, from **a normal dash's length** up to 9
-  depending on how long you held, stopping short of walls. Shorter than 0.2 seconds is a plain
-  dash and throws nothing (the dash length is the game's dash speed x duration; the log says
-  `Dash length from speed x duration: X`).
-- It **hovers** while you keep moving: from no hover at 0.2 seconds up to **2 seconds** at a full
-  charge. Then, or as soon as you **press dash again**, you **swap places**: you appear where it
-  is, and it appears where you are.
+Not a dash any more: it goes in a normal arcana slot, and your dash stays your dash.
+
+- **Hold** the button: your wizard stands and gathers ice crystals round their feet (dash to
+  cancel). Let go after **0.2 to 1 second** and they **throw an ice copy of themselves** (the
+  game's ice decoy) along your aim, from **a normal dash's length** up to 9 depending on how long
+  you held, stopping short of walls. Held 2 seconds, it throws by itself.
+- **Let go before 0.2 seconds** and nothing is thrown, and the arcana isn't used up (its
+  cooldown, 7 s by default, starts only with a throw).
+- It **hovers** while you move about: from no hover at 0.2 seconds up to **2 seconds** at a full
+  charge. Then, or as soon as you **press the button again**, you **swap places**: you appear
+  where it is, and it appears where you are.
 - **Both spots freeze**: a small Frost Nova bursts at each end, and the copy lingers for a couple
   of seconds so enemies keep going after it.
 - **Enhanced**: the throw distance and hover time max out at **0.6 seconds** of holding instead
   of 1.
+
+(The old dash version is still in the mod, hidden, so a save that has it equipped still loads;
+the shop offers the new one.)
 
 ### Vine Slingshot (Earth)
 

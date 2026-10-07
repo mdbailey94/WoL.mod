@@ -16,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.22.3";
+        public const string PluginVersion = "0.23.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -40,6 +40,32 @@ namespace WoLSlingshotDash
         public static void Log(string message) => log?.LogInfo(message);
 
         // Runs effects that outlive the dash state (e.g. Blazing Kick's vacuum).
+        // How far a plain dash carries this wizard: the game's dash speed x dash duration (with
+        // relics), or 3 if that can't be read or looks wrong. Never throws.
+        private static bool loggedDash;
+
+        public static float DashLength(Player player)
+        {
+            float computed = 0f;
+            try
+            {
+                Movement movement = player != null ? player.movement : null;
+                if (movement != null && movement.dashSpeedStat != null && movement.dashDurationStat != null)
+                    computed = movement.dashSpeedStat.ModifiedValue * movement.dashDurationStat.ModifiedValue;
+            }
+            catch
+            {
+                computed = 0f;
+            }
+            bool usable = computed >= 1f && computed <= 12f;
+            if (!loggedDash)
+            {
+                loggedDash = true;
+                Log($"Dash length from speed x duration: {computed:0.##}" + (usable ? "" : " (using 3)"));
+            }
+            return usable ? computed : 3f;
+        }
+
         public static void Run(IEnumerator routine)
         {
             if (instance != null)
@@ -239,6 +265,38 @@ namespace WoLSlingshotDash
                     // One Frost Nova where you stood: 12 damage and a guaranteed freeze.
                     damage = new[] { 12 },
                     cooldown = new[] { dashCooldownSeconds.Value },
+                    knockbackMultiplier = new[] { 0f },
+                    hitStunDurationModifier = new[] { 1f },
+                    sameAttackImmunityTime = new[] { 0.5f },
+                    freezeChance = new[] { 1f },
+                    freezeDuration = new[] { 1.5f }
+                },
+                priceMultiplier = 3,
+                // Replaced by the standard arcana below: kept only so saves that have it still load.
+                hidden = true,
+                unlockCondition = () => false
+            });
+
+            Skills.Register(new SkillInfo
+            {
+                ID = FeintSwapState.staticID,
+                displayName = "Feint Swap",
+                description = "Hold to charge, then release to throw an ice feint; swap places with it when it stops or when you press again, freezing enemies at both ends!",
+                enhancedDescription = "Reaches full throwing range in half the charge time!",
+                icon = LoadIcon("icon_ice.png"),
+                tier = 2,
+                stateType = typeof(FeintSwapState),
+                skillStats = new SkillStats
+                {
+                    ID = new[] { FeintSwapState.staticID },
+                    // The game's frost arcana are Water: "Ice" has no spellbook tab, and using it
+                    // broke the wizard's setup when loading into the house.
+                    elementType = new[] { "Water" },
+                    subElementType = new[] { "Water" },
+                    targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
+                    // One Frost Nova where you stood: 12 damage and a guaranteed freeze.
+                    damage = new[] { 12 },
+                    cooldown = new[] { Mathf.Max(0.5f, cooldownSeconds.Value) },
                     knockbackMultiplier = new[] { 0f },
                     hitStunDurationModifier = new[] { 1f },
                     sameAttackImmunityTime = new[] { 0.5f },

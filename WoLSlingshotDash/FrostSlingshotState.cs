@@ -4,6 +4,9 @@ using UnityEngine;
 
 namespace WoLSlingshotDash
 {
+    // The old dash version of Feint Swap, kept (hidden from the shop and spellbook) so a save that
+    // has it in the dash slot still loads; FeintSwapState is the standard arcana that replaced it.
+    //
     // Feint Swap (Water, the game's frost element): a charged launch throws an ice feint
     // (the game's IceDecoy, which enemies go after) out along your aim. It hovers there while you
     // keep moving; then, or as soon as you press dash again, you swap places with it. Both spots
@@ -15,18 +18,18 @@ namespace WoLSlingshotDash
     {
         public new static string staticID = "FrostSlingshot";
 
-        private const float FlightTime = 0.3f;
+        internal const float FlightTime = 0.3f;
         private const float MinHold = 0.2f;      // shorter is a normal dash
-        private const float MaxHoverTime = 2f;   // hover before the forced swap, at full charge
-        private const float MaxDistance = 9f;   // at full charge (the shortest is a plain dash)
-        private const float WallMargin = 0.75f;
-        private const float LingerTime = 2.5f;   // how long the feint stays after the swap
+        internal const float MaxHoverTime = 2f;   // hover before the forced swap, at full charge
+        internal const float MaxDistance = 9f;   // at full charge (the shortest is a plain dash)
+        internal const float WallMargin = 0.75f;
+        internal const float LingerTime = 2.5f;   // how long the feint stays after the swap
 
         protected override float MinChargeTime => MinHold;
         protected override bool TapIsPlainDash => true;
 
         // The feint in flight or hovering, until the swap.
-        private class Feint
+        internal class Feint
         {
             public float thrownAt;
             public float hoverTime;
@@ -79,7 +82,7 @@ namespace WoLSlingshotDash
                 ? inputVector.normalized
                 : Entity.GetFacingDirectionVector(parent.facingDirection).normalized;
             Vector2 start = parent.transform.position;
-            float shortest = PlainDashDistance();
+            float shortest = SlingshotDashPlugin.DashLength(parent);
             float distance = Mathf.Lerp(shortest, Mathf.Max(shortest, MaxDistance), power);
             // Stop short of walls so you never swap into one.
             RaycastHit2D hit = Physics2D.Raycast(start, direction, distance, ChaosCollisions.layerAllWallAndObst);
@@ -115,7 +118,7 @@ namespace WoLSlingshotDash
             }
         }
 
-        private static IEnumerator Throw(Player player, Feint feint, GameObject decoy, Vector2 start, Vector2 end,
+        internal static IEnumerator Throw(Player player, Feint feint, GameObject decoy, Vector2 start, Vector2 end,
             float freezeRadius, string skillCategory, string id)
         {
             // Fly out.
@@ -176,7 +179,7 @@ namespace WoLSlingshotDash
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(end), null, 24f, -1f, 1.7f, false);
         }
 
-        private static void MoveDecoy(GameObject decoy, Vector2 position)
+        internal static void MoveDecoy(GameObject decoy, Vector2 position)
         {
             if (decoy != null)
                 decoy.transform.position = position;

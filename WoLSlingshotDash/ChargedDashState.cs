@@ -164,32 +164,6 @@ namespace WoLSlingshotDash
         {
         }
 
-        // How far a plain dash carries this wizard: the game's dash speed x dash duration (with
-        // relics), or 3 if that can't be read or looks wrong. Never throws.
-        private static bool loggedDash;
-
-        protected float PlainDashDistance()
-        {
-            float computed = 0f;
-            try
-            {
-                Movement movement = parent != null ? parent.movement : null;
-                if (movement != null && movement.dashSpeedStat != null && movement.dashDurationStat != null)
-                    computed = movement.dashSpeedStat.ModifiedValue * movement.dashDurationStat.ModifiedValue;
-            }
-            catch
-            {
-                computed = 0f;
-            }
-            bool usable = computed >= 1f && computed <= 12f;
-            if (!loggedDash)
-            {
-                loggedDash = true;
-                SlingshotDashPlugin.Log($"Dash length from speed x duration: {computed:0.##}" + (usable ? "" : " (using 3)"));
-            }
-            return usable ? computed : 3f;
-        }
-
         public override void OnEnter()
         {
             standStill = false;
