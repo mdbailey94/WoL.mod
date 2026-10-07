@@ -16,7 +16,7 @@ namespace WoLCustomPaintings
     {
         public const string PluginGuid = "mdbailey94.wol.custompaintings";
         public const string PluginName = "Custom Paintings";
-        public const string PluginVersion = "0.4.4";
+        public const string PluginVersion = "0.4.5";
 
         private static ManualLogSource log;
         private static ConfigEntry<bool> modEnabled;

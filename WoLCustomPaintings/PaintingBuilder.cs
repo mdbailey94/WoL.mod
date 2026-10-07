@@ -40,6 +40,19 @@ namespace WoLCustomPaintings
                 float inset = border / ppu;
                 area = Rect.MinMaxRect(area.xMin + inset, area.yMin + inset, area.xMax - inset, area.yMax - inset);
                 from = $"frame '{frame.sprite.name}' less {border}px";
+                // The game's own artwork shows where the opening really is (the frame's outline
+                // can include a ledge or shadow): keep to where the two overlap.
+                Rect artArea;
+                if (OutlineIn(art, art.transform, out artArea))
+                {
+                    Rect both = Rect.MinMaxRect(Mathf.Max(area.xMin, artArea.xMin), Mathf.Max(area.yMin, artArea.yMin),
+                        Mathf.Min(area.xMax, artArea.xMax), Mathf.Min(area.yMax, artArea.yMax));
+                    if (both.width > 0f && both.height > 0f && both.width * both.height >= 0.5f * area.width * area.height)
+                    {
+                        area = both;
+                        from += ", within the artwork";
+                    }
+                }
             }
             else if (OutlineIn(art, art.transform, out area))
                 from = "the artwork's outline";
