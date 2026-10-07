@@ -27,7 +27,7 @@ namespace WoLCustomPaintings
             int border = CustomPaintingsPlugin.FrameBorder;
             int nudge = CustomPaintingsPlugin.NudgeUp;
             string key = original.GetInstanceID() + "/" + (frame != null && frame.sprite != null ? frame.sprite.GetInstanceID() : 0) +
-                "/" + picture.GetInstanceID() + "/art" + detail + "/" + nudge + "/" + border;
+                "/" + picture.GetInstanceID() + "/art" + detail + "/" + nudge + "/" + border + "/" + CustomPaintingsPlugin.PictureFit;
             Sprite cached;
             if (cache.TryGetValue(key, out cached) && cached != null)
                 return cached;
@@ -68,7 +68,8 @@ namespace WoLCustomPaintings
             Sprite sprite = Sprite.Create(texture, new Rect(0, 0, bw, bh), pivot, ppu * d);
             cache[key] = sprite;
             CustomPaintingsPlugin.Log($"Picture over artwork '{original.name}' ({original.rect.width}x{original.rect.height}): " +
-                $"{w}x{h} from {from}, detail x{d}" + (nudge != 0 ? $", nudged up {nudge}" : ""));
+                $"{w}x{h} from {from}, picture {picture.width}x{picture.height} ({CustomPaintingsPlugin.PictureFit}), detail x{d}" +
+                (nudge != 0 ? $", nudged up {nudge}" : ""));
             return sprite;
         }
 
@@ -203,46 +204,87 @@ namespace WoLCustomPaintings
 
         // Crops the picture to the canvas shape (keeping the top, where faces usually are),
         // shrinks it and snaps each pixel to the nearest of the picture's own colours.
+        // Paints the picture into the canvas (the area inside `inset`), shrunk with a box filter
+        // and snapped to the picture's own colours. How it's fitted (PictureFit):
+        // - Fit: the whole picture, scaled to fit, centred on a dark mat where the shapes differ;
+        // - Fill: fills the canvas, cropping the sides or the bottom (keeping the top, where faces
+        //   usually are);
+        // - Stretch: the whole picture, stretched to the canvas's shape.
         private static void PaintCanvas(Color32[] pixels, int w, int h, int inset, Texture2D picture)
         {
             int cw = w - 2 * inset, ch = h - 2 * inset;
             Color32[] src = picture.GetPixels32();
             int pw = picture.width, ph = picture.height;
+            string fit = CustomPaintingsPlugin.PictureFit;
 
+            // The part of the picture used, and where in the canvas it goes.
+            float cropX = 0f, cropY = 0f, cropW = pw, cropH = ph;
+            int dx = 0, dy = 0, dw = cw, dh = ch;
             float canvasAspect = (float)cw / ch;
-            float cropW = pw, cropH = ph;
-            if (pw / (float)ph > canvasAspect)
-                cropW = ph * canvasAspect;
-            else
-                cropH = pw / canvasAspect;
-            float cropX = (pw - cropW) / 2f;
-            float cropTop = (ph - cropH) * 0.15f; // from the top
-            float cropY = ph - cropTop - cropH;   // texture rows start at the bottom
+            float pictureAspect = pw / (float)ph;
+            if (fit == "Fill")
+            {
+                if (pictureAspect > canvasAspect)
+                    cropW = ph * canvasAspect;
+                else
+                    cropH = pw / canvasAspect;
+                cropX = (pw - cropW) / 2f;
+                float cropTop = (ph - cropH) * 0.15f; // from the top
+                cropY = ph - cropTop - cropH;         // texture rows start at the bottom
+            }
+            else if (fit != "Stretch")
+            {
+                if (pictureAspect > canvasAspect)
+                    dh = Mathf.Max(1, Mathf.RoundToInt(cw / pictureAspect));
+                else
+                    dw = Mathf.Max(1, Mathf.RoundToInt(ch * pictureAspect));
+                dx = (cw - dw) / 2;
+                dy = (ch - dh) / 2;
+                if (dw < cw || dh < ch)
+                {
+                    Color32 mat = Mat(src);
+                    for (int y = 0; y < ch; y++)
+                        for (int x = 0; x < cw; x++)
+                            pixels[(y + inset) * w + (x + inset)] = mat;
+                }
+            }
 
             List<Color32> palette = Palette(src);
-            for (int y = 0; y < ch; y++)
+            for (int y = 0; y < dh; y++)
             {
-                for (int x = 0; x < cw; x++)
+                for (int x = 0; x < dw; x++)
                 {
-                    int x0 = Mathf.FloorToInt(cropX + cropW * x / cw);
-                    int x1 = Mathf.Max(x0 + 1, Mathf.FloorToInt(cropX + cropW * (x + 1) / cw));
-                    int y0 = Mathf.FloorToInt(cropY + cropH * y / ch);
-                    int y1 = Mathf.Max(y0 + 1, Mathf.FloorToInt(cropY + cropH * (y + 1) / ch));
+                    int x0 = Mathf.FloorToInt(cropX + cropW * x / dw);
+                    int x1 = Mathf.Max(x0 + 1, Mathf.FloorToInt(cropX + cropW * (x + 1) / dw));
+                    int y0 = Mathf.FloorToInt(cropY + cropH * y / dh);
+                    int y1 = Mathf.Max(y0 + 1, Mathf.FloorToInt(cropY + cropH * (y + 1) / dh));
                     int r = 0, g = 0, b = 0, n = 0;
                     for (int sy = y0; sy < y1 && sy < ph; sy++)
                     {
                         for (int sx = x0; sx < x1 && sx < pw; sx++)
                         {
-                            Color32 s = src[sy * pw + sx];
-                            r += s.r; g += s.g; b += s.b; n++;
+                            Color32 c = src[sy * pw + sx];
+                            r += c.r; g += c.g; b += c.b; n++;
                         }
                     }
                     if (n == 0)
                         continue;
                     var avg = new Color32((byte)(r / n), (byte)(g / n), (byte)(b / n), 255);
-                    pixels[(y + inset) * w + (x + inset)] = Nearest(palette, avg);
+                    pixels[(y + dy + inset) * w + (x + dx + inset)] = Nearest(palette, avg);
                 }
             }
+        }
+
+        // The mat round a fitted picture: its average colour, darkened well down.
+        private static Color32 Mat(Color32[] src)
+        {
+            long r = 0, g = 0, b = 0;
+            foreach (Color32 c in src)
+            {
+                r += c.r; g += c.g; b += c.b;
+            }
+            int n = Mathf.Max(1, src.Length);
+            return new Color32((byte)(r / n * 0.3f), (byte)(g / n * 0.3f), (byte)(b / n * 0.3f), 255);
         }
 
         private static List<Color32> Palette(Color32[] src)
