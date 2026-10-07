@@ -6,12 +6,11 @@ using UnityEngine;
 
 namespace WoLSlingshotDash
 {
-    // Recolours each arcana's icon in the palette of the game's own icons for similar spells
-    // (same element; for Feint Swap the frost arcana, for Vine Slingshot the vine arcana), so they
-    // sit with the rest. The game's colours are read from its icons, sorted dark to light and cut
+    // Recolours Vine Slingshot's icon in the palette of the game's own vine arcana icons, so it
+    // sits with the rest (the other four arcana use the player's own icon art as drawn). The game's colours are read from its icons, sorted dark to light and cut
     // into a few shades; our icon's element colours are mapped onto those shades by brightness, so
     // outlines stay darkest and highlights lightest. Colours marked as neutral in our PNGs (alpha
-    // 254: the boot, the wooden fork) are left alone. The reference icons are also saved to
+    // 254: the wooden fork) are left alone. The reference icons are also saved to
     // BepInEx/config/SlingshotDash_IconRefs so they can be checked.
     public static class IconPalette
     {
@@ -25,15 +24,11 @@ namespace WoLSlingshotDash
             public string[] nameHints; // preferred reference skills, by part of their ID
         }
 
+        // Only Vine Slingshot: the other four use the player's own icon art as drawn.
         private static readonly Target[] Targets =
         {
-            new Target { id = SlingshotDashState.staticID, element = "Air", nameHints = new string[0] },
-            new Target { id = BlazingSlingshotState.staticID, element = "Fire", nameHints = new string[0] },
-            new Target { id = FrostSlingshotState.staticID, element = "Water",
-                nameHints = new[] { "Ice", "Frost", "Freeze", "Snow", "Cold", "Blizzard", "Shard" } },
             new Target { id = VineSlingshotState.staticID, element = "Earth",
                 nameHints = new[] { "Vine", "Ivy", "Leaf", "Thorn", "Root" } },
-            new Target { id = StormSlingshotState.staticID, element = "Lightning", nameHints = new string[0] },
         };
 
         private static readonly Dictionary<string, Sprite> recoloured = new Dictionary<string, Sprite>();

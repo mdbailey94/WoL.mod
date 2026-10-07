@@ -7,8 +7,9 @@ namespace WoLSlingshotDash
     // A dash you can charge: hold the dash button to hop backward and hold that pose while you pull
     // back, release to launch. A hold launches by itself after MaxHold (2 s by default); the charge
     // is full after MaxCharge. The longer the hold (up to MaxCharge), the faster and longer the
-    // dash. A tap is a normal dash. Each arcana adds its own attacks through OnLaunch,
-    // WhileDashing and OnLand, which only run for a charged launch.
+    // dash. A tap is the arcana's dash at normal length. Each arcana adds its own attacks through
+    // OnLaunch, WhileDashing and OnLand, which run for a tap or a charged launch while the
+    // slingshot is ready; while it's recharging, the dash is a plain one.
     //
     // The actual dash is the game's own BaseDashState; charging only delays base.OnEnter and
     // boosts the dash speed/duration stats for this one dash.
@@ -33,8 +34,10 @@ namespace WoLSlingshotDash
         private Vector2 hopVelocity;
         private bool hopStarted;
         private SpriteShaker shaker;
-        // Charge of the dash in flight (0 for a tap).
+        // Charge of the dash in flight (0 for a tap), and whether it's the arcana's own dash (with
+        // its attacks) rather than a plain one.
         private float launchCharge;
+        private bool slingshotting;
 
         protected ChargedDashState(string skillID, FSM fsm, Player parentPlayer) : base(skillID, fsm, parentPlayer)
         {
@@ -89,8 +92,14 @@ namespace WoLSlingshotDash
             }
         }
 
-        // Right after a charged launch starts, still at the launch spot; inputVector is the aim.
+        // Right after the arcana's dash starts (charge 0 for a tap), still at the launch spot;
+        // inputVector is the aim.
         protected abstract void OnLaunch(float charge);
+
+        // A tap skips the charge-up: an arcana that sets something up while charging does it here.
+        protected virtual void OnTap()
+        {
+        }
 
         // Every frame of a charged dash.
         protected virtual void WhileDashing(float charge)
@@ -155,6 +164,7 @@ namespace WoLSlingshotDash
         {
             standStill = false;
             launchCharge = 0f;
+            slingshotting = false;
             if (InterceptDash())
             {
                 standStill = true;
@@ -180,7 +190,7 @@ namespace WoLSlingshotDash
         {
             if (!charging)
             {
-                if (launchCharge > 0f && cooldownReady && !finishedDashing)
+                if (slingshotting && cooldownReady && !finishedDashing)
                     WhileDashing(launchCharge);
                 base.Update();
                 return;
@@ -206,7 +216,7 @@ namespace WoLSlingshotDash
             bool held = DashButton.Held(parent, skillSlot);
             float maxHold = MaxHoldTime;
             if (!held || (maxHold > 0f && chargeTime >= maxHold))
-                Launch(chargeTime < MinChargeTime ? 0f : Mathf.Clamp01(chargeTime / MaxCharge));
+                Launch(chargeTime < MinChargeTime ? 0f : Mathf.Clamp01(chargeTime / MaxCharge), chargeTime < MinChargeTime);
         }
 
         public override void FixedUpdate()
@@ -217,20 +227,21 @@ namespace WoLSlingshotDash
                 return;
             }
             base.FixedUpdate();
-            if ((standStill || (launchCharge > 0f && HoldsStill)) && parent.rigidbody2D != null)
+            if ((standStill || (slingshotting && HoldsStill)) && parent.rigidbody2D != null)
                 parent.rigidbody2D.velocity = Vector2.zero;
-            if (launchCharge > 0f && cooldownReady && !standStill)
+            if (slingshotting && cooldownReady && !standStill)
                 DashFixedUpdate(launchCharge);
         }
 
         public override void OnExit()
         {
             StopShaking();
-            if (!charging && launchCharge > 0f && cooldownReady
+            if (!charging && slingshotting && cooldownReady
                 && !fsm.nextStateName.Contains("Hurt") && !fsm.nextStateName.Contains("Dead"))
                 OnLand(launchCharge);
             charging = false;
             launchCharge = 0f;
+            slingshotting = false;
             standStill = false;
             RemoveBoost();
             try
@@ -244,7 +255,9 @@ namespace WoLSlingshotDash
             base.OnExit();
         }
 
-        private void Launch(float charge)
+        // A tap is the arcana's own dash at normal length (charge 0, no boost); a hold is charged.
+        // Either way it uses the slingshot's charge.
+        private void Launch(float charge, bool tap)
         {
             charging = false;
             StopShaking();
@@ -254,11 +267,14 @@ namespace WoLSlingshotDash
             // Start the game's own dash now, aimed wherever the player is holding.
             base.OnEnter();
             // Like the game's own dash arcana, no attacks when the dash itself is recharging.
-            if (charge > 0f && cooldownReady)
+            slingshotting = cooldownReady;
+            if (slingshotting)
             {
                 float cooldown = SlingshotDashPlugin.SlingshotCooldown;
                 cooldowns[CooldownKey(parent, skillID)] = new KeyValuePair<float, float>(Time.time + cooldown, cooldown);
                 SlingshotDashPlugin.Run(ReadyCue(parent, cooldown));
+                if (tap)
+                    OnTap();
                 OnLaunch(charge);
             }
         }

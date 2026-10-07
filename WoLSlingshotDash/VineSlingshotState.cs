@@ -20,6 +20,7 @@ namespace WoLSlingshotDash
         public new static string staticID = "VineSlingshot";
 
         private const float Range = 10.1f; // 8, +15% for not being able to turn, then +10%
+        private const float TapRange = 4.5f;  // a tap's reach if the normal dash length can't be read
         // The kick also hits a little way behind the target, along the kick.
         private const float BehindDistance = 2.4f;
         private const float BehindScale = 1.1f;
@@ -56,7 +57,28 @@ namespace WoLSlingshotDash
         protected override string ChargeAnimation => SlingshotDashPlugin.VineHoldAnimation(parent);
         protected override float ChargePoseFrame => SlingshotDashPlugin.VineHoldPoseFrame;
 
-        protected override void OnChargeStarted()
+        protected override void OnChargeStarted() => Grab(Range);
+
+        // A tap: the vines only reach as far as a normal dash goes.
+        protected override void OnTap() => Grab(NormalDashLength());
+
+        private float NormalDashLength()
+        {
+            try
+            {
+                float speed = parent.movement != null && parent.movement.dashSpeedStat != null
+                    ? parent.movement.dashSpeedStat.ModifiedValue : 0f;
+                float length = speed * dashDuration;
+                if (length > 1f)
+                    return Mathf.Min(length, Range);
+            }
+            catch
+            {
+            }
+            return TapRange;
+        }
+
+        private void Grab(float range)
         {
             Vector2 start = parent.transform.position;
             Vector2 direction = GetInputVector(true, true, true);
@@ -64,8 +86,8 @@ namespace WoLSlingshotDash
                 direction = Entity.GetFacingDirectionVector(parent.facingDirection);
             direction.Normalize();
 
-            float reach = Range;
-            RaycastHit2D wall = Physics2D.Raycast(start, direction, Range, ChaosCollisions.layerAllWallAndObst);
+            float reach = range;
+            RaycastHit2D wall = Physics2D.Raycast(start, direction, range, ChaosCollisions.layerAllWallAndObst);
             if (wall.collider != null)
                 reach = Mathf.Max(0f, wall.distance - WallMargin);
 

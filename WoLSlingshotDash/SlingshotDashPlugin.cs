@@ -16,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.21.2";
+        public const string PluginVersion = "0.22.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -147,7 +147,7 @@ namespace WoLSlingshotDash
                     "half again.",
                     new AcceptableValueRange<float>(0.25f, 4f)));
             matchIconPalette = Config.Bind("Icons", "MatchGamePalette", true,
-                "Recolour the arcana icons in the colours of the game's own icons for similar spells. " +
+                "Recolour Vine Slingshot's icon in the colours of the game's own vine arcana icons. " +
                 "Turn off to use the mod's own colours.");
             stormSphereSize = Config.Bind("Balance", "StormSphereSize", 0.6f,
                 new ConfigDescription("Size of Charged Leap's Mag Sphere compared with the Mag Sphere arcana's " +

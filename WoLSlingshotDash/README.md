@@ -5,7 +5,9 @@ the same way; they differ in what the launch does.
 
 ### Charging (all five)
 
-- **Tap** dash: a normal dash. While the slingshot is recharging, holding is a normal dash too.
+- **Tap** dash (slingshot ready): the arcana's own dash at **normal dash length**, with its
+  effects at their smallest; it uses the slingshot's charge like a charged one. While the
+  slingshot is recharging, tapping or holding is a plain dash.
 - **Hold** dash (slingshot ready): your wizard hops backward, like pulling back a slingshot,
   and holds that pose while their element gathers round them: a fast-spinning whirlwind for
   Vacuum Fist, flames (and a trembling wizard) for Blazing Kick, ice crystals forming in a
@@ -159,11 +161,11 @@ which are then stretched further to reach the enemy, wall or ground they grabbed
 
 Changes apply the next time the game starts.
 
-Under `[Icons]`: `MatchGamePalette` (default on) recolours the five icons, once the game has
-loaded its own (it doesn't hook any game code), in the colours of the
-game's own icons for similar spells: same element, frost arcana for Feint Swap, vine arcana for
-Vine Slingshot. The game icons it used are saved to `BepInEx/config/SlingshotDash_IconRefs`,
-next to the recoloured ones (`_<arcana>.png`). Turn it off for the mod's own, toned-down colours.
+**Icons:** Vacuum Fist, Blazing Kick, Charged Leap and Feint Swap use the player-made pixel icons
+from the "Dash Arcana Icons" design, as drawn. Under `[Icons]`, `MatchGamePalette` (default on)
+recolours Vine Slingshot's icon in the colours of the game's own vine arcana, once the game has
+loaded them (it doesn't hook any game code); the game icons it used are saved to
+`BepInEx/config/SlingshotDash_IconRefs`. Turn it off for the mod's own colours.
 
 ## Changing it in code
 
