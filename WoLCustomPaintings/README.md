@@ -1,8 +1,8 @@
 # Custom Paintings (Wizard of Legend)
 
 Hang your own pictures in the Chaos Trials. Now and then (0.5% by default) a breakable painting
-on the trial walls shows one of your pictures instead, fitted inside the game's own frame and
-shrunk to the painting's size so it stays crisp pixel art.
+on the trial walls shows one of your pictures instead of its artwork, inside the game's own frame,
+shrunk to fit so it stays crisp pixel art.
 
 ## Install
 
@@ -31,11 +31,12 @@ cropped to the frame's shape, since that's usually where faces are.
 - `ChancePercent`: percent of paintings that show one of your pictures. Default `0.5`, so
   they're a rare find; raise it (up to `100`) to see them more often. A change counts from the
   next floor you enter, no restart needed.
-- `FrameInset`: how many pixels of the game's frame to keep around your picture. `0` (default)
-  picks about 16% of the painting's size; raise it if your picture covers the frame, lower it if
-  the old canvas peeks out.
+- `Detail`: how finely your picture is drawn inside the frame. `1` is the game's own pixel size
+  (blockier, matches the game's paintings); `2` (default) to `4` fit more detail in the same space.
+- `FrameInset`: only for a painting without a separate artwork layer: how many pixels of its
+  frame to keep around your picture (`0` = automatic).
 
-`BepInEx\LogOutput.log` lists each picture loaded, the chance in use, each painting framed (with
-its size, which helps when tuning `FrameInset`) and, on leaving each floor, how many of its
+`BepInEx\LogOutput.log` lists each picture loaded, the chance in use, each painting's artwork
+replaced (with its size), the layers of the first painting and, on leaving each floor, how many of its
 paintings showed your pictures. If it says `No pictures yet`, it also shows the folder it looked
 in.

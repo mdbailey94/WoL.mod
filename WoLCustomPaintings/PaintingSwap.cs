@@ -6,9 +6,9 @@ namespace WoLCustomPaintings
     // animation, the shake when it's hit), so any intact-looking sprite is replaced each frame,
     // until the painting breaks: then the game's broken painting shows as usual.
     //
-    // A painting can be drawn in layers (a frame, with the artwork as its own sprite on top), so
-    // any other sprite of the painting drawn in front of the one we replace is hidden while the
-    // picture is up, or it would cover the picture.
+    // The game's breakable paintings are drawn in layers: a faint shadow (a white square), the
+    // frame, and the artwork ("DestructibleSprite") on top. The picture replaces the artwork,
+    // inside the game's own frame.
     public class PaintingSwap : MonoBehaviour
     {
         public Texture2D picture;
@@ -23,7 +23,8 @@ namespace WoLCustomPaintings
         private float checkAt = -1f;
 
         private float startTime;
-        private readonly System.Collections.Generic.List<SpriteRenderer> covers = new System.Collections.Generic.List<SpriteRenderer>();
+        private bool isArt;
+        private static bool loggedLayers;
 
         private void Start()
         {
@@ -44,12 +45,6 @@ namespace WoLCustomPaintings
                     CustomPaintingsPlugin.Log($"Painting '{name}' counts as broken already, leaving it alone");
                 if (target != null && target.sprite == replacement && lastOriginal != null)
                     target.sprite = lastOriginal;
-                foreach (SpriteRenderer cover in covers)
-                {
-                    if (cover != null)
-                        cover.enabled = true;
-                }
-                covers.Clear();
                 enabled = false;
                 return;
             }
@@ -60,7 +55,8 @@ namespace WoLCustomPaintings
                 if (target == null)
                     return;
                 intactSize = target.sprite.rect.size;
-                FindCovers();
+                isArt = target.name == ArtLayer;
+                LogLayers();
                 CustomPaintingsPlugin.Log($"Painting '{name}': showing a picture on '{target.name}' (sprite '{target.sprite.name}', " +
                     $"{intactSize.x}x{intactSize.y}, {Renderers()} sprite renderer(s), visible={target.enabled && target.gameObject.activeInHierarchy})");
             }
@@ -73,15 +69,6 @@ namespace WoLCustomPaintings
                     (target.sprite == replacement ? "up" : "replaced by the game") +
                     (swaps > 5 ? $" (set {swaps} times: the game keeps changing the sprite back)" : "") +
                     $", visible={target.enabled && target.gameObject.activeInHierarchy}");
-            }
-            // Keep anything that would cover the picture hidden (the game may switch it back on).
-            if (replacement != null && target.sprite == replacement)
-            {
-                foreach (SpriteRenderer cover in covers)
-                {
-                    if (cover != null && cover.enabled)
-                        cover.enabled = false;
-                }
             }
             Sprite current = target.sprite;
             if (current == null || current == replacement)
@@ -98,7 +85,9 @@ namespace WoLCustomPaintings
             }
             if (current != lastOriginal)
             {
-                Sprite built = PaintingBuilder.Build(current, picture);
+                Sprite built = isArt
+                    ? PaintingBuilder.BuildArt(current, picture, CustomPaintingsPlugin.Detail)
+                    : PaintingBuilder.Build(current, picture);
                 if (built == null)
                 {
                     if (!logged)
@@ -118,29 +107,24 @@ namespace WoLCustomPaintings
                 checkAt = Time.time + 1f;
         }
 
-        // Every other sprite of the painting that's showing and drawn in front of the target (same
-        // sorting layer, same or higher order). All of them are logged, to see how it's built.
-        private void FindCovers()
+        // The layers of the first painting, once, to show how they're built.
+        private void LogLayers()
         {
-            covers.Clear();
+            if (loggedLayers)
+                return;
+            loggedLayers = true;
             foreach (SpriteRenderer renderer in GetComponentsInChildren<SpriteRenderer>(true))
-            {
-                bool showing = renderer.enabled && renderer.gameObject.activeInHierarchy;
-                bool inFront = renderer != target && showing && renderer.sprite != null
-                    && renderer.sortingLayerID == target.sortingLayerID && renderer.sortingOrder >= target.sortingOrder;
                 CustomPaintingsPlugin.Log($"  layer '{renderer.name}': sprite '{(renderer.sprite != null ? renderer.sprite.name : "none")}'" +
                     (renderer.sprite != null ? $" {renderer.sprite.rect.width}x{renderer.sprite.rect.height}" : "") +
-                    $", order {renderer.sortingLayerName}/{renderer.sortingOrder}, showing={showing}" +
-                    (renderer == target ? " <- picture goes here" : inFront ? " <- in front, hidden while the picture is up" : ""));
-                if (inFront)
-                    covers.Add(renderer);
-            }
+                    $", order {renderer.sortingLayerName}/{renderer.sortingOrder}" + (renderer == target ? " <- picture goes here" : ""));
         }
 
         private int Renderers() => GetComponentsInChildren<SpriteRenderer>(true).Length;
 
-        // The painting's biggest sprite that's actually showing (not a shadow, a small decoration, or
-        // a hidden one such as its broken look). Hidden ones only if nothing else has a sprite yet.
+        private const string ArtLayer = "DestructibleSprite";
+
+        // The painting's artwork layer if it has one; otherwise its biggest sprite that's showing
+        // and isn't a shadow (hidden ones only if nothing else has a sprite yet).
         private SpriteRenderer MainRenderer()
         {
             SpriteRenderer best = null, bestHidden = null;
@@ -148,6 +132,10 @@ namespace WoLCustomPaintings
             foreach (SpriteRenderer renderer in GetComponentsInChildren<SpriteRenderer>(true))
             {
                 if (renderer.sprite == null)
+                    continue;
+                if (renderer.name == ArtLayer)
+                    return renderer;
+                if (renderer.name.IndexOf("Shadow", System.StringComparison.OrdinalIgnoreCase) >= 0 || renderer.sprite.name == "White")
                     continue;
                 Vector2 size = renderer.sprite.rect.size;
                 float area = size.x * size.y;

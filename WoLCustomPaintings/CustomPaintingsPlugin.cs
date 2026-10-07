@@ -16,12 +16,13 @@ namespace WoLCustomPaintings
     {
         public const string PluginGuid = "mdbailey94.wol.custompaintings";
         public const string PluginName = "Custom Paintings";
-        public const string PluginVersion = "0.2.3";
+        public const string PluginVersion = "0.3.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<bool> modEnabled;
         private static ConfigEntry<float> chance;
         private static ConfigEntry<int> frameInset;
+        private static ConfigEntry<int> detail;
         private static readonly List<Texture2D> pictures = new List<Texture2D>();
         // Paintings already given (or not given) a picture in this scene, by instance id.
         private readonly HashSet<int> rolled = new HashSet<int>();
@@ -29,6 +30,7 @@ namespace WoLCustomPaintings
         private string sceneName;
         private float nextScan;
 
+        public static int Detail => Mathf.Clamp(detail?.Value ?? 2, 1, 4);
         public static int FrameInset => frameInset != null ? frameInset.Value : 0;
 
         public static void Log(string message) => log?.LogInfo(message);
@@ -43,8 +45,12 @@ namespace WoLCustomPaintings
                 new ConfigDescription("Percent of paintings that show one of your pictures (0-100). " +
                     "The default 0.5 makes them a rare find.",
                     new AcceptableValueRange<float>(0f, 100f)));
+            detail = Config.Bind("General", "Detail", 2,
+                new ConfigDescription("How finely your picture is drawn inside the frame: 1 = the game's own pixel size " +
+                    "(blockier, matches the game), 2-4 = more detail in the same space.",
+                    new AcceptableValueRange<int>(1, 4)));
             frameInset = Config.Bind("General", "FrameInset", 0,
-                new ConfigDescription("Pixels of the original painting's frame to keep around your picture " +
+                new ConfigDescription("Only for paintings without a separate artwork layer: pixels of the original painting's frame to keep around your picture " +
                     "(0 = automatic). Raise it if your picture covers the frame, lower it if old canvas shows.",
                     new AcceptableValueRange<int>(0, 32)));
 
