@@ -8,6 +8,7 @@ BepInEx 5 mods for Wizard of Legend.
 | [WoLRollingGale](WoLRollingGale/) | Working | New Air arcana: a line of wind bursts that rolls forward and pulls enemies. Needs LegendAPI. |
 | [WoLCyclone](WoLCyclone/) | Untested | New Air standard arcana: hold to grow a steerable twister into a hurricane over 4 s (bigger, faster, harder hits), bursting a second later to blow everyone away. Needs LegendAPI. |
 | [WoLThunderhead](WoLThunderhead/) | Untested | New Lightning standard arcana: leap high into the air out of reach (like Heroic Leap) as lightning rains down around you, then crash down in a lightning slam. Needs LegendAPI. |
+| [WoLTrailblazer](WoLTrailblazer/) | Untested | New Fire dash arcana: running, dashing and movement arcana leave a trail of fire that burns and shoves enemies you run into, growing with your run speed. Needs LegendAPI. |
 | [WoLSlingshotDash](WoLSlingshotDash/) | Working (Storm untested) | Five hold-to-charge dash arcana: Vacuum Fist (a rushing wind that drags enemies, ending in a vacuum punch), Blazing Kick (a flaming rush that shoves enemies aside, ending in a blast), Feint Swap (throw an ice feint, swap places, freeze both ends) Vine Slingshot (grab with twin vines, pull in and kick) and Charged Leap (catch enemy projectiles, then hurl them and yourself). Needs LegendAPI. |
 | [WoLExtendedStats](WoLExtendedStats/) | Working | Hidden arcana and wizard stats in the character menu info box, plus a post-run report: crits, biggest crit, pit knock-offs, top speed and more. Co-op aware. |
 | [WoLAscension](WoLAscension/) | Working | Ascension levels 1–10: stacking difficulty modifiers, set at an altar beside the trials portal (its flame and number show the level), with +4% chaos gems per level. |
@@ -37,15 +38,16 @@ setting has a comment saying what it does.
 
 **In the code:** every number that shapes how a mod plays is a named constant near the top of its
 `...State.cs` (or `...Plugin.cs` for damage and cooldowns), with a comment saying what it does. For
-example, in `WoLThunderhead\ThunderheadState.cs`:
+example, in `WoLCyclone\CycloneState.cs`:
 
 ```csharp
-private const float Height = 4f;             // how high the leap goes
-private const float HoverTime = 1.0f;        // ...hanging there while the lightning falls...
+private const float GrowTime = 4f;         // from small twister to full hurricane
+private const float Distance = 4f;         // starts about three tiles in front of the wizard
 ```
 
-and its damage per hit is in `WoLThunderhead\ThunderheadPlugin.cs`
-(`damage = new[] { 5, 14, 0 }`: one number per skill level, explained just above it).
+and its damage per hit is in `WoLCyclone\CyclonePlugin.cs` (`damage = new[] { ... }`: one number
+per skill level, explained just above it). Thunderhead and Trailblazer have all of theirs in the
+config file instead.
 
 To build your change into the game (Windows):
 
