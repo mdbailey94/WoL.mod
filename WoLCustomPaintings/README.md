@@ -33,6 +33,8 @@ cropped to the frame's shape, since that's usually where faces are.
   next floor you enter, no restart needed.
 - `Detail`: how finely your picture is drawn inside the frame. `1` is the game's own pixel size
   (blockier, matches the game's paintings); `2` (default) to `4` fit more detail in the same space.
+- `NudgeUp`: moves your picture up inside the frame by this many of the game's pixels (negative
+  moves it down; the artwork is about 42 pixels tall). Applies from the next floor.
 - `FrameInset`: only for a painting without a separate artwork layer: how many pixels of its
   frame to keep around your picture (`0` = automatic).
 

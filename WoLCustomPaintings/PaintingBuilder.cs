@@ -16,12 +16,12 @@ namespace WoLCustomPaintings
         private static readonly Color32 FrameShade = new Color32(122, 84, 24, 255);
 
         // The game's breakable paintings are layered: a frame sprite, and the artwork as its own
-        // sprite on top. This replaces the artwork: the picture fills it, cut to the artwork's own
-        // shape (wherever the original is see-through, so is the picture), at `detail` times the
-        // game's pixel count in the same space (1 = the game's own pixel size, sharper above).
+        // sprite on top. This replaces the artwork: the picture fills it, at `detail` times the
+        // game's pixel count in the same space (1 = the game's own pixel size, sharper above),
+        // nudged up by NudgeUp of the game's pixels if asked.
         public static Sprite BuildArt(Sprite original, Texture2D picture, int detail)
         {
-            string key = original.GetInstanceID() + "/" + picture.GetInstanceID() + "/art" + detail;
+            string key = original.GetInstanceID() + "/" + picture.GetInstanceID() + "/art" + detail + "/" + CustomPaintingsPlugin.NudgeUp;
             Sprite cached;
             if (cache.TryGetValue(key, out cached) && cached != null)
                 return cached;
@@ -33,27 +33,10 @@ namespace WoLCustomPaintings
             int d = Mathf.Clamp(detail, 1, 4);
             int bw = w * d, bh = h * d;
 
-            Color32[] mask = ReadSprite(original, w, h);
-            if (mask != null)
-            {
-                // A copy that came out (nearly) empty means the read failed: don't cut by it.
-                int solid = 0;
-                foreach (Color32 c in mask)
-                    if (c.a > 8)
-                        solid++;
-                if (solid < mask.Length / 4)
-                    mask = null;
-            }
-
+            // The whole artwork rectangle is filled (the game's artworks are plain rectangles; cutting
+            // to a copied shape could shift the picture if the copy came out offset).
             var pixels = new Color32[bw * bh];
             PaintCanvas(pixels, bw, bh, 0, picture);
-            if (mask != null)
-            {
-                for (int y = 0; y < bh; y++)
-                    for (int x = 0; x < bw; x++)
-                        if (mask[(y / d) * w + x / d].a <= 8)
-                            pixels[y * bw + x] = new Color32(0, 0, 0, 0);
-            }
 
             var texture = new Texture2D(bw, bh, TextureFormat.RGBA32, false)
             {
@@ -62,11 +45,12 @@ namespace WoLCustomPaintings
             };
             texture.SetPixels32(pixels);
             texture.Apply();
-            Vector2 pivot = new Vector2(original.pivot.x / original.rect.width, original.pivot.y / original.rect.height);
+            int nudge = CustomPaintingsPlugin.NudgeUp;
+            Vector2 pivot = new Vector2(original.pivot.x / original.rect.width, (original.pivot.y - nudge) / original.rect.height);
             Sprite sprite = Sprite.Create(texture, new Rect(0, 0, bw, bh), pivot, original.pixelsPerUnit * d);
             cache[key] = sprite;
-            CustomPaintingsPlugin.Log($"Painted a picture over artwork '{original.name}' ({w}x{h}, detail x{d}" +
-                (mask != null ? ", cut to its shape)" : ")"));
+            CustomPaintingsPlugin.Log($"Painted a picture over artwork '{original.name}' ({w}x{h}, pivot {original.pivot.x:0.#},{original.pivot.y:0.#}, " +
+                $"detail x{d}, nudged up {nudge})");
             return sprite;
         }
 
