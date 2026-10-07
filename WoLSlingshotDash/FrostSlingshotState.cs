@@ -8,8 +8,9 @@ namespace WoLSlingshotDash
     // (the game's IceDecoy, which enemies go after) out along your aim. It hovers there while you
     // keep moving; then, or as soon as you press dash again, you swap places with it. Both spots
     // burst with a small Frost Nova that freezes enemies, and the feint lingers where you were to
-    // keep drawing them. Holding 0.2 s to 1 s scales both the throw distance and the hover time
-    // (none at 0.2 s, MaxHoverTime at 1 s); enhanced, both are full at 0.6 s.
+    // keep drawing them. A tap is just a plain dash. Holding 0.2 s to 1 s scales both the throw
+    // distance (from a plain dash's length to MaxDistance) and the hover time (none at 0.2 s,
+    // MaxHoverTime at 1 s); enhanced, both are full at 0.6 s.
     public class FrostSlingshotState : ChargedDashState
     {
         public new static string staticID = "FrostSlingshot";
@@ -17,12 +18,12 @@ namespace WoLSlingshotDash
         private const float FlightTime = 0.3f;
         private const float MinHold = 0.2f;      // shorter is a normal dash
         private const float MaxHoverTime = 2f;   // hover before the forced swap, at full charge
-        private const float MinDistance = 3f;
-        private const float ExtraDistance = 6f; // added at full charge
+        private const float MaxDistance = 9f;   // at full charge (the shortest is a plain dash)
         private const float WallMargin = 0.75f;
         private const float LingerTime = 2.5f;   // how long the feint stays after the swap
 
         protected override float MinChargeTime => MinHold;
+        protected override bool TapIsPlainDash => true;
 
         // The feint in flight or hovering, until the swap.
         private class Feint
@@ -78,7 +79,8 @@ namespace WoLSlingshotDash
                 ? inputVector.normalized
                 : Entity.GetFacingDirectionVector(parent.facingDirection).normalized;
             Vector2 start = parent.transform.position;
-            float distance = MinDistance + ExtraDistance * power;
+            float shortest = PlainDashDistance();
+            float distance = Mathf.Lerp(shortest, Mathf.Max(shortest, MaxDistance), power);
             // Stop short of walls so you never swap into one.
             RaycastHit2D hit = Physics2D.Raycast(start, direction, distance, ChaosCollisions.layerAllWallAndObst);
             if (hit.collider != null)

@@ -140,6 +140,10 @@ namespace WoLSlingshotDash
         protected virtual string ChargeAnimation => SlingshotDashPlugin.ChargeAnimation(parent);
         protected virtual float ChargePoseFrame => SlingshotDashPlugin.ChargePoseFrame;
 
+        // A tap is just a plain dash (no slingshot, and it doesn't use the slingshot's charge),
+        // for an arcana whose move only makes sense held.
+        protected virtual bool TapIsPlainDash => false;
+
         // Hop backward at the start of a charge (otherwise the pose plays where you stand).
         protected virtual bool HopsBack => true;
 
@@ -160,9 +164,66 @@ namespace WoLSlingshotDash
         {
         }
 
+        // How far a plain dash carries this wizard: measured from their plain dashes (the longest,
+        // since walls only cut one short), or the game's dash speed x duration until there is one.
+        private static readonly Dictionary<int, float> measuredDash = new Dictionary<int, float>();
+        private static bool loggedDash;
+        private Vector2 plainDashStart;
+        private bool measuringDash;
+
+        protected float PlainDashDistance()
+        {
+            float measured;
+            if (parent != null && measuredDash.TryGetValue(parent.GetInstanceID(), out measured))
+                return measured;
+            float computed = 0f;
+            try
+            {
+                Movement movement = parent.movement;
+                if (movement != null && movement.dashSpeedStat != null && movement.dashDurationStat != null)
+                    computed = movement.dashSpeedStat.ModifiedValue * movement.dashDurationStat.ModifiedValue;
+            }
+            catch
+            {
+            }
+            if (!loggedDash)
+            {
+                loggedDash = true;
+                SlingshotDashPlugin.Log($"Dash length from speed x duration: {computed:0.##}");
+            }
+            return computed >= 1f && computed <= 12f ? computed : 3f;
+        }
+
+        private void StartPlainDash()
+        {
+            plainDashStart = parent.transform.position;
+            measuringDash = true;
+            base.OnEnter();
+        }
+
+        private void FinishMeasuring()
+        {
+            if (!measuringDash)
+                return;
+            measuringDash = false;
+            if (fsm.nextStateName.Contains("Hurt") || fsm.nextStateName.Contains("Dead"))
+                return;
+            float distance = Vector2.Distance(plainDashStart, parent.transform.position);
+            if (distance < 1f || distance > 12f)
+                return;
+            int key = parent.GetInstanceID();
+            float before;
+            if (!measuredDash.TryGetValue(key, out before) || distance > before + 0.05f)
+            {
+                measuredDash[key] = distance;
+                SlingshotDashPlugin.Log($"Measured a plain dash: {distance:0.##}");
+            }
+        }
+
         public override void OnEnter()
         {
             standStill = false;
+            measuringDash = false;
             launchCharge = 0f;
             slingshotting = false;
             if (InterceptDash())
@@ -174,7 +235,7 @@ namespace WoLSlingshotDash
             // Slingshot still recharging, or no way to read the button: a normal dash.
             if (!SlingshotReady || !DashButton.Available(parent, skillSlot))
             {
-                base.OnEnter();
+                StartPlainDash();
                 return;
             }
 
@@ -236,6 +297,7 @@ namespace WoLSlingshotDash
         public override void OnExit()
         {
             StopShaking();
+            FinishMeasuring();
             if (!charging && slingshotting && cooldownReady
                 && !fsm.nextStateName.Contains("Hurt") && !fsm.nextStateName.Contains("Dead"))
                 OnLand(launchCharge);
@@ -262,6 +324,11 @@ namespace WoLSlingshotDash
             charging = false;
             StopShaking();
             launchCharge = charge;
+            if (tap && TapIsPlainDash)
+            {
+                StartPlainDash();
+                return;
+            }
             if (charge > 0f && BoostsDash)
                 ApplyBoost(charge);
             // Start the game's own dash now, aimed wherever the player is holding.
