@@ -16,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.23.0";
+        public const string PluginVersion = "0.23.1";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -282,7 +282,7 @@ namespace WoLSlingshotDash
                 ID = FeintSwapState.staticID,
                 displayName = "Feint Swap",
                 description = "Hold to charge, then release to throw an ice feint; swap places with it when it stops or when you press again, freezing enemies at both ends!",
-                enhancedDescription = "Reaches full throwing range in half the charge time!",
+                enhancedDescription = "Reaches full range in half the charge time, and leaves an ice feint in your place after the swap!",
                 icon = LoadIcon("icon_ice.png"),
                 tier = 2,
                 stateType = typeof(FeintSwapState),
@@ -294,8 +294,8 @@ namespace WoLSlingshotDash
                     elementType = new[] { "Water" },
                     subElementType = new[] { "Water" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
-                    // One Frost Nova where you stood: 12 damage and a guaranteed freeze.
-                    damage = new[] { 12 },
+                    // A Frost Nova at each end of the swap: 15 damage and a guaranteed freeze.
+                    damage = new[] { 15 },
                     cooldown = new[] { Mathf.Max(0.5f, cooldownSeconds.Value) },
                     knockbackMultiplier = new[] { 0f },
                     hitStunDurationModifier = new[] { 1f },

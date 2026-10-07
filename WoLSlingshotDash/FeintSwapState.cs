@@ -9,18 +9,19 @@ namespace WoLSlingshotDash
     // which enemies go after) out along your aim. It hovers there while you move about; when the
     // hover ends, or as soon as you press the button again, you swap places with it. Both spots
     // burst with a small Frost Nova that freezes enemies, and the feint lingers where you were to
-    // keep drawing them.
+    // keep drawing them... when enhanced; otherwise the feint shatters as you swap.
     //
-    // Holding 0.2 s to 1 s scales the throw (a plain dash's length up to MaxDistance) and the
-    // hover (none up to 2 s); enhanced, both are full at 0.6 s. Let go before 0.2 s and nothing
-    // is thrown and the arcana isn't used up (its cooldown only starts with a throw). Held 2 s,
-    // it throws by itself. Dash to cancel the charge.
+    // Holding up to 1 s scales the throw (a bit over a plain dash's length, up to MaxDistance)
+    // and the hover (none for a tap, up to 2 s); enhanced, both are full at 0.5 s. Held 2 s, it
+    // throws by itself. The cooldown starts with the throw. Dash to cancel the charge.
     public class FeintSwapState : Player.SkillState
     {
         public new static string staticID = "FeintSwap";
 
-        private const float MinHold = 0.2f;     // shorter throws nothing
         private const float FullCharge = 1f;
+        private const float MinRangeScale = 1.15f; // the shortest throw, times a plain dash's length
+        private const float MaxDistance = 10.5f;   // at full charge
+        private const float EnhancedLinger = 4f;   // how long the feint left in your place lasts
         private const float MaxHold = 2f;       // throws by itself
         private const float ThrowTime = 0.2f;   // the throwing pose, after letting go
 
@@ -93,11 +94,6 @@ namespace WoLSlingshotDash
 
             if (ButtonHeld() && held < MaxHold)
                 return;
-            if (held < MinHold)
-            {
-                Finish(); // a tap: nothing thrown, nothing used up
-                return;
-            }
             Throw();
         }
 
@@ -146,16 +142,16 @@ namespace WoLSlingshotDash
                 SlingshotDashPlugin.Log($"Feint Swap: couldn't start the cooldown: {e.Message}");
             }
 
-            // Hold time 0.2 s -> 0, 1 s -> 1; enhanced, full range in half the charge-up (0.6 s).
-            float span = (FullCharge - MinHold) * (IsEmpowered ? 0.5f : 1f);
-            float power = Mathf.Clamp01((held - MinHold) / span);
+            // Hold time 0 -> 0, 1 s -> 1; enhanced, full range in half the charge-up (0.5 s).
+            float span = FullCharge * (IsEmpowered ? 0.5f : 1f);
+            float power = Mathf.Clamp01(held / span);
             Vector2 direction = GetInputVector();
             if (direction.sqrMagnitude < 0.01f)
                 direction = Entity.GetFacingDirectionVector(parent.facingDirection);
             direction.Normalize();
             Vector2 start = parent.transform.position;
-            float shortest = SlingshotDashPlugin.DashLength(parent);
-            float distance = Mathf.Lerp(shortest, Mathf.Max(shortest, FrostSlingshotState.MaxDistance), power);
+            float shortest = SlingshotDashPlugin.DashLength(parent) * MinRangeScale;
+            float distance = Mathf.Lerp(shortest, Mathf.Max(shortest, MaxDistance), power);
             // Stop short of walls so you never swap into one.
             RaycastHit2D hit = Physics2D.Raycast(start, direction, distance, ChaosCollisions.layerAllWallAndObst);
             if (hit.collider != null)
@@ -168,8 +164,9 @@ namespace WoLSlingshotDash
 
             var feint = new FrostSlingshotState.Feint { thrownAt = Time.time, hoverTime = FrostSlingshotState.MaxHoverTime * power };
             // The swap happens long after this state ends, so it runs on the plugin.
-            SlingshotDashPlugin.Run(FrostSlingshotState.Throw(parent, feint, SpawnDecoy(start), start, start + direction * distance,
-                SlingshotDashPlugin.FrostFreezeRadius * (1f + 0.5f * power), parent.skillCategory, skillID));
+            bool empowered = IsEmpowered;
+            SlingshotDashPlugin.Run(FrostSlingshotState.Throw(parent, feint, SpawnDecoy(start, empowered), start, start + direction * distance,
+                SlingshotDashPlugin.FrostFreezeRadius * (1f + 0.5f * power), parent.skillCategory, skillID, empowered));
             SlingshotDashPlugin.Run(WatchForSwap(parent, skillSlot, feint));
         }
 
@@ -196,7 +193,7 @@ namespace WoLSlingshotDash
             }
         }
 
-        private GameObject SpawnDecoy(Vector2 position)
+        private GameObject SpawnDecoy(Vector2 position, bool lingers)
         {
             try
             {
@@ -204,7 +201,8 @@ namespace WoLSlingshotDash
                 if (decoy == null)
                     return null;
                 decoy.parentEnt = parent;
-                decoy.duration = FrostSlingshotState.FlightTime + FrostSlingshotState.MaxHoverTime + FrostSlingshotState.LingerTime;
+                // Long enough for the flight and the longest hover, plus its stay in your place.
+                decoy.duration = FrostSlingshotState.FlightTime + FrostSlingshotState.MaxHoverTime + (lingers ? EnhancedLinger : 0.5f);
                 return decoy.gameObject;
             }
             catch (System.Exception e)

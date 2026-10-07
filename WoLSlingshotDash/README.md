@@ -53,23 +53,22 @@ in what the launch does.
 > **Feint Swap**: Hold to charge, then release to throw an ice feint; swap places with it when it
 > stops or when you press again, freezing enemies at both ends!
 >
-> *Enhanced: Reaches full throwing range in half the charge time!*
+> *Enhanced: Reaches full range in half the charge time, and leaves an ice feint in your place
+> after the swap!*
 
 Not a dash any more: it goes in a normal arcana slot, and your dash stays your dash.
 
 - **Hold** the button: your wizard stands and gathers ice crystals round their feet (dash to
-  cancel). Let go after **0.2 to 1 second** and they **throw an ice copy of themselves** (the
-  game's ice decoy) along your aim, from **a normal dash's length** up to 9 depending on how long
-  you held, stopping short of walls. Held 2 seconds, it throws by itself.
-- **Let go before 0.2 seconds** and nothing is thrown, and the arcana isn't used up (its
-  cooldown, 7 s by default, starts only with a throw).
-- It **hovers** while you move about: from no hover at 0.2 seconds up to **2 seconds** at a full
-  charge. Then, or as soon as you **press the button again**, you **swap places**: you appear
-  where it is, and it appears where you are.
-- **Both spots freeze**: a small Frost Nova bursts at each end, and the copy lingers for a couple
-  of seconds so enemies keep going after it.
-- **Enhanced**: the throw distance and hover time max out at **0.6 seconds** of holding instead
-  of 1.
+  cancel). Let go and they **throw an ice copy of themselves** (the game's ice decoy) along your
+  aim: a tap throws it a bit further than a normal dash, a 1 second hold up to 10.5, stopping
+  short of walls. Held 2 seconds, it throws by itself. The cooldown (7 s by default) starts with
+  the throw.
+- It **hovers** while you move about: no hover for a tap, up to **2 seconds** at a full charge.
+  Then, or as soon as you **press the button again**, you **swap places** with it, and it
+  shatters.
+- **Both spots freeze**: a Frost Nova bursts at each end (15 damage, a sure freeze).
+- **Enhanced**: full range and hover at **0.5 seconds** of holding, and the feint **stays in your
+  place** after the swap for 4 seconds, drawing enemies to it.
 
 (The old dash version is still in the mod, hidden, so a save that has it equipped still loads;
 the shop offers the new one.)

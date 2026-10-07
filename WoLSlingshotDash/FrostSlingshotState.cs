@@ -118,8 +118,9 @@ namespace WoLSlingshotDash
             }
         }
 
+        // leaveDecoy: the feint stays where you were after the swap; otherwise it shatters there.
         internal static IEnumerator Throw(Player player, Feint feint, GameObject decoy, Vector2 start, Vector2 end,
-            float freezeRadius, string skillCategory, string id)
+            float freezeRadius, string skillCategory, string id, bool leaveDecoy = true)
         {
             // Fly out.
             float t = 0f;
@@ -160,7 +161,10 @@ namespace WoLSlingshotDash
                 player.rigidbody2D.position = end;
                 player.rigidbody2D.velocity = Vector2.zero;
             }
-            MoveDecoy(decoy, here);
+            if (leaveDecoy)
+                MoveDecoy(decoy, here);
+            else
+                Shatter(decoy);
 
             // Freeze at both ends.
             FrostNova.CreateFrostNova(here, freezeRadius, skillCategory, id, 1);
@@ -177,6 +181,34 @@ namespace WoLSlingshotDash
             }
             Effects.Shake(0.7f);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(end), null, 24f, -1f, 1.7f, false);
+        }
+
+        // Ends a feint the game's own way (its dead state), or just removes it.
+        internal static void Shatter(GameObject decoy)
+        {
+            if (decoy == null)
+                return;
+            try
+            {
+                Effects.Shimmer(decoy.transform.position, 4);
+                IceDecoy ice = decoy.GetComponent<IceDecoy>();
+                if (ice != null && ice.fsm != null && ice.fsm.states != null)
+                {
+                    foreach (var pair in ice.fsm.states)
+                    {
+                        if (pair.Value is IceDecoy.DeadState)
+                        {
+                            ice.fsm.ChangeState(pair.Key);
+                            return;
+                        }
+                    }
+                }
+            }
+            catch (System.Exception e)
+            {
+                SlingshotDashPlugin.Log($"Feint Swap: couldn't shatter the feint the game's way: {e.Message}");
+            }
+            Object.Destroy(decoy);
         }
 
         internal static void MoveDecoy(GameObject decoy, Vector2 position)
