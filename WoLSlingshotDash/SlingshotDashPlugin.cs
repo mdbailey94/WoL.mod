@@ -16,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.23.1";
+        public const string PluginVersion = "0.23.2";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -281,8 +281,8 @@ namespace WoLSlingshotDash
             {
                 ID = FeintSwapState.staticID,
                 displayName = "Feint Swap",
-                description = "Hold to charge, then release to throw an ice feint; swap places with it when it stops or when you press again, freezing enemies at both ends!",
-                enhancedDescription = "Reaches full range in half the charge time, and leaves an ice feint in your place after the swap!",
+                description = "Hold to charge, then release to hurl an ice feint through your foes; swap places with it when it stops or when you press again, and it explodes in a freezing blast!",
+                enhancedDescription = "Reaches full range in half the charge time, and leaves a new feint where you were, exploding 2 seconds later!",
                 icon = LoadIcon("icon_ice.png"),
                 tier = 2,
                 stateType = typeof(FeintSwapState),
@@ -294,13 +294,15 @@ namespace WoLSlingshotDash
                     elementType = new[] { "Water" },
                     subElementType = new[] { "Water" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
-                    // A Frost Nova at each end of the swap: 15 damage and a guaranteed freeze.
-                    damage = new[] { 15 },
+                    // Level 1 is the feint's explosion (a Frost Nova): 15 damage and a sure freeze.
+                    // Level 2 is the ice bursts along its flight: 6 damage and a little knockback
+                    // (short immunity, so an enemy it passes can still be caught by the explosion).
+                    damage = new[] { 15, 6 },
                     cooldown = new[] { Mathf.Max(0.5f, cooldownSeconds.Value) },
-                    knockbackMultiplier = new[] { 0f },
+                    knockbackMultiplier = new[] { 0f, 10f },
                     hitStunDurationModifier = new[] { 1f },
-                    sameAttackImmunityTime = new[] { 0.5f },
-                    freezeChance = new[] { 1f },
+                    sameAttackImmunityTime = new[] { 0.5f, 0.1f },
+                    freezeChance = new[] { 1f, 0f },
                     freezeDuration = new[] { 1.5f }
                 },
                 priceMultiplier = 3,

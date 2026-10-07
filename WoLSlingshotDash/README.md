@@ -50,25 +50,24 @@ in what the launch does.
 
 ### Feint Swap (Water) - a standard arcana
 
-> **Feint Swap**: Hold to charge, then release to throw an ice feint; swap places with it when it
-> stops or when you press again, freezing enemies at both ends!
+> **Feint Swap**: Hold to charge, then release to hurl an ice feint through your foes; swap places
+> with it when it stops or when you press again, and it explodes in a freezing blast!
 >
-> *Enhanced: Reaches full range in half the charge time, and leaves an ice feint in your place
-> after the swap!*
+> *Enhanced: Reaches full range in half the charge time, and leaves a new feint where you were,
+> exploding 2 seconds later!*
 
 Not a dash any more: it goes in a normal arcana slot, and your dash stays your dash.
 
 - **Hold** the button: your wizard stands and gathers ice crystals round their feet (dash to
-  cancel). Let go and they **throw an ice copy of themselves** (the game's ice decoy) along your
-  aim: a tap throws it a bit further than a normal dash, a 1 second hold up to 10.5, stopping
-  short of walls. Held 2 seconds, it throws by itself. The cooldown (7 s by default) starts with
-  the throw.
+  cancel). Let go and they **hurl an ice copy of themselves** (the game's ice decoy) along your
+  aim, **hitting enemies along its path** (ice bursts, 6 damage and a little knockback). A tap
+  throws it a bit further than a normal dash, a 1 second hold up to 10.5, stopping short of walls.
+  Held 2 seconds, it throws by itself. The cooldown (7 s by default) starts with the throw.
 - It **hovers** while you move about: no hover for a tap, up to **2 seconds** at a full charge.
-  Then, or as soon as you **press the button again**, you **swap places** with it, and it
-  shatters.
-- **Both spots freeze**: a Frost Nova bursts at each end (15 damage, a sure freeze).
-- **Enhanced**: full range and hover at **0.5 seconds** of holding, and the feint **stays in your
-  place** after the swap for 4 seconds, drawing enemies to it.
+  Then, or as soon as you **press the button again**, you **swap places** with it and it
+  **explodes** round you: a Frost Nova, 15 damage and a sure freeze.
+- **Enhanced**: full range and hover at **0.5 seconds** of holding, and a **new feint is left
+  where you swapped from**, drawing enemies to it, and **explodes the same way 2 seconds later**.
 
 (The old dash version is still in the mod, hidden, so a save that has it equipped still loads;
 the shop offers the new one.)
