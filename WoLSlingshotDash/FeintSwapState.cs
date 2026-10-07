@@ -7,14 +7,14 @@ namespace WoLSlingshotDash
     // Feint Swap (Water, the game's frost element), a standard arcana: hold the button and ice
     // crystals gather round the wizard's feet; let go to throw an ice feint (the game's IceDecoy,
     // which enemies go after) out along your aim, hitting enemies along its path (ice bursts,
-    // level 2). It hovers there while you move about; when the hover ends, or as soon as you
-    // press the button again, you swap places with it and it explodes round you in a Frost Nova
-    // that hurts and freezes (level 1). Enhanced, a new feint is left where you swapped from,
-    // drawing enemies to it, and explodes the same way 2 seconds later.
+    // level 2). It hovers there while you move about, and only when you press the button again do
+    // you swap places with it and it explodes round you in a Frost Nova that hurts and freezes
+    // (level 1); left alone for MaxWait it just melts away. Enhanced, a new feint is left where
+    // you swapped from, drawing enemies to it, and explodes the same way 2 seconds later.
     //
-    // Holding up to 1 s scales the throw (a bit over a plain dash's length, up to MaxDistance)
-    // and the hover (none for a tap, up to 2 s); enhanced, both are full at 0.5 s. Held 2 s, it
-    // throws by itself. The cooldown starts with the throw. Dash to cancel the charge.
+    // Holding up to 1 s scales the throw (a bit over a plain dash's length, up to MaxDistance);
+    // enhanced, full at 0.5 s. Held 2 s, it throws by itself. The cooldown starts with the
+    // throw. Dash to cancel the charge.
     public class FeintSwapState : Player.SkillState
     {
         public new static string staticID = "FeintSwap";
@@ -26,6 +26,7 @@ namespace WoLSlingshotDash
         private const float PathHitInterval = 0.05f;
         private const float PathHitScale = 1.1f;
         private const float SettleTime = 0.12f;
+        private const float MaxWait = 5f;          // how long the feint waits for the swap
         private const float MaxHold = 2f;       // throws by itself
         private const float ThrowTime = 0.2f;   // the throwing pose, after letting go
 
@@ -166,7 +167,7 @@ namespace WoLSlingshotDash
             Effects.Spark(start + direction * 0.5f, HitSparkType.Small);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(start), null, 24f, -1f, 1.5f, false);
 
-            var feint = new FrostSlingshotState.Feint { thrownAt = Time.time, hoverTime = FrostSlingshotState.MaxHoverTime * power };
+            var feint = new FrostSlingshotState.Feint { thrownAt = Time.time, hoverTime = MaxWait };
             // The swap happens long after this state ends, so it runs on the plugin.
             bool empowered = IsEmpowered;
             float freezeRadius = SlingshotDashPlugin.FrostFreezeRadius * (1f + 0.5f * power);
@@ -206,12 +207,19 @@ namespace WoLSlingshotDash
                 yield return null;
             }
 
-            // Hover with a slight bob until the time's up or you press again (a moment at least,
-            // so the explosion isn't swallowed by the hit immunity of the last burst on the way).
+            // Hover with a slight bob until you press again (a moment at least, so the explosion
+            // isn't swallowed by the hit immunity of the last burst on the way). Nothing swaps or
+            // explodes on its own: left alone for MaxWait, the feint just melts away.
             t = 0f;
-            while (t < SettleTime || (t < feint.hoverTime && !feint.swapRequested))
+            while (t < SettleTime || !feint.swapRequested)
             {
                 t += Time.deltaTime;
+                if (t >= MaxWait)
+                {
+                    feint.swapped = true;
+                    FrostSlingshotState.Shatter(decoy);
+                    yield break;
+                }
                 FrostSlingshotState.MoveDecoy(decoy, end + new Vector2(0f, Mathf.Sin(t * 6f) * 0.08f));
                 yield return null;
             }
@@ -313,8 +321,8 @@ namespace WoLSlingshotDash
                 if (decoy == null)
                     return null;
                 decoy.parentEnt = parent;
-                // Long enough for the flight and the longest hover (it's ended at the swap anyway).
-                decoy.duration = duration > 0f ? duration : FrostSlingshotState.FlightTime + FrostSlingshotState.MaxHoverTime + 0.5f;
+                // Long enough for the flight and the longest wait (it's ended at the swap anyway).
+                decoy.duration = duration > 0f ? duration : FrostSlingshotState.FlightTime + MaxWait + 0.5f;
                 return decoy.gameObject;
             }
             catch (System.Exception e)

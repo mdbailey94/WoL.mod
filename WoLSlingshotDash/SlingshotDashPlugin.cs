@@ -16,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.23.2";
+        public const string PluginVersion = "0.23.3";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -281,7 +281,7 @@ namespace WoLSlingshotDash
             {
                 ID = FeintSwapState.staticID,
                 displayName = "Feint Swap",
-                description = "Hold to charge, then release to hurl an ice feint through your foes; swap places with it when it stops or when you press again, and it explodes in a freezing blast!",
+                description = "Hold to charge, then release to hurl an ice feint through your foes; press again to swap places with it, and it explodes in a freezing blast!",
                 enhancedDescription = "Reaches full range in half the charge time, and leaves a new feint where you were, exploding 2 seconds later!",
                 icon = LoadIcon("icon_ice.png"),
                 tier = 2,
