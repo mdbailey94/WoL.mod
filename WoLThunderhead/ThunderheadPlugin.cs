@@ -13,7 +13,7 @@ namespace WoLThunderhead
     {
         public const string PluginGuid = "mdbailey94.wol.thunderhead";
         public const string PluginName = "Thunderhead";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.1.1";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -31,7 +31,7 @@ namespace WoLThunderhead
             {
                 ID = ThunderheadState.staticID,
                 displayName = "Thunderhead",
-                description = "Rise into the air and call down a storm of lightning on everything beneath you!",
+                description = "Rise into the air, untouchable, and call down a storm of lightning on everything beneath you!",
                 enhancedDescription = "The storm lasts longer and strikes wider!",
                 icon = LoadIcon("icon.png"),
                 tier = 2,

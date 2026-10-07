@@ -6,7 +6,8 @@ namespace WoLThunderhead
     // Thunderhead (Lightning, standard arcana): the wizard rises into the air, crackling, and for
     // 1.5 seconds (2.2 enhanced) lightning rains down on a small area beneath them: scattered
     // strikes all over it (level 1) and a big strike right below every half second (level 2), which
-    // can shock. Then they drift back down.
+    // can shock. Then they drift back down. Like the game's jumping arcana, the wizard is airborne
+    // and can't be hurt while up there.
     //
     // The hits are the game's lightning bursts; each strike also shows the game's own lightning
     // bolt from the sky (stripped down to its animation, so it can't hit anything itself).
@@ -34,6 +35,8 @@ namespace WoLThunderhead
         private float nextSpark;
         private bool done;
         private Levitator levitator;
+        private bool airborne;
+        private const string AirborneModID = "Thunderhead_Airborne";
         private static bool loggedBolt;
 
         public ThunderheadState(FSM newFSM, Player newEnt) : base(staticID, newFSM, newEnt)
@@ -60,6 +63,7 @@ namespace WoLThunderhead
             nextSpark = 0f;
             done = false;
             levitator = Levitator.On(parent);
+            TakeOff();
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(parent.transform.position), null, 24f, -1f, 0.7f, false);
         }
 
@@ -109,6 +113,10 @@ namespace WoLThunderhead
                 }
             }
 
+            // Back on the ground (with the fall nearly done): can be hurt again.
+            if (airborne && time >= stormEnd + FallTime * 0.7f)
+                Touchdown();
+
             if (time >= end)
             {
                 done = true;
@@ -123,8 +131,43 @@ namespace WoLThunderhead
             base.OnExit();
         }
 
+        // Up in the air: airborne (like a jump) and not to be hurt.
+        private void TakeOff()
+        {
+            if (airborne || parent.health == null)
+                return;
+            airborne = true;
+            parent.health.invulnerable = true;
+            try
+            {
+                parent.airborneStat?.AddMod(new BoolVarStatMod(AirborneModID, true, 10));
+            }
+            catch
+            {
+            }
+        }
+
+        private void Touchdown()
+        {
+            if (!airborne)
+                return;
+            airborne = false;
+            // Always back to hurtable: restoring an "already invulnerable" from, say, a dash's
+            // moment of invulnerability that ended meanwhile would leave you invulnerable for good.
+            if (parent.health != null)
+                parent.health.invulnerable = false;
+            try
+            {
+                parent.airborneStat?.RemoveMod(AirborneModID);
+            }
+            catch
+            {
+            }
+        }
+
         private void Land()
         {
+            Touchdown();
             if (levitator != null)
             {
                 levitator.Off();

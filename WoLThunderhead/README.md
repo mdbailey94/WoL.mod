@@ -2,11 +2,13 @@
 
 A new **Lightning standard arcana**, added with [LegendAPI](https://github.com/yekoc/LegendAPI).
 
-> **Thunderhead**: Rise into the air and call down a storm of lightning on everything beneath you!
+> **Thunderhead**: Rise into the air, untouchable, and call down a storm of lightning on everything
+> beneath you!
 >
 > *Enhanced: The storm lasts longer and strikes wider!*
 
-- Your wizard **rises into the air**, arms raised and crackling, and hovers there.
+- Your wizard **rises into the air**, arms raised and crackling, and hovers there. Like the game's
+  jumping arcana, they're **airborne and can't be hurt** until they're nearly back down.
 - For **1.5 seconds**, lightning rains down on a **small area beneath you**: bolts strike all over it
   (5 damage each, one every 0.12 s) and a **big strike** lands right below you every half second
   (8 damage, with a camera jolt). Strikes can **shock**.
