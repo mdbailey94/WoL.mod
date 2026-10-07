@@ -2,23 +2,25 @@
 
 A new **Air standard arcana**, added with [LegendAPI](https://github.com/yekoc/LegendAPI).
 
-> **Cyclone**: Hold to whip up a tornado in front of you that grows bigger, faster and fiercer, then
+> **Cyclone**: Hold to whip up a twister you can steer, growing into a raging hurricane that
 > bursts, blowing everyone away!
 >
 > *Enhanced: Reaches full strength sooner and bursts wider!*
 
-- **Hold** the button: a small tornado spins up just in front of you and follows your aim while
-  you stay planted, channeling.
-- The longer you hold, the **bigger** it gets (hit area 0.9 to 2.4), the **faster** it hits (every
-  0.45 s down to every 0.12 s) and the **harder** (2, 3, 4, then 6 damage a hit). It tugs enemies
-  gently inward so they stay caught.
-- **Let go** early and it simply dies down. **Hold the full 5 seconds** and it **bursts**: 14
-  damage and a big knockback that throws everyone around it away.
-- **Enhanced**: full strength in 3.5 seconds, and a wider burst.
+- **Hold** the button: a small twister (the Twister arcana's own) spins up about **two tiles in
+  front** of you while you stay planted, channeling. **Steer it slowly** with your aim; it moves
+  more slowly as it grows, never through walls, and up to 9 away from you.
+- Over **4 seconds** it grows into a **hurricane**: the twister swells and the air boss's storm
+  vortex (dust, debris, light streaks) builds up around it. As it grows it hits **faster** (every
+  0.45 s down to 0.12 s) and **harder** (2, 3, 4, then 6 damage), tugging enemies inward.
+- **Let go** early and it dies down. **Hold on one more second** at full power and it **bursts**:
+  14 damage and a huge knockback that throws everyone around it away.
+- **Enhanced**: full size in 3 seconds (bursting at 4), and a wider burst.
 - Dash to cancel at any time. Cooldown 5 seconds.
 
-The look is the game's own tornado (the one the Whirlwind ultimate summons) with the air vortex
-swirls; the log says `Cyclone: using the game's tornado` (or that it's using swirls only).
+Everything you see is the game's own wind effects, made harmless and pinned in place (the hits come
+from invisible wind bursts); the log says `Cyclone: using the game's twister` and
+`... storm vortex`, or which one it couldn't use.
 
 ## Install
 

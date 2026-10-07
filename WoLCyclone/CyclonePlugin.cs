@@ -13,7 +13,7 @@ namespace WoLCyclone
     {
         public const string PluginGuid = "mdbailey94.wol.cyclone";
         public const string PluginName = "Cyclone";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.2.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -31,7 +31,7 @@ namespace WoLCyclone
             {
                 ID = CycloneState.staticID,
                 displayName = "Cyclone",
-                description = "Hold to whip up a tornado in front of you that grows bigger, faster and fiercer, then bursts, blowing everyone away!",
+                description = "Hold to whip up a twister you can steer, growing into a raging hurricane that bursts, blowing everyone away!",
                 enhancedDescription = "Reaches full strength sooner and bursts wider!",
                 icon = LoadIcon("icon.png"),
                 tier = 2,
@@ -42,10 +42,10 @@ namespace WoLCyclone
                     elementType = new[] { "Air" },
                     subElementType = new[] { "Air" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
-                    // Levels 1-4 are the tornado's hits as it grows (stronger and more often each
-                    // stage), level 5 the final burst, level 6 the game's tornado used only for the
-                    // look (harmless). Held the full 5 s: about 2x5 + 3x6 + 4x8 + 6x10 + 14, ~130
-                    // to an enemy caught the whole time.
+                    // Levels 1-4 are the twister's hits as it grows over 4 s (stronger and more
+                    // often each stage), level 5 the final burst after a second at full power, level
+                    // 6 the game's twister and storm used only for the look (harmless). Held to the
+                    // burst: roughly 130 to an enemy caught the whole time.
                     damage = new[] { 2, 3, 4, 6, 14, 0 },
                     cooldown = new[] { 5f },
                     // The tornado tugs enemies gently in to keep them inside; the burst throws hard.
