@@ -17,7 +17,7 @@ namespace WoLCloakUpgrades
     {
         public const string PluginGuid = "mdbailey94.wol.cloakupgrades";
         public const string PluginName = "Cloak Upgrades";
-        public const string PluginVersion = "0.3.0";
+        public const string PluginVersion = "0.3.1";
 
         // Ignore presses right after the wardrobe opens.
         private const float OpenGrace = 0.35f;
@@ -97,18 +97,21 @@ namespace WoLCloakUpgrades
                 return;
             UnityEngine.UI.Text text = ui.wrRef.infoDescText;
             FitToBox(text);
-            text.text = text.text.TrimEnd() + "\n" + UpgradeLines(outfit, OnController(ui));
+            string description = text.text.TrimEnd();
+            // A cloak with a long list of stats: keep the upgrade to one line.
+            bool compact = description.Split('\n').Length > LongDescriptionLines;
+            text.text = description + "\n" + UpgradeLines(outfit, OnController(ui), compact);
         }
 
-        // Let the info box shrink its text to fit instead of running off the screen (down to half
-        // its size, only as much as it needs).
+        // Let the info box shrink its text to fit instead of running off the screen (down to a
+        // third of its size for the longest cloaks, only as much as it needs).
         private static void FitToBox(UnityEngine.UI.Text text)
         {
             if (text.resizeTextForBestFit)
                 return;
             int size = text.fontSize;
             text.resizeTextMaxSize = size;
-            text.resizeTextMinSize = Mathf.Max(6, size / 2);
+            text.resizeTextMinSize = Mathf.Max(5, size / 3);
             text.horizontalOverflow = HorizontalWrapMode.Wrap;
             text.verticalOverflow = VerticalWrapMode.Truncate;
             text.resizeTextForBestFit = true;
@@ -127,8 +130,11 @@ namespace WoLCloakUpgrades
             }
         }
 
-        // Kept short: one line for the tier, one for the button and price.
-        private string UpgradeLines(Outfit outfit, bool controller)
+        private const int LongDescriptionLines = 4;
+
+        // Kept short: one line for the tier, one for the button and price (one line in all when
+        // the cloak's own description is long).
+        private string UpgradeLines(Outfit outfit, bool controller, bool compact)
         {
             if (!outfit.unlocked)
                 return "Unlock to upgrade";
@@ -137,9 +143,10 @@ namespace WoLCloakUpgrades
             if (tier >= CloakTiers.Max)
                 return now + " (max)";
             string button = controller ? "Y" : "U";
+            string gap = compact ? " - " : "\n";
             if (pending == outfit && !pendingUsesBox)
-                return now + $"\nPress {button} again to confirm";
-            return now + $"\nPress {button} to upgrade: {CloakTiers.Cost(tier)} gems";
+                return now + gap + $"Press {button} again to confirm";
+            return now + gap + (compact ? $"{button}: {CloakTiers.Cost(tier)} gems" : $"Press {button} to upgrade: {CloakTiers.Cost(tier)} gems");
         }
 
         private int Tier(string outfitID)

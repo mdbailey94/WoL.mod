@@ -5,8 +5,9 @@ Spend chaos gems on **permanent** upgrades for your cloaks, at the wardrobe in y
 ## How it works
 
 Everything happens in the wardrobe's own screen. Highlight a cloak and its info box shows its tier
-and the next upgrade, e.g. `Tier 1/4: bonuses +25%` / `Press Y to upgrade: 200 gems` (the box's
-text shrinks to fit). Press **Y** on a controller (Triangle on PlayStation pads) or **U** on the
+and the next upgrade, e.g. `Tier 1/4: bonuses +25%` / `Press Y to upgrade: 200 gems`. The box's
+text shrinks to fit (down to a third of its size), and for cloaks with a long list of stats the
+upgrade takes a single line (`Tier 1/4: bonuses +25% - Y: 200 gems`). Press **Y** on a controller (Triangle on PlayStation pads) or **U** on the
 keyboard and the game's own yes/no box asks to confirm; a purchase is announced by the game's notice
 banner. If the yes/no box can't be used, press the button a second time instead. You can only
 upgrade cloaks you've unlocked.
