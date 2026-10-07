@@ -2,20 +2,23 @@
 
 A new **Lightning standard arcana**, added with [LegendAPI](https://github.com/yekoc/LegendAPI).
 
-> **Thunderhead**: Rise into the air, untouchable, and call down a storm of lightning on everything
-> beneath you!
+> **Thunderhead**: Leap high into the air, out of reach, as lightning rains down around you, then
+> crash down in a thunderous slam!
 >
-> *Enhanced: The storm lasts longer and strikes wider!*
+> *Enhanced: Stay up longer, strike wider and slam harder!*
 
-- After a **very short wind-up** on the ground (about a tenth of a second, when you can still be
-  hit), your wizard **rises into the air**, arms raised and crackling, for about **1.5 seconds**.
-  Like the game's jumping arcana, they're **airborne and can't be hurt** while up there.
-- For **1.2 seconds** of that, lightning rains down on a **small area beneath you**: bolts strike
-  all over it (5 damage each, one every 0.12 s) and a **big strike** lands right below you every
-  half second (8 damage, with a camera jolt). Strikes can **shock**.
-- Then you drift back down. Dash to cancel at any time. Cooldown 6 seconds.
-- **Enhanced**: the storm lasts 1.7 seconds, strikes more often (every 0.09 s) and covers a wider
-  area.
+A leap like Heroic Leap's:
+
+- A **very short crouch** on the ground (about a tenth of a second, when you can still be hit),
+  then your wizard **leaps high, straight up**. Up there they **can't be hit**, the way the game's
+  jumping arcana work: their hurtbox is switched off (attacks and projectiles pass through) and
+  they count as airborne. Their shadow stays on the ground below.
+- While up (1 second), **lightning crashes down** around the spot below in volleys of three every
+  quarter second (5 damage each, can shock).
+- Then they **crash back down** in a **lightning slam**: 14 damage, a big knockback and a likely
+  shock, with a camera shake and a short hit-stop. About 1.4 seconds in the air in all.
+- Dash to cancel only before take-off. Cooldown 6 seconds.
+- **Enhanced**: 1.5 seconds up, strikes over a wider area and a bigger slam.
 
 The bolts are the game's own lightning from the sky (just its animation; the hits come from the
 game's lightning bursts). The log says `Thunderhead: using the game's lightning bolts`.

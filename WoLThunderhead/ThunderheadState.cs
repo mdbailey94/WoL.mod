@@ -3,12 +3,12 @@ using UnityEngine;
 
 namespace WoLThunderhead
 {
-    // Thunderhead (Lightning, standard arcana): after a very short wind-up on the ground (still
-    // vulnerable), the wizard rises into the air, crackling, for about 1.5 seconds. Up there they're
-    // airborne and can't be hurt, like the game's jumping arcana, while lightning rains down on a
-    // small area beneath them for 1.2 seconds (1.7 enhanced): scattered strikes all over it (level
-    // 1) and a big strike right below every half second (level 2), which can shock. Then they drift
-    // back down.
+    // Thunderhead (Lightning, standard arcana), a leap like Heroic Leap's: after a very short
+    // wind-up on the ground (still vulnerable), the wizard leaps high, straight up. While up there
+    // they can't be hit, the way the game's jumping arcana work (their hurtbox is switched off, so
+    // attacks and projectiles pass through, and they count as airborne), and lightning crashes down
+    // around the spot below them in volleys (level 1, can shock). Then they come crashing down in a
+    // lightning slam (level 2) that throws enemies back.
     //
     // The hits are the game's lightning bursts; each strike also shows the game's own lightning
     // bolt from the sky (stripped down to its animation, so it can't hit anything itself).
@@ -17,30 +17,30 @@ namespace WoLThunderhead
         public new static string staticID = "Thunderhead";
 
         private const float WindupTime = 0.12f;      // on the ground, still vulnerable
-        private const float RiseTime = 0.15f;
-        private const float StormTime = 1.2f;        // about 1.5 s in the air in all
-        private const float EnhancedStormTime = 1.7f;
-        private const float FallTime = 0.15f;
-        private const float Height = 0.9f;
-        private const float Radius = 1.8f;          // the area beneath you
-        private const float EnhancedRadius = 2.4f;
-        private const float StrikeInterval = 0.12f; // scattered strikes
-        private const float EnhancedStrikeInterval = 0.09f;
-        private const float BigStrikeInterval = 0.5f;
+        private const float RiseTime = 0.25f;        // up...
+        private const float HoverTime = 1.0f;        // ...hanging there while the lightning falls...
+        private const float EnhancedHoverTime = 1.5f;
+        private const float CrashTime = 0.12f;       // ...and slamming down
+        private const float RecoverTime = 0.15f;     // on the ground after the slam
+        private const float Height = 4f;             // how high the leap goes
+        private const float Radius = 2.2f;           // the area around the landing spot
+        private const float EnhancedRadius = 2.8f;
+        private const float VolleyInterval = 0.25f;  // a volley of strikes this often while up
+        private const int VolleySize = 3;
         private const float StrikeScale = 1f;
-        private const float BigStrikeScale = 1.6f;
-        private const float SparkInterval = 0.08f;
+        private const float SlamScale = 2.4f;
+        private const float EnhancedSlamScale = 3f;
 
         private float time;
-        private float nextStrike;
-        private float nextBigStrike;
-        private float nextSpark;
+        private float nextVolley;
         private bool done;
-        private Levitator levitator;
-        private bool airborne;
         private bool tookOff;
-        private const string AirborneModID = "Thunderhead_Airborne";
+        private bool landed;
+        private bool airborne;
+        private bool hurtBoxWasOn;
+        private Levitator levitator;
         private static bool loggedBolt;
+        private const string AirborneModID = "Thunderhead_Airborne";
 
         public ThunderheadState(FSM newFSM, Player newEnt) : base(staticID, newFSM, newEnt)
         {
@@ -54,20 +54,18 @@ namespace WoLThunderhead
                 0.6f); // exit
         }
 
-        private float StormTimeNow => IsEmpowered ? EnhancedStormTime : StormTime;
+        private float HoverTimeNow => IsEmpowered ? EnhancedHoverTime : HoverTime;
         private float RadiusNow => IsEmpowered ? EnhancedRadius : Radius;
 
         public override void OnEnter()
         {
             base.OnEnter();
             time = 0f;
-            nextStrike = RiseTime;
-            nextBigStrike = RiseTime;
-            nextSpark = 0f;
+            nextVolley = 0f;
             done = false;
-            levitator = Levitator.On(parent);
             tookOff = false;
-            SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(parent.transform.position), null, 24f, -1f, 0.7f, false);
+            landed = false;
+            levitator = Levitator.On(parent);
         }
 
         public override void ExecuteSkill()
@@ -77,65 +75,68 @@ namespace WoLThunderhead
                 base.ExecuteSkill();
                 return;
             }
-            if (CancelToDash(false))
+            // Dash-cancelling only before take-off, like committing to a leap.
+            if (!tookOff && CancelToDash(false))
                 return;
 
             time += Time.deltaTime;
+            if (parent.rigidbody2D != null)
+                parent.rigidbody2D.velocity = Vector2.zero;
+            Vector2 ground = parent.transform.position;
 
-            // A moment's wind-up on the ground (still vulnerable), then up into the air.
+            // A moment's crouch on the ground (still vulnerable)...
             if (time < WindupTime)
             {
-                if (parent.rigidbody2D != null)
-                    parent.rigidbody2D.velocity = Vector2.zero;
-                parent.anim?.PlayDirectional(parent.ChargeAnimStr, -1, 0.15f);
+                parent.anim?.PlayDirectional(parent.JumpAnimStr, -1, 0f);
                 return;
             }
+            // ...then up and away.
             if (!tookOff)
             {
                 tookOff = true;
-                TakeOff();
+                TakeOff(ground);
             }
             float t = time - WindupTime;
-            float stormEnd = RiseTime + StormTimeNow;
-            float end = stormEnd + FallTime;
+            float hoverEnd = RiseTime + HoverTimeNow;
+            float crashEnd = hoverEnd + CrashTime;
 
-            // Hovering in place, arms raised.
-            if (parent.rigidbody2D != null)
-                parent.rigidbody2D.velocity = Vector2.zero;
-            parent.anim?.PlayDirectional(parent.ChargeAnimStr, -1, 0.5f);
-            float lift = t < RiseTime ? t / RiseTime
-                : t < stormEnd ? 1f
-                : 1f - Mathf.Clamp01((t - stormEnd) / FallTime);
-            if (levitator != null)
-                levitator.height = Height * Mathf.SmoothStep(0f, 1f, lift) + (lift >= 1f ? Mathf.Sin(t * 9f) * 0.04f : 0f);
-
-            Vector2 ground = parent.transform.position;
-            if (t >= RiseTime && t < stormEnd)
+            float lift;
+            if (t < RiseTime)
             {
-                if (t >= nextStrike)
+                float r = t / RiseTime;
+                lift = 1f - (1f - r) * (1f - r);     // fast off the ground, easing to the top
+                parent.anim?.PlayDirectional(parent.JumpAnimStr, -1, 0.3f);
+            }
+            else if (t < hoverEnd)
+            {
+                lift = 1f;
+                parent.anim?.PlayDirectional(parent.ChargeAnimStr, -1, 0.5f);
+                if (t >= nextVolley)
                 {
-                    nextStrike = t + (IsEmpowered ? EnhancedStrikeInterval : StrikeInterval);
-                    Vector2 offset = Random.insideUnitCircle * RadiusNow;
-                    Strike(ground + new Vector2(offset.x, offset.y * 0.7f), 1, StrikeScale);
-                }
-                if (t >= nextBigStrike)
-                {
-                    nextBigStrike = t + BigStrikeInterval;
-                    Strike(ground, 2, BigStrikeScale);
-                    Shake(0.5f);
-                }
-                if (t >= nextSpark)
-                {
-                    nextSpark = t + SparkInterval;
-                    Spark(ground + new Vector2(0f, Height + 0.5f) + Random.insideUnitCircle * 0.5f);
+                    nextVolley = t + VolleyInterval;
+                    Volley(ground);
                 }
             }
+            else if (t < crashEnd)
+            {
+                float c = (t - hoverEnd) / CrashTime;
+                lift = 1f - c * c;                     // slamming down, faster and faster
+                parent.anim?.PlayDirectional(parent.GSlamAnimStr, -1, 0.2f);
+            }
+            else
+            {
+                lift = 0f;
+                if (!landed)
+                {
+                    landed = true;
+                    Slam(ground);
+                }
+                parent.anim?.PlayDirectional(parent.GSlamAnimStr, -1, 0.6f);
+            }
+            if (levitator != null)
+                levitator.height = Height * lift + (t >= RiseTime && t < hoverEnd ? Mathf.Sin(t * 7f) * 0.06f : 0f);
 
-            // Back on the ground (with the fall nearly done): can be hurt again.
-            if (airborne && t >= stormEnd + FallTime * 0.7f)
-                Touchdown();
-
-            if (t >= end)
+            if (landed && t >= crashEnd + RecoverTime)
             {
                 done = true;
                 Land();
@@ -149,13 +150,12 @@ namespace WoLThunderhead
             base.OnExit();
         }
 
-        // Up in the air: airborne (like a jump) and not to be hurt.
-        private void TakeOff()
+        // ---- Up and down ----
+
+        // Leaving the ground: airborne, and nothing can touch you (hurtbox off, like a jump).
+        private void TakeOff(Vector2 ground)
         {
-            if (airborne || parent.health == null)
-                return;
             airborne = true;
-            parent.health.invulnerable = true;
             try
             {
                 parent.airborneStat?.AddMod(new BoolVarStatMod(AirborneModID, true, 10));
@@ -163,6 +163,15 @@ namespace WoLThunderhead
             catch
             {
             }
+            if (parent.hurtBoxCollider != null)
+            {
+                hurtBoxWasOn = parent.hurtBoxCollider.enabled;
+                parent.hurtBoxCollider.enabled = false;
+            }
+            if (parent.health != null)
+                parent.health.invulnerable = true;
+            Dust(ground, 30, 0.9f);
+            SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(ground), null, 24f, -1f, 0.6f, false);
         }
 
         private void Touchdown()
@@ -170,10 +179,6 @@ namespace WoLThunderhead
             if (!airborne)
                 return;
             airborne = false;
-            // Always back to hurtable: restoring an "already invulnerable" from, say, a dash's
-            // moment of invulnerability that ended meanwhile would leave you invulnerable for good.
-            if (parent.health != null)
-                parent.health.invulnerable = false;
             try
             {
                 parent.airborneStat?.RemoveMod(AirborneModID);
@@ -181,6 +186,11 @@ namespace WoLThunderhead
             catch
             {
             }
+            if (parent.hurtBoxCollider != null && hurtBoxWasOn)
+                parent.hurtBoxCollider.enabled = true;
+            // Always back to hurtable (restoring "already invulnerable" could leave it on for good).
+            if (parent.health != null)
+                parent.health.invulnerable = false;
         }
 
         private void Land()
@@ -193,10 +203,38 @@ namespace WoLThunderhead
             }
         }
 
-        private void Strike(Vector2 position, int level, float scale)
+        // ---- Lightning ----
+
+        // A few strikes at once, scattered round the spot below you.
+        private void Volley(Vector2 ground)
         {
-            LightningBurst.CreateBurst(position, parent.skillCategory, skillID, level, scale, false);
-            Bolt(position, level == 2 ? 1.25f : 1f);
+            for (int i = 0; i < VolleySize; i++)
+            {
+                Vector2 offset = Random.insideUnitCircle * RadiusNow;
+                Vector2 spot = ground + new Vector2(offset.x, offset.y * 0.7f);
+                LightningBurst.CreateBurst(spot, parent.skillCategory, skillID, 1, StrikeScale, false);
+                Bolt(spot, 1f);
+            }
+            Spark(ground + new Vector2(0f, Height + 0.6f));
+        }
+
+        // Crashing down: a big lightning slam that throws enemies back.
+        private void Slam(Vector2 ground)
+        {
+            Touchdown();
+            float scale = IsEmpowered ? EnhancedSlamScale : SlamScale;
+            LightningBurst.CreateBurst(ground, parent.skillCategory, skillID, 2, scale, false);
+            Bolt(ground, 1.6f);
+            Dust(ground, 80, scale);
+            Shake(1.4f);
+            try
+            {
+                TimeScaleController.FreezeForFrames(3, false);
+            }
+            catch
+            {
+            }
+            SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(ground), null, 24f, -1f, 0.5f, false);
         }
 
         // The game's lightning bolt from the sky, just its animation.
@@ -237,7 +275,18 @@ namespace WoLThunderhead
         {
             try
             {
-                PoolManager.GetPoolItem<HitSparkEmitter>().EmitSingle(HitSparkType.Small, position, position, null, null, 0f);
+                PoolManager.GetPoolItem<HitSparkEmitter>().EmitSingle(HitSparkType.Medium, position, position, null, null, 0f);
+            }
+            catch
+            {
+            }
+        }
+
+        private static void Dust(Vector2 position, int count, float radius)
+        {
+            try
+            {
+                PoolManager.GetPoolItem<DustEmitter>().EmitCircle(count, radius, -6f, -1f, new Vector3?(position), null);
             }
             catch
             {

@@ -13,7 +13,7 @@ namespace WoLThunderhead
     {
         public const string PluginGuid = "mdbailey94.wol.thunderhead";
         public const string PluginName = "Thunderhead";
-        public const string PluginVersion = "0.1.2";
+        public const string PluginVersion = "0.2.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -31,8 +31,8 @@ namespace WoLThunderhead
             {
                 ID = ThunderheadState.staticID,
                 displayName = "Thunderhead",
-                description = "Rise into the air, untouchable, and call down a storm of lightning on everything beneath you!",
-                enhancedDescription = "The storm lasts longer and strikes wider!",
+                description = "Leap high into the air, out of reach, as lightning rains down around you, then crash down in a thunderous slam!",
+                enhancedDescription = "Stay up longer, strike wider and slam harder!",
                 icon = LoadIcon("icon.png"),
                 tier = 2,
                 stateType = typeof(ThunderheadState),
@@ -42,16 +42,16 @@ namespace WoLThunderhead
                     elementType = new[] { "Lightning" },
                     subElementType = new[] { "Lightning" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
-                    // Level 1 is the scattered strikes (one every 0.12 s for 1.2 s over the area),
-                    // level 2 the big strike right beneath you (every 0.5 s), level 3 the game's
-                    // lightning bolts used only for the look (harmless). An enemy in the middle
-                    // the whole time: roughly 3 big strikes and 4 small ones, about 40.
-                    damage = new[] { 5, 8, 0 },
+                    // Level 1 is the strikes that rain down while you're up (volleys of three every
+                    // 0.25 s for 1 s round the spot below), level 2 the slam as you crash down, level
+                    // 3 the game's lightning bolts used only for the look (harmless). An enemy close
+                    // by: a few strikes and the slam, about 30.
+                    damage = new[] { 5, 14, 0 },
                     cooldown = new[] { 6f },
-                    knockbackMultiplier = new[] { 6f, 14f, 0f },
-                    hitStunDurationModifier = new[] { 1f, 1.2f, 0f },
+                    knockbackMultiplier = new[] { 6f, 45f, 0f },
+                    hitStunDurationModifier = new[] { 1f, 1.3f, 0f },
                     showDamageNumber = new[] { true, true, false },
-                    shockChance = new[] { 0.2f, 0.35f, 0f },
+                    shockChance = new[] { 0.2f, 0.5f, 0f },
                     shockLevel = new[] { 1 },
                     sameAttackImmunityTime = new[] { 0.1f }
                 },
