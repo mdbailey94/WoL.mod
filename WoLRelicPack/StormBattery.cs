@@ -19,7 +19,10 @@ namespace WoLRelicPack
         public static string staticID = RelicPackPlugin.IDPrefix + "StormBattery";
 
         private const int MaxCharges = 3;            // dashes stored at most
-        private const int BoltDamage = 10;           // damage of each bolt (the game's Lightning Aura strikes for 10)
+        // Damage of each bolt: 24 from a full battery, on one enemy or spread over three. Under the
+        // game's Lightning Aura's 10 a strike on purpose: that's an arcana's output, and this comes
+        // free with every dash and can shock. (0.1.1: was 10.)
+        private const int BoltDamage = 8;
         private const float BoltShockChance = 0.5f;  // chance each bolt shocks (0 to 1)
         private const int BoltShockLevel = 1;        // shock strength, like a basic lightning hit
         private const float ChainRange = 5f;         // how far a bolt can jump to the next enemy (world units, ~tiles)

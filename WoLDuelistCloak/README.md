@@ -7,11 +7,10 @@ speed and crits.
 |------|-------|
 | Movement speed | **+15%** |
 | Critical chance | **+10%** |
-| Critical damage | **+30%** |
+| Critical damage | **+25%** (0.1.1 trimmed it from +30%: no bonus above a vanilla cloak's) |
 | Damage taken | **+25%** (every hit on you is multiplied by 1.25) |
 
-It's Awe's crits (a little harder) with Pace's speed, paid for by taking a quarter more damage
-from everything. Speed and crits are the game's own cloak stats; the damage taken is a custom
+It's Awe's crits with Pace's speed, paid for by taking a quarter more damage from everything. Speed and crits are the game's own cloak stats; the damage taken is a custom
 stat, because a negative Armor stat would do nothing on its own (the game never lets armour go
 below zero).
 
@@ -29,14 +28,14 @@ offer it once fewer than three vanilla cloaks are left to buy. Then put it on at
 ## With Cloak Upgrades
 
 Upgrading raises its bonuses like any cloak's (speed up to +22.5%, crit chance up to +20%, crit
-damage up to +60% at tier 4). The damage taken is a drawback and **never gets worse**: it stays
+damage up to +50% at tier 4). The damage taken is a drawback and **never gets worse**: it stays
 at +25% at every tier (and the in-run tailor doesn't raise it either).
 
 ## Checking it works
 
 `BepInEx\LogOutput.log` shows:
 
-- `Duelist's Cloak 0.1.0 registered (ID DuelistCloak): ...` at startup.
+- `Duelist's Cloak 0.1.1 registered (ID DuelistCloak): ...` at startup.
 - `Duelist's Cloak is on sale at the cloak merchant` (or `... (in place of <cloak>)`) in the Plaza.
 - `Duelist's Cloak equipped (player 1): damage taken +25% on, damage taken multiplier now x1.25`
   when you put it on (and each time a level loads), `... removed ...` when you take it off.

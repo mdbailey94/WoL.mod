@@ -18,7 +18,7 @@ namespace WoLRelicPack
     {
         public const string PluginGuid = "mdbailey94.wol.relicpack";
         public const string PluginName = "Relic Pack";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.1.1";
 
         // Every relic ID (and attack tag) starts with this, so the relics can recognise their own hits.
         public const string IDPrefix = "RelicPack";

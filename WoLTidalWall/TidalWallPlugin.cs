@@ -13,7 +13,7 @@ namespace WoLTidalWall
     {
         public const string PluginGuid = "mdbailey94.wol.tidalwall";
         public const string PluginName = "Tidal Wall";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.1.1";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -44,9 +44,12 @@ namespace WoLTidalWall
                     subElementType = new[] { "Water" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
                     // Level 1 is each blast in the surging rows, level 2 the bigger crest at the end.
-                    // An enemy carried the whole way takes a hit per row: up to 3x10 + 20 = 50
-                    // (60 enhanced), against Tidal Blast's 15 + 50.
-                    damage = new[] { 10, 20 },
+                    // An enemy carried the whole way takes a hit per row: up to 3x8 + 20 = 44
+                    // (52 enhanced), against Tidal Blast's 15 + 50 with no freeze. Under Tidal
+                    // Blast on purpose: the wave shoves everything it catches the whole way and
+                    // can freeze, so the rows are kept light and the crest is the payoff. (0.1.1:
+                    // the rows were 10, 50 in all.)
+                    damage = new[] { 8, 20 },
                     cooldown = new[] { 6f },
                     // Knockback is always straight along your aim (overwrite), so the wave shoves
                     // everything the same way. Tidal Blast's own blast is 50.

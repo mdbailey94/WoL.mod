@@ -18,14 +18,17 @@ on the relic bar and comes off cleanly when dropped.
   charges go at once: a chain of **lightning bolts**, one per charge, jumps from that enemy to the
   nearest other enemy within about 5 tiles, then the next, each enemy once. With nobody new in
   reach (a lone enemy or a boss), a bolt strikes the same enemy again, so no charge is wasted.
-- Each bolt: **10 damage** (the game's Lightning Aura strikes for 10), a 50% chance to shock, a
-  light stagger and no knockback. It can crit with your arcana's crit chance.
+- Each bolt: **8 damage** (24 from a full battery; the game's Lightning Aura strikes for 10, but
+  that's an arcana), a 50% chance to shock, a light stagger and no knockback. It can crit with
+  your arcana's crit chance. (0.1.1 trimmed the bolts from 10.)
 
 ### Echo Charm
 
 - Cast your **signature arcana** and, for the next 2.5 seconds, every enemy it hits is struck
-  again **0.5 seconds** later by an echo of that hit at **40%** of its damage (status effect
+  again **0.5 seconds** later by an echo of that hit at **30%** of its damage (status effect
   chances too), with a flash of the arcana's element on the enemy. Up to 12 echoes per cast.
+  (0.1.1 trimmed the echo from 40%: it's a free third-again on the whole signature, so it sits
+  near Double Attack's 25% on basics.)
 - It echoes the hits rather than casting the arcana a second time: a real second cast would take
   over your wizard (aim, movement, animation, cooldown, overdrive), cut off an arcana that's still
   running and behave differently for every arcana. Echoing each hit works the same for all of
@@ -64,11 +67,11 @@ during runs. Or set `GiveRelicsKey` and press it once you're in a level (the pla
 
 ## Checking it works
 
-`BepInEx\LogOutput.log` shows `Relic Pack 0.1.0 registered 4 relics`, then a line each time a
+`BepInEx\LogOutput.log` shows `Relic Pack 0.1.1 registered 4 relics`, then a line each time a
 relic does something, for example:
 
 - `Storm Battery: dash stored a charge (2/3)` and `Storm Battery: chain lightning landed 3 of 3 bolt(s) on 2 enemy(ies)`
-- `Echo Charm: signature UseX cast, echoing its hits for 2.5s` and `Echo Charm: echoed UseX on ... for 8 (40% of 20)`
+- `Echo Charm: signature UseX cast, echoing its hits for 2.5s` and `Echo Charm: echoed UseX on ... for 6 (30% of 20)`
 - `Glass Prism on for player 1: crit chance +25%, max health 500 -> 375`
 - `Pickpocket's Glove active for player 1 at 48% health; gold drops now x1.50`
 

@@ -16,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.23.6";
+        public const string PluginVersion = "0.23.7";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -295,9 +295,13 @@ namespace WoLSlingshotDash
                     subElementType = new[] { "Water" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
                     // Level 1 is the feint's explosion (a Frost Nova): 15 damage and a sure freeze.
-                    // Level 2 is the ice bursts along its flight: 6 damage and a little knockback
+                    // Level 2 is the ice bursts along its flight: 4 damage and a little knockback
                     // (short immunity, so an enemy it passes can still be caught by the explosion).
-                    damage = new[] { 15, 6 },
+                    // An enemy on the path takes one or two bursts, so about 23 at most with the
+                    // explosion: a sure freeze plus a teleport and a decoy keeps the damage low
+                    // (Frost Feint, the dash, is 12 with its freeze; Frost Fan 25). (0.23.7: the
+                    // path bursts were 6.)
+                    damage = new[] { 15, 4 },
                     cooldown = new[] { Mathf.Max(0.5f, cooldownSeconds.Value) },
                     knockbackMultiplier = new[] { 0f, 10f },
                     hitStunDurationModifier = new[] { 1f },

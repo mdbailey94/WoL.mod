@@ -22,7 +22,10 @@ namespace WoLRelicPack
     {
         public static string staticID = RelicPackPlugin.IDPrefix + "EchoCharm";
 
-        private const float EchoDamage = 0.4f;       // echo power, as a fraction of the original hit
+        // Echo power, as a fraction of the original hit: every hit of the signature arcana again
+        // at this strength, with no drawback, so it stays near Double Attack's 0.25 on basics
+        // rather than a flat half-again signature. (0.1.1: was 0.4.)
+        private const float EchoDamage = 0.3f;
         private const float EchoDelay = 0.5f;        // seconds between a hit and its echo
         private const float EchoWindow = 2.5f;       // seconds after casting during which hits get echoed
         private const int MaxEchoesPerCast = 12;     // most hits one cast can echo (multi-hit arcana)

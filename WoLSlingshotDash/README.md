@@ -60,7 +60,7 @@ Not a dash any more: it goes in a normal arcana slot, and your dash stays your d
 
 - **Hold** the button: your wizard stands and gathers ice crystals round their feet (dash to
   cancel). Let go and they **hurl an ice copy of themselves** (the game's ice decoy) along your
-  aim, **hitting enemies along its path** (ice bursts, 6 damage and a little knockback). A tap
+  aim, **hitting enemies along its path** (ice bursts, 4 damage and a little knockback). A tap
   throws it a bit further than a normal dash, a 1 second hold up to 10.5, stopping short of walls.
   Held 2 seconds, it throws by itself. The cooldown (7 s by default) starts with the throw.
 - It **stands** there while you move about, drawing enemies to it (it's on your side, like the
@@ -136,7 +136,7 @@ swish also tell you it's ready.
 |---|---|---|
 | Vacuum Fist | 4 per drag, 2 per vacuum pulse (about 20 at most) | Drags along, then pulls in; enhanced trail gusts 3 each |
 | Blazing Kick | 4 per trail burst, 10 from the blast (about 18 at most) | Shoves aside, then throws away; enhanced, every hit burns |
-| Feint Swap | 12 per Frost Nova (one at each end) | Freezes for 1.5 s; the feint draws enemies |
+| Feint Swap | 4 per ice burst on the path (one or two an enemy), 15 from the explosion (about 23 at most) | A sure freeze for 1.5 s; the feint draws enemies; enhanced, a second explosion where you were. 0.23.7 trimmed the path bursts from 6: a sure freeze plus a teleport keeps the damage low |
 | Vine Slingshot | 3 per grip tick (every 0.4 s, up to 2 s) and 14 from the kick | Grip stuns; the kick knocks back hard; enhanced snares 2 every 0.5 s |
 | Charged Leap | Caught projectiles ×1.5, plus 10 from the landing burst | Only as strong as what you catch |
 

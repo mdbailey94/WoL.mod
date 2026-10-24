@@ -13,7 +13,7 @@ namespace WoLBrambleRing
     {
         public const string PluginGuid = "mdbailey94.wol.bramblering";
         public const string PluginName = "Bramble Ring";
-        public const string PluginVersion = "0.2.0";
+        public const string PluginVersion = "0.2.1";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -49,9 +49,13 @@ namespace WoLBrambleRing
                     targetNames = new[] { "EnemyFloorContact", "DestructibleHurtBox" },
                     // Level 1 is the catch: a vine's grab, or the first prick on an enemy inside
                     // the thicket. Level 2 is every thorn prick after it, one every half second.
-                    // An enemy that stays the whole 3 s takes 6 pricks (30); enhanced, 9 (45).
-                    // Rippling Vines does 20 a vine with its grab; Terra Ring 15 a ring, cascading.
-                    damage = new[] { 5, 5 },
+                    // An enemy that stays the whole 3 s takes the catch and 5 pricks (20);
+                    // enhanced, the catch and 8 (29). Kept low on purpose: the thicket is a hard
+                    // snare for its whole stand (and a second past it), so it sits at the low end
+                    // of its tier for damage. Embracing Vines does 25 a wave with a 2.5 s root;
+                    // Terra Ring 15 a ring, cascading, with no hold. (0.2.1: pricks were 5, 30 a
+                    // full stand.)
+                    damage = new[] { 5, 3 },
                     cooldown = new[] { 6f },
                     // The thicket holds enemies rather than shoving them.
                     knockbackMultiplier = new[] { 0f },

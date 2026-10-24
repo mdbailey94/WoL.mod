@@ -12,7 +12,7 @@ A new **Water standard arcana**, added with [LegendAPI](https://github.com/yekoc
 | Element | Water |
 | Tier | 2 (like Tidal Blast) |
 | Price | 6 (like Tidal Blast) |
-| Damage | 10 per row, 20 for the crest (up to 50 per enemy carried the whole way; 60 enhanced) |
+| Damage | 8 per row, 20 for the crest (up to 44 per enemy carried the whole way; 52 enhanced). 0.1.1 trimmed the rows from 10 (50 in all): a wave that shoves the whole way and can freeze stays under Tidal Blast's 65 |
 | Knockback | 30 per row, 50 for the crest, always straight along your aim |
 | Freeze | 15% chance per row, 50% for the crest, 1.5 s |
 | Cooldown | 6 s |
@@ -31,7 +31,7 @@ burst yet drains away.
 
 ## Checking it works
 
-`BepInEx\LogOutput.log` shows `Tidal Wall 0.1.0 registered` at start-up, then for each cast:
+`BepInEx\LogOutput.log` shows `Tidal Wall 0.1.1 registered` at start-up, then for each cast:
 
 ```
 Tidal Wall: cast, 4 rows x 3 wide toward (1.00, 0.00)

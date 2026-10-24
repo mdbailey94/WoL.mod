@@ -18,7 +18,7 @@ namespace WoLDuelistCloak
     {
         public const string PluginGuid = "mdbailey94.wol.duelistcloak";
         public const string PluginName = "Duelist's Cloak";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.1.1";
 
         // The game's ID for the cloak: kept in your save once bought, and the key Cloak Upgrades
         // stores its tier under. Don't change it, or a bought cloak is lost.
@@ -33,8 +33,10 @@ namespace WoLDuelistCloak
         private const float SpeedBonus = 0.15f;
         // +10% critical hit chance (added, like Awe's +10%).
         private const float CritChanceBonus = 0.10f;
-        // +30% critical damage (added; Awe gives +25%).
-        private const float CritDamageBonus = 0.30f;
+        // +25% critical damage (added, Awe's own). No bonus above a vanilla cloak's: the cloak is
+        // Awe's crits plus Pace's speed, and the damage taken pays for having both. (0.1.1: was
+        // +30%.)
+        private const float CritDamageBonus = 0.25f;
         // +25% damage taken: every hit on the wearer is multiplied by 1.25 (before armour).
         public const float DamageTakenIncrease = 0.25f;
 

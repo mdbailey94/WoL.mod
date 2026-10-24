@@ -12,7 +12,7 @@ A new **Earth standard arcana**, added with [LegendAPI](https://github.com/yekoc
 | Element | Earth |
 | Tier | 4 (like Rippling Vines and Terra Ring) |
 | Price | 6 (like Rippling Vines and Terra Ring) |
-| Damage | 5 a prick, one every 0.5 s: 30 over the full 3 s (enhanced 45 over 4.5 s) |
+| Damage | 5 for the catch, then 3 a prick every 0.5 s: 20 over the full 3 s (enhanced 29 over 4.5 s). 0.2.1 trimmed the pricks from 5 (30 a full stand): a hard snare for the whole stand shouldn't also out-damage Embracing Vines (25) |
 | Control | Snare: the game's root (held in place, no knockback), renewed by every prick, 1 s past the last. Bosses are slowed instead (50% for 2 s) |
 | Cooldown | 6 s |
 | Reach | about 3 units around where it was cast (enhanced: 4) |
@@ -23,8 +23,8 @@ game's own vine traps, the ones Rippling Vines and the Root Shield relic raise, 
 grabbing hit box. The thicket stands where it was cast for **3 seconds** while you walk off (or
 stay inside it, nothing in it hurts you).
 
-Every half second, every enemy inside the thicket is **pricked** by the thorns (5 damage, leaves
-fly) and **snared** with the game's root status: held where it stands, ignoring knockback, until a
+Every half second, every enemy inside the thicket is **pricked** by the thorns (5 for the first
+prick, 3 for each after it, leaves fly) and **snared** with the game's root status: held where it stands, ignoring knockback, until a
 second after its last prick. Enemies that walk into the thicket are caught the same way, and a vine
 whose hit box they cross grabs them and holds them on the spot as well. The first prick on an enemy
 (the catch) makes it flinch and also slows it; the pricks after that don't flinch, so a snared enemy
@@ -39,7 +39,7 @@ pricked.
 
 `BepInEx\LogOutput.log` shows:
 
-- `Bramble Ring 0.2.0 registered` at start-up.
+- `Bramble Ring 0.2.1 registered` at start-up.
 - `Bramble Ring: cast at (x, y)` (`, enhanced` when it is) each cast.
 - `Bramble Ring: knitted 18 vines in 2 rows 1.5-2.5 out` once the rows are up, with how many spots
   were skipped in walls or pits; enhanced, `Bramble Ring: vines spread outward: 16 more at 3.5 out`.
@@ -47,7 +47,7 @@ pricked.
   (`in a vine` when a vine grabbed it first). Instead of `snared` you may see
   `slowed (can't be snared)` (bosses), `hit only` (it resisted the status) or `killed`.
 - `Bramble Ring: thicket withered after 3.0 s: caught 3 (...), 1 of them by a vine first (2 vine
-  hits in all), 15 pricks for 75 damage before armour` (or `caught nothing`) when it's gone.
+  hits in all), 15 pricks for 51 damage before armour` (or `caught nothing`) when it's gone.
 - `Bramble Ring: vine hit box is a ...` once, the size and layer of one vine's hit box.
 - `Bramble Ring: effect '...' unavailable, skipping it` if a cosmetic effect can't be made.
 
