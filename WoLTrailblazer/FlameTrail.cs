@@ -10,14 +10,23 @@ namespace WoLTrailblazer
     //   patches of fire behind them every so often, which burn on the ground for a while and hurt
     //   enemies who walk into them.
     //
-    // Everything grows with the wizard's speed (their move speed stat against its base, so relics
-    // and sprinting count), over ten levels: running at base speed is level 1 (size 0.5),
-    // sprinting at base speed level 2 (size 1), and every 5% faster than that one more level and
-    // +10% size, up to level 10. The level sets the hits' damage, knockback and burn chance, and
-    // the size the fire. Enhanced counts as one level more.
+    // Everything grows with the wizard's speed, over ten levels. The speed is their move speed
+    // stat against its base, counting the lasting bonuses (sprinting, speed relics, the cloak,
+    // speed-boost arcana) but not the speeds a dash or attack forces for a moment. Running at base
+    // speed is level 1 and PeakSpeedPercent of base speed is level 10, the levels between spread
+    // evenly (with the default 230%: one level every +14.4% speed, so a plain sprint is level 3).
+    // The level sets the hits' damage, knockback and burn chance, and the size of the fire.
+    // Enhanced counts as one level more.
     public class FlameTrail : MonoBehaviour
     {
         private const int MaxPatches = 40;
+
+        // Ten levels by speed. The hits' numbers are the arcana's level-1 stats (the Balance
+        // settings, with the wizard's own damage bonuses) scaled by the level: damage up to
+        // PeakDamageMultiplier times, knockback and burn chance up to these, all spread evenly.
+        public const int MaxLevel = 10;
+        private const float PeakKnockbackMultiplier = 2.5f; // knockback at level 10, against level 1
+        private const float PeakBurnBonus = 0.5f;           // burn chance added at level 10 (0.5 -> 1.0)
 
         private class Patch
         {
@@ -38,7 +47,8 @@ namespace WoLTrailblazer
         private float nextAura;
         private float nextAuraFlame;
         private readonly List<Patch> patches = new List<Patch>();
-        private static bool loggedSpeed, loggedHit, loggedPatch;
+        private static bool loggedSpeed, loggedPatch, loggedLevels;
+        private static string lastBurstError;
 
         // Sets (or re-sets) the wizard alight for this long.
         public static void Light(Player player, Player.SkillState skill, float duration)
@@ -56,6 +66,12 @@ namespace WoLTrailblazer
             trail.nextAura = 0f;
             trail.enabled = true;
             TrailblazerPlugin.Log($"Trailblazer: lit for {duration:0.#} s");
+            if (!loggedLevels)
+            {
+                loggedLevels = true;
+                TrailblazerPlugin.Log($"Trailblazer: level 1 at x1.00 base run speed, one level every +{LevelStep() * 100f:0.0}%, " +
+                    $"level {MaxLevel} at x{TrailblazerPlugin.PeakSpeedPercent / 100f:0.00}; damage x1 to x{TrailblazerPlugin.PeakDamageMultiplier:0.#}");
+            }
         }
 
         private void Update()
@@ -178,30 +194,29 @@ namespace WoLTrailblazer
             }
         }
 
-        // Ten levels by speed: 1 running at base speed (size 0.5), 2 sprinting at base speed
-        // (size 1), then one more for every SpeedStep (5%) faster than that, each +10% size, up to
-        // level 10 (size 1.8). Enhanced counts one level more.
-        public const int MaxLevel = 10;
+        // How much faster (as a fraction of base run speed) each level needs than the one before:
+        // the levels go evenly from x1 (level 1) to PeakSpeedPercent (level 10).
+        private static float LevelStep() => (TrailblazerPlugin.PeakSpeedPercent / 100f - 1f) / (MaxLevel - 1);
 
+        // Level 1 running at base speed, up to level 10 at the peak speed. Enhanced counts one
+        // level more.
         private int Level(float speed, bool empowered)
         {
-            float sprint = SprintFactor();
-            int level = speed < sprint - 0.01f
-                ? 1
-                : 2 + Mathf.FloorToInt((speed - sprint) / TrailblazerPlugin.SpeedStep + 0.001f);
+            int level = 1 + Mathf.FloorToInt((speed - 1f) / LevelStep() + 0.001f);
             level = Mathf.Clamp(level + (empowered ? 1 : 0), 1, MaxLevel);
-            // The first few level changes go in the log, to check the speeds line up.
-            if (level != lastLevel && levelLogs < 20)
-            {
-                levelLogs++;
-                TrailblazerPlugin.Log($"Trailblazer: speed x{speed:0.00} (sprint x{sprint:0.00}) -> level {level}, size {SizeOf(level):0.0}");
-            }
-            lastLevel = level;
+            lastSpeed = speed;
             return level;
         }
 
-        private int lastLevel = -1;
-        private static int levelLogs;
+        private float lastSpeed = 1f;
+        private int lastLoggedLevel = -1;
+
+        // How far along the ten levels (0 at level 1, 1 at level 10).
+        private static float Along(int level) => Mathf.Clamp01((level - 1) / (float)(MaxLevel - 1));
+
+        private static float DamageScale(int level) => 1f + (TrailblazerPlugin.PeakDamageMultiplier - 1f) * Along(level);
+        private static float KnockbackScale(int level) => 1f + (PeakKnockbackMultiplier - 1f) * Along(level);
+        private static float BurnBonus(int level) => PeakBurnBonus * Along(level);
 
         private static float SizeOf(int level) => level <= 1 ? 0.5f : 1f + 0.1f * (level - 2);
 
@@ -222,77 +237,47 @@ namespace WoLTrailblazer
             patches.Clear();
         }
 
-
+        // A hit of the fire at a spot. The game only keeps SkillStats.maxSkillLevel (5) levels of
+        // stats for an arcana, so the ten speed levels can't be stat levels (levels 6-10 used to
+        // index past the stats and the hit silently got no attack). Instead every hit is made at
+        // stat level 1 and its damage, knockback and burn chance are scaled by the level here,
+        // before the hit's collider gets to touch anything. All hits share the level-1 attack key,
+        // so the stats' sameTargetImmunityTime limits how often one enemy is hit by any of them.
         private void Burst(Vector2 position, int level, float scale, bool effects)
         {
             try
             {
-                FlameBurst.CreateBurst(position, player != null ? player.skillCategory : "", TrailblazerState.staticID,
-                    level, scale, effects);
-                if (!loggedHit)
+                FlameBurst burst = FlameBurst.CreateBurst(position, player != null ? player.skillCategory : "",
+                    TrailblazerState.staticID, 1, scale, effects);
+                AttackInfo info = burst != null && burst.attack != null ? burst.attack.atkInfo : null;
+                if (info == null)
+                    throw new System.Exception("the burst has no attack info");
+                info.damage = Mathf.Max(1, Mathf.RoundToInt(info.damage * DamageScale(level)));
+                info.knockbackMultiplier *= KnockbackScale(level);
+                info.burnChance = Mathf.Clamp01(info.burnChance + BurnBonus(level));
+                if (level != lastLoggedLevel)
                 {
-                    loggedHit = true;
-                    TrailblazerPlugin.Log($"Trailblazer: fire bursts working (level {level}, size {scale:0.##})");
+                    lastLoggedLevel = level;
+                    TrailblazerPlugin.Log($"Trailblazer: speed x{lastSpeed:0.00} -> level {level} of {MaxLevel}: " +
+                        $"{info.damage} damage a hit, knockback {info.knockbackMultiplier:0.#}, burn {info.burnChance * 100f:0}%, size {SizeOf(level):0.0}");
                 }
             }
             catch (System.Exception e)
             {
-                if (!loggedHit)
+                // Each different failure is logged once, so a level that stops hitting shows up.
+                if (e.Message != lastBurstError)
                 {
-                    loggedHit = true;
-                    TrailblazerPlugin.Log($"Trailblazer: couldn't make a fire burst: {e.Message}");
+                    lastBurstError = e.Message;
+                    TrailblazerPlugin.Log($"Trailblazer: couldn't make a fire burst at level {level}: {e.Message}");
                 }
             }
         }
 
-        // How much faster a sprint is than a run at base speed (1.25 = +25%): the game's own sprint
-        // bonus if it can be read, or SprintBonus.
-        private float sprintFactor = -1f;
-        private static bool loggedSprint;
-
-        private float SprintFactor()
-        {
-            if (sprintFactor > 0f)
-                return sprintFactor;
-            float bonus = TrailblazerPlugin.SprintBonus;
-            string from = "the SprintBonus setting";
-            if (bonus <= 0f)
-            {
-                bonus = 0.25f;
-                from = "a default";
-                try
-                {
-                    SyncedNumVarStat stat = player != null ? player.runSpeedupStat : null;
-                    if (stat != null)
-                    {
-                        float v = stat.ModifiedValue;
-                        if (v > 0.01f && v < 1f)
-                        {
-                            bonus = v;
-                            from = "the game";
-                        }
-                        else if (v > 1.01f && v <= 3f)
-                        {
-                            bonus = v - 1f;
-                            from = "the game";
-                        }
-                    }
-                }
-                catch
-                {
-                }
-            }
-            sprintFactor = 1f + bonus;
-            if (!loggedSprint)
-            {
-                loggedSprint = true;
-                TrailblazerPlugin.Log($"Trailblazer: a sprint is +{bonus * 100f:0}% speed (from {from})");
-            }
-            return sprintFactor;
-        }
-
-        // The wizard's run speed stat against its base (1 = normal, more with speed relics and
-        // while sprinting).
+        // The wizard's run speed against its base (1 = running at base speed, 1.4 sprinting,
+        // more with speed relics, the cloak and speed-boost arcana). Counts the stat's lasting
+        // modifiers the way the game does (multiplied, then added, then late-multiplied), but not
+        // the Override ones: those are the speeds a dash, a charge or an attack's wind-up force on
+        // the wizard for a moment, which would otherwise swing the level about wildly.
         private float SpeedFactor()
         {
             float factor = 1f;
@@ -300,18 +285,46 @@ namespace WoLTrailblazer
             {
                 NumVarStat stat = player.movement != null ? player.movement.moveSpeedStat : null;
                 if (stat != null && stat.BaseValue > 0.01f)
-                    factor = stat.ModifiedValue / stat.BaseValue;
-                if (!loggedSpeed)
                 {
-                    loggedSpeed = true;
-                    TrailblazerPlugin.Log($"Trailblazer: run speed {(stat != null ? stat.ModifiedValue.ToString("0.##") : "?")} " +
-                        $"of base {(stat != null ? stat.BaseValue.ToString("0.##") : "?")}");
+                    float speed = stat.BaseValue;
+                    int overrides = 0;
+                    if (stat.modifiers != null)
+                    {
+                        // Already sorted by type (as Recalculate applies them).
+                        foreach (VarStatMod<float> mod in stat.modifiers)
+                        {
+                            NumVarStatMod numMod = mod as NumVarStatMod;
+                            if (numMod == null)
+                                continue;
+                            switch (numMod.modType)
+                            {
+                                case VarStatModType.Additive:
+                                    speed += numMod.modValue;
+                                    break;
+                                case VarStatModType.Multiplicative:
+                                case VarStatModType.LateMultiplicative:
+                                    speed *= 1f + numMod.modValue;
+                                    break;
+                                case VarStatModType.Override:
+                                case VarStatModType.OverrideWithMods:
+                                    overrides++;
+                                    break;
+                            }
+                        }
+                    }
+                    factor = speed / stat.BaseValue;
+                    if (!loggedSpeed)
+                    {
+                        loggedSpeed = true;
+                        TrailblazerPlugin.Log($"Trailblazer: run speed {speed:0.##} of base {stat.BaseValue:0.##} (x{factor:0.00}; " +
+                            $"the stat reads {stat.ModifiedValue:0.##}, {overrides} override mod(s) ignored)");
+                    }
                 }
             }
             catch
             {
             }
-            return Mathf.Clamp(factor, 0.5f, 4f);
+            return Mathf.Clamp(factor, 0.5f, 6f);
         }
 
         // Blazing Blitz's flame particles, scaled (1 = their own size).
