@@ -13,7 +13,7 @@ namespace WoLThunderhead
     {
         public const string PluginGuid = "mdbailey94.wol.thunderhead";
         public const string PluginName = "Thunderhead";
-        public const string PluginVersion = "0.5.0";
+        public const string PluginVersion = "0.6.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -26,7 +26,7 @@ namespace WoLThunderhead
         private static ConfigEntry<float> radius, enhancedRadius, volleyInterval, enhancedVolleyInterval, auraSize, strikeSize, slamSize, enhancedSlamSize;
         private static ConfigEntry<int> volleySize;
         private static ConfigEntry<bool> evenSpread, electricLook, stormCloud;
-        private static ConfigEntry<float> airMoveSpeed, cloudSize;
+        private static ConfigEntry<float> hoverSpeedPercent, cloudSize;
         private static ConfigEntry<int> strikeDamage, slamDamage;
         private static ConfigEntry<float> strikeKnockback, slamKnockback, strikeShockChance, slamShockChance, cooldown;
 
@@ -41,7 +41,7 @@ namespace WoLThunderhead
         public static float EnhancedRadius => Get(enhancedRadius, 2.8f, 0.5f, 8f);
         public static float VolleyInterval => Get(volleyInterval, 0.25f, 0.05f, 2f);
         public static float EnhancedVolleyInterval => Get(enhancedVolleyInterval, 0.25f, 0.05f, 2f);
-        public static float AirMoveSpeed => Get(airMoveSpeed, 1.5f, 0f, 10f);
+        public static float HoverSpeedPercent => Get(hoverSpeedPercent, 40f, 0f, 100f);
         public static bool Cloud => stormCloud?.Value ?? true;
         public static float CloudSize => Get(cloudSize, 1f, 0.3f, 3f);
         public static bool ElectricLook => electricLook?.Value ?? true;
@@ -67,7 +67,7 @@ namespace WoLThunderhead
             {
                 ID = ThunderheadState.staticID,
                 displayName = "Thunderhead",
-                description = "Leap high into the air, out of reach, as lightning rains down around you, then crash down in a thunderous slam!",
+                description = "Leap high into the air, out of reach, and hover as lightning rains down around you, then crash down in a thunderous slam!",
                 enhancedDescription = "Stay up longer, strike wider and slam harder!",
                 icon = LoadIcon("icon.png"),
                 tier = 2,
@@ -107,8 +107,9 @@ namespace WoLThunderhead
             airTime = Float("Leap", "AirTime", 1f, 0f, 5f, "Seconds hanging at the top while lightning falls.");
             enhancedAirTime = Float("Leap", "EnhancedAirTime", 1.5f, 0f, 6f, "AirTime when enhanced.");
             crashTime = Float("Leap", "CrashTime", 0.12f, 0.03f, 1f, "Seconds to crash back down.");
-            airMoveSpeed = Float("Leap", "AirMoveSpeed", 1.5f, 0f, 10f,
-                "How fast you can drift with the stick while up in the air (0 = not at all).");
+            hoverSpeedPercent = Float("Leap", "HoverSpeedPercent", 40f, 0f, 100f,
+                "How fast you can steer the hover with the stick while up in the air, as a percentage of your " +
+                "move speed (speed relics count; 0 = hang still, 100 = walking pace).");
             recoverTime = Float("Leap", "RecoverTime", 0.15f, 0f, 1f, "Seconds on the ground after the slam before you can act.");
 
             radius = Float("Lightning", "Radius", 2.2f, 0.5f, 8f, "How far from the spot below the strikes can land.");
@@ -140,7 +141,9 @@ namespace WoLThunderhead
             slamKnockback = Float("Balance", "SlamKnockback", 45f, 0f, 200f, "Knockback of the slam." + restart);
             strikeShockChance = Float("Balance", "StrikeShockChance", 0.2f, 0f, 1f, "Chance a strike shocks (0 to 1)." + restart);
             slamShockChance = Float("Balance", "SlamShockChance", 0.5f, 0f, 1f, "Chance the slam shocks (0 to 1)." + restart);
-            cooldown = Float("Balance", "Cooldown", 6f, 0.5f, 60f, "Cooldown in seconds." + restart);
+            // 7 s (was 6): steering the hover lets you walk the lightning onto enemies and reposition
+            // while untouchable, so it comes round a little less often. Damage is unchanged.
+            cooldown = Float("Balance", "Cooldown", 7f, 0.5f, 60f, "Cooldown in seconds." + restart);
         }
 
         private ConfigEntry<float> Float(string section, string key, float value, float min, float max, string description) =>

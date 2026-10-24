@@ -6,9 +6,10 @@ namespace WoLThunderhead
     // Thunderhead (Lightning, standard arcana), a leap like Heroic Leap's: after a very short
     // wind-up on the ground (still vulnerable), the wizard leaps high, straight up. While up there
     // they can't be hit, the way the game's jumping arcana work (their hurtbox is switched off, so
-    // attacks and projectiles pass through, and they count as airborne), and lightning crashes down
-    // around the spot below them in volleys (level 1, can shock). Then they come crashing down in a
-    // lightning slam (level 2) that throws enemies back.
+    // attacks and projectiles pass through, and they count as airborne), they hover, steering
+    // slowly with the stick, and lightning crashes down around the spot below them in volleys
+    // (level 1, can shock). Then they come crashing down in a lightning slam (level 2) that throws
+    // enemies back.
     //
     // The hits are the game's lightning bursts; each strike also shows the game's own lightning
     // bolt from the sky (stripped down to its animation, so it can't hit anything itself).
@@ -17,7 +18,7 @@ namespace WoLThunderhead
         public new static string staticID = "Thunderhead";
 
         // Timings and sizes come from the config (ThunderheadPlugin), read as each cast starts.
-        private float WindupTime, RiseTime, CrashTime, RecoverTime, Height;
+        private float WindupTime, RiseTime, CrashTime, RecoverTime, Height, HoverSpeedPercent;
         private int VolleySize;
 
         private float time;
@@ -33,8 +34,18 @@ namespace WoLThunderhead
         private ElectricLook electric;
         private StormCloud cloud;
         private Vector2 airVelocity;
+        private Vector2 takeOffSpot;
+        private bool heldAtPitEdge;
+        private int strikesFired, strikeHits, slamHits;
+        private bool loggedLanding;
         private static bool loggedBolt;
         private const string AirborneModID = "Thunderhead_Airborne";
+        // The hover's move-speed mod, like the Charge state's: a multiplier on the move-speed stat
+        // (so speed relics count), put on at take-off and always taken off when they land, cancel
+        // or die.
+        private const string HoverSpeedModID = "Thunderhead_Hover";
+        private const float InputDeadZone = 0.04f;  // stick input (squared) below this is "not moving"
+        private const float PitEdgeMargin = 0.2f;   // how far ahead of their feet a pit stops the hover
 
         public ThunderheadState(FSM newFSM, Player newEnt) : base(staticID, newFSM, newEnt)
         {
@@ -63,11 +74,15 @@ namespace WoLThunderhead
             done = false;
             tookOff = false;
             landed = false;
+            heldAtPitEdge = false;
+            strikesFired = strikeHits = slamHits = 0;
+            loggedLanding = false;
             WindupTime = ThunderheadPlugin.WindupTime;
             RiseTime = ThunderheadPlugin.RiseTime;
             CrashTime = ThunderheadPlugin.CrashTime;
             RecoverTime = ThunderheadPlugin.RecoverTime;
             Height = ThunderheadPlugin.Height;
+            HoverSpeedPercent = ThunderheadPlugin.HoverSpeedPercent;
             VolleySize = ThunderheadPlugin.VolleySize;
             levitator = Levitator.On(parent);
         }
@@ -84,15 +99,9 @@ namespace WoLThunderhead
                 return;
 
             time += Time.deltaTime;
-            // On the ground the wizard holds still; up in the air they drift slowly with the stick
-            // (and the lightning and landing follow them).
-            airVelocity = Vector2.zero;
-            if (tookOff && !landed)
-            {
-                Vector2 input = GetInputVector(false, false, false);
-                if (input.sqrMagnitude > 0.04f)
-                    airVelocity = Vector2.ClampMagnitude(input, 1f) * ThunderheadPlugin.AirMoveSpeed;
-            }
+            // On the ground the wizard holds still; up in the air they hover, steering slowly with
+            // the stick (and the lightning and the landing follow them).
+            airVelocity = tookOff && !landed ? HoverVelocity() : Vector2.zero;
             if (parent.rigidbody2D != null)
                 parent.rigidbody2D.velocity = airVelocity;
             Vector2 ground = parent.transform.position;
@@ -159,7 +168,7 @@ namespace WoLThunderhead
             }
         }
 
-        // Keep the drift going through the physics steps too.
+        // Keep the hover going through the physics steps too.
         public override void FixedUpdate()
         {
             base.FixedUpdate();
@@ -173,12 +182,102 @@ namespace WoLThunderhead
             base.OnExit();
         }
 
+        // ---- Hovering ----
+
+        // The stick moves the hovering wizard at their move speed with the hover mod on it (a
+        // fraction of walking pace), facing the way they go. Walls stop them as usual (their body
+        // still collides); a pit's edge stops them too, see KeepOffPits.
+        private Vector2 HoverVelocity()
+        {
+            Vector2 input = GetInputVector(true, false, false);
+            if (input.sqrMagnitude < InputDeadZone)
+                return Vector2.zero;
+            float speed = parent.movement != null ? parent.movement.moveSpeedStat.CurrentValue : 0f;
+            return KeepOffPits(input.normalized * speed);
+        }
+
+        // Hovering out over a pit would drop them in when they land (the game checks for pits as
+        // soon as they're not airborne), so the pit's edge holds them like a wall would: a step
+        // that would put their feet over a pit is cut to the axis that stays on the floor, or to
+        // nothing. Vanilla Heroic Leap only linecasts its landing spot against walls and takes the
+        // fall. Wizards who can walk on air (the relic) hover wherever they like.
+        private Vector2 KeepOffPits(Vector2 velocity)
+        {
+            if (velocity == Vector2.zero || CanWalkOnAir)
+                return velocity;
+            float step = velocity.magnitude * Mathf.Max(Time.deltaTime, Time.fixedDeltaTime) + PitEdgeMargin;
+            Vector2 feet = Feet;
+            if (!OverPit(feet + velocity.normalized * step))
+                return velocity;
+            Vector2 alongX = new Vector2(velocity.x, 0f);
+            Vector2 alongY = new Vector2(0f, velocity.y);
+            if (alongX != Vector2.zero && !OverPit(feet + alongX.normalized * step))
+                velocity = alongX;
+            else if (alongY != Vector2.zero && !OverPit(feet + alongY.normalized * step))
+                velocity = alongY;
+            else
+                velocity = Vector2.zero;
+            heldAtPitEdge = true;
+            return velocity;
+        }
+
+        // Where the game checks for pits under them.
+        private Vector2 Feet => parent.fall != null && parent.fall.fallCol != null
+            ? (Vector2)parent.fall.fallCol.bounds.center
+            : (Vector2)parent.transform.position;
+
+        private bool CanWalkOnAir => parent.fall != null && parent.fall.ignoreFall != null && parent.fall.ignoreFall.CurrentValue;
+
+        private static bool OverPit(Vector2 spot)
+        {
+            try
+            {
+                return ChaosCollisions.layerPit != 0 && Physics2D.OverlapPoint(spot, ChaosCollisions.layerPit) != null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void StartHover()
+        {
+            if (parent.movement == null)
+                return;
+            try
+            {
+                float before = parent.movement.moveSpeedStat.CurrentValue;
+                parent.movement.moveSpeedStat.RemoveMod(HoverSpeedModID);
+                parent.movement.moveSpeedStat.AddMod(new NumVarStatMod(HoverSpeedModID, HoverSpeedPercent / 100f - 1f, 10, VarStatModType.Multiplicative));
+                float after = parent.movement.moveSpeedStat.CurrentValue;
+                ThunderheadPlugin.Log($"Thunderhead: cast{(IsEmpowered ? " (enhanced)" : "")}, " +
+                    $"{RiseTime + HoverTimeNow + CrashTime:0.00}s in the air ({RiseTime:0.00} up, {HoverTimeNow:0.00} hovering, {CrashTime:0.00} down), " +
+                    $"hover speed {HoverSpeedPercent:0}% of move speed ({before:0.0} -> {after:0.0} u/s)");
+            }
+            catch (System.Exception e)
+            {
+                ThunderheadPlugin.Log($"Thunderhead: couldn't slow the hover: {e.Message}");
+            }
+        }
+
+        private void StopHover()
+        {
+            try
+            {
+                parent.movement?.moveSpeedStat.RemoveMod(HoverSpeedModID);
+            }
+            catch
+            {
+            }
+        }
+
         // ---- Up and down ----
 
         // Leaving the ground: airborne, and nothing can touch you (hurtbox off, like a jump).
         private void TakeOff(Vector2 ground)
         {
             airborne = true;
+            takeOffSpot = ground;
             try
             {
                 parent.airborneStat?.AddMod(new BoolVarStatMod(AirborneModID, true, 10));
@@ -186,6 +285,7 @@ namespace WoLThunderhead
             catch
             {
             }
+            StartHover();
             if (parent.hurtBoxCollider != null)
             {
                 hurtBoxWasOn = parent.hurtBoxCollider.enabled;
@@ -213,6 +313,7 @@ namespace WoLThunderhead
             catch
             {
             }
+            StopHover();
             if (parent.hurtBoxCollider != null && hurtBoxWasOn)
                 parent.hurtBoxCollider.enabled = true;
             // Always back to hurtable (restoring "already invulnerable" could leave it on for good).
@@ -224,9 +325,12 @@ namespace WoLThunderhead
             cloud = null;
         }
 
+        // The end of the cast, however it ends (the slam, a dash-cancel, a hit, death): everything
+        // back to normal, and one line in the log saying how it went.
         private void Land()
         {
             Touchdown();
+            StopHover();
             electric?.Off();
             electric = null;
             cloud?.Off();
@@ -236,7 +340,34 @@ namespace WoLThunderhead
                 levitator.Off();
                 levitator = null;
             }
+            if (loggedLanding)
+                return;
+            loggedLanding = true;
+            if (!tookOff)
+            {
+                ThunderheadPlugin.Log("Thunderhead: cancelled before take-off");
+                return;
+            }
+            float moved = Vector2.Distance(takeOffSpot, parent.transform.position);
+            ThunderheadPlugin.Log($"Thunderhead: {(landed ? "landed" : "cut short in the air")} {moved:0.0} u from take-off, " +
+                $"{strikesFired} strikes in {volleyCount} volleys hit {strikeHits} time(s), slam hit {slamHits} time(s)" +
+                (heldAtPitEdge ? ", held back at a pit's edge" : ""));
         }
+
+        // Counting what the lightning hits (each burst's attack announces every enemy it touches).
+        private void CountHits(LightningBurst burst, bool slam)
+        {
+            if (burst == null || burst.attack == null)
+                return;
+            if (slam)
+                burst.attack.entityCollisionEventHandlers += OnSlamHit;
+            else
+                burst.attack.entityCollisionEventHandlers += OnStrikeHit;
+        }
+
+        private void OnStrikeHit(Entity hit) => strikeHits++;
+
+        private void OnSlamHit(Entity hit) => slamHits++;
 
         // ---- Lightning ----
 
@@ -266,8 +397,9 @@ namespace WoLThunderhead
                 else
                     offset = Random.insideUnitCircle * radius;
                 Vector2 spot = ground + new Vector2(offset.x, offset.y * 0.7f);
-                LightningBurst.CreateBurst(spot, parent.skillCategory, skillID, 1, ThunderheadPlugin.StrikeSize, false);
+                CountHits(LightningBurst.CreateBurst(spot, parent.skillCategory, skillID, 1, ThunderheadPlugin.StrikeSize, false), false);
                 Bolt(spot, 1f);
+                strikesFired++;
             }
             volleyCount++;
             Spark(ground + new Vector2(0f, Height + 0.6f));
@@ -280,7 +412,7 @@ namespace WoLThunderhead
         {
             Touchdown();
             float scale = SlamScaleNow;
-            LightningBurst.CreateBurst(ground, parent.skillCategory, skillID, 2, scale, false);
+            CountHits(LightningBurst.CreateBurst(ground, parent.skillCategory, skillID, 2, scale, false), true);
             Bolt(ground, 1.6f);
             Dust(ground, 80, scale);
             Shake(1.4f);
