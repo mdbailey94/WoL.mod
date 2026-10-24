@@ -66,7 +66,9 @@ Not a dash any more: it goes in a normal arcana slot, and your dash stays your d
 - It **hovers** there while you move about, and nothing happens until you **press the button
   again**: then you **swap places** with it and it **explodes** round you (a Frost Nova, 15
   damage and a sure freeze). Left alone for 5 seconds, it melts away without swapping or
-  exploding.
+  exploding. The press that threw it never counts as the re-press: the button has to come up
+  first (and a press in the first quarter second after the throw is ignored), so a tap or a
+  button still held when it throws itself leaves the feint waiting.
 - **Enhanced**: full range at **0.5 seconds** of holding, and a **new feint is left
   where you swapped from**, drawing enemies to it, and **explodes the same way 2 seconds later**.
 

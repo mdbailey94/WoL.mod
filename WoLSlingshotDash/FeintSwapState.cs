@@ -29,6 +29,10 @@ namespace WoLSlingshotDash
         private const float MaxWait = 5f;          // how long the feint waits for the swap
         private const float MaxHold = 2f;       // throws by itself
         private const float ThrowTime = 0.2f;   // the throwing pose, after letting go
+        // A press this soon after the throw can't be the swap (the game's own Bolt Claymore waits as
+        // long before reading the same button for its detonation). Shorter than the flight, so it
+        // never delays a real re-press.
+        private const float RepressGrace = 0.25f;
 
         private float held;
         private float sinceThrow;
@@ -69,7 +73,10 @@ namespace WoLSlingshotDash
                 return;
             }
             if (!thrown && CancelToDash(false))
+            {
+                SlingshotDashPlugin.Log($"Feint Swap: charge cancelled by a dash after {held:0.00} s, nothing thrown");
                 return;
+            }
             if (parent.rigidbody2D != null)
                 parent.rigidbody2D.velocity = Vector2.zero;
 
@@ -171,6 +178,9 @@ namespace WoLSlingshotDash
             // The swap happens long after this state ends, so it runs on the plugin.
             bool empowered = IsEmpowered;
             float freezeRadius = SlingshotDashPlugin.FrostFreezeRadius * (1f + 0.5f * power);
+            SlingshotDashPlugin.Log($"Feint Swap: feint thrown after a {held:0.00} s hold (power {power:0.00}, "
+                + $"{distance:0.0} units{(empowered ? ", enhanced" : "")}, button {(ButtonHeld() ? "still held" : "released")}); "
+                + $"waiting up to {MaxWait:0} s for a re-press");
             SlingshotDashPlugin.Run(Fly(this, feint, SpawnDecoy(start), start, start + direction * distance, freezeRadius, empowered));
             SlingshotDashPlugin.Run(WatchForSwap(parent, skillSlot, feint));
         }
@@ -218,6 +228,7 @@ namespace WoLSlingshotDash
                 {
                     feint.swapped = true;
                     FrostSlingshotState.Shatter(decoy);
+                    SlingshotDashPlugin.Log($"Feint Swap: no re-press within {MaxWait:0} s (timeout), the feint melted away without a swap or explosion");
                     yield break;
                 }
                 FrostSlingshotState.MoveDecoy(decoy, end + new Vector2(0f, Mathf.Sin(t * 6f) * 0.08f));
@@ -228,10 +239,12 @@ namespace WoLSlingshotDash
             if (player == null || !player.gameObject.activeInHierarchy)
             {
                 FrostSlingshotState.Shatter(decoy);
+                SlingshotDashPlugin.Log("Feint Swap: wizard gone (cancel), the feint shattered without a swap or explosion");
                 yield break;
             }
 
             // Swap: you to the feint, and it explodes round you.
+            SlingshotDashPlugin.Log($"Feint Swap: swap and explosion triggered by a re-press, {Time.time - feint.thrownAt:0.00} s after the throw");
             Vector2 here = player.transform.position;
             player.transform.position = end;
             if (player.rigidbody2D != null)
@@ -270,6 +283,7 @@ namespace WoLSlingshotDash
             }
             FrostSlingshotState.Shatter(left);
             Explode(here, freezeRadius, category, id);
+            SlingshotDashPlugin.Log($"Feint Swap: the feint left behind (enhanced) exploded {LeftBehindFuse:0} s after the swap");
         }
 
         // A feint exploding: a Frost Nova that hurts and freezes, with a splash, glints and a shake.
@@ -291,25 +305,52 @@ namespace WoLSlingshotDash
         }
 
         // Pressing the button again while the feint is out swaps you with it right away.
+        //
+        // The press that cast the skill must not count. The game keeps reporting it through
+        // GetButtonDown for a short while after the press (its own Bolt Claymore and Gravity Vortex
+        // wait before reading the same button for their detonation), and after a tap the throw comes
+        // within a frame or two of that press, so reading GetButtonDown here swapped and exploded the
+        // feint straight away. So: the button counts as held from the throw until it's actually seen
+        // up, and only its going down again after that (GetButton's rising edge, which no buffering
+        // touches) is the re-press, and not within RepressGrace of the throw either. A button still
+        // held when the feint throws itself (MaxHold) likewise has to be let go first.
         private static IEnumerator WatchForSwap(Player player, int slot, FrostSlingshotState.Feint feint)
         {
-            yield return null; // not the frame you let go
+            string button = "Skill" + slot;
+            bool wasHeld = true; // the cast press, until it's seen released
+            bool seenReleased = false;
+            float sinceThrow = 0f;
             while (!feint.swapped)
             {
+                yield return null;
+                sinceThrow += Time.deltaTime;
                 if (player == null)
                     yield break;
-                bool pressed = false;
+                bool held;
                 try
                 {
-                    pressed = player.inputDevice != null && player.inputDevice.GetButtonDown("Skill" + slot);
+                    held = player.inputDevice != null && player.inputDevice.GetButton(button);
                 }
                 catch
                 {
                     yield break;
                 }
-                if (pressed)
-                    feint.swapRequested = true;
-                yield return null;
+                bool pressed = held && !wasHeld;
+                wasHeld = held;
+                if (!held && !seenReleased)
+                {
+                    seenReleased = true;
+                    SlingshotDashPlugin.Log($"Feint Swap: button released {sinceThrow:0.00} s after the throw, a new press now swaps");
+                }
+                if (!pressed || feint.swapRequested)
+                    continue;
+                if (sinceThrow < RepressGrace)
+                {
+                    SlingshotDashPlugin.Log($"Feint Swap: press {sinceThrow:0.00} s after the throw ignored (within the {RepressGrace:0.00} s grace)");
+                    continue;
+                }
+                feint.swapRequested = true;
+                SlingshotDashPlugin.Log($"Feint Swap: re-press seen {sinceThrow:0.00} s after the throw, swap requested");
             }
         }
 
