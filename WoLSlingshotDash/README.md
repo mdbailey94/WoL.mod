@@ -63,12 +63,15 @@ Not a dash any more: it goes in a normal arcana slot, and your dash stays your d
   aim, **hitting enemies along its path** (ice bursts, 6 damage and a little knockback). A tap
   throws it a bit further than a normal dash, a 1 second hold up to 10.5, stopping short of walls.
   Held 2 seconds, it throws by itself. The cooldown (7 s by default) starts with the throw.
-- It **hovers** there while you move about, and nothing happens until you **press the button
-  again**: then you **swap places** with it and it **explodes** round you (a Frost Nova, 15
-  damage and a sure freeze). Left alone for 5 seconds, it melts away without swapping or
-  exploding. The press that threw it never counts as the re-press: the button has to come up
+- It **stands** there while you move about, drawing enemies to it (it's on your side, like the
+  game's own Ice Dash decoy, so your arcana pass it by), and nothing happens until you **press the
+  button again**, or cast again once the cooldown is up: then you **swap places** with it and it
+  **explodes** round you (a Frost Nova, 15 damage and a sure freeze). There is no time limit; the
+  only other way it ends is enemies **breaking it**, and then it just shatters, with no swap and no
+  explosion. The press that threw it never counts as the re-press: the button has to come up
   first (and a press in the first quarter second after the throw is ignored), so a tap or a
-  button still held when it throws itself leaves the feint waiting.
+  button still held when it throws itself leaves the feint waiting. (Up to 0.23.4 the feint
+  shattered as it landed: it wasn't set up as an ally, so its own ice bursts broke it.)
 - **Enhanced**: full range at **0.5 seconds** of holding, and a **new feint is left
   where you swapped from**, drawing enemies to it, and **explodes the same way 2 seconds later**.
 

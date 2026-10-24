@@ -6,11 +6,12 @@ namespace WoLSlingshotDash
 {
     // Feint Swap (Water, the game's frost element), a standard arcana: hold the button and ice
     // crystals gather round the wizard's feet; let go to throw an ice feint (the game's IceDecoy,
-    // which enemies go after) out along your aim, hitting enemies along its path (ice bursts,
-    // level 2). It hovers there while you move about, and only when you press the button again do
-    // you swap places with it and it explodes round you in a Frost Nova that hurts and freezes
-    // (level 1); left alone for MaxWait it just melts away. Enhanced, a new feint is left where
-    // you swapped from, drawing enemies to it, and explodes the same way 2 seconds later.
+    // an icy copy of you that enemies go after) out along your aim, hitting enemies along its path
+    // (ice bursts, level 2). It then stands there for as long as you like, until you press the
+    // button again (or cast again once the cooldown is up): you swap places with it and it explodes
+    // round you in a Frost Nova that hurts and freezes (level 1). If enemies break it first, it
+    // just shatters and there is no swap. Enhanced, a new feint is left where you swapped from,
+    // drawing enemies to it, and explodes the same way 2 seconds later.
     //
     // Holding up to 1 s scales the throw (a bit over a plain dash's length, up to MaxDistance);
     // enhanced, full at 0.5 s. Held 2 s, it throws by itself. The cooldown starts with the
@@ -26,19 +27,27 @@ namespace WoLSlingshotDash
         private const float PathHitInterval = 0.05f;
         private const float PathHitScale = 1.1f;
         private const float SettleTime = 0.12f;
-        private const float MaxWait = 5f;          // how long the feint waits for the swap
+        // The game ends a decoy by itself when its duration runs out (with an ice burst), so the
+        // feint gets one it will never reach: it stays until the swap or until enemies break it.
+        private const float DecoyLifetime = 3600f;
         private const float MaxHold = 2f;       // throws by itself
         private const float ThrowTime = 0.2f;   // the throwing pose, after letting go
         // A press this soon after the throw can't be the swap (the game's own Bolt Claymore waits as
         // long before reading the same button for its detonation). Shorter than the flight, so it
         // never delays a real re-press.
         private const float RepressGrace = 0.25f;
+        // The game's frost palette for an ice copy of the wizard (Ice Dash's decoy uses the same).
+        private const float IcePalette = 19f;
 
         private float held;
         private float sinceThrow;
         private float nextEffect;
         private bool thrown;
         private bool done;
+
+        // The feint that is out right now (per wizard would be cleaner, but each wizard's state
+        // object is its own instance of this class, so one per state).
+        private FrostSlingshotState.Feint outFeint;
 
         public FeintSwapState(FSM newFSM, Player newEnt) : base(staticID, newFSM, newEnt)
         {
@@ -63,6 +72,14 @@ namespace WoLSlingshotDash
             nextEffect = 0f;
             thrown = false;
             done = false;
+            // Cast again while a feint is out (the cooldown has run its course): that's the swap,
+            // not a second feint.
+            if (outFeint != null && !outFeint.swapped)
+            {
+                outFeint.swapRequested = true;
+                done = true;
+                SlingshotDashPlugin.Log("Feint Swap: cast again with the feint out, swap requested");
+            }
         }
 
         public override void ExecuteSkill()
@@ -174,19 +191,20 @@ namespace WoLSlingshotDash
             Effects.Spark(start + direction * 0.5f, HitSparkType.Small);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(start), null, 24f, -1f, 1.5f, false);
 
-            var feint = new FrostSlingshotState.Feint { thrownAt = Time.time, hoverTime = MaxWait };
+            var feint = new FrostSlingshotState.Feint { thrownAt = Time.time };
+            outFeint = feint;
             // The swap happens long after this state ends, so it runs on the plugin.
             bool empowered = IsEmpowered;
             float freezeRadius = SlingshotDashPlugin.FrostFreezeRadius * (1f + 0.5f * power);
             SlingshotDashPlugin.Log($"Feint Swap: feint thrown after a {held:0.00} s hold (power {power:0.00}, "
                 + $"{distance:0.0} units{(empowered ? ", enhanced" : "")}, button {(ButtonHeld() ? "still held" : "released")}); "
-                + $"waiting up to {MaxWait:0} s for a re-press");
+                + "it stays until a re-press, a recast, or enemies break it");
             SlingshotDashPlugin.Run(Fly(this, feint, SpawnDecoy(start), start, start + direction * distance, freezeRadius, empowered));
             SlingshotDashPlugin.Run(WatchForSwap(parent, skillSlot, feint));
         }
 
-        // The feint's flight (hitting along the way), hover, the swap and the explosions. Runs on
-        // the plugin, since this state ends long before the swap.
+        // The feint's flight (hitting along the way), its wait, the swap and the explosions. Runs
+        // on the plugin, since this state ends long before the swap.
         private static IEnumerator Fly(FeintSwapState state, FrostSlingshotState.Feint feint, GameObject decoy,
             Vector2 start, Vector2 end, float freezeRadius, bool empowered)
         {
@@ -194,7 +212,7 @@ namespace WoLSlingshotDash
             string category = player.skillCategory;
             string id = state.skillID;
 
-            // Fly out, bursting with ice along the way.
+            // Fly out, bursting with ice along the way (the feint can't be hurt until it lands).
             float t = 0f;
             float nextHit = 0f;
             while (t < FrostSlingshotState.FlightTime)
@@ -216,19 +234,20 @@ namespace WoLSlingshotDash
                 }
                 yield return null;
             }
+            SetVulnerable(decoy, true);
 
-            // Hover with a slight bob until you press again (a moment at least, so the explosion
-            // isn't swallowed by the hit immunity of the last burst on the way). Nothing swaps or
-            // explodes on its own: left alone for MaxWait, the feint just melts away.
+            // Stand there with a slight bob until you press again (a moment at least, so the
+            // explosion isn't swallowed by the hit immunity of the last burst on the way). Nothing
+            // swaps or explodes on its own; if enemies break the feint, that's the end of it.
             t = 0f;
             while (t < SettleTime || !feint.swapRequested)
             {
                 t += Time.deltaTime;
-                if (t >= MaxWait)
+                if (Broken(decoy))
                 {
                     feint.swapped = true;
-                    FrostSlingshotState.Shatter(decoy);
-                    SlingshotDashPlugin.Log($"Feint Swap: no re-press within {MaxWait:0} s (timeout), the feint melted away without a swap or explosion");
+                    state.ClearFeint(feint);
+                    SlingshotDashPlugin.Log($"Feint Swap: the feint was broken {Time.time - feint.thrownAt:0.00} s after the throw, no swap or explosion");
                     yield break;
                 }
                 FrostSlingshotState.MoveDecoy(decoy, end + new Vector2(0f, Mathf.Sin(t * 6f) * 0.08f));
@@ -236,6 +255,7 @@ namespace WoLSlingshotDash
             }
 
             feint.swapped = true;
+            state.ClearFeint(feint);
             if (player == null || !player.gameObject.activeInHierarchy)
             {
                 FrostSlingshotState.Shatter(decoy);
@@ -244,7 +264,7 @@ namespace WoLSlingshotDash
             }
 
             // Swap: you to the feint, and it explodes round you.
-            SlingshotDashPlugin.Log($"Feint Swap: swap and explosion triggered by a re-press, {Time.time - feint.thrownAt:0.00} s after the throw");
+            SlingshotDashPlugin.Log($"Feint Swap: swap and explosion, {Time.time - feint.thrownAt:0.00} s after the throw");
             Vector2 here = player.transform.position;
             player.transform.position = end;
             if (player.rigidbody2D != null)
@@ -266,14 +286,15 @@ namespace WoLSlingshotDash
             GameObject left = null;
             try
             {
-                left = state.SpawnDecoy(here, LeftBehindFuse + 0.5f);
+                left = state.SpawnDecoy(here);
+                SetVulnerable(left, true);
             }
             catch
             {
             }
             Effects.Splash(here, 0.8f, 2);
             float fuse = 0f;
-            while (fuse < LeftBehindFuse)
+            while (fuse < LeftBehindFuse && !Broken(left))
             {
                 fuse += Time.deltaTime;
                 // A quickening glint as it's about to go.
@@ -281,9 +302,53 @@ namespace WoLSlingshotDash
                     Effects.Shimmer(here + Random.insideUnitCircle * 0.4f, 1);
                 yield return null;
             }
+            if (Broken(left))
+            {
+                SlingshotDashPlugin.Log("Feint Swap: the feint left behind (enhanced) was broken before its fuse ran out");
+                yield break;
+            }
             FrostSlingshotState.Shatter(left);
             Explode(here, freezeRadius, category, id);
             SlingshotDashPlugin.Log($"Feint Swap: the feint left behind (enhanced) exploded {LeftBehindFuse:0} s after the swap");
+        }
+
+        private void ClearFeint(FrostSlingshotState.Feint feint)
+        {
+            if (outFeint == feint)
+                outFeint = null;
+        }
+
+        // Gone, or in the game's dead state (enemies broke it, or it fell into a pit).
+        private static bool Broken(GameObject decoy)
+        {
+            if (decoy == null || !decoy.activeInHierarchy)
+                return true;
+            try
+            {
+                IceDecoy ice = decoy.GetComponent<IceDecoy>();
+                if (ice == null)
+                    return true;
+                if (ice.fsm != null && ice.fsm.currentStateName == "Dead")
+                    return true;
+                return ice.health != null && ice.health.CurrentHealthValue <= 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static void SetVulnerable(GameObject decoy, bool vulnerable)
+        {
+            try
+            {
+                IceDecoy ice = decoy != null ? decoy.GetComponent<IceDecoy>() : null;
+                if (ice != null && ice.health != null)
+                    ice.health.invulnerable = !vulnerable;
+            }
+            catch
+            {
+            }
         }
 
         // A feint exploding: a Frost Nova that hurts and freezes, with a splash, glints and a shake.
@@ -354,16 +419,38 @@ namespace WoLSlingshotDash
             }
         }
 
-        private GameObject SpawnDecoy(Vector2 position, float duration = -1f)
+        // The feint: the game's ice decoy set up the way its own Ice Dash sets one up (an icy copy
+        // of the wizard, on the allies' side so enemies go after it and your own attacks pass it
+        // by), kept out of harm's way while it flies.
+        private GameObject SpawnDecoy(Vector2 position)
         {
             try
             {
                 IceDecoy decoy = ChaosInst<IceDecoy>(IceDecoy.Prefab, new Vector2?(position), null, null);
                 if (decoy == null)
                     return null;
+                decoy.gameObject.name = skillID + parent.skillCategory;
                 decoy.parentEnt = parent;
-                // Long enough for the flight and the longest wait (it's ended at the swap anyway).
-                decoy.duration = duration > 0f ? duration : FrostSlingshotState.FlightTime + MaxWait + 0.5f;
+                decoy.parentGroup = GameController.allies;
+                decoy.attack.SetAttackInfo(parent.skillCategory, skillID);
+                decoy.duration = DecoyLifetime;
+                decoy.facingDirection = parent.facingDirection;
+                decoy.isFacingRight = parent.isFacingRight;
+                decoy.spriteRenderer.sprite = parent.spriteRenderer.sprite;
+                decoy.spriteRenderer.material = new Material(parent.spriteRenderer.material);
+                decoy.spriteRenderer.material.SetFloat("_PaletteIndex", IcePalette);
+                decoy.spriteRenderer.material.SetColor("_OutlineColor", Globals.transparentColor);
+                decoy.spriteRenderer.material.SetColor("_FlashColor", Color.white);
+                decoy.spriteRenderer.material.SetFloat("_FlashAmount", 0f);
+                decoy.shadowTrans.localPosition = parent.shadowSprite.transform.localPosition;
+                decoy.shadowTrans.localScale = parent.shadowSprite.transform.localScale;
+                // Not a target for your own arcana (the bursts along its flight hit whatever is
+                // called EnemyHurtBox, which was shattering it as it landed).
+                decoy.hurtBoxTransform.name = "AllyHurtBox";
+                decoy.floorContact.name = "AllyFloorContact";
+                decoy.floorContact.layer = LayerMask.NameToLayer("AllyFloorContact");
+                if (decoy.health != null)
+                    decoy.health.invulnerable = true;
                 return decoy.gameObject;
             }
             catch (System.Exception e)
