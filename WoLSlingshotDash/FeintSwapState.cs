@@ -7,11 +7,12 @@ namespace WoLSlingshotDash
     // Feint Swap (Water, the game's frost element), a standard arcana: hold the button and ice
     // crystals gather round the wizard's feet; let go to throw an ice feint (the game's IceDecoy,
     // an icy copy of you that enemies go after) out along your aim, hitting enemies along its path
-    // (ice bursts, level 2). It then stands there for as long as you like, until you press the
-    // button again (or cast again once the cooldown is up): you swap places with it and it explodes
-    // round you in a Frost Nova that hurts and freezes (level 1). If enemies break it first, it
-    // just shatters and there is no swap. Enhanced, a new feint is left where you swapped from,
-    // drawing enemies to it, and explodes the same way 2 seconds later.
+    // (ice bursts, level 2). It then stands there for up to HoverTime: press the button again (or
+    // cast again once the cooldown is up) to swap places with it sooner, or it swaps by itself when
+    // the time is up; either way it explodes round you in a Frost Nova that hurts and freezes
+    // (level 1). If enemies break it first, it just shatters and there is no swap. Enhanced, a new
+    // feint is left where you swapped from, drawing enemies to it, and explodes the same way
+    // 2 seconds later.
     //
     // Holding up to 1 s scales the throw (a bit over a plain dash's length, up to MaxDistance);
     // enhanced, full at 0.5 s. Held 2 s, it throws by itself. The cooldown starts with the
@@ -27,6 +28,7 @@ namespace WoLSlingshotDash
         private const float PathHitInterval = 0.05f;
         private const float PathHitScale = 1.1f;
         private const float SettleTime = 0.12f;
+        private const float HoverTime = 2f;        // the feint stands this long after landing, then swaps by itself
         // The game ends a decoy by itself when its duration runs out (with an ice burst), so the
         // feint gets one it will never reach: it stays until the swap or until enemies break it.
         private const float DecoyLifetime = 3600f;
@@ -198,7 +200,7 @@ namespace WoLSlingshotDash
             float freezeRadius = SlingshotDashPlugin.FrostFreezeRadius * (1f + 0.5f * power);
             SlingshotDashPlugin.Log($"Feint Swap: feint thrown after a {held:0.00} s hold (power {power:0.00}, "
                 + $"{distance:0.0} units{(empowered ? ", enhanced" : "")}, button {(ButtonHeld() ? "still held" : "released")}); "
-                + "it stays until a re-press, a recast, or enemies break it");
+                + $"it swaps on a re-press, a recast, or by itself after {HoverTime:0} s, unless enemies break it first");
             SlingshotDashPlugin.Run(Fly(this, feint, SpawnDecoy(start), start, start + direction * distance, freezeRadius, empowered));
             SlingshotDashPlugin.Run(WatchForSwap(parent, skillSlot, feint));
         }
@@ -236,11 +238,11 @@ namespace WoLSlingshotDash
             }
             SetVulnerable(decoy, true);
 
-            // Stand there with a slight bob until you press again (a moment at least, so the
-            // explosion isn't swallowed by the hit immunity of the last burst on the way). Nothing
-            // swaps or explodes on its own; if enemies break the feint, that's the end of it.
+            // Stand there with a slight bob until you press again or the time is up (a moment at
+            // least, so the explosion isn't swallowed by the hit immunity of the last burst on the
+            // way). If enemies break the feint first, that's the end of it.
             t = 0f;
-            while (t < SettleTime || !feint.swapRequested)
+            while (t < SettleTime || (!feint.swapRequested && t < HoverTime))
             {
                 t += Time.deltaTime;
                 if (Broken(decoy))
@@ -254,6 +256,7 @@ namespace WoLSlingshotDash
                 yield return null;
             }
 
+            bool forced = !feint.swapRequested;
             feint.swapped = true;
             state.ClearFeint(feint);
             if (player == null || !player.gameObject.activeInHierarchy)
@@ -264,7 +267,8 @@ namespace WoLSlingshotDash
             }
 
             // Swap: you to the feint, and it explodes round you.
-            SlingshotDashPlugin.Log($"Feint Swap: swap and explosion, {Time.time - feint.thrownAt:0.00} s after the throw");
+            SlingshotDashPlugin.Log($"Feint Swap: swap and explosion ({(forced ? "time's up" : "on your press")}), "
+                + $"{Time.time - feint.thrownAt:0.00} s after the throw");
             Vector2 here = player.transform.position;
             player.transform.position = end;
             if (player.rigidbody2D != null)
