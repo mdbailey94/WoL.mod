@@ -22,13 +22,18 @@ away.
 
 ## Choosing a level: the Ascension altar
 
-In the plaza, an **Ascension altar** stands to the left of the Chaos Trials portal: a stone
-pedestal, softly shaded like the game's own props, that you can't walk through. A **flame** burns on
-top, growing from a small cold blue one to a big white-hot one as the level rises (a grey ember when
-off), and the **level number** glows on its front. Walk up to it and the game's own
-button prompt appears; **interact** to
-raise the level by one (after 10 it goes back to OFF); the game's on-screen notice shows the level,
-what it adds and the gem bonus.
+In the plaza, an **Ascension altar** stands to the left of the Chaos Trials portal: a carved stone
+totem with a gold-rimmed brazier on top, softly shaded like the game's own props, that you can't
+walk through. A **flame** burns in the brazier, growing from a small cold blue one to a big
+white-hot one as the level rises (a grey ember when off); ten **rune notches** up the column light
+one by one with the level, the **level number** glows on the plinth, and the flame throws a glow, a
+ring of light on the ground, drifting embers and a point light, all in its colour. Walk up to it and
+the game's own button prompt appears; **interact** to raise the level by one (after 10 it goes back
+to OFF): the flame flares, sparks and dust fly, and the game's on-screen notice shows the level,
+what it adds and the gem bonus. Raising the level never fires the attack or dash that shares
+Interact's button (gamepads put Interact on a face button): while you hold Interact at the altar,
+the skill buttons read as released. The altar keeps clear of the plaza's NPCs (if the spot beside
+the portal is taken, it moves a little down or sideways and says so in the log).
 
 Then just take the portal: the run starts at the altar's level, with no pause or menu, and the
 notice shows it as you go in. The level is locked for the run, a small "ASCENSION n" tag shows in
@@ -52,7 +57,9 @@ and unzip it into your Wizard of Legend folder. Only BepInEx is needed.
 
 ## Settings
 
-`BepInEx\config\mdbailey94.wol.ascension.cfg`: `Enabled`, `Level` (0–10, the prompt's starting level), `ShowLevelInRun`.
+`BepInEx\config\mdbailey94.wol.ascension.cfg`: `Enabled`, `Level` (0–10, the altar's current level),
+`ShowLevelInRun`; under `[Altar]`, `LeftOfPortalX` / `LeftOfPortalY` (where it stands) and `Effects`
+(the glow, ground ring, embers and light; off leaves just the totem, its flame and runes).
 
 ## Troubleshooting
 

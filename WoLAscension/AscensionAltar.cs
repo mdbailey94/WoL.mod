@@ -2,29 +2,59 @@ using System;
 using System.Collections.Generic;
 using BepInEx.Configuration;
 using BepInEx.Logging;
+using HarmonyLib;
 using UnityEngine;
 
 namespace WoLAscension
 {
-    // The Ascension altar: a stone pedestal with a flame on top and the level on its face, standing
-    // beside the Chaos
+    // The Ascension altar: a carved stone totem with a brazier on top, standing beside the Chaos
     // Trials portal in the plaza. Walk up and the game's own button prompt appears over it; interact
-    // to raise the level by one (after 10 it goes back to off). The flame grows from a small cold
-    // blue one to a big white-hot one with the level, and the number on the front shows it; the
-    // higher the level, and the game's on-screen notice says what the level adds. Runs then start at
-    // that level.
+    // to raise the level by one (after 10 it goes back to off). The flame in the brazier grows from
+    // a small cold blue one to a big white-hot one with the level, ten rune notches up the column
+    // light one by one, the number glows on the plinth, and the whole thing throws a glow and embers
+    // in the flame's colour. The game's on-screen notice says what the level adds. Runs then start
+    // at that level.
     public class AscensionAltar : MonoBehaviour
     {
         private const float Range = 2.4f;         // from the middle of the altar
         private const string InteractAction = "Interact";
 
         public static Vector2 Offset = new Vector2(-3.5f, 0f);
+        // Glow, embers and the point light (the totem, flame and runes are always drawn).
+        public static ConfigEntry<bool> Effects;
 
         private static readonly Dictionary<int, Sprite> flameSprites = new Dictionary<int, Sprite>();
         private static readonly Dictionary<int, Sprite> numberSprites = new Dictionary<int, Sprite>();
-        private const int FlameFrames = 3;
+        private const int FlameFrames = 4;
         private const float FlameFps = 9f;
+        // How the flame grows with the level (a small ember when off).
+        private const float FlameSizeOff = 0.45f;
+        private const float FlameSizeBase = 0.6f;
+        private const float FlameSizePerLevel = 0.1f;
+        // The halo behind the flame: size in units and alpha, both growing with the level.
+        private const float HaloSizeBase = 1.4f;
+        private const float HaloSizePerLevel = 0.16f;
+        private const float HaloAlphaBase = 0.16f;
+        private const float HaloAlphaPerLevel = 0.025f;
+        // The rune ring on the ground around the base.
+        private const float RingAlphaBase = 0.35f;
+        private const float RingAlphaPerLevel = 0.04f;
+        // The point light at the flame.
+        private const float LightRangeBase = 3.5f;
+        private const float LightRangePerLevel = 0.35f;
+        private const float LightIntensityBase = 0.8f;
+        private const float LightIntensityPerLevel = 0.22f;
+        // Embers drifting up from the flame: particles a second, growing with the level.
+        private const float EmbersBase = 1.5f;
+        private const float EmbersPerLevel = 0.5f;
+        private const float EmberCheckInterval = 2f;
+        // The flare when the level changes: the flame swells by this much and settles over this long.
+        private const float FlareSize = 0.6f;
+        private const float FlareSeconds = 0.45f;
         private static Sprite pedestalSprite;
+        private static Sprite pipSprite;
+        private static Sprite haloSprite;
+        private static Sprite ringSprite;
         private static float pixelsPerUnit = 16f;
 
         private ConfigEntry<int> level;
@@ -32,11 +62,25 @@ namespace WoLAscension
         private SpriteRenderer pedestal;
         private SpriteRenderer crystal;   // the flame
         private SpriteRenderer number;
+        private SpriteRenderer halo;
+        private SpriteRenderer ring;
+        private readonly SpriteRenderer[] runes = new SpriteRenderer[AscensionLevels.Max];
+        private Light light;
+        private ParticleEffect embers;
         private Vector3 crystalHome;
+        private float flare;
+        private float nextEmberCheck;
+        private bool loggedLight;
         private OverheadPrompt prompt;
         private bool promptShown;
         private bool greeted;
         private bool loggedNear;
+        private static bool loggedKeys;
+        private static bool loggedSwallow;
+
+        // The wizard standing at the altar with the prompt up (null when nobody is); the input
+        // patches below read it.
+        public static Player Engaged { get; private set; }
 
         // Finds the portal into the trials in this scene and puts an altar beside it (null if this
         // scene has no such portal).
@@ -101,7 +145,7 @@ namespace WoLAscension
             {
                 ReadPixelSize();
                 var go = new GameObject("AscensionAltar");
-                go.transform.position = spot.Value + Offset;
+                go.transform.position = ClearOfNpcs(spot.Value + Offset, log);
                 AscensionAltar altar = go.AddComponent<AscensionAltar>();
                 altar.level = level;
                 altar.log = log;
@@ -114,6 +158,65 @@ namespace WoLAscension
                 log.LogError($"Couldn't place the Ascension altar: {e.Message}");
                 return null;
             }
+        }
+
+        // The plaza's NPCs stand around the portal too (Mah-Linda, who sells the trials, is right
+        // where the default spot lands), and standing at one of them while at the altar means
+        // Interact opens their conversation instead. So the altar keeps this far from any NPC,
+        // trying spots further down and to the sides of the chosen one.
+        private const float NpcClearance = 2.6f;
+        private static readonly Vector2[] NudgeTries =
+        {
+            new Vector2(0f, -2f), new Vector2(0f, -2.5f), new Vector2(0f, -3f), new Vector2(-1.5f, -2.5f),
+            new Vector2(1.5f, -2.5f), new Vector2(-2f, 0f), new Vector2(0f, 2f),
+        };
+
+        private static Vector2 ClearOfNpcs(Vector2 place, ManualLogSource log)
+        {
+            try
+            {
+                var npcs = new List<Npc>();
+                foreach (Npc npc in FindObjectsOfType<Npc>())
+                {
+                    if (npc != null && npc.gameObject.activeInHierarchy)
+                        npcs.Add(npc);
+                }
+                Npc blocking = Nearest(npcs, place);
+                if (blocking == null)
+                    return place;
+                foreach (Vector2 nudge in NudgeTries)
+                {
+                    Vector2 candidate = place + nudge;
+                    if (Nearest(npcs, candidate) == null)
+                    {
+                        log?.LogInfo($"Ascension altar: moved by {nudge} to keep clear of '{blocking.name}'");
+                        return candidate;
+                    }
+                }
+                log?.LogInfo($"Ascension altar: '{blocking.name}' stands close by; set [Altar] LeftOfPortalX/Y to move the altar");
+            }
+            catch (Exception e)
+            {
+                log?.LogInfo($"Ascension altar: couldn't check for NPCs ({e.Message})");
+            }
+            return place;
+        }
+
+        // The NPC within clearance of the spot, closest first; null if none.
+        private static Npc Nearest(List<Npc> npcs, Vector2 place)
+        {
+            Npc best = null;
+            float bestDistance = NpcClearance;
+            foreach (Npc npc in npcs)
+            {
+                float d = Vector2.Distance(npc.transform.position, place);
+                if (d < bestDistance)
+                {
+                    bestDistance = d;
+                    best = npc;
+                }
+            }
+            return best;
         }
 
         // Called when a run starts through a portal: remember where it was.
@@ -154,33 +257,211 @@ namespace WoLAscension
             }
         }
 
+        private bool EffectsOn => Effects == null || Effects.Value;
+
         private void Build()
         {
             pedestal = gameObject.AddComponent<SpriteRenderer>();
             pedestal.sprite = PedestalSprite();
-            var top = new GameObject("Flame");
-            top.transform.SetParent(transform, false);
-            crystalHome = new Vector3(0f, 12f / pixelsPerUnit, 0f);
-            top.transform.localPosition = crystalHome;
-            crystal = top.AddComponent<SpriteRenderer>();
-            var face = new GameObject("Number");
-            face.transform.SetParent(transform, false);
-            face.transform.localPosition = new Vector3(0f, 6.5f / pixelsPerUnit, 0f);
-            number = face.AddComponent<SpriteRenderer>();
+
+            // The flame sits on the brazier's rim, so it shows above it.
+            crystalHome = new Vector3(0f, FlameRow / pixelsPerUnit, 0f);
+            crystal = Child("Flame", crystalHome);
+            number = Child("Number", new Vector3(0f, NumberRow / pixelsPerUnit, 0f));
+            halo = Child("Halo", crystalHome + new Vector3(0f, 0.45f, 0f));
+            halo.sprite = HaloSprite();
+            ring = Child("Ring", new Vector3(0f, 2f / pixelsPerUnit, 0f));
+            ring.sprite = RingSprite();
+            for (int i = 0; i < runes.Length; i++)
+            {
+                runes[i] = Child("Rune" + i, new Vector3(RuneX(i) / pixelsPerUnit, RuneY(i) / pixelsPerUnit, 0f));
+                runes[i].sprite = PipSprite();
+            }
+            AddLight();
             ShowLevel();
             AddCollider();
         }
 
-        // The flame's size and heat, and the number, for the current level.
+        private SpriteRenderer Child(string name, Vector3 localPosition)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = localPosition;
+            return go.AddComponent<SpriteRenderer>();
+        }
+
+        // A point light at the flame, set up like the game's own (its item and torch lights are
+        // point lights on sprites), so the ground around the altar catches the flame's colour.
+        private void AddLight()
+        {
+            try
+            {
+                light = halo.gameObject.AddComponent<Light>();
+                light.type = LightType.Point;
+                light.range = LightRangeBase;
+                light.intensity = 0f;
+                // Match whatever point light the scene already has, so it draws on the same things.
+                foreach (Light other in FindObjectsOfType<Light>())
+                {
+                    if (other == null || other == light || other.type != LightType.Point)
+                        continue;
+                    light.cullingMask = other.cullingMask;
+                    light.renderMode = other.renderMode;
+                    light.shadows = other.shadows;
+                    if (!loggedLight)
+                    {
+                        loggedLight = true;
+                        log?.LogInfo($"Ascension altar: light set up like '{other.name}' (range {other.range:0.#}, intensity {other.intensity:0.##})");
+                    }
+                    break;
+                }
+            }
+            catch (Exception e)
+            {
+                log?.LogInfo($"Ascension altar: no light ({e.Message})");
+                light = null;
+            }
+        }
+
+        // The flame's size and heat, the runes, the number, the glow and the light, for the
+        // current level.
         private void ShowLevel()
         {
             int lvl = Level;
-            float size = lvl <= 0 ? 0.45f : 0.6f + 0.1f * lvl;
-            crystal.transform.localScale = new Vector3(size, size, 1f);
+            Color outer, mid, core;
+            FlameColours(lvl, out outer, out mid, out core);
             number.sprite = NumberSprite(lvl);
+            for (int i = 0; i < runes.Length; i++)
+            {
+                runes[i].enabled = i < lvl;
+                // The newest rune burns brightest.
+                runes[i].color = i == lvl - 1 ? core : mid;
+            }
+            bool on = EffectsOn && lvl > 0;
+            halo.enabled = on;
+            ring.enabled = EffectsOn;
+            halo.color = new Color(outer.r, outer.g, outer.b, HaloAlphaBase + HaloAlphaPerLevel * lvl);
+            ring.color = new Color(lvl > 0 ? mid.r : outer.r, lvl > 0 ? mid.g : outer.g, lvl > 0 ? mid.b : outer.b,
+                lvl > 0 ? RingAlphaBase + RingAlphaPerLevel * lvl : 0.2f);
+            if (light != null)
+            {
+                light.enabled = on;
+                light.color = mid;
+                light.range = LightRangeBase + LightRangePerLevel * lvl;
+                light.intensity = LightIntensityBase + LightIntensityPerLevel * lvl;
+            }
+            Embers(lvl);
+            Animate(lvl);
         }
 
-        // Solid to walk into, like the game's own props: a box over the pedestal's footprint, on the
+        private static float FlameSize(int lvl) => lvl <= 0 ? FlameSizeOff : FlameSizeBase + FlameSizePerLevel * lvl;
+
+        // Everything that moves: the flame's flicker and flare, the halo's breathing, the runes'
+        // shimmer. Called every frame.
+        private void Animate(int lvl)
+        {
+            float t = Time.time;
+            crystal.sprite = FlameSprite(lvl, Mathf.FloorToInt(t * FlameFps) % FlameFrames);
+            float size = FlameSize(lvl) * (1f + FlareSize * flare);
+            crystal.transform.localScale = new Vector3(size, size, 1f);
+
+            if (halo.enabled)
+            {
+                float breathe = 1f + 0.06f * Mathf.Sin(t * 2.3f) + 0.35f * flare;
+                float haloSize = (HaloSizeBase + HaloSizePerLevel * lvl) * breathe;
+                halo.transform.localScale = new Vector3(haloSize, haloSize * 0.9f, 1f);
+                halo.transform.localPosition = crystalHome + new Vector3(0f, 0.45f + 0.2f * FlameSize(lvl), 0f);
+            }
+            if (ring.enabled && lvl > 0)
+            {
+                Color c = ring.color;
+                c.a = (RingAlphaBase + RingAlphaPerLevel * lvl) * (0.85f + 0.15f * Mathf.Sin(t * 3.1f)) + 0.3f * flare;
+                ring.color = c;
+            }
+            if (light != null && light.enabled)
+                light.intensity = (LightIntensityBase + LightIntensityPerLevel * lvl) * (1f + 0.08f * Mathf.Sin(t * 7f) + 0.6f * flare);
+            for (int i = 0; i < lvl && i < runes.Length; i++)
+            {
+                Color c = runes[i].color;
+                c.a = 0.8f + 0.2f * Mathf.Sin(t * 2.5f + i * 0.9f);
+                runes[i].color = c;
+            }
+        }
+
+        // Embers drifting up from the flame: the game's sparkle particles, in the flame's colour.
+        // Pooled effects can be borrowed by other things, so this is re-checked now and then.
+        private void Embers(int lvl)
+        {
+            nextEmberCheck = Time.time + EmberCheckInterval;
+            if (!EffectsOn || lvl <= 0)
+            {
+                StopEmbers();
+                return;
+            }
+            try
+            {
+                if (embers != null && embers.playing && embers.followTransform == crystal.transform)
+                    return;
+                Color outer, mid, core;
+                FlameColours(lvl, out outer, out mid, out core);
+                embers = PoolManager.GetPoolItem<ParticleEffect>("SparkleAura");
+                if (embers == null)
+                    return;
+                embers.Play(EmbersBase + EmbersPerLevel * lvl, crystal.transform.position,
+                    new ParticleSystemOverride { startColor = (Color32)mid }, null, crystal.transform);
+            }
+            catch (Exception e)
+            {
+                LogOnce("embers", $"no embers ({e.Message})");
+                embers = null;
+            }
+        }
+
+        private void StopEmbers()
+        {
+            try
+            {
+                if (embers != null && embers.followTransform == crystal.transform)
+                    embers.Stop();
+            }
+            catch
+            {
+            }
+            embers = null;
+        }
+
+        // The burst when the level changes: a swell of the flame, sparks, dust off the base, a
+        // small shake; smoke when the fire goes out.
+        private void LevelChangedEffects(int from, int to)
+        {
+            flare = 1f;
+            if (!EffectsOn)
+                return;
+            Vector3 flamePos = crystal.transform.position + new Vector3(0f, 0.4f, 0f);
+            try
+            {
+                if (to > 0)
+                {
+                    Color outer, mid, core;
+                    FlameColours(to, out outer, out mid, out core);
+                    PoolManager.GetPoolItem<ParticleEffect>("SparkleAura").Emit(4 + to, flamePos,
+                        new ParticleSystemOverride { startColor = (Color32)core });
+                    PoolManager.GetPoolItem<DustEmitter>().EmitCircle(12 + 2 * to, 0.6f, 3f, -1f, transform.position);
+                    CameraController.ShakeCamera(0.1f + 0.015f * to);
+                }
+                else
+                {
+                    PoolManager.GetPoolItem<ParticleEffect>("SmokeSmallEmitter").Emit(4, flamePos);
+                    PoolManager.GetPoolItem<ParticleEffect>("SmokeEmitter").Emit(3, flamePos + Vector3.up * 0.4f);
+                }
+            }
+            catch (Exception e)
+            {
+                LogOnce("burst", $"no level-change effects ({e.Message})");
+            }
+        }
+
+        // Solid to walk into, like the game's own props: a box over the base's footprint, on the
         // layer the game uses for obstacles.
         private void AddCollider()
         {
@@ -190,7 +471,7 @@ namespace WoLAscension
                 go.transform.SetParent(transform, false);
                 go.layer = ObstacleLayer();
                 BoxCollider2D box = go.AddComponent<BoxCollider2D>();
-                box.size = new Vector2(13f / pixelsPerUnit, 5f / pixelsPerUnit);
+                box.size = new Vector2(18f / pixelsPerUnit, 6f / pixelsPerUnit);
                 box.offset = new Vector2(0f, 3f / pixelsPerUnit);
                 log?.LogInfo($"Ascension altar: solid on layer '{LayerMask.LayerToName(go.layer)}'");
             }
@@ -226,17 +507,21 @@ namespace WoLAscension
             catch (Exception e)
             {
                 log?.LogError($"Ascension altar: {e.Message}");
+                Engaged = null;
                 enabled = false;
             }
         }
 
         private void Tick()
         {
-            // The flame flickers through its frames.
-            crystal.sprite = FlameSprite(Level, Mathf.FloorToInt(Time.time * FlameFps) % FlameFrames);
+            flare = Mathf.MoveTowards(flare, 0f, Time.deltaTime / FlareSeconds);
+            Animate(Level);
+            if (Time.time >= nextEmberCheck)
+                Embers(Level);
 
             Player near = NearestPlayer();
             SortAgainst(near);
+            Engaged = near;
             if (near == null)
             {
                 HidePrompt();
@@ -253,15 +538,35 @@ namespace WoLAscension
                     loggedNear = true;
                     log?.LogInfo("Ascension altar: a wizard is in reach");
                 }
+                LogSharedKeys(near);
             }
-            if (InteractPressed(near))
+            // Only from standing or running, as the game's shops do: not mid-dash, mid-attack, in a
+            // conversation or paused.
+            if (InteractPressed(near) && CanInteract(near))
             {
+                int from = Level;
                 level.Value = Level >= AscensionLevels.Max ? 0 : Level + 1;
                 ShowLevel();
+                LevelChangedEffects(from, Level);
                 log?.LogInfo($"Ascension altar: level set to {Level}");
                 Announce(null);
                 SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(transform.position), null, 24f, -1f,
                     0.8f + 0.06f * Level, false);
+            }
+        }
+
+        private static bool CanInteract(Player p)
+        {
+            try
+            {
+                if (!p.IsAvailable || GameUI.dialogManager != null && GameUI.dialogManager.IsActive)
+                    return false;
+                string state = p.fsm != null ? p.fsm.currentStateName : null;
+                return state == null || state.Contains("Idle") || state.Contains("Run");
+            }
+            catch
+            {
+                return true;
             }
         }
 
@@ -299,6 +604,107 @@ namespace WoLAscension
             }
         }
 
+        // ---- Keeping Interact from also attacking ----
+
+        // On a gamepad (and in some keyboard layouts) Interact sits on a button that is also an
+        // attack or dash, so raising the level used to fire a basic attack too. The game's NPCs
+        // sidestep this by pausing the wizard for the whole conversation; the altar instead makes
+        // the skill buttons read as released on the wizard standing at it for as long as Interact
+        // is held. The patches below hook the game's own input reads, so it holds whichever order
+        // the wizard and the altar update in.
+        public static bool PassInput(ChaosInputDevice device, string buttonName, bool pressedThisFrame, ref bool result)
+        {
+            Player engaged = Engaged;
+            if (engaged == null || device == null || device.player != engaged || buttonName == null || !buttonName.StartsWith("Skill"))
+                return true;
+            Rewired.Player rewired = device.rewiredPlayer;
+            if (rewired == null)
+                return true;
+            bool wasDown;
+            try
+            {
+                if (!rewired.GetButton(InteractAction) && !rewired.GetButtonDown(InteractAction))
+                    return true;
+                // The game polls every skill button each frame, so only a button that really was
+                // down (one sharing Interact's key) is worth a log line.
+                wasDown = pressedThisFrame ? rewired.GetButtonDown(buttonName) : rewired.GetButton(buttonName);
+            }
+            catch
+            {
+                return true;
+            }
+            result = false;
+            if (wasDown && !loggedSwallow)
+            {
+                loggedSwallow = true;
+                AscensionPlugin.Log($"Ascension altar: held back a '{buttonName}' press that shares Interact's button");
+            }
+            return false;
+        }
+
+        [HarmonyPatch(typeof(ChaosInputDevice), nameof(ChaosInputDevice.GetButtonDown))]
+        public static class ButtonDownPatch
+        {
+            private static bool Prefix(ChaosInputDevice __instance, string buttonName, ref bool __result)
+                => PassInput(__instance, buttonName, true, ref __result);
+        }
+
+        [HarmonyPatch(typeof(ChaosInputDevice), nameof(ChaosInputDevice.GetButton))]
+        public static class ButtonPatch
+        {
+            private static bool Prefix(ChaosInputDevice __instance, string buttonName, ref bool __result)
+                => PassInput(__instance, buttonName, false, ref __result);
+        }
+
+        // Once, for the log: what Interact is bound to on each kind of controller, and which other
+        // actions share those buttons (the ones the patches above hold back).
+        private void LogSharedKeys(Player p)
+        {
+            if (loggedKeys)
+                return;
+            loggedKeys = true;
+            try
+            {
+                Rewired.Player rewired = p.inputDevice != null ? p.inputDevice.rewiredPlayer : null;
+                if (rewired == null)
+                    return;
+                var maps = new List<Rewired.ControllerMap>();
+                foreach (Rewired.ControllerType type in new[] { Rewired.ControllerType.Keyboard, Rewired.ControllerType.Mouse, Rewired.ControllerType.Joystick })
+                {
+                    maps.Clear();
+                    rewired.controllers.maps.GetAllMaps(type, maps);
+                    var keys = new List<string>();
+                    var shared = new List<string>();
+                    foreach (Rewired.ControllerMap map in maps)
+                    {
+                        foreach (Rewired.ActionElementMap element in map.AllMaps)
+                        {
+                            Rewired.InputAction action = Rewired.ReInput.mapping.GetAction(element.actionId);
+                            if (action != null && action.name == InteractAction && !keys.Contains(element.elementIdentifierName))
+                                keys.Add(element.elementIdentifierName);
+                        }
+                    }
+                    if (keys.Count == 0)
+                        continue;
+                    foreach (Rewired.ControllerMap map in maps)
+                    {
+                        foreach (Rewired.ActionElementMap element in map.AllMaps)
+                        {
+                            Rewired.InputAction action = Rewired.ReInput.mapping.GetAction(element.actionId);
+                            if (action != null && action.name != InteractAction && keys.Contains(element.elementIdentifierName))
+                                shared.Add($"{action.name} ({element.elementIdentifierName})");
+                        }
+                    }
+                    log?.LogInfo($"Ascension altar: {type} Interact = {string.Join(", ", keys.ToArray())}" +
+                        (shared.Count > 0 ? $", shared with {string.Join(", ", shared.ToArray())}" : ", shared with nothing"));
+                }
+            }
+            catch (Exception e)
+            {
+                log?.LogInfo($"Ascension altar: couldn't read the bindings ({e.Message})");
+            }
+        }
+
         private Player NearestPlayer()
         {
             Player[] players = GameController.activePlayers;
@@ -320,7 +726,8 @@ namespace WoLAscension
             return best;
         }
 
-        // In front of a wizard standing behind it, behind one standing in front.
+        // In front of a wizard standing behind it, behind one standing in front. The halo and
+        // ring sit behind the totem, the flame, runes and number in front.
         private void SortAgainst(Player p)
         {
             Player any = p;
@@ -331,11 +738,23 @@ namespace WoLAscension
             }
             if (any == null || any.spriteRenderer == null)
                 return;
+            int layer = any.spriteRenderer.sortingLayerID;
             int order = any.spriteRenderer.sortingOrder + (any.transform.position.y > transform.position.y ? 1 : -1);
-            pedestal.sortingLayerID = crystal.sortingLayerID = number.sortingLayerID = any.spriteRenderer.sortingLayerID;
-            pedestal.sortingOrder = order;
-            crystal.sortingOrder = order + 1;
-            number.sortingOrder = order + 1;
+            Sort(pedestal, layer, order);
+            Sort(crystal, layer, order + 1);
+            Sort(number, layer, order + 1);
+            Sort(halo, layer, order - 1);
+            Sort(ring, layer, order - 2);
+            foreach (SpriteRenderer rune in runes)
+                Sort(rune, layer, order + 1);
+        }
+
+        private static void Sort(SpriteRenderer r, int layer, int order)
+        {
+            if (r == null)
+                return;
+            r.sortingLayerID = layer;
+            r.sortingOrder = order;
         }
 
         // The game's own "press this button" prompt over the altar.
@@ -351,7 +770,7 @@ namespace WoLAscension
                     prompt = go != null ? go.GetComponent<OverheadPrompt>() : null;
                     if (prompt == null)
                         return;
-                    prompt.Initialize(transform, p.inputDevice.inputScheme, 30f / pixelsPerUnit, 0f);
+                    prompt.Initialize(transform, p.inputDevice.inputScheme, (TotemHeight + 8f) / pixelsPerUnit, 0f);
                 }
                 prompt.DisplayPrompt(InteractAction, false, false);
                 promptShown = true;
@@ -379,39 +798,90 @@ namespace WoLAscension
 
         private void OnDestroy()
         {
+            if (Engaged != null)
+                Engaged = null;
+            StopEmbers();
             if (prompt != null)
                 Destroy(prompt.gameObject);
+        }
+
+        private readonly HashSet<string> loggedOnce = new HashSet<string>();
+
+        private void LogOnce(string key, string message)
+        {
+            if (loggedOnce.Add(key))
+                log?.LogInfo($"Ascension altar: {message}");
         }
 
         // ---- Art ----
 
         // Soft-shaded like the game's own props: no dark outline, just light on top and shade
-        // below.
+        // below, with gold on the brazier's rim.
         private static readonly Dictionary<char, Color32> Stone = new Dictionary<char, Color32>
         {
             { 'D', new Color32(0x5a, 0x55, 0x70, 0xff) },
             { 'M', new Color32(0x7c, 0x77, 0x94, 0xff) },
             { 'L', new Color32(0xa2, 0x9d, 0xb8, 0xff) },
             { 's', new Color32(0xc8, 0xc4, 0xd8, 0xff) },
+            { 'k', new Color32(0x3f, 0x3b, 0x52, 0xff) }, // carved grooves and rune slots
+            { 'G', new Color32(0xd6, 0xac, 0x4e, 0xff) }, // gold rim
+            { 'y', new Color32(0x8e, 0x6b, 0x26, 0xff) }, // gold in shade
             { 'h', new Color32(0x45, 0x41, 0x58, 0x90) }, // soft ground shadow
         };
 
+        // 20 x 38: the brazier (rows 0-6), the column with its rune slots (7-27), the plinth that
+        // carries the number (28-33), the base (34-36) and the ground shadow (37).
         private static readonly string[] PedestalRows =
         {
-            "..ssssssssssss..",
-            ".sLLLLLLLLLLLLs.",
-            ".MMMMMMMMMMMMMM.",
-            "...LMMMMMMMMD...",
-            "...LMDDDDDDMD...",
-            "...LMDDDDDDMD...",
-            "...LMDDDDDDMD...",
-            "...LMDDDDDDDD...",
-            "...LMMMMMMMDD...",
-            "..sLLLLLLLLLLM..",
-            ".LMMMMMMMMMMMMD.",
-            ".DDDDDDDDDDDDDD.",
-            "hhhhhhhhhhhhhhhh",
+            "..GGGGGGGGGGGGGGGG..",
+            ".GyLLLLLLLLLLLLLLyG.",
+            ".yMMMMMMMMMMMMMMMMy.",
+            "..MMMMMMMMMMMMMMMM..",
+            "..DMMMMMMMMMMMMMMD..",
+            "...DDMMMMMMMMMMDD...",
+            "....DDDMMMMMMDDD....",
+            ".....sLLLLLLLLs.....",
+            ".....LMMMMMMMMD.....",
+            ".....LMkkkkkkMD.....",
+            ".....LMMMMMMMMD.....",
+            ".....LMkkMMkkMD.....",
+            ".....LMkkMMkkMD.....",
+            ".....LMMMMMMMMD.....",
+            ".....LMkkMMkkMD.....",
+            ".....LMkkMMkkMD.....",
+            ".....LMMMMMMMMD.....",
+            ".....LMkkMMkkMD.....",
+            ".....LMkkMMkkMD.....",
+            ".....LMMMMMMMMD.....",
+            ".....LMkkMMkkMD.....",
+            ".....LMkkMMkkMD.....",
+            ".....LMMMMMMMMD.....",
+            ".....LMkkMMkkMD.....",
+            ".....LMkkMMkkMD.....",
+            ".....LMMMMMMMMD.....",
+            ".....LMkkkkkkMD.....",
+            ".....LMMMMMMMMD.....",
+            "...sLLLLLLLLLLLLs...",
+            "...LMMMMMMMMMMMMD...",
+            "...LMMMMMMMMMMMMD...",
+            "...LMMMMMMMMMMMMD...",
+            "...LMMMMMMMMMMMMD...",
+            "...LMMMMMMMMMMMMD...",
+            ".sLLLLLLLLLLLLLLLLs.",
+            ".LMMMMMMMMMMMMMMMMD.",
+            ".DDDDDDDDDDDDDDDDDD.",
+            "hhhhhhhhhhhhhhhhhhhh",
         };
+
+        private const float TotemHeight = 38f;
+        // Pixel rows (from the bottom) the flame stands on and the number is centred on.
+        private const float FlameRow = 36f;
+        private const float NumberRow = 6.5f;
+
+        // The rune slots, two columns of five up the column face, lit from the bottom up and left
+        // to right: pixel offsets of each 2x2 slot's centre from the totem's bottom middle.
+        private static float RuneX(int i) => i % 2 == 0 ? -2f : 2f;
+        private static float RuneY(int i) => 14f + 3f * (i / 2);
 
         private static Sprite PedestalSprite()
         {
@@ -420,7 +890,74 @@ namespace WoLAscension
             return pedestalSprite;
         }
 
-        // Three flicker frames of a flame, in outer, middle and core colours (no outline).
+        // A lit rune: a 2x2 white block, coloured per level.
+        private static Sprite PipSprite()
+        {
+            if (pipSprite == null)
+                pipSprite = Make(new[] { "##", "##" }, c => (Color32?)new Color32(255, 255, 255, 255), new Vector2(0.5f, 0.5f));
+            return pipSprite;
+        }
+
+        // A soft disc that fades out to its edge, drawn behind the flame in its colour.
+        private static Sprite HaloSprite()
+        {
+            if (haloSprite != null)
+                return haloSprite;
+            const int size = 48;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear };
+            float half = size / 2f;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float d = Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), new Vector2(half, half)) / half;
+                    float a = Mathf.Clamp01(1f - d);
+                    a = a * a * (3f - 2f * a); // smooth falloff
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+                }
+            }
+            tex.Apply();
+            haloSprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size);
+            return haloSprite;
+        }
+
+        // A flattened ring of light on the ground around the base, with eight rune marks.
+        private static Sprite RingSprite()
+        {
+            if (ringSprite != null)
+                return ringSprite;
+            const int w = 36, h = 16;
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
+            float cx = w / 2f, cy = h / 2f, rx = w / 2f - 2f, ry = h / 2f - 2f;
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    float dx = (x + 0.5f - cx) / rx, dy = (y + 0.5f - cy) / ry;
+                    float d = Mathf.Sqrt(dx * dx + dy * dy);
+                    float a = 0f;
+                    if (d >= 0.86f && d <= 1f)
+                        a = 1f;
+                    else if (d > 1f && d <= 1.12f)
+                    {
+                        // Marks at eight points just outside the ring.
+                        float angle = Mathf.Atan2(dy, dx) * Mathf.Rad2Deg + 360f;
+                        float nearest = Mathf.Repeat(angle + 22.5f, 45f) - 22.5f;
+                        if (Mathf.Abs(nearest) < 7f)
+                            a = 0.9f;
+                    }
+                    // The front (bottom) of the ring is a little brighter than the back.
+                    if (a > 0f && y > cy)
+                        a *= 0.7f;
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+                }
+            }
+            tex.Apply();
+            ringSprite = Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), pixelsPerUnit);
+            return ringSprite;
+        }
+
+        // Four flicker frames of a flame, in outer, middle and core colours (no outline).
         private static readonly string[][] FlameRows =
         {
             new[]
@@ -467,6 +1004,23 @@ namespace WoLAscension
                 "..oommmo..",
                 "..ommcmoo.",
                 ".oomccmmo.",
+                ".omccccmo.",
+                "oommcccmoo",
+                "ommcccccmo",
+                "ommcccccmo",
+                ".ommcccmo.",
+                "..ommmmo..",
+            },
+            new[]
+            {
+                "...o......",
+                "...oo.....",
+                "..ooo..o..",
+                "..omoo.oo.",
+                "..oomo.oo.",
+                "..ommmooo.",
+                ".oommcmoo.",
+                ".ommccmmo.",
                 ".omccccmo.",
                 "oommcccmoo",
                 "ommcccccmo",
@@ -537,7 +1091,7 @@ namespace WoLAscension
             "###,#.#,###,#.#,###", "###,#.#,###,..#,###",
         };
 
-        // The level carved into the front, glowing in the flame's colour.
+        // The level carved into the plinth, glowing in the flame's colour.
         private static Sprite NumberSprite(int lvl)
         {
             Sprite sprite;
@@ -558,7 +1112,7 @@ namespace WoLAscension
             }
             Color outer, mid, core;
             FlameColours(lvl, out outer, out mid, out core);
-            Color glow = lvl <= 0 ? (Color)new Color32(0x4a, 0x46, 0x5e, 0xff) : mid;
+            Color glow = lvl <= 0 ? (Color)new Color32(0x4a, 0x46, 0x5e, 0xff) : core;
             sprite = Make(rows, c => c == '#' ? (Color32?)glow : null, new Vector2(0.5f, 0.5f));
             numberSprites[lvl] = sprite;
             return sprite;

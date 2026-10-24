@@ -17,7 +17,7 @@ namespace WoLAscension
     {
         public const string PluginGuid = "mdbailey94.wol.ascension";
         public const string PluginName = "Ascension";
-        public const string PluginVersion = "0.5.1";
+        public const string PluginVersion = "0.6.0";
 
         private const string PlayerDamageTakenMod = "Ascension_DamageTaken";
         private const string PlayerHealingMod = "Ascension_Healing";
@@ -70,14 +70,28 @@ namespace WoLAscension
             AscensionAltar.Offset = new Vector2(
                 Config.Bind("Altar", "LeftOfPortalX", -3.5f, "Where the altar stands, in game units from the trials portal (negative = left).").Value,
                 Config.Bind("Altar", "LeftOfPortalY", 0f, "Where the altar stands, in game units from the trials portal (negative = down).").Value);
+            AscensionAltar.Effects = Config.Bind("Altar", "Effects", true,
+                "The altar's glow, ground ring, embers and light. Off leaves just the totem, its flame and runes.");
 
+            var harmony = new Harmony(PluginGuid);
             try
             {
-                new Harmony(PluginGuid).CreateClassProcessor(typeof(PortalPatch)).Patch();
+                harmony.CreateClassProcessor(typeof(PortalPatch)).Patch();
             }
             catch (Exception e)
             {
                 Logger.LogError($"Portal hook failed to install; the level will be set when enemies show up: {e.Message}");
+            }
+            // Raising the level at the altar must not also fire the attack or dash that shares its
+            // button (see AscensionAltar.PassInput).
+            try
+            {
+                harmony.CreateClassProcessor(typeof(AscensionAltar.ButtonDownPatch)).Patch();
+                harmony.CreateClassProcessor(typeof(AscensionAltar.ButtonPatch)).Patch();
+            }
+            catch (Exception e)
+            {
+                Logger.LogError($"Input hook failed to install; interacting at the altar may also attack: {e.Message}");
             }
 
             GameController.levelLoadEventHandlers += (next, previous) =>
