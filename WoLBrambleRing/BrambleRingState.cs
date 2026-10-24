@@ -4,47 +4,57 @@ using UnityEngine;
 
 namespace WoLBrambleRing
 {
-    // Slams the ground (Terra Ring's ground slam) and bursts a ring of thorns up around the wizard:
-    // the game's own earth spikes (EarthFloorSpike, the spikes of Earth Wave and the earth enemies'
-    // spike waves), each with its own hit box, raised in two staggered rows that ripple outward.
-    // Each ring hits an enemy once, shoves it outward a little and slows it (SkillStats in the
-    // plugin). Enhanced, a second, wider ring bursts out from the same spot a moment later.
+    // Slams the ground (Rippling Vines' slam) and knits a thicket of thorny vines around the
+    // wizard: the game's own vine traps (VineTrap, the vines Rippling Vines and the Root Shield
+    // relic raise) in two rows, each with its own grabbing hit box. The thicket stands where it
+    // was cast for a few seconds, and the wizard is free to walk off. Every enemy inside it, or
+    // that walks into it, is snared (the game's root status: held in place, no knockback) and
+    // pricked by the thorns every half second while it stays; a vine that catches an enemy
+    // crossing the ring grabs it and holds it there as well. Damage, the snare and the slow for
+    // enemies that can't be snared are in SkillStats in the plugin.
+    //
+    // Enhanced, the thicket stands half as long again and the vines spread outward into a third,
+    // wider row a moment later.
     public class BrambleRingState : Player.SkillState
     {
         public new static string staticID = "BrambleRing";
 
-        // The first ring: two rows of thorns, the inner one first. Thorns reach about half a unit
-        // either side, so this covers roughly 1 to 3 units out (enemies right up against you too).
-        private const float InnerRowRadius = 1.4f;
-        private const float OuterRowRadius = 2.4f;
-        // Enhanced: the second, wider ring (roughly 3 to 5 units out), and how long after the
-        // first it bursts.
-        private const float EnhancedInnerRowRadius = 3.6f;
-        private const float EnhancedOuterRowRadius = 4.6f;
-        private const float EnhancedRingDelay = 0.35f;
-        // Distance between neighbouring thorns along a row (the earth boss's spike waves space
-        // them 1 apart), and the fewest a row gets.
-        private const float ThornSpacing = 1f;
-        private const int MinThornsPerRow = 6;
-        // The outer row bursts this long after the inner one, so the ring ripples outward.
-        private const float RowInterval = 0.05f;
-        // Thorns aren't raised inside walls, obstacles or pits (the check Terra Ring uses).
-        private const float WallCheckRadius = 0.25f;
-        // How long a thorn can hit for (the spike's own animation normally ends it after 0.1 s),
-        // and when it's cleared away if the game hasn't already (it normally breaks after 0.8 s).
-        private const float HitWindow = 0.3f;
-        private const float ThornLifetime = 2f;
-        // Rock bits each thorn throws up as it bursts out and as it crumbles.
-        private const int ThornRockBits = 2;
-        private const int ThornBreakRockBits = 1;
-        // Leaves each thorn throws up, for the bramble look.
-        private const int LeavesPerThorn = 2;
-        private const float RingShake = 0.5f;
-        // The enhanced ring's slam is a little deeper.
-        private const float EnhancedRingPitch = 0.85f;
+        // Rows of vines around the cast point. Vines are about a unit across, so this knits a
+        // thicket roughly 1 to 3 units out (and enemies right up against you are inside it).
+        private const float InnerRowRadius = 1.5f;
+        private const float OuterRowRadius = 2.5f;
+        // Enhanced: the third, wider row, and how long after the outer row is knitted it spreads.
+        private const float SpreadRowRadius = 3.5f;
+        private const float SpreadRowDelay = 0.3f;
+        // The thicket reaches this far past its widest row: everything inside is pricked.
+        private const float ThicketMargin = 0.5f;
+        // Distance between neighbouring vines along a row (Rippling Vines spaces its 1.4 apart),
+        // and the fewest a row gets.
+        private const float VineSpacing = 1.4f;
+        private const int MinVinesPerRow = 6;
+        // How long the thicket stands, normal and enhanced.
+        private const float RingDuration = 3f;
+        private const float EnhancedRingDuration = 4.5f;
+        // Enemies inside are pricked every TickInterval from the moment it's cast: 6 pricks over
+        // 3 s, 9 enhanced. The first prick on an enemy (the catch) is skill level 1, which also
+        // carries the slow; every prick after it is level 2.
+        private const float TickInterval = 0.5f;
+        private const int CatchLevel = 1;
+        private const int PrickLevel = 2;
+        // Vines knit, and later wither, one after another this far apart, so the ring runs round.
+        private const float VineStagger = 0.02f;
+        // The outer row starts this long after the inner one.
+        private const float RowInterval = 0.12f;
+        // The slam: dust kicked up around the wizard (Rippling Vines' cast dust) and a shake.
+        private const int CastDust = 100;
+        private const float CastDustScale = 0.25f;
+        private const float CastShake = 0.6f;
+        // Leaves thrown up from an enemy at each prick.
+        private const int PrickLeaves = 1;
+        // The ID the game gives its root status (Health.HandleRootStatusEffect).
+        private const string RootStatusID = "RootStatus";
 
         private static readonly HashSet<string> failedEffects = new HashSet<string>();
-        private static bool loggedHitBox;
 
         public override string OnEnterAnimStr => parent.GSlamAnimStr;
 
@@ -52,12 +62,12 @@ namespace WoLBrambleRing
         {
             isMeleeSkill = true;
             applyStopElementStatus = true;
-            // Terra Ring's timings: the slam lands at 0.3.
+            // Rippling Vines' timings: the slam lands at 0.3, and you can move again from 0.75.
             SetAnimTimes(
-                0.15f, // start
+                0.2f,  // start
                 0.2f,  // hold
                 0.3f,  // execute
-                0.8f,  // cancel
+                0.75f, // cancel
                 0.9f); // run
         }
 
@@ -65,180 +75,248 @@ namespace WoLBrambleRing
         {
             base.ExecuteSkill();
 
-            // Both rings burst around where you slammed, even if you move off before the second.
-            Vector2 center = parent.transform.position;
-            bool enhanced = IsEmpowered;
-            BrambleRingPlugin.Log($"Bramble Ring cast at ({center.x:0.0}, {center.y:0.0}){(enhanced ? ", enhanced" : "")}");
+            // The thicket stays where you slammed, even once you've walked off.
+            var ring = new Ring((Vector2)parent.transform.position, IsEmpowered);
+            Log($"cast at ({ring.center.x:0.0}, {ring.center.y:0.0}){(ring.enhanced ? ", enhanced" : "")}");
 
-            // Run on the wizard, so the rings finish even after this state has ended.
-            parent.StartCoroutine(Ring(center, 1, InnerRowRadius, OuterRowRadius, 0f));
-            if (enhanced)
-                parent.StartCoroutine(Ring(center, 2, EnhancedInnerRowRadius, EnhancedOuterRowRadius, EnhancedRingDelay));
+            // Run on the wizard, so the thicket outlives this state.
+            parent.StartCoroutine(Knit(ring));
+            parent.StartCoroutine(Stand(ring));
         }
 
-        // One ring of thorns. Ring 1 hits with skill level 1, the enhanced ring 2 with level 2.
-        private IEnumerator Ring(Vector2 center, int ring, float innerRadius, float outerRadius, float delay)
+        // One cast's thicket.
+        private class Ring
         {
-            if (delay > 0f)
-                yield return new WaitForSeconds(delay);
+            public readonly Vector2 center;
+            public readonly bool enhanced;
+            public float radius;                  // how far out counts as inside
+            public bool ended;
+            public BrambleVines vines;
+            public readonly HashSet<Entity> caught = new HashSet<Entity>();   // every enemy pricked
+            public readonly HashSet<Entity> grabbed = new HashSet<Entity>();  // those a vine hit first
+            public readonly List<string> names = new List<string>();
+            public int vineHits;                  // hits by the vines' own hit boxes
+            public int pricks;                    // pricks dealt by the ticks (the vines' hits aside)
+            public int prickDamage;               // their damage before the enemy's armour
+            private readonly Dictionary<int, AttackInfo> infos = new Dictionary<int, AttackInfo>();
 
-            var hits = new HashSet<Entity>();
-            var thorns = new List<EarthFloorSpike>();
-            // A random turn for each ring, so the thorns don't always stand in the same places.
+            public Ring(Vector2 center, bool enhanced)
+            {
+                this.center = center;
+                this.enhanced = enhanced;
+                radius = OuterRowRadius + ThicketMargin;
+            }
+
+            // The skill's attack at a level, as the game would generate it for a hit box.
+            public AttackInfo Info(Player player, string skillID, int level, bool ultimate)
+            {
+                AttackInfo info;
+                if (!infos.TryGetValue(level, out info))
+                {
+                    info = AttackInfo.GetInfo(player, player.skillCategory, skillID, level, ultimate);
+                    infos[level] = info;
+                }
+                return info;
+            }
+        }
+
+        // Raises the rows of vines, one vine after another round the ring: the inner row, the
+        // outer row a moment later and, enhanced, the wider third row after that.
+        private IEnumerator Knit(Ring ring)
+        {
+            ring.vines = new BrambleVines(parent, skillID, CatchLevel, isUltimate, entity =>
+            {
+                ring.vineHits++;
+                if (!ring.ended && ring.caught.Add(entity))
+                {
+                    ring.grabbed.Add(entity);
+                    Remember(ring, entity);
+                }
+            });
+            CastEffects(ring.center);
+
+            // A random turn for each cast, so the vines don't always stand in the same places.
             float spin = Random.Range(0f, 360f);
-
-            RingEffects(center, ring);
-            int blocked = RaiseRow(center, innerRadius, spin, false, ring, hits, thorns);
+            var positions = new List<Vector2>();
+            int blocked = BrambleVines.RowPositions(ring.center, InnerRowRadius, spin, VineSpacing, MinVinesPerRow, false, positions);
+            yield return parent.StartCoroutine(RaiseRow(ring, positions));
             yield return new WaitForSeconds(RowInterval);
-            blocked += RaiseRow(center, outerRadius, spin, true, ring, hits, thorns);
-            BrambleRingPlugin.Log($"Bramble Ring: ring {ring} raised {thorns.Count} thorns {innerRadius:0.0}-{outerRadius:0.0} out" +
+            positions.Clear();
+            blocked += BrambleVines.RowPositions(ring.center, OuterRowRadius, spin, VineSpacing, MinVinesPerRow, true, positions);
+            yield return parent.StartCoroutine(RaiseRow(ring, positions));
+            Log($"knitted {ring.vines.Count} vines in 2 rows {InnerRowRadius:0.0}-{OuterRowRadius:0.0} out" +
                 (blocked > 0 ? $" ({blocked} skipped in walls or pits)" : ""));
 
-            yield return new WaitForSeconds(HitWindow);
-
-            // Make sure no thorn keeps hitting (the spike's animation normally switches it off).
-            int stillOn = 0;
-            foreach (EarthFloorSpike thorn in thorns)
-            {
-                if (thorn == null || thorn.attack == null || thorn.attack.collider == null || !thorn.attack.collider.enabled)
-                    continue;
-                thorn.attack.collider.enabled = false;
-                stillOn++;
-            }
-            if (stillOn > 0)
-                BrambleRingPlugin.Log($"Bramble Ring: switched off {stillOn} thorn hit boxes the game left on");
-
-            LogHits(ring, hits);
+            if (!ring.enhanced)
+                yield break;
+            yield return new WaitForSeconds(SpreadRowDelay);
+            if (ring.ended)
+                yield break;
+            int before = ring.vines.Count;
+            positions.Clear();
+            blocked = BrambleVines.RowPositions(ring.center, SpreadRowRadius, spin, VineSpacing, MinVinesPerRow, false, positions);
+            ring.radius = SpreadRowRadius + ThicketMargin;
+            Effect("sound", () => SoundManager.PlayAudioWithDistance("VineWaveEnd", ring.center, null, 24f, -1f, 0.9f));
+            yield return parent.StartCoroutine(RaiseRow(ring, positions));
+            Log($"vines spread outward: {ring.vines.Count - before} more at {SpreadRowRadius:0.0} out" +
+                (blocked > 0 ? $" ({blocked} skipped in walls or pits)" : ""));
         }
 
-        // A row of thorns around the center; the outer row sits between the inner row's thorns.
-        private int RaiseRow(Vector2 center, float radius, float spin, bool offset, int level,
-            HashSet<Entity> hits, List<EarthFloorSpike> thorns)
+        private IEnumerator RaiseRow(Ring ring, List<Vector2> positions)
         {
-            int count = Mathf.Max(MinThornsPerRow, Mathf.RoundToInt(2f * Mathf.PI * radius / ThornSpacing));
-            float step = 360f / count;
-            int blocked = 0;
-            for (int i = 0; i < count; i++)
+            foreach (Vector2 position in positions)
             {
-                float angle = (spin + step * (i + (offset ? 0.5f : 0f))) * Mathf.Deg2Rad;
-                var outward = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
-                Vector2 position = center + outward * radius;
-                if (!Globals.CheckCircle(position, WallCheckRadius, ChaosCollisions.layerAll))
+                if (ring.ended)
+                    yield break;
+                ring.vines.Raise(position);
+                if (VineStagger > 0f)
+                    yield return new WaitForSeconds(VineStagger);
+            }
+        }
+
+        // The thicket stands for its duration, pricking everything inside every tick, then
+        // withers away.
+        private IEnumerator Stand(Ring ring)
+        {
+            float duration = ring.enhanced ? EnhancedRingDuration : RingDuration;
+            float end = Time.time + duration;
+            float nextTick = Time.time;
+            while (Time.time < end)
+            {
+                if (Time.time >= nextTick)
                 {
-                    blocked++;
-                    continue;
+                    nextTick += TickInterval;
+                    Tick(ring);
                 }
-                EarthFloorSpike thorn = RaiseThorn(position, outward, level, hits);
-                if (thorn != null)
-                    thorns.Add(thorn);
+                yield return null;
             }
-            return blocked;
+            ring.ended = true;
+            if (ring.vines != null)
+                yield return parent.StartCoroutine(ring.vines.Unravel(VineStagger));
+            LogEnd(ring, duration);
         }
 
-        private EarthFloorSpike RaiseThorn(Vector2 position, Vector2 outward, int level, HashSet<Entity> hits)
+        // Pricks every enemy inside the thicket. Newly caught enemies get the catch hit (level 1,
+        // with the slow) unless a vine already hit them; enemies the game won't let anything grab
+        // (bosses) get the catch hit every time, so the slow keeps up in place of the snare.
+        private void Tick(Ring ring)
         {
+            foreach (Enemy enemy in EnemiesInside(ring.center, ring.radius))
+            {
+                bool first = ring.caught.Add(enemy);
+                bool byVine = ring.grabbed.Contains(enemy);
+                bool cannotSnare = enemy.health != null && enemy.health.ignoreGrab;
+                int level = (first && !byVine) || cannotSnare ? CatchLevel : PrickLevel;
+                if (first)
+                {
+                    Remember(ring, enemy);
+                    // Stop a dash or a charge short, as Grasping Earth does.
+                    try
+                    {
+                        if (enemy.movement != null)
+                            enemy.movement.EndMovement();
+                    }
+                    catch
+                    {
+                    }
+                }
+                Prick(ring, enemy, level);
+                if (first)
+                    Log($"caught {enemy.name}{(byVine ? " in a vine" : "")}, {Status(enemy)}");
+            }
+        }
+
+        // One thorn prick: the skill's own hit at the given level, dealt straight to the enemy
+        // (the way Grasping Earth deals its hits), so the game applies the snare and the slow.
+        private void Prick(Ring ring, Enemy enemy, int level)
+        {
+            if (enemy.health == null)
+                return;
+            AttackInfo info = ring.Info(parent, skillID, level, isUltimate);
+            if (info == null)
+            {
+                LogOnce("stats", $"no stats for level {level}, pricking nothing");
+                return;
+            }
             try
             {
-                GameObject go = Object.Instantiate(EarthFloorSpike.Prefab, position, Quaternion.identity);
-                Object.Destroy(go, ThornLifetime);
-                EarthFloorSpike thorn = go.GetComponent<EarthFloorSpike>();
-                if (thorn == null || thorn.attack == null)
-                {
-                    LogOnce("thorn", "the game's earth spike has no attack");
-                    return null;
-                }
-
-                // One camera shake for the whole ring instead of one per thorn.
-                thorn.shakeOnSpawn = false;
-                thorn.spawnParticleCount = ThornRockBits;
-                thorn.breakPrimaryParticleCount = ThornBreakRockBits;
-                thorn.breakSeconaryParticleCount = ThornBreakRockBits;
-
-                thorn.attack.SetAttackInfo(parent.skillCategory, skillID, level, isUltimate);
-                // Knockback is overwritten to this direction (SkillStats), so enemies are shoved
-                // away from the wizard rather than away from whichever thorn hit them.
-                thorn.attack.knockbackOverwriteVector = outward;
-                thorn.attack.entityCollisionEventHandlers += entity =>
-                {
-                    if (entity != null)
-                        hits.Add(entity);
-                };
-                // Hit box on; the floor collider (which blocks movement) off, as Earth Wave does.
-                thorn.Activate(true, false);
-                LogHitBox(thorn);
-
-                Effect("leaves", () => PoolManager.GetPoolItem<LeafEmitter>().EmitSingle(LeavesPerThorn,
-                    position + new Vector2(0f, 0.5f), null, null, 0f, null, LeafEmitter.LeafColor.Green));
-                return thorn;
+                // Hurt reactions and hit sparks come from the thicket's centre; no shove.
+                info.attackerPosition = ring.center;
+                info.knockbackVector = Vector2.zero;
+                enemy.health.TakeDamage(info, parent);
+                ring.pricks++;
+                ring.prickDamage += info.damage;
+                Vector2 at = enemy.hurtBoxTransform != null ? (Vector2)enemy.hurtBoxTransform.position : (Vector2)enemy.transform.position;
+                Effect("leaves", () => PoolManager.GetPoolItem<LeafEmitter>().EmitSingle(PrickLeaves, at, null, null, 0f, null,
+                    LeafEmitter.LeafColor.Green));
             }
             catch (System.Exception e)
             {
-                LogOnce("thorn", $"couldn't raise a thorn: {e.Message}");
-                return null;
+                LogOnce("prick", $"couldn't prick {enemy.name}: {e.Message}");
             }
         }
 
-        // The slam: a crack and dust at the center for the first ring, and a thud and a shake for each.
-        private static void RingEffects(Vector2 center, int ring)
+        // Live enemies (not allies) with any collider inside the circle.
+        private static List<Enemy> EnemiesInside(Vector2 center, float radius)
         {
-            if (ring == 1)
+            var found = new List<Enemy>();
+            foreach (Collider2D col in Physics2D.OverlapCircleAll(center, radius))
             {
-                Effect("floor crack", () => PoolManager.GetPoolItem<FloorCrackEmitter>().Emit(1, center));
-                Effect("dust", () => PoolManager.GetPoolItem<DustEmitter>().EmitCircle(50, 1f, 6f, -1f, center));
-            }
-            Effect("sound", () => SoundManager.PlayWithDistAndSPR("GroundSlam", center, ring == 1 ? 1f : EnhancedRingPitch));
-            Effect("camera shake", () => CameraController.ShakeCamera(RingShake));
-        }
-
-        // What each ring caught, and how many of those are slowed now (enemies that died, and Air
-        // enemies, which can't be slowed, aren't).
-        private static void LogHits(int ring, HashSet<Entity> hits)
-        {
-            if (hits.Count == 0)
-            {
-                BrambleRingPlugin.Log($"Bramble Ring: ring {ring} hit no enemies");
-                return;
-            }
-            int slowed = 0;
-            var names = new List<string>();
-            foreach (Entity entity in hits)
-            {
-                if (entity == null)
+                Enemy enemy = col != null ? col.GetComponentInParent<Enemy>() : null;
+                if (enemy == null || !enemy.gameObject.activeInHierarchy || found.Contains(enemy))
                     continue;
-                if (entity.dotManager != null && entity.dotManager.HasDot(SlowDotEffect.slowStatusStr))
-                    slowed++;
-                if (names.Count < 5)
-                    names.Add(entity.name);
+                if (enemy.health == null || enemy.health.CurrentHealthValue <= 0)
+                    continue;
+                if (GameController.allies != null && GameController.allies.Contains(enemy.gameObject))
+                    continue;
+                found.Add(enemy);
             }
-            BrambleRingPlugin.Log($"Bramble Ring: ring {ring} hit {hits.Count} enemies ({string.Join(", ", names.ToArray())}), {slowed} slowed");
+            return found;
         }
 
-        // The size of a thorn's hit box, once, for tuning the row spacing.
-        private static void LogHitBox(EarthFloorSpike thorn)
+        private static void Remember(Ring ring, Entity entity)
         {
-            if (loggedHitBox)
-                return;
-            loggedHitBox = true;
-            Collider2D box = thorn.attack.collider;
-            if (box == null)
+            if (ring.names.Count < 6)
+                ring.names.Add(entity != null ? entity.name : "?");
+        }
+
+        // What the catch did to an enemy: snared (the game's root), or only slowed (bosses and
+        // anything else that can't be grabbed), or neither (status resistance, or it died).
+        private static string Status(Entity entity)
+        {
+            if (entity.health != null && entity.health.CurrentHealthValue <= 0)
+                return "killed";
+            if (entity.dotManager != null && entity.dotManager.HasDot(RootStatusID))
+                return "snared";
+            if (entity.dotManager != null && entity.dotManager.HasDot(SlowDotEffect.slowStatusStr))
+                return "slowed (can't be snared)";
+            return "hit only";
+        }
+
+        // The slam: dust around the wizard, a shake and the vines' sound (Rippling Vines' cast).
+        private static void CastEffects(Vector2 center)
+        {
+            Effect("dust", () => PoolManager.GetPoolItem<DustEmitter>().EmitCircle(CastDust, CastDustScale, -1f, -1f, center));
+            Effect("camera shake", () => CameraController.ShakeCamera(CastShake));
+            Effect("sound", () => SoundManager.PlayAudioWithDistance("VineWaveEnd", center));
+        }
+
+        private static void LogEnd(Ring ring, float duration)
+        {
+            if (ring.caught.Count == 0)
             {
-                BrambleRingPlugin.Log("Bramble Ring: thorn has no hit box");
+                Log($"thicket withered after {duration:0.0} s, caught nothing");
                 return;
             }
-            Vector3 scale = box.transform.lossyScale;
-            string size;
-            if (box is CircleCollider2D circle)
-                size = $"circle, radius {circle.radius * Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.y)):0.00}";
-            else if (box is BoxCollider2D rect)
-                size = $"box, {rect.size.x * Mathf.Abs(scale.x):0.00} x {rect.size.y * Mathf.Abs(scale.y):0.00}";
-            else
-                size = $"{box.GetType().Name}, {box.bounds.size.x:0.00} x {box.bounds.size.y:0.00}";
-            BrambleRingPlugin.Log($"Bramble Ring: thorn hit box is a {size} (row spacing {OuterRowRadius - InnerRowRadius:0.0}, thorn spacing {ThornSpacing:0.0})");
+            string names = string.Join(", ", ring.names.ToArray()) + (ring.caught.Count > ring.names.Count ? ", ..." : "");
+            Log($"thicket withered after {duration:0.0} s: caught {ring.caught.Count} ({names}), " +
+                $"{ring.grabbed.Count} of them by a vine first ({ring.vineHits} vine hits in all), " +
+                $"{ring.pricks} pricks for {ring.prickDamage} damage before armour");
         }
 
         // Runs a cosmetic effect; if it's unavailable it's skipped (and logged once) instead of
-        // stopping the ring.
-        private static void Effect(string name, System.Action effect)
+        // stopping the thicket.
+        public static void Effect(string name, System.Action effect)
         {
             if (failedEffects.Contains(name))
                 return;
@@ -249,14 +327,16 @@ namespace WoLBrambleRing
             catch (System.Exception e)
             {
                 failedEffects.Add(name);
-                BrambleRingPlugin.Log($"Bramble Ring: effect '{name}' unavailable, skipping it: {e.Message}");
+                Log($"effect '{name}' unavailable, skipping it: {e.Message}");
             }
         }
 
-        private static void LogOnce(string key, string message)
+        public static void Log(string message) => BrambleRingPlugin.Log("Bramble Ring: " + message);
+
+        public static void LogOnce(string key, string message)
         {
             if (failedEffects.Add("log:" + key))
-                BrambleRingPlugin.Log($"Bramble Ring: {message}");
+                Log(message);
         }
     }
 }

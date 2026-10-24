@@ -2,40 +2,54 @@
 
 A new **Earth standard arcana**, added with [LegendAPI](https://github.com/yekoc/LegendAPI).
 
-> **Bramble Ring**: Burst a ring of thorns out of the ground around you, slowing the enemies they catch!
+> **Bramble Ring**: Knit a thicket of thorny vines around you that snares the enemies inside and
+> pricks them while it stands!
 >
-> *Enhanced: A second, wider ring bursts out a moment later!*
+> *Enhanced: The thicket stands longer and spreads outward into a wider ring!*
 
 | Stat | Value |
 |------|-------|
 | Element | Earth |
-| Tier | 4 (like Terra Ring) |
-| Price | 6 (like Terra Ring) |
-| Damage | 25 (enhanced outer ring: 20 more) |
-| Status | Slow: 50% move speed for 2 s |
-| Cooldown | 5 s |
-| Reach | about 1 to 3 units around you (enhanced: and 3 to 5) |
+| Tier | 4 (like Rippling Vines and Terra Ring) |
+| Price | 6 (like Rippling Vines and Terra Ring) |
+| Damage | 5 a prick, one every 0.5 s: 30 over the full 3 s (enhanced 45 over 4.5 s) |
+| Control | Snare: the game's root (held in place, no knockback), renewed by every prick, 1 s past the last. Bosses are slowed instead (50% for 2 s) |
+| Cooldown | 6 s |
+| Reach | about 3 units around where it was cast (enhanced: 4) |
 
-Your wizard slams the ground (Terra Ring's slam) and thorns burst up all around them in two
-staggered rows, the inner row first so the ring ripples outward, throwing up rock and leaves. The
-thorns are the game's own earth spikes, the ones Earth Wave and the earth enemies' spike waves
-raise, each with its own hit box. Each ring hits an enemy once, shoves it a little away from you
-and slows it. No thorns are raised inside walls or over pits.
+Your wizard slams the ground (Rippling Vines' slam) and thorny vines knit a thicket around them,
+one after another round the ring, in two rows about 1.5 and 2.5 units out. The vines are the
+game's own vine traps, the ones Rippling Vines and the Root Shield relic raise, each with its own
+grabbing hit box. The thicket stands where it was cast for **3 seconds** while you walk off (or
+stay inside it, nothing in it hurts you).
 
-**Enhanced**, a second, wider ring bursts out from the same spot 0.35 s later. Enemies the first
-ring shoved outward land right in it.
+Every half second, every enemy inside the thicket is **pricked** by the thorns (5 damage, leaves
+fly) and **snared** with the game's root status: held where it stands, ignoring knockback, until a
+second after its last prick. Enemies that walk into the thicket are caught the same way, and a vine
+whose hit box they cross grabs them and holds them on the spot as well. The first prick on an enemy
+(the catch) makes it flinch and also slows it; the pricks after that don't flinch, so a snared enemy
+can still fight back from inside. Bosses, and anything else the game won't let a grab hold, aren't
+snared: they get the catch (and its slow) on every prick instead.
+
+**Enhanced**, the thicket stands **4.5 seconds**, and a moment after the first two rows a third,
+wider row of vines spreads out about 3.5 units from the centre, so everything within 4 units is
+pricked.
 
 ## Log
 
 `BepInEx\LogOutput.log` shows:
 
-- `Bramble Ring 0.1.0 registered` at start-up.
-- `Bramble Ring cast at (x, y)` (`, enhanced` when it is) each cast.
-- `Bramble Ring: ring 1 raised 24 thorns 1.4-2.4 out` for each ring, with how many were skipped
-  in walls or pits.
-- `Bramble Ring: ring 1 hit 3 enemies (...), 3 slowed` (or `hit no enemies`) once each ring is
-  done. Enemies that died, and Air enemies (which can't be slowed), don't count as slowed.
-- `Bramble Ring: thorn hit box is a ...` once, the size of one thorn's hit box.
+- `Bramble Ring 0.2.0 registered` at start-up.
+- `Bramble Ring: cast at (x, y)` (`, enhanced` when it is) each cast.
+- `Bramble Ring: knitted 18 vines in 2 rows 1.5-2.5 out` once the rows are up, with how many spots
+  were skipped in walls or pits; enhanced, `Bramble Ring: vines spread outward: 16 more at 3.5 out`.
+- `Bramble Ring: caught EarthArcher(Clone), snared` for each enemy the first time it's pricked
+  (`in a vine` when a vine grabbed it first). Instead of `snared` you may see
+  `slowed (can't be snared)` (bosses), `hit only` (it resisted the status) or `killed`.
+- `Bramble Ring: thicket withered after 3.0 s: caught 3 (...), 1 of them by a vine first (2 vine
+  hits in all), 15 pricks for 75 damage before armour` (or `caught nothing`) when it's gone.
+- `Bramble Ring: vine hit box is a ...` once, the size and layer of one vine's hit box.
+- `Bramble Ring: effect '...' unavailable, skipping it` if a cosmetic effect can't be made.
 
 ## Install
 
@@ -46,8 +60,9 @@ Mod Content on).
 
 ## Tuning
 
-Damage, cooldown, knockback and the slow are in `BrambleRingPlugin.cs` (`skillStats`). Ring sizes,
-thorn spacing and timing are the constants at the top of `BrambleRingState.cs`.
+Damage, cooldown, the snare and the slow are in `BrambleRingPlugin.cs` (`skillStats`). The ring
+sizes, how long it stands, the prick interval and the knitting speed are the constants at the top
+of `BrambleRingState.cs`; how the vines are raised is in `BrambleVines.cs`.
 
 ## Building it yourself
 
