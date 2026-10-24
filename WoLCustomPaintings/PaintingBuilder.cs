@@ -25,9 +25,10 @@ namespace WoLCustomPaintings
         {
             Sprite original = art.sprite;
             int border = CustomPaintingsPlugin.FrameBorder;
+            int borderTB = CustomPaintingsPlugin.FrameBorderTopBottom;
             int nudge = CustomPaintingsPlugin.NudgeUp;
             string key = original.GetInstanceID() + "/" + (frame != null && frame.sprite != null ? frame.sprite.GetInstanceID() : 0) +
-                "/" + picture.GetInstanceID() + "/art" + detail + "/" + nudge + "/" + border + "/" + CustomPaintingsPlugin.PictureFit;
+                "/" + picture.GetInstanceID() + "/art" + detail + "/" + nudge + "/" + border + "/" + borderTB + "/" + CustomPaintingsPlugin.PictureFit;
             Sprite cached;
             if (cache.TryGetValue(key, out cached) && cached != null)
                 return cached;
@@ -37,9 +38,10 @@ namespace WoLCustomPaintings
             string from;
             if (frame != null && frame.sprite != null && OutlineIn(frame, art.transform, out area))
             {
-                float inset = border / ppu;
-                area = Rect.MinMaxRect(area.xMin + inset, area.yMin + inset, area.xMax - inset, area.yMax - inset);
-                from = $"frame '{frame.sprite.name}' less {border}px";
+                // The frames' top and bottom bars are thicker than their sides.
+                float insetX = border / ppu, insetY = borderTB / ppu;
+                area = Rect.MinMaxRect(area.xMin + insetX, area.yMin + insetY, area.xMax - insetX, area.yMax - insetY);
+                from = $"frame '{frame.sprite.name}' less {border}px sides, {borderTB}px top and bottom";
                 // The game's own artwork shows where the opening really is (the frame's outline
                 // can include a ledge or shadow): keep to where the two overlap.
                 Rect artArea;

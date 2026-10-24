@@ -42,7 +42,8 @@ it's just shrunk and kept as is. Each picture's own size is read and it's scaled
 - `Detail` (`Fit` and `Stretch` only): how finely your picture is redrawn inside the frame. `1`
   is the game's own pixel size (blockier, matches the game's paintings); `2` (default) to `4` fit
   more detail in the same space.
-- `FrameBorder`: how many of the game's pixels of the frame show round your picture (default 2).
+- `FrameBorder` / `FrameBorderTopBottom`: how many of the game's pixels of the frame show at the
+  sides (default 2) and above and below (default 3) your picture.
   The picture fills the frame's opening whatever the painting's size; raise this if it covers
   the frame, lower it if the old painting peeks out. Applies from the next floor.
 - `NudgeUp`: moves your picture up inside the frame by this many of the game's pixels (negative

@@ -16,7 +16,7 @@ namespace WoLCustomPaintings
     {
         public const string PluginGuid = "mdbailey94.wol.custompaintings";
         public const string PluginName = "Custom Paintings";
-        public const string PluginVersion = "0.4.5";
+        public const string PluginVersion = "0.4.6";
 
         private static ManualLogSource log;
         private static ConfigEntry<bool> modEnabled;
@@ -24,7 +24,7 @@ namespace WoLCustomPaintings
         private static ConfigEntry<int> frameInset;
         private static ConfigEntry<int> detail;
         private static ConfigEntry<int> nudgeUp;
-        private static ConfigEntry<int> frameBorder;
+        private static ConfigEntry<int> frameBorder, frameBorderTB;
         private static ConfigEntry<string> pictureFit;
         private static readonly List<Texture2D> pictures = new List<Texture2D>();
         // Paintings already given (or not given) a picture in this scene, by instance id.
@@ -34,6 +34,7 @@ namespace WoLCustomPaintings
         private float nextScan;
 
         public static string PictureFit => pictureFit?.Value ?? "Fill";
+        public static int FrameBorderTopBottom => Mathf.Clamp(frameBorderTB?.Value ?? 3, 0, 16);
         public static int FrameBorder => Mathf.Clamp(frameBorder?.Value ?? 2, 0, 16);
         public static int NudgeUp => Mathf.Clamp(nudgeUp?.Value ?? 0, -48, 48);
         public static int Detail => Mathf.Clamp(detail?.Value ?? 2, 1, 4);
@@ -61,8 +62,12 @@ namespace WoLCustomPaintings
                     "bottom. Fit: the whole picture, scaled to fit, over a dimmed copy of itself where the shapes differ. " +
                     "Stretch: the whole picture, stretched to the frame's shape.",
                     new AcceptableValueList<string>("Fill", "Fit", "Stretch")));
+            frameBorderTB = Config.Bind("General", "FrameBorderTopBottom", 3,
+                new ConfigDescription("How many of the game's pixels of the frame show above and below your picture. " +
+                    "Raise it if your picture runs over the top or bottom of the frame.",
+                    new AcceptableValueRange<int>(0, 16)));
             frameBorder = Config.Bind("General", "FrameBorder", 2,
-                new ConfigDescription("How many of the game's pixels of the frame show round your picture. " +
+                new ConfigDescription("How many of the game's pixels of the frame show at the sides of your picture. " +
                     "Raise it if your picture covers the frame, lower it if the old painting peeks out.",
                     new AcceptableValueRange<int>(0, 16)));
             nudgeUp = Config.Bind("General", "NudgeUp", 0,
