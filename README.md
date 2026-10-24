@@ -20,7 +20,7 @@ BepInEx 5 mods for Wizard of Legend.
 | [WoLCloakUpgrades](WoLCloakUpgrades/) | Untested | Permanent cloak upgrades bought with chaos gems in the wardrobe screen: four tiers, up to doubled bonuses (strong stats capped at +50%). |
 | [WoLUnlockModContent](WoLUnlockModContent/) | Working | Mods-menu toggle that unlocks all mod-added arcana and relics for easy testing (reversible). Needs LegendAPI. |
 | [WoLCustomPaintings](WoLCustomPaintings/) | Untested | Puts your own pictures on some of the breakable paintings in the Chaos Trials, framed and pixelated to fit. |
-| [WoLPotionPrice](WoLPotionPrice/) | Untested | Health potions cost more each time you buy one in a run (+25% of the base price each, adjustable). |
+| [WoLPotionPrice](WoLPotionPrice/) | Working (buying untested) | Health potions cost more each time you buy one in a run (+25% of the base price each, adjustable); the price tag now updates. |
 | [WoLModMenu](WoLModMenu/) | Working | A MODS panel on the title screen to switch the mods above on and off instantly (Select / M). |
 
 ## Install (no build needed)
