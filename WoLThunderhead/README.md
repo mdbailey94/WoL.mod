@@ -12,8 +12,9 @@ A leap like Heroic Leap's:
 - A **very short crouch** on the ground (about a tenth of a second, when you can still be hit),
   then your wizard **leaps high, straight up**. Up there they **can't be hit**, the way the game's
   jumping arcana work: their hurtbox is switched off (attacks and projectiles pass through) and
-  they count as airborne. Their shadow stays on the ground below, and they **crackle with
-  electricity** (the game's electric aura, sparks and a flickering blue-yellow glow). They stay
+  they count as airborne. Their shadow stays on the ground below, they **ride a dark storm
+  cloud**, they can **drift slowly** with the stick (the lightning and the landing follow them),
+  and they **crackle with electricity** (the game's electric aura, sparks and a flickering blue-yellow glow). They stay
   drawn in front of statues and pillars they were in front of on the ground.
 - While up (1 second), **lightning crashes down** around the spot below in volleys of three every
   quarter second (5 damage each, can shock), spread evenly: over the leap they cover the whole
@@ -38,6 +39,7 @@ you start the game with the mod), or in-game with a config manager mod if you ha
 | Leap | `RiseTime` | 0.25 | Seconds rising to the top |
 | Leap | `AirTime` / `EnhancedAirTime` | 1 / 1.5 | Seconds up there while lightning falls |
 | Leap | `CrashTime` | 0.12 | Seconds crashing down |
+| Leap | `AirMoveSpeed` | 1.5 | How fast you can drift with the stick while up (0 = not at all) |
 | Leap | `RecoverTime` | 0.15 | Seconds on the ground after the slam |
 | Lightning | `Radius` / `EnhancedRadius` | 2.2 / 2.8 | How far from you the strikes land |
 | Lightning | `VolleyInterval` / `EnhancedVolleyInterval` | 0.25 / 0.25 | Seconds between volleys (lower = more often) |
@@ -45,6 +47,7 @@ you start the game with the mod), or in-game with a config manager mod if you ha
 | Lightning | `EvenSpread` | true | Spread the strikes evenly over the area (off: random spots) |
 | Lightning | `StrikeSize` | 1 | Each strike's hit area |
 | Lightning | `SlamSize` / `EnhancedSlamSize` | 2.4 / 3 | The landing slam's hit area |
+| Look | `Cloud` / `CloudSize` | true / 1 | Ride a dark storm cloud while up, and its size |
 | Look | `Electric` | true | Crackle with electricity while in the air |
 | Look | `AuraSize` | 1 | Size of the electric aura in the air |
 | Balance | `StrikeDamage` / `SlamDamage` | 5 / 14 | Damage |

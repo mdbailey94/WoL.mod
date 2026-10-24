@@ -31,6 +31,8 @@ namespace WoLThunderhead
         private bool hurtBoxWasOn;
         private Levitator levitator;
         private ElectricLook electric;
+        private StormCloud cloud;
+        private Vector2 airVelocity;
         private static bool loggedBolt;
         private const string AirborneModID = "Thunderhead_Airborne";
 
@@ -82,8 +84,17 @@ namespace WoLThunderhead
                 return;
 
             time += Time.deltaTime;
+            // On the ground the wizard holds still; up in the air they drift slowly with the stick
+            // (and the lightning and landing follow them).
+            airVelocity = Vector2.zero;
+            if (tookOff && !landed)
+            {
+                Vector2 input = GetInputVector(false, false, false);
+                if (input.sqrMagnitude > 0.04f)
+                    airVelocity = Vector2.ClampMagnitude(input, 1f) * ThunderheadPlugin.AirMoveSpeed;
+            }
             if (parent.rigidbody2D != null)
-                parent.rigidbody2D.velocity = Vector2.zero;
+                parent.rigidbody2D.velocity = airVelocity;
             Vector2 ground = parent.transform.position;
 
             // A moment's crouch on the ground (still vulnerable)...
@@ -136,6 +147,7 @@ namespace WoLThunderhead
                 parent.anim?.PlayDirectional(parent.GSlamAnimStr, -1, 0.6f);
             }
             electric?.Update(lift);
+            cloud?.Update(lift, levitator);
             if (levitator != null)
                 levitator.height = Height * lift + (t >= RiseTime && t < hoverEnd ? Mathf.Sin(t * 7f) * 0.06f : 0f);
 
@@ -145,6 +157,14 @@ namespace WoLThunderhead
                 Land();
                 base.ExecuteSkill();
             }
+        }
+
+        // Keep the drift going through the physics steps too.
+        public override void FixedUpdate()
+        {
+            base.FixedUpdate();
+            if (!done && parent.rigidbody2D != null)
+                parent.rigidbody2D.velocity = airVelocity;
         }
 
         public override void OnExit()
@@ -175,6 +195,8 @@ namespace WoLThunderhead
                 parent.health.invulnerable = true;
             electric?.Off();
             electric = ElectricLook.On(parent);
+            cloud?.Off();
+            cloud = StormCloud.On(parent);
             Dust(ground, 30, 0.9f);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(ground), null, 24f, -1f, 0.6f, false);
         }
@@ -198,6 +220,8 @@ namespace WoLThunderhead
                 parent.health.invulnerable = false;
             electric?.Off();
             electric = null;
+            cloud?.Off();
+            cloud = null;
         }
 
         private void Land()
@@ -205,6 +229,8 @@ namespace WoLThunderhead
             Touchdown();
             electric?.Off();
             electric = null;
+            cloud?.Off();
+            cloud = null;
             if (levitator != null)
             {
                 levitator.Off();
@@ -341,8 +367,8 @@ namespace WoLThunderhead
     //
     // The game draws things lower on screen in front, and it can judge the wizard by where their
     // picture is: lifted, they'd count as further back and slip behind statues and pillars they
-    // stand in front of. So while lifted they keep the draw order they had on the ground (they
-    // don't move sideways during the leap), set again just before each frame is drawn.
+    // stand in front of. So while lifted they keep the draw order of where they are on the
+    // ground (following their shadow as they drift), set again just before each frame is drawn.
     public class Levitator : MonoBehaviour
     {
         public float height;
@@ -352,7 +378,14 @@ namespace WoLThunderhead
         private SpriteRenderer body;
         private int groundOrder;
         private int groundLayer;
+        private SpriteRenderer shadow;
+        private int shadowOffset;
         private static bool loggedSorting;
+
+        // The draw order the wizard keeps while lifted: their shadow's (which stays on the ground
+        // under them and is sorted there as they drift), plus the gap the two had on the ground.
+        public int DrawOrder => shadow != null ? shadow.sortingOrder + shadowOffset : groundOrder;
+        public int DrawLayer => groundLayer;
 
         public static Levitator On(Player player)
         {
@@ -369,6 +402,9 @@ namespace WoLThunderhead
                 levitator.body = player.spriteRenderer;
                 levitator.groundOrder = player.spriteRenderer.sortingOrder;
                 levitator.groundLayer = player.spriteRenderer.sortingLayerID;
+                levitator.shadow = player.shadowSprite;
+                if (levitator.shadow != null)
+                    levitator.shadowOffset = levitator.groundOrder - levitator.shadow.sortingOrder;
                 if (!loggedSorting)
                 {
                     loggedSorting = true;
@@ -401,7 +437,7 @@ namespace WoLThunderhead
             if (!active || body == null || height <= 0.01f)
                 return;
             body.sortingLayerID = groundLayer;
-            body.sortingOrder = groundOrder;
+            body.sortingOrder = DrawOrder;
         }
 
         public void Off()

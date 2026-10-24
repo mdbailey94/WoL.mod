@@ -13,7 +13,7 @@ namespace WoLThunderhead
     {
         public const string PluginGuid = "mdbailey94.wol.thunderhead";
         public const string PluginName = "Thunderhead";
-        public const string PluginVersion = "0.4.0";
+        public const string PluginVersion = "0.5.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -25,7 +25,8 @@ namespace WoLThunderhead
         private static ConfigEntry<float> height, windupTime, riseTime, airTime, enhancedAirTime, crashTime, recoverTime;
         private static ConfigEntry<float> radius, enhancedRadius, volleyInterval, enhancedVolleyInterval, auraSize, strikeSize, slamSize, enhancedSlamSize;
         private static ConfigEntry<int> volleySize;
-        private static ConfigEntry<bool> evenSpread, electricLook;
+        private static ConfigEntry<bool> evenSpread, electricLook, stormCloud;
+        private static ConfigEntry<float> airMoveSpeed, cloudSize;
         private static ConfigEntry<int> strikeDamage, slamDamage;
         private static ConfigEntry<float> strikeKnockback, slamKnockback, strikeShockChance, slamShockChance, cooldown;
 
@@ -40,6 +41,9 @@ namespace WoLThunderhead
         public static float EnhancedRadius => Get(enhancedRadius, 2.8f, 0.5f, 8f);
         public static float VolleyInterval => Get(volleyInterval, 0.25f, 0.05f, 2f);
         public static float EnhancedVolleyInterval => Get(enhancedVolleyInterval, 0.25f, 0.05f, 2f);
+        public static float AirMoveSpeed => Get(airMoveSpeed, 1.5f, 0f, 10f);
+        public static bool Cloud => stormCloud?.Value ?? true;
+        public static float CloudSize => Get(cloudSize, 1f, 0.3f, 3f);
         public static bool ElectricLook => electricLook?.Value ?? true;
         public static float AuraSize => Get(auraSize, 1f, 0.2f, 4f);
         public static int VolleySize => Mathf.Clamp(volleySize?.Value ?? 3, 1, 12);
@@ -103,6 +107,8 @@ namespace WoLThunderhead
             airTime = Float("Leap", "AirTime", 1f, 0f, 5f, "Seconds hanging at the top while lightning falls.");
             enhancedAirTime = Float("Leap", "EnhancedAirTime", 1.5f, 0f, 6f, "AirTime when enhanced.");
             crashTime = Float("Leap", "CrashTime", 0.12f, 0.03f, 1f, "Seconds to crash back down.");
+            airMoveSpeed = Float("Leap", "AirMoveSpeed", 1.5f, 0f, 10f,
+                "How fast you can drift with the stick while up in the air (0 = not at all).");
             recoverTime = Float("Leap", "RecoverTime", 0.15f, 0f, 1f, "Seconds on the ground after the slam before you can act.");
 
             radius = Float("Lightning", "Radius", 2.2f, 0.5f, 8f, "How far from the spot below the strikes can land.");
@@ -121,6 +127,8 @@ namespace WoLThunderhead
 
             electricLook = Config.Bind("Look", "Electric", true,
                 "Crackle with electricity while up in the air (the game's electric aura, sparks and a flickering glow).");
+            stormCloud = Config.Bind("Look", "Cloud", true, "Ride a dark storm cloud while up in the air.");
+            cloudSize = Float("Look", "CloudSize", 1f, 0.3f, 3f, "Size of the storm cloud.");
             auraSize = Float("Look", "AuraSize", 1f, 0.2f, 4f, "Size of the electric aura round the wizard in the air.");
 
             const string restart = " Applies after restarting the game.";
