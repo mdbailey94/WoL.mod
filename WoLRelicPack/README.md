@@ -7,7 +7,7 @@ on the relic bar and comes off cleanly when dropped.
 | Relic | Tier | Price | What it does |
 | --- | --- | --- | --- |
 | **Storm Battery** | 3 | 150 gold / 22 platinum | Dashing charges the battery, up to three times! Your next arcana hit unleashes chain lightning, one bolt per charge! |
-| **Echo Charm** | 3 | 150 gold / 22 platinum | Your signature arcana echoes! Everything it hits is struck again a moment later at reduced power! |
+| **Echo Charm** | 3 | 150 gold / 22 platinum | Your signature arcana echoes! When it ends, it is cast once more on its own at half power, with no cooldown! |
 | **Glass Prism** | 2 | 150 gold / 18 platinum | Greatly increases critical hit chance, but reduces max health! |
 | **Pickpocket's Glove** | 2 | 125 gold / 17 platinum | Gold drops are greater while your health is at half or below! |
 
@@ -24,15 +24,20 @@ on the relic bar and comes off cleanly when dropped.
 
 ### Echo Charm
 
-- Cast your **signature arcana** and, for the next 2.5 seconds, every enemy it hits is struck
-  again **0.5 seconds** later by an echo of that hit at **30%** of its damage (status effect
-  chances too), with a flash of the arcana's element on the enemy. Up to 12 echoes per cast.
-  (0.1.1 trimmed the echo from 40%: it's a free third-again on the whole signature, so it sits
-  near Double Attack's 25% on basics.)
-- It echoes the hits rather than casting the arcana a second time: a real second cast would take
-  over your wizard (aim, movement, animation, cooldown, overdrive), cut off an arcana that's still
-  running and behave differently for every arcana. Echoing each hit works the same for all of
-  them and lands exactly where the cast did.
+- Cast your **signature arcana** and, the moment the cast ends, your wizard casts it **once more
+  by itself** (the echo) at **50%** damage. The echo is the real arcana: it aims where you're
+  aiming at that moment, plays out like a normal cast and can be dash-cancelled like one. It costs
+  nothing: **no cooldown** is added for it, it never spends your overdrive (it's always the plain
+  arcana, even when the cast it echoes was the overdrive version), and it never echoes itself.
+  (0.2.0: was an echo of each hit at 30%.)
+- If you cancel the signature into a dash or basic, the echo waits for that (and anything you
+  chain it into) to finish, for up to 2 seconds. It doesn't fire if you're hurt, frozen, falling,
+  dead, parrying, paused, or a level is loading.
+- **Charge arcana** (the ones with several stored uses that recharge one at a time, like Vacuum
+  Shot and Ice Wave) keep the old behaviour instead, since their stored-charge bookkeeping lives
+  inside the arcana and a free recast can't be made clean for them: for
+  2.5 seconds after the cast, every enemy it hits is struck again 0.5 seconds later by an echo of
+  that hit at 50% of its damage (status chances too), up to 12 echoes per cast.
 
 ### Glass Prism
 
@@ -67,16 +72,20 @@ during runs. Or set `GiveRelicsKey` and press it once you're in a level (the pla
 
 ## Checking it works
 
-`BepInEx\LogOutput.log` shows `Relic Pack 0.1.1 registered 4 relics`, then a line each time a
+`BepInEx\LogOutput.log` shows `Relic Pack 0.2.0 registered 4 relics`, then a line each time a
 relic does something, for example:
 
 - `Storm Battery: dash stored a charge (2/3)` and `Storm Battery: chain lightning landed 3 of 3 bolt(s) on 2 enemy(ies)`
-- `Echo Charm: signature UseX cast, echoing its hits for 2.5s` and `Echo Charm: echoed UseX on ... for 6 (30% of 20)`
+- `Echo Charm: echoing UseX at 50% power` and `Echo Charm: echo of UseX ended` (for a charge
+  arcana: `Echo Charm: UseX is a charge arcana, so its hits are echoed at 50% instead of recasting it`
+  and `Echo Charm: echoed UseX on ... for 10 (50% of 20)`). The quickest check is the house's
+  training dummies with the Damage Meter overlay on: the arcana fires twice, the second time for
+  half the numbers, and the cooldown ring fills only once.
 - `Glass Prism on for player 1: crit chance +25%, max health 500 -> 375`
 - `Pickpocket's Glove active for player 1 at 48% health; gold drops now x1.50`
 
 ## Install
 
-Needs BepInExPack of Legend, **LegendAPI** and **HookGenPatcher**. Download `WoLRelicPack.zip` from
+Needs BepInExPack of Legend (which includes Harmony), **LegendAPI** and **HookGenPatcher**. Download `WoLRelicPack.zip` from
 the [latest release](https://github.com/mdbailey94/wol.mod/releases/tag/latest) and unzip it into
 your Wizard of Legend folder.

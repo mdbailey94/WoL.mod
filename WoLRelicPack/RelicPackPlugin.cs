@@ -4,6 +4,7 @@ using System.IO;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
+using HarmonyLib;
 using LegendAPI;
 using UnityEngine;
 
@@ -18,7 +19,7 @@ namespace WoLRelicPack
     {
         public const string PluginGuid = "mdbailey94.wol.relicpack";
         public const string PluginName = "Relic Pack";
-        public const string PluginVersion = "0.1.1";
+        public const string PluginVersion = "0.2.0";
 
         // Every relic ID (and attack tag) starts with this, so the relics can recognise their own hits.
         public const string IDPrefix = "RelicPack";
@@ -78,7 +79,7 @@ namespace WoLRelicPack
                 "Dashing charges the battery, up to three times! Your next arcana hit unleashes chain lightning, one bolt per charge!",
                 "storm_battery.png", StormBatteryTier, StormBatteryPrice);
             Register(new EchoCharm(), "Echo Charm",
-                "Your signature arcana echoes! Everything it hits is struck again a moment later at reduced power!",
+                "Your signature arcana echoes! When it ends, it is cast once more on its own at half power, with no cooldown!",
                 "echo_charm.png", EchoCharmTier, EchoCharmPrice);
             Register(new GlassPrism(), "Glass Prism",
                 "Greatly increases critical hit chance, but reduces max health!",
@@ -86,6 +87,18 @@ namespace WoLRelicPack
             Register(new PickpocketsGlove(), "Pickpocket's Glove",
                 "Gold drops are greater while your health is at half or below!",
                 "pickpockets_glove.png", PickpocketsGloveTier, PickpocketsGlovePrice);
+
+            // Echo Charm's free recast: keeps an echoing arcana from starting its own cooldown timer.
+            // Without it the relic still works, but an arcana that starts its timer itself (rather
+            // than through BaseOnEnter/OnExit) would put itself on cooldown again after the echo.
+            try
+            {
+                new Harmony(PluginGuid).CreateClassProcessor(typeof(EchoCharm.NoCooldownPatch)).Patch();
+            }
+            catch (Exception e)
+            {
+                Logger.LogError($"Echo Charm cooldown hook failed to install: {e.Message} (an echo may restart the arcana's cooldown)");
+            }
 
             Logger.LogInfo($"{PluginName} {PluginVersion} registered {RelicIDs.Length} relics: {string.Join(", ", RelicIDs)}" +
                 (giveKey.Value.MainKey != KeyCode.None ? $" (testing key {giveKey.Value} gives them all)" : string.Empty));
