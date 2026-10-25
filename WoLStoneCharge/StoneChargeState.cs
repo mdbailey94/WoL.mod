@@ -15,7 +15,8 @@ namespace WoLStoneCharge
     // front do less (FrontArmour) and you aren't staggered (Brace), but you still take the damage,
     // and you can't cast anything else; a dash drops the shield and all the force with it.
     //
-    // Press the button again (or let the time run out) to unload: a short rush forward
+    // Press the button again, run the shield into an enemy, or let the time run out to unload,
+    // with whatever force is stored by then: a short rush forward
     // (RushDistance) bashing with the shield (level 2) and a crash where it ends (level 3), both
     // shoving along your way. Their damage and knockback scale with the stored force, 1x at none up
     // to FullMultiplier at full, and the crash stuns longer from StunEnergy up. An instant crash
@@ -47,6 +48,9 @@ namespace WoLStoneCharge
         private const float EffectInterval = 0.12f;
         private const float SpikeInterval = 0.125f;
         private const float InputDeadZone = 0.0016f;
+        // Running the shield into an enemy crashes at once: anything this close to the shield's
+        // spot while you're on the move counts.
+        private const float ContactRadius = 0.9f;
 
         private enum Phase { Raising, Charging, Rushing, Recovering, Done }
 
@@ -242,7 +246,7 @@ namespace WoLStoneCharge
             float rate = StoneChargePlugin.EnergyPerSecond * (IsEmpowered ? 1f + StoneChargePlugin.EnhancedEnergyBonus / 100f : 1f);
             Log($"cast{(IsEmpowered ? " (enhanced)" : "")}: shield up for {StoneChargePlugin.ChargeTime:0.#} s, " +
                 $"force builds {rate:0}%/s at base run speed (full in {100f / rate:0.0} s at x1.00, {100f / (rate * (1f + SprintBonus)):0.0} s sprinting); " +
-                $"press again to crash{(StoneChargePlugin.FrontArmourPercent > 0f ? $", {StoneChargePlugin.FrontArmourPercent:0}% less from hits in front" : "")}" +
+                $"run into a foe or press again to crash{(StoneChargePlugin.FrontArmourPercent > 0f ? $", {StoneChargePlugin.FrontArmourPercent:0}% less from hits in front" : "")}" +
                 (braced ? ", braced" : ""));
         }
 
@@ -290,10 +294,39 @@ namespace WoLStoneCharge
             Milestones();
             ChargeEffects(moving);
 
+            Enemy struck;
             if (time >= StoneChargePlugin.MinPressTime && skillSlot >= 0 && parent.inputDevice.GetButtonDown("Skill" + skillSlot))
                 Unload("press");
+            else if (moving && time >= StoneChargePlugin.MinPressTime && ShieldTouches(here, out struck))
+                Unload("ran into " + struck.name);
             else if (time >= StoneChargePlugin.ChargeTime)
                 Unload("timeout");
+        }
+
+        // A live enemy (not an ally) touching the shield's spot ahead of the wizard.
+        private bool ShieldTouches(Vector2 here, out Enemy struck)
+        {
+            struck = null;
+            try
+            {
+                foreach (Collider2D col in Physics2D.OverlapCircleAll(here + aim * BashOffset, ContactRadius))
+                {
+                    Enemy enemy = col != null ? col.GetComponentInParent<Enemy>() : null;
+                    if (enemy == null || !enemy.gameObject.activeInHierarchy)
+                        continue;
+                    if (enemy.health == null || enemy.health.CurrentHealthValue <= 0)
+                        continue;
+                    if (GameController.allies != null && GameController.allies.Contains(enemy.gameObject))
+                        continue;
+                    struck = enemy;
+                    return true;
+                }
+            }
+            catch (System.Exception e)
+            {
+                LogOnce("contact", $"couldn't check for enemies at the shield: {e.Message}");
+            }
+            return false;
         }
 
         private void Milestones()

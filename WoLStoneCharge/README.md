@@ -3,7 +3,7 @@
 A new **Earth standard arcana**, added with [LegendAPI](https://github.com/yekoc/LegendAPI).
 
 > **Stone Charge**: Raise a stone bulwark and keep running: the faster you move, the more force it
-> stores. Press again to crash forward and unload all of it into whatever stands in your way!
+> stores. Run into a foe or press again to crash forward and unload all of it!
 >
 > *Enhanced: Stores force faster and crashes wider!*
 
@@ -32,7 +32,9 @@ Behind the shield, hits coming from in front do **30% less** and nothing stagger
 back, but you still take the damage, you can't cast anything else, and a **dash drops the shield
 and loses all the force**.
 
-**Press the button again** (or let the 4 seconds run out) to **unload**: a short rush forward of
+**Run the shield into an enemy** or **press the button again** (or let the 4 seconds run out) to
+**unload** with whatever force is stored by then (0.2.0: running into an enemy crashes at once,
+anything within 0.9 of the shield's spot while you're on the move): a short rush forward of
 2.5 units, bashing with the shield on the way (level 2) and crashing where it ends (level 3), both
 shoving enemies along your line. Their damage and knockback scale with the stored force: an instant
 crash is weak (2 + 4 damage, knockback 10), a crash after a long sprint is not (12 + 24, knockback
@@ -45,7 +47,7 @@ and the rush telegraphs it.
 
 `BepInEx\LogOutput.log` shows:
 
-- `Stone Charge 0.1.0 registered` at start-up.
+- `Stone Charge 0.2.0 registered` at start-up.
 - `Stone Charge: cast: shield up for 4 s, force builds 25%/s at base run speed (full in 4.0 s at
   x1.00, 2.9 s sprinting); press again to crash, 30% less from hits in front, braced` each cast
   (`cast (enhanced)` when it is).
@@ -58,7 +60,8 @@ and the rush telegraphs it.
   the armour applies in a cast.
 - `Stone Charge: unload (press) at 100% force after 3.1 s (speed x1.40, peak x1.40): rush 2.5 u,
   bash 12 + crash 24 damage (x6.0), knockback 70, stun x2.5, crash radius 2.0` on the second press
-  (`unload (timeout)` when the time ran out), with `; took N hit(s) on the shield, M from the sides
+  (`unload (ran into <enemy>)` when the shield hit an enemy, `unload (timeout)` when the time ran
+  out), with `; took N hit(s) on the shield, M from the sides
   or behind` if you were hit.
 - `Stone Charge: crash: bash hit 1, crash hit 2 for 24 damage each before armour (EarthArcher(Clone),
   ...)` once the rush is over, or `crash hit nothing (...)`.
