@@ -1,78 +1,77 @@
-using System.Collections.Generic;
 using Chaos.AnimatorExtensions;
 using UnityEngine;
 
 namespace WoLTidalWall
 {
-    // Tidal Wall (Water, standard arcana): a wall of water rises in front of the wizard and surges
-    // forward. The wall is rows of the game's own Tidal Blast water orbs (WaterBlast): each row
-    // swells up, then bursts a moment later as the next row rises a step further out, so the
-    // wave rolls forward and keeps shoving whatever it catches straight along your aim. The last
-    // row is a bigger crest that hits harder (skill level 2). A lane of the wave that runs into a
-    // wall stops there, so the water breaks against walls instead of passing through them.
+    // Tidal Wall (Water, standard arcana): a single standing wall of water rises across your aim,
+    // a short way in front of you. It blocks enemy projectiles (the game's own water wall does it),
+    // stands for a moment, then rolls slowly forward as one front, shoving everything it touches
+    // along with it on a steady beat, and crashes in a splash at the end of its run or when it
+    // meets a wall. Its job is control, not damage: a few light pushes and a small crash. The wave
+    // itself is WaveFront.cs, on its own object, so the wizard is free once it's cast.
+    //
+    // Enhanced (IsEmpowered): a wider wall that rolls further.
     //
     // Cast from the signature slot with the gauge full (isUltimate, the game's flag for a signature
     // cast; it's set on the state just before the cast and cleared when the state exits) it's a
-    // tidal WAVE: 5 wide like the enhanced wall, rolling on twice as far, with a little larger rows
-    // that freeze everything they catch (skill levels 3 and 4, which have a 100% freeze chance).
-    // Enhanced and signature are separate flags and stack: a signature cast of the enhanced
-    // arcana (the usual case, the game empowers whatever sits in the signature slot) rolls 10 rows.
+    // towering TIDAL WAVE, in four beats: the wizard gathers the water (camera pulls back, the room
+    // darkens, water streams in behind them with a rumble), the wave erupts (hit-stop), rushes far
+    // and fast with a hit-stop on every push that lands, and crashes (time all but stops and eases
+    // back, the room flashes, everything it carried freezes). Enhanced and signature are separate
+    // flags and stack: a signature cast of the enhanced arcana (the usual case, the game empowers
+    // whatever sits in the signature slot) is wider and rushes further still.
+    //
+    // The camera and light changes are Cinematic.cs, and always put back (see there).
     public class TidalWallState : Player.SkillState
     {
         public new static string staticID = "TidalWall";
 
-        private const int Lanes = 3;                   // orbs side by side in each row
-        private const int EnhancedLanes = 5;           // enhanced and signature
-        private const int Rows = 4;                    // rows rolling forward, the last one is the crest
-        private const int EnhancedRows = 5;
-        private const int SignatureRowsMultiplier = 2; // the signature wave rolls this many times as far (8, 10 enhanced)
-        private const float FirstRowDistance = 1.75f;  // from the wizard (Water Wall's spawn distance)
-        private const float RowSpacing = 1.4f;         // how much further out each row rises
-        private const float LaneSpacing = 1.3f;        // gap between the orbs in a row
-        private const float RowInterval = 0.1f;       // seconds between rows; a row bursts as the next one rises
-        private const float SurgeScale = 1f;           // size of the orbs in the rolling rows
-        private const float CrestScale = 1.3f;         // size of the crest (Tidal Blast's enhanced orb is 1.25)
-        private const float SignatureSurgeScale = 1.15f; // the signature wave's rows and crest are a little larger
-        private const float SignatureCrestScale = 1.5f;
-        // Skill levels (SkillStats in the plugin): the rolling rows, the crest, and the signature
-        // wave's rows and crest, which hit harder and always freeze.
-        private const int RowLevel = 1;
-        private const int CrestLevel = 2;
-        private const int SignatureRowLevel = 3;
-        private const int SignatureCrestLevel = 4;
-        private const float FinishDelay = 0.15f;       // seconds after the crest before the wizard can act
-        private const float WallBackoff = 0.3f;        // an orb that would land in a wall stops this far short
-        private const float MinWallGap = 0.5f;         // a blocked orb closer than this to the last one isn't made
-        private const int SwellDrops = 4;              // water drops thrown up as each orb rises
-        private const float RowShake = 0.15f;
-        private const float CrestShake = 0.6f;
+        private const float RiseDistance = 2f;          // the wall rises this far in front (Water Wall's 1.75, a little more for width)
+        private const float WallBackoff = 0.4f;         // a wall rising into a level wall stops this far short of it
+        // The standing wall.
+        private const int Columns = 5;                  // water columns side by side (Water Wall's own count)
+        private const int EnhancedExtraColumns = 2;     // enhanced: wider
+        private const float ColumnSpacing = 0.9f;       // so 4.5 wide, 6.3 enhanced
+        private const float WallDepth = 1.4f;           // thickness of its hit area along the aim
+        private const float HoldTime = 0.2f;            // seconds it stands before rolling
+        private const float RollSpeed = 6f;             // slow: it carries enemies rather than smashing them
+        private const float RollTime = 1f;              // 6 units
+        private const float EnhancedRollTime = 1.3f;    // 7.8 units
+        private const float TickInterval = 0.35f;       // a push every this many seconds while rolling
+        // The signature tidal wave.
+        private const int SignatureColumns = 8;         // 10 when also enhanced
+        private const float SignatureColumnSpacing = 1.3f; // 10.4 wide, 13 when also enhanced
+        private const float SignatureColumnScale = 1.7f;   // the columns tower over the wizard
+        private const float SignatureDepth = 2.4f;
+        private const float SignatureHoldTime = 0.1f;
+        private const float SignatureSpeed = 12f;
+        private const float SignatureRollTime = 1.25f;  // 15 units
+        private const float EnhancedSignatureRollTime = 1.5f; // 18 units
+        private const float SignatureTickInterval = 0.25f;
+        // Skill levels (SkillStats in the plugin).
+        private const int TickLevel = 1;
+        private const int CrashLevel = 2;
+        private const int SignatureTickLevel = 3;
+        private const int SignatureCrashLevel = 4;
+        // The signature's gather (beat 1).
+        private const float GatherTime = 0.6f;          // seconds the wizard draws the water in
+        private const float GatherBehind = 1.5f;        // the water gathers this far behind the wizard
+        private const float GatherRadius = 3.5f;        // from this far around
+        private const float GatherPose = 0.3f;          // the wizard holds the cast pose here (past animExecTime)
+        private const float RumbleInterval = 0.12f;
+        private const float RumbleShake = 0.12f;        // grows to RumbleShake + RumbleGrowth as the water builds
+        private const float RumbleGrowth = 0.25f;
 
-        private Vector2 origin;
         private Vector2 direction;
-        private Vector2 side;
-        private int lanes;
-        private int rows;
         private bool signature;   // this cast is the signature wave (isUltimate at cast time)
-        private float time;
-        private int ticks;
-        private bool started;
-        private bool finished;
+        private bool launched;
+        private bool gathering;
+        private float gatherTime;
+        private float rumbleClock;
+        private int cinematic;    // Cinematic token while the signature's camera/light are changed
+        private ParticleEffect gatherEffect;
 
-        // Per lane: the orb waiting to burst, where the lane's last orb was, and whether a wall
-        // has stopped it.
-        private WaterBlast[] waiting;
-        private Vector2[] lanePosition;
-        private bool[] laneBlocked;
-
-        // For the log line at the end of each cast.
-        private int blasts;
-        private int hits;
-        private int lanesBroken;
-        private readonly List<int> targetIDs = new List<int>();
-        private readonly List<Health> targets = new List<Health>();
-        private static bool loggedOrb;
-
-        public override string OnEnterAnimStr => parent.ForehandAnimStr;
+        public override string OnEnterAnimStr => isUltimate ? parent.PBAoEAnimStr : parent.ForehandAnimStr;
 
         public TidalWallState(FSM newFSM, Player newEnt) : base(staticID, newFSM, newEnt)
         {
@@ -93,37 +92,26 @@ namespace WoLTidalWall
         {
             base.OnEnter();
 
-            // Lock the wave's start and direction on cast so it doesn't swing if the player turns.
+            // Lock the aim on cast so the wave doesn't swing if the player turns.
             direction = inputVector;
             if (direction == Vector2.zero)
                 direction = Vector2.right;
             direction.Normalize();
-            side = Globals.GetPerpendicular(direction);
-            origin = parent.attackOriginTrans.position;
 
             // The game sets isUltimate for a signature cast (the signature slot's arcana with the
             // gauge full) and clears it once the state exits, so it's read once here.
             signature = isUltimate;
-            lanes = IsEmpowered || signature ? EnhancedLanes : Lanes;
-            rows = (IsEmpowered ? EnhancedRows : Rows) * (signature ? SignatureRowsMultiplier : 1);
-            waiting = new WaterBlast[lanes];
-            lanePosition = new Vector2[lanes];
-            laneBlocked = new bool[lanes];
-            for (int i = 0; i < lanes; i++)
-                lanePosition[i] = origin;
+            launched = false;
+            gathering = false;
+            gatherTime = 0f;
+            rumbleClock = 0f;
+            cinematic = 0;
+            gatherEffect = null;
 
-            time = 0f;
-            ticks = 0;
-            started = false;
-            finished = false;
-            blasts = 0;
-            hits = 0;
-            lanesBroken = 0;
-            targetIDs.Clear();
-            targets.Clear();
-
-            TidalWallPlugin.Log($"Tidal Wall: cast ({Variant()}), " +
-                $"{rows} rows x {lanes} wide toward ({direction.x:0.00}, {direction.y:0.00})");
+            WaveSettings plan = Plan();
+            TidalWallPlugin.Log($"Tidal Wall: cast ({Variant()}), wall {plan.Width:0.0} wide ({plan.Columns} columns), " +
+                $"rolls {plan.Distance:0.0} at {plan.Speed:0.0}/s ({plan.RollTime:0.00} s), a push every {plan.TickInterval:0.00} s, " +
+                $"toward ({direction.x:0.00}, {direction.y:0.00})");
         }
 
         // Which version of the arcana this cast is, for the log: normal, enhanced (the relic-based
@@ -137,200 +125,152 @@ namespace WoLTidalWall
             return IsEmpowered ? "enhanced" : "normal";
         }
 
+        // The wave this cast makes (where it rises is worked out when it's let go).
+        private WaveSettings Plan()
+        {
+            int extra = IsEmpowered ? EnhancedExtraColumns : 0;
+            return new WaveSettings
+            {
+                Variant = Variant(),
+                Signature = signature,
+                SkillCategory = parent.skillCategory,
+                SkillID = skillID,
+                Caster = parent.gameObject,
+                Direction = direction,
+                Columns = (signature ? SignatureColumns : Columns) + extra,
+                Spacing = signature ? SignatureColumnSpacing : ColumnSpacing,
+                ColumnScale = signature ? SignatureColumnScale : 1f,
+                Depth = signature ? SignatureDepth : WallDepth,
+                HoldTime = signature ? SignatureHoldTime : HoldTime,
+                Speed = signature ? SignatureSpeed : RollSpeed,
+                RollTime = signature ? (IsEmpowered ? EnhancedSignatureRollTime : SignatureRollTime)
+                    : (IsEmpowered ? EnhancedRollTime : RollTime),
+                TickInterval = signature ? SignatureTickInterval : TickInterval,
+                TickLevel = signature ? SignatureTickLevel : TickLevel,
+                CrashLevel = signature ? SignatureCrashLevel : CrashLevel,
+            };
+        }
+
         public override void ExecuteSkill()
         {
-            if (finished)
+            if (launched)
             {
                 base.ExecuteSkill();
                 return;
             }
-            if (CancelToDash(false))
-                return;
 
-            // The first row rises with the kick, like Tidal Blast's.
-            if (!started)
+            if (!signature)
             {
-                started = true;
-                parent.FaceTarget(origin + direction);
-                parent.anim.PlayDirectional(parent.KickAnimStr, -1, 0.1f);
-                Tick();
+                // The wall rises with the swing.
+                parent.FaceTarget((Vector2)parent.transform.position + direction);
+                Launch();
+                base.ExecuteSkill();
                 return;
             }
 
-            time += Time.deltaTime;
-            while (ticks <= rows && time >= ticks * RowInterval)
-                Tick();
-
-            if (ticks > rows && time >= rows * RowInterval + FinishDelay)
+            // The signature: gather the water first. No dash-cancel here, the gauge is already spent.
+            if (!gathering)
+                StartGather();
+            gatherTime += Time.deltaTime;
+            UpdateGather();
+            if (gatherTime >= GatherTime)
             {
-                finished = true;
-                Report();
+                parent.anim.PlayDirectional(parent.GSlamAnimStr, -1, animExecTime);
+                StopGatherEffect();
+                Launch();
                 base.ExecuteSkill();
+            }
+        }
+
+        // Beat 1: the wizard draws the water in behind them; the camera pulls back and the room
+        // darkens as it builds.
+        private void StartGather()
+        {
+            gathering = true;
+            parent.FaceTarget((Vector2)parent.transform.position + direction);
+            cinematic = Cinematic.Begin("Tidal Wall's signature");
+            float baseSize = 0f;
+            Effects.Try("camera size", () => baseSize = Cinematic.BaseCameraSize);
+            float light = Cinematic.LightOriginal;
+            Vector2 behind = (Vector2)parent.transform.position - direction * GatherBehind;
+            gatherEffect = Effects.Gather(behind, GatherRadius, GatherTime);
+            Effects.Ring(behind, GatherRadius * 0.9f);
+            Effects.Sound("Rumble", parent.transform.position, 0.8f);
+            Effects.Sound("AquaBeamStart", behind, 0.75f);
+            string lighting = light >= 0f ? $"stage light {light:0.00} -> {light * WaveFront.SignatureDim:0.00}" : "no stage light in this room";
+            TidalWallPlugin.Log($"Tidal Wall: signature beat 1/4 gather: {GatherTime:0.00} s, camera pulls back " +
+                $"{WaveFront.SignatureZoom * 100f:0}% (size {baseSize:0.00} -> {baseSize * (1f + WaveFront.SignatureZoom):0.00}), " +
+                $"{lighting}, rumble");
+        }
+
+        private void UpdateGather()
+        {
+            float t = Mathf.Clamp01(gatherTime / GatherTime);
+            float eased = t * t * (3f - 2f * t);
+            Cinematic.KeepAlive(cinematic);
+            Cinematic.SetZoom(cinematic, WaveFront.SignatureZoom * eased);
+            Cinematic.SetLight(cinematic, Mathf.Lerp(1f, WaveFront.SignatureDim, eased));
+            // Hold the cast pose while the water builds (past animExecTime, so the game keeps
+            // calling ExecuteSkill).
+            parent.anim.PlayDirectional(parent.PBAoEAnimStr, -1, GatherPose);
+
+            rumbleClock += Time.deltaTime;
+            if (rumbleClock >= RumbleInterval)
+            {
+                rumbleClock -= RumbleInterval;
+                Effects.Shake(RumbleShake + RumbleGrowth * t);
+                Vector2 behind = (Vector2)parent.transform.position - direction * GatherBehind;
+                Effects.Drops(behind + Random.insideUnitCircle * GatherRadius, 3, false);
+            }
+        }
+
+        private void StopGatherEffect()
+        {
+            if (gatherEffect == null)
+                return;
+            Effects.Try("water gathering stop", () => gatherEffect.Stop());
+            gatherEffect = null;
+        }
+
+        // Sends the wave off: it rises in front of the wizard (short of any wall there) and runs
+        // by itself from now on.
+        private void Launch()
+        {
+            launched = true;
+            WaveSettings wave = Plan();
+            Vector2 origin = parent.attackOriginTrans.position;
+            Vector2 target = origin + direction * RiseDistance;
+            Vector2 reached = Globals.GetLinecastVector(origin, target, ChaosCollisions.layerAllWall);
+            if ((reached - target).sqrMagnitude > 0.0001f)
+                target = reached - direction * WallBackoff;
+            wave.Center = target;
+            wave.CinematicToken = cinematic;
+            try
+            {
+                WaveFront.Launch(wave);
+            }
+            catch (System.Exception e)
+            {
+                TidalWallPlugin.Log($"Tidal Wall: couldn't launch the wave: {e.Message}");
+                if (cinematic != 0)
+                    Cinematic.Restore("the wave couldn't be launched", cinematic);
             }
         }
 
         public override void OnExit()
         {
-            // Cut short mid-wave (a dash, or getting hit): the water that hasn't burst yet just
-            // drains away.
-            if (started && !finished)
+            // Cut short during the signature's gather (hurt, death, a level load): the water drains
+            // away and the camera and light go straight back.
+            if (signature && gathering && !launched)
             {
-                int dropped = 0;
-                for (int i = 0; i < waiting.Length; i++)
-                {
-                    if (waiting[i] != null && !waiting[i].destroyQueued)
-                    {
-                        waiting[i].Dissipate();
-                        dropped++;
-                    }
-                    waiting[i] = null;
-                }
-                TidalWallPlugin.Log($"Tidal Wall: cancelled after {System.Math.Max(0, ticks - 1)} of {rows} rows " +
-                    $"({dropped} orbs drained), {hits} hits on {targetIDs.Count} targets");
+                StopGatherEffect();
+                Effects.DropRing((Vector2)parent.transform.position - direction * GatherBehind, GatherRadius * 0.5f, 2);
+                string next = fsm != null && fsm.nextStateName != null ? fsm.nextStateName : "?";
+                TidalWallPlugin.Log($"Tidal Wall: signature cancelled during the gather ({gatherTime:0.00} of {GatherTime:0.00} s, " +
+                    $"next state {next}), the water drains away");
+                Cinematic.Restore("cancelled during the gather", cinematic);
             }
             base.OnExit();
-        }
-
-        // Each tick bursts the row that's waiting and raises the next one a step further out.
-        private void Tick()
-        {
-            int tick = ticks++;
-            if (tick > 0)
-                BurstRow(tick - 1);
-            if (tick < rows)
-                RaiseRow(tick);
-        }
-
-        private void RaiseRow(int row)
-        {
-            bool crest = row == rows - 1;
-            float distance = FirstRowDistance + RowSpacing * row;
-            for (int lane = 0; lane < lanes; lane++)
-            {
-                waiting[lane] = null;
-                if (laneBlocked[lane])
-                    continue;
-
-                float across = (lane - (lanes - 1) * 0.5f) * LaneSpacing;
-                Vector2 target = origin + direction * distance + side * across;
-                Vector2 from = lanePosition[lane];
-                // Same wall check Tidal Blast uses for its orbs: stop short of the first wall.
-                Vector2 reached = Globals.GetLinecastVector(from, target, ChaosCollisions.layerUpperWallAndObst);
-                if ((reached - target).sqrMagnitude > 0.0001f)
-                {
-                    laneBlocked[lane] = true;
-                    lanesBroken++;
-                    reached -= (target - from).normalized * WallBackoff;
-                    if ((reached - from).magnitude < MinWallGap)
-                        continue;
-                    target = reached;
-                }
-                lanePosition[lane] = target;
-                waiting[lane] = RaiseOrb(target, crest);
-            }
-            if (!crest)
-                CameraController.ShakeCamera(RowShake);
-        }
-
-        // One of Tidal Blast's water orbs, set up as this skill. It can't hit anything until it
-        // bursts.
-        private WaterBlast RaiseOrb(Vector2 position, bool crest)
-        {
-            if (WaterBlast.Prefab == null)
-            {
-                if (!loggedOrb)
-                {
-                    loggedOrb = true;
-                    TidalWallPlugin.Log("Tidal Wall: the game's WaterBlast prefab is missing, the wave can't be made");
-                }
-                return null;
-            }
-
-            WaterBlast orb = ChaosInst<WaterBlast>(WaterBlast.Prefab, position, Globals.GetRotationQuaternion(direction));
-            if (orb == null || orb.attack == null)
-                return null;
-
-            if (signature)
-                orb.transform.localScale *= crest ? SignatureCrestScale : SignatureSurgeScale;
-            else
-                orb.transform.localScale *= crest ? CrestScale : SurgeScale;
-            int level = crest ? (signature ? SignatureCrestLevel : CrestLevel) : (signature ? SignatureRowLevel : RowLevel);
-            // A signature cast's hits are marked as the game marks its own (isUltimate), so they
-            // don't refill the gauge they just spent.
-            orb.attack.SetAttackInfo(parent.skillCategory, skillID, level, signature);
-            orb.attack.knockbackOverwriteVector = direction;
-            orb.blastSkillLevel = level;
-            orb.attack.attackCollisionEventHandlers += OnHit;
-            LogOrbOnce(orb);
-            if (orb.attack.collider != null)
-                orb.attack.collider.enabled = false;
-
-            PoolManager.GetPoolItem<WaterDropEmitter>().Emit(new int?(SwellDrops), new Vector3?(position),
-                WaterDropEmitter.MedWaterExplosionOverride, null, 0f, null, null);
-            return orb;
-        }
-
-        private void BurstRow(int row)
-        {
-            for (int lane = 0; lane < lanes; lane++)
-            {
-                WaterBlast orb = waiting[lane];
-                waiting[lane] = null;
-                if (orb == null || orb.destroyQueued)
-                    continue;
-                if (orb.attack != null && orb.attack.collider != null)
-                    orb.attack.collider.enabled = true;
-                // Blast() switches the hit area off and on again so it hits whatever is inside.
-                orb.Blast();
-                blasts++;
-            }
-            if (row == rows - 1)
-                CameraController.ShakeCamera(CrestShake);
-        }
-
-        private void OnHit(Collider2D col)
-        {
-            if (col == null)
-                return;
-            hits++;
-            Health health = col.GetComponent<Health>();
-            if (health == null && col.transform.parent != null)
-                health = col.transform.parent.GetComponent<Health>();
-            int id = health != null ? health.GetInstanceID() : col.GetInstanceID();
-            if (targetIDs.Contains(id))
-                return;
-            targetIDs.Add(id);
-            if (health != null)
-                targets.Add(health);
-        }
-
-        private void Report()
-        {
-            int frozen = 0;
-            foreach (Health health in targets)
-            {
-                if (health != null && health.parentFSM != null && health.parentFSM.currentStateName != null
-                    && health.parentFSM.currentStateName.Contains("Frozen"))
-                    frozen++;
-            }
-            string walls = lanesBroken > 0 ? $", {lanesBroken} lane(s) broke on walls" : string.Empty;
-            TidalWallPlugin.Log($"Tidal Wall: {(signature ? "signature " : string.Empty)}wave done, {blasts} bursts, " +
-                $"{hits} hits on {targetIDs.Count} targets, {frozen} frozen{walls}");
-        }
-
-        private static void LogOrbOnce(WaterBlast orb)
-        {
-            if (loggedOrb)
-                return;
-            loggedOrb = true;
-            Collider2D col = orb.attack.collider;
-            if (col == null)
-            {
-                TidalWallPlugin.Log("Tidal Wall: using the game's Tidal Blast water orbs (no hit area found on them!)");
-                return;
-            }
-            TidalWallPlugin.Log($"Tidal Wall: using the game's Tidal Blast water orbs (hit area {col.GetType().Name} " +
-                $"on '{col.gameObject.name}', about {col.bounds.size.x:0.0} x {col.bounds.size.y:0.0})");
         }
     }
 }

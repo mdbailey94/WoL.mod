@@ -14,7 +14,7 @@ namespace WoLTidalWall
     {
         public const string PluginGuid = "mdbailey94.wol.tidalwall";
         public const string PluginName = "Tidal Wall";
-        public const string PluginVersion = "0.2.0";
+        public const string PluginVersion = "0.3.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -41,12 +41,12 @@ namespace WoLTidalWall
             {
                 ID = TidalWallState.staticID,
                 displayName = "Tidal Wall",
-                description = "Raise a wall of water that surges forward, washing enemies away and sometimes freezing them!",
+                description = "Raise a wall of water that blocks projectiles, then rolls forward sweeping enemies along until it crashes!",
                 // The game shows this one text for both the enhanced and the signature version.
-                enhancedDescription = "The wave is wider and surges further! Signature: a tidal wave twice as long " +
-                    "that freezes all it catches!",
+                enhancedDescription = "A wider wall that rolls further. Signature: a towering tidal wave whose crash freezes all it carries!",
                 icon = LoadIcon("icon.png"),
-                // Same tier, price and cooldown as Tidal Blast, whose water blasts it's built from.
+                // Tier, price and cooldown of the game's water control arcana (Tidal Blast 6 s,
+                // Whirlpool 7 s).
                 tier = 2,
                 stateType = typeof(TidalWallState),
                 skillStats = new SkillStats
@@ -55,30 +55,34 @@ namespace WoLTidalWall
                     elementType = new[] { "Water" },
                     subElementType = new[] { "Water" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
-                    // Level 1 is each blast in the surging rows, level 2 the bigger crest at the end.
-                    // An enemy carried the whole way takes a hit per row: up to 3x8 + 20 = 44
-                    // (52 enhanced), against Tidal Blast's 15 + 50 with no freeze. Under Tidal
-                    // Blast on purpose: the wave shoves everything it catches the whole way and
-                    // can freeze, so the rows are kept light and the crest is the payoff. (0.1.1:
-                    // the rows were 10, 50 in all.)
-                    // Levels 3 and 4 are the signature wave's rows and crest: 7x12 + 40 = 124 for
-                    // an enemy carried all 8 rows (9x12 + 40 = 148 over the enhanced cast's 10),
-                    // for the whole gauge. Vanilla signature casts land about there: Tidal Blast's
-                    // is 12 blasts of 50-60, Heroic Leap's 40 + 50.
-                    damage = new[] { 8, 20, 12, 40 },
+                    // Level 1 is each push of the rolling wall, level 2 its crash. The wall is
+                    // control (it pushes, it blocks projectiles), so it hits lightly: an enemy
+                    // carried the whole way takes 3 pushes and the crash, 3x4 + 6 = 18 (4x4 + 6 = 22
+                    // enhanced, which rolls further). 0.2.0's rows of Tidal Blast orbs did up to 44
+                    // and could freeze; Tidal Blast itself is 15 + 50.
+                    // Levels 3 and 4 are the signature wave's pushes and crash: 5x10 + 70 = 120 for
+                    // an enemy carried all the way (6x10 + 70 = 130 when also enhanced), for the
+                    // whole gauge. Vanilla signatures land about there: Tidal Blast's is 12 blasts
+                    // of 50-60, Heroic Leap's 40 + 50. (0.2.0: 124 / 148.)
+                    damage = new[] { 4, 6, 10, 70 },
                     cooldown = new[] { 6f },
-                    // Knockback is always straight along your aim (overwrite), so the wave shoves
-                    // everything the same way. Tidal Blast's own blast is 50.
-                    knockbackMultiplier = new[] { 30f, 50f, 35f, 60f },
+                    // Knockback is always straight along your aim (overwrite), so the wall shoves
+                    // everything the same way; the pushes are light so enemies stay in front of it
+                    // and get carried, the crash throws them. Tidal Blast's blast is 50, the
+                    // ice wave's (SummonIceWave) 25.
+                    knockbackMultiplier = new[] { 20f, 40f, 30f, 60f },
                     knockbackOverwrite = new[] { true },
-                    hitStunDurationModifier = new[] { 1.5f },
-                    // Water's status in this game is Freeze (Air's is Slow). Plain water arcana
-                    // like Tidal Blast don't freeze at all and ice ones always do, so a chance;
-                    // the signature wave (levels 3, 4) freezes everything it catches, a little longer.
-                    freezeChance = new[] { 0.15f, 0.5f, 1f, 1f },
-                    freezeDuration = new[] { 1.5f, 1.5f, 2f, 2f },
-                    // Each blast hits once; this only stops one blast hitting the same enemy twice.
-                    sameAttackImmunityTime = new[] { 0.25f }
+                    hitStunDurationModifier = new[] { 1.5f, 1.5f, 2f, 2f },
+                    // Water's status in this game is Freeze (Air's is Slow). The wall doesn't
+                    // freeze at all (it's already control); the signature's crash freezes
+                    // everything it carried (level 4). Its pushes don't, so the frozen don't stop
+                    // being carried.
+                    freezeChance = new[] { 0f, 0f, 0f, 1f },
+                    freezeDuration = new[] { 1.5f, 1.5f, 1.5f, 2.5f },
+                    // One hit per push: the wall's hit area is switched off and on every 0.35 s
+                    // (0.25 s for the signature), and this stops it hitting again in between as
+                    // enemies get shoved out and caught up with.
+                    sameAttackImmunityTime = new[] { 0.3f, 0.3f, 0.2f, 0.3f }
                 },
                 priceMultiplier = 6,
                 // LegendAPI rerolls a shop offer when this returns false.
@@ -87,6 +91,10 @@ namespace WoLTidalWall
 
             Logger.LogInfo($"{PluginName} {PluginVersion} registered");
         }
+
+        // Last line of defence for the signature's camera and light changes (Cinematic.cs): put
+        // them back if a cast somehow never did.
+        private void Update() => Cinematic.Watchdog();
 
         private Sprite LoadIcon(string fileName)
         {
