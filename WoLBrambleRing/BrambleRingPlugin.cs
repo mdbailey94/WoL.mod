@@ -14,7 +14,7 @@ namespace WoLBrambleRing
     {
         public const string PluginGuid = "mdbailey94.wol.bramblering";
         public const string PluginName = "Bramble Ring";
-        public const string PluginVersion = "0.3.0";
+        public const string PluginVersion = "0.4.1";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -39,14 +39,24 @@ namespace WoLBrambleRing
             // The arcana (BrambleRingState) logs each cast, each enemy caught and the thicket's
             // end, so a run can be checked from BepInEx\LogOutput.log.
 
+            // The signature's camera, time and light beats run from their own object; made now so
+            // it counts level loads from the start.
+            try
+            {
+                BrambleCinematics instance = BrambleCinematics.Instance;
+            }
+            catch (System.Exception e)
+            {
+                Logger.LogWarning($"Bramble Ring: signature cinematics unavailable: {e.Message}");
+            }
+
             Skills.Register(new SkillInfo
             {
                 ID = BrambleRingState.staticID,
                 displayName = "Bramble Ring",
                 description = "Knit a thicket of thorny vines around you that snares the enemies inside and pricks them while it stands!",
                 // The game shows this one text for both the enhanced and the signature version.
-                enhancedDescription = "The thicket stands longer and spreads wider! Signature: the full thicket at once, " +
-                    "for longer, with vines that drag snared enemies inward!",
+                enhancedDescription = "The thicket stands longer and spreads wider! Signature: it erupts, drags foes inward, then crushes them!",
                 icon = LoadIcon("icon.png"),
                 // Same tier and price as Rippling Vines and Terra Ring, the vanilla Earth arcana
                 // it's closest to.
@@ -72,13 +82,16 @@ namespace WoLBrambleRing
                     // gauge. Vanilla signature casts land higher in a burst (Heroic Leap's 40 + 50,
                     // Tidal Blast's 12 blasts of 50-60); this one is spread over a 6 s hard snare
                     // that also drags everything to the centre, so it stays under them.
-                    damage = new[] { 5, 3, 10, 6 },
+                    // Level 5 is the signature's final snap: one crushing hit of 12 on everything
+                    // still inside as the thicket closes (bosses too), the payoff for holding them
+                    // there; 88 in all for an enemy held the whole way. (0.4.0: new.)
+                    damage = new[] { 5, 3, 10, 6, 12 },
                     cooldown = new[] { 6f },
                     // The thicket holds enemies rather than shoving them.
                     knockbackMultiplier = new[] { 0f },
-                    // The catch flinches; the pricks after it don't, so a snared enemy can still
-                    // fight back from inside the thicket.
-                    canHitStun = new[] { true, false, true, false },
+                    // The catch and the final snap flinch; the pricks don't, so a snared enemy can
+                    // still fight back from inside the thicket.
+                    canHitStun = new[] { true, false, true, false, true },
                     hitStunDurationModifier = new[] { 1f },
                     // No shake on every prick (the cast shakes once).
                     shakeCamera = new[] { false },
@@ -92,7 +105,7 @@ namespace WoLBrambleRing
                     rootDuration = new[] { 1f },
                     // On the catch only (levels 1 and 3): the game's slow (level 2 is 50% move
                     // speed for 2 s), so enemies that can't be snared are at least slowed while inside.
-                    slowChance = new[] { 1f, 0f, 1f, 0f },
+                    slowChance = new[] { 1f, 0f, 1f, 0f, 0f },
                     slowLevel = new[] { 2 }
                 },
                 priceMultiplier = 6,

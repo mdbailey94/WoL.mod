@@ -96,6 +96,36 @@ namespace WoLBrambleRing
             }
         }
 
+        // Signature's final snap: every vine still standing whips shut with the game's own grab
+        // animation, its hit box switched off first exactly as the vine does when it grabs
+        // (VineTrap.EntityEventHandler), so the snap is the crush's look and not more hits. Returns
+        // how many snapped.
+        public int SnapShut()
+        {
+            int snapped = 0;
+            foreach (VineTrap vine in vines)
+            {
+                if (vine == null || vine.markedForDestroy)
+                    continue;
+                try
+                {
+                    if (vine.attack != null)
+                        vine.attack.enabled = false;
+                    Animator anim = vine.GetComponent<Animator>();
+                    if (anim != null)
+                    {
+                        anim.Play("Grab", -1, 0f);
+                        snapped++;
+                    }
+                }
+                catch (System.Exception e)
+                {
+                    BrambleRingState.LogOnce("snap", $"couldn't snap a vine shut: {e.Message}");
+                }
+            }
+            return snapped;
+        }
+
         // Clears the vines away in the order they were raised (each withers with the game's own
         // animation and sound), stagger seconds apart.
         public IEnumerator Unravel(float stagger)
