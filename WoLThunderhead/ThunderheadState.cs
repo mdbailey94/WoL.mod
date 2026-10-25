@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Chaos.AnimatorExtensions;
 using UnityEngine;
 
@@ -6,59 +7,94 @@ namespace WoLThunderhead
     // Thunderhead (Lightning, standard arcana), a leap like Heroic Leap's: after a very short
     // wind-up on the ground (still vulnerable), the wizard leaps high, straight up. While up there
     // they can't be hit, the way the game's jumping arcana work (their hurtbox is switched off, so
-    // attacks and projectiles pass through, and they count as airborne), they hover, steering
-    // slowly with the stick, and lightning crashes down around the spot below them in volleys
-    // (level 1, can shock). Then they come crashing down in a lightning slam (level 2) that throws
-    // enemies back.
+    // attacks and projectiles pass through, and they count as airborne), and lightning crashes
+    // down around the spot below them in volleys (level 1, can shock). Then they come crashing
+    // down in a lightning slam (level 2) that throws enemies back.
+    //
+    // Three tiers:
+    // - standard: they hang still where they took off, with a volley of two strikes every 0.4 s;
+    // - enhanced (IsEmpowered): they can steer the hover slowly with the stick, volleys of three
+    //   come every 0.25 s, and they stay up longer over a wider circle with a bigger slam;
+    // - signature (isUltimate, the game's flag for a signature cast, set on the state just before
+    //   the cast and cleared when it exits; the game always empowers the signature slot, so it
+    //   builds on the enhanced values): a raging storm, then a cinematic dive. The take-off is a
+    //   lightning strike with a flash and a thunderclap, the stage goes dark as the storm cloud
+    //   swells and strikes rain down every 0.1 s with sparks, scorch marks and small shakes; at
+    //   the top the wizard holds a moment, crackling, as the camera pushes in, then dives; the
+    //   impact freezes the game for a few frames under a white flash and a big shake, a ring of
+    //   lightning bolts radiates out, the light floods back and time eases back from slow-motion.
+    //   Skill levels 4 and 5. The camera, light and time effects are SignatureCinematic's.
     //
     // The hits are the game's lightning bursts; each strike also shows the game's own lightning
     // bolt from the sky (stripped down to its animation, so it can't hit anything itself).
-    //
-    // Cast from the signature slot with the gauge full (isUltimate, the game's flag for a signature
-    // cast, set on the state just before the cast and cleared when it exits) it's a true
-    // thunderstorm: twice the air time, strikes raining at twice the rate over a wider circle, and
-    // a bigger landing slam that always shocks (skill levels 4 and 5). The multipliers are in the
-    // config's [Signature] section and apply on top of the normal or enhanced values, so a
-    // signature cast of the enhanced arcana (the usual case, the game empowers whatever sits in the
-    // signature slot) gets both. The hover speed is the same in every version.
     public class ThunderheadState : Player.SkillState
     {
         public new static string staticID = "Thunderhead";
 
         // Skill levels (SkillStats in the plugin): the strikes while up, the landing slam, and the
-        // signature storm's strikes and slam (level 3 is the harmless bolt used for the look).
+        // signature storm's strikes (and its ring of bolts) and slam (level 3 is the harmless bolt
+        // used for the look).
         private const int StrikeLevel = 1;
         private const int SlamLevel = 2;
         private const int SignatureStrikeLevel = 4;
         private const int SignatureSlamLevel = 5;
-        // The signature slam's bolt, dust and shake, against the normal slam's 1.6, 80 and 1.4.
-        private const float SignatureSlamBoltSize = 2.2f;
-        private const int SignatureSlamDust = 120;
-        private const float SignatureSlamShake = 2f;
+
+        // The normal slam's bolt, dust, shake and hit-stop.
+        private const float SlamBoltSize = 1.6f;
+        private const int SlamDust = 80;
+        private const float SlamShake = 1.4f;
+        private const int SlamHitStop = 3;
+
+        // The signature storm.
+        private const float SignatureDiveSpeed = 0.6f;      // the dive takes this times CrashTime
+        private const float SignatureHoldLift = 0.15f;      // rises this much higher (times Height) during the wind-up
+        private const float CloudGrowFrom = 0.75f, CloudGrowTo = 1.25f, CloudGrowHold = 1.35f; // the cloud swelling
+        private const float TakeOffBoltSize = 2f;
+        private const float TakeOffShake = 0.6f;
+        private const float StrikeShake = 0.15f;            // each signature volley gives a small shake
+        private const int StrikeThunderEvery = 4;           // and every so-many a thunderclap
+        private const float CrackleInterval = 0.04f;        // sparks round the wizard during the wind-up
+        private const float SignatureSlamBoltSize = 2.6f;
+        private const int SignatureSlamDust = 140;
+        private const float SignatureSlamShake = 2.2f;
+        private const int LightBeams = 6;                   // rays of light at the impact (the ending altar's LightBeam)
+        private const float LightBeamScale = 0.75f;
+        private const float LightBeamSpeed = 1.6f;
+        private const float RingDelay = 0.06f;              // seconds after the impact the ring of bolts strikes
+        private const float RingOutside = 0.6f;             // how far past the slam's edge the ring strikes
+        private const float RingBurstSize = 1.2f;
+        private const float RingShake = 0.8f;
 
         // Timings and sizes come from the config (ThunderheadPlugin), read as each cast starts.
-        private float WindupTime, RiseTime, CrashTime, RecoverTime, Height, HoverSpeedPercent;
+        private float WindupTime, RiseTime, CrashTime, RecoverTime, Height, HoverSpeedPercent, HoldTime;
         private int VolleySize;
         private bool signature;   // this cast is the signature storm (isUltimate at cast time)
+        private bool steering;    // the hover can be steered (enhanced or signature)
 
         private float time;
         private float nextVolley;
         private int volleyCount;
         private float spiralTurn;
+        private float nextCrackle;
         private bool done;
         private bool tookOff;
+        private bool windupStarted, diveStarted;
         private bool landed;
+        private bool ringFired;
         private bool airborne;
         private bool hurtBoxWasOn;
         private Levitator levitator;
         private ElectricLook electric;
         private StormCloud cloud;
+        private SignatureCinematic cinematic;
         private Vector2 airVelocity;
         private Vector2 takeOffSpot;
+        private Vector2 landingSpot;
         private bool heldAtPitEdge;
-        private int strikesFired, strikeHits, slamHits;
+        private int strikesFired, strikeHits, slamHits, ringHits, ringFiredCount;
         private bool loggedLanding;
         private static bool loggedBolt;
+        private static readonly HashSet<string> failedEffects = new HashSet<string>();
         private const string AirborneModID = "Thunderhead_Airborne";
         // The hover's move-speed mod, like the Charge state's: a multiplier on the move-speed stat
         // (so speed relics count), put on at take-off and always taken off when they land, cancel
@@ -82,17 +118,19 @@ namespace WoLThunderhead
                 0.6f); // exit
         }
 
-        // The enhanced values when enhanced, and the signature multipliers on top for a signature cast.
-        private float HoverTimeNow => (IsEmpowered ? ThunderheadPlugin.EnhancedAirTime : ThunderheadPlugin.AirTime)
+        // The enhanced tier's values when enhanced or signature, the signature multipliers on top
+        // for a signature cast.
+        private bool EnhancedTier => IsEmpowered || signature;
+        private float HoverTimeNow => (EnhancedTier ? ThunderheadPlugin.EnhancedAirTime : ThunderheadPlugin.AirTime)
             * (signature ? ThunderheadPlugin.SignatureAirTimeMultiplier : 1f);
-        private float RadiusNow => (IsEmpowered ? ThunderheadPlugin.EnhancedRadius : ThunderheadPlugin.Radius)
+        private float RadiusNow => (EnhancedTier ? ThunderheadPlugin.EnhancedRadius : ThunderheadPlugin.Radius)
             * (signature ? ThunderheadPlugin.SignatureRadiusMultiplier : 1f);
-        private float VolleyInterval => (IsEmpowered ? ThunderheadPlugin.EnhancedVolleyInterval : ThunderheadPlugin.VolleyInterval)
+        private float VolleyInterval => (EnhancedTier ? ThunderheadPlugin.EnhancedVolleyInterval : ThunderheadPlugin.VolleyInterval)
             / (signature ? ThunderheadPlugin.SignatureStrikeRateMultiplier : 1f);
-        private float SlamScaleNow => (IsEmpowered ? ThunderheadPlugin.EnhancedSlamSize : ThunderheadPlugin.SlamSize)
+        private float SlamScaleNow => (EnhancedTier ? ThunderheadPlugin.EnhancedSlamSize : ThunderheadPlugin.SlamSize)
             * (signature ? ThunderheadPlugin.SignatureSlamSizeMultiplier : 1f);
 
-        // Which version of the arcana this cast is, for the log: normal, enhanced (the relic-based
+        // Which version of the arcana this cast is, for the log: standard, enhanced (the relic-based
         // empowerment, IsEmpowered), signature (the gauge cast, isUltimate) or both at once.
         private string Variant()
         {
@@ -100,7 +138,7 @@ namespace WoLThunderhead
                 return "both: enhanced + signature";
             if (signature)
                 return "signature";
-            return IsEmpowered ? "enhanced" : "normal";
+            return IsEmpowered ? "enhanced" : "standard";
         }
 
         public override void OnEnter()
@@ -109,23 +147,28 @@ namespace WoLThunderhead
             // The game sets isUltimate for a signature cast (the signature slot's arcana with the
             // gauge full) and clears it once the state exits, so it's read once here.
             signature = isUltimate;
+            steering = EnhancedTier;
             time = 0f;
             nextVolley = 0f;
+            nextCrackle = 0f;
             volleyCount = 0;
             spiralTurn = Random.value * 2f * Mathf.PI;
             done = false;
             tookOff = false;
+            windupStarted = diveStarted = false;
             landed = false;
+            ringFired = false;
             heldAtPitEdge = false;
-            strikesFired = strikeHits = slamHits = 0;
+            strikesFired = strikeHits = slamHits = ringHits = ringFiredCount = 0;
             loggedLanding = false;
             WindupTime = ThunderheadPlugin.WindupTime;
             RiseTime = ThunderheadPlugin.RiseTime;
-            CrashTime = ThunderheadPlugin.CrashTime;
+            CrashTime = ThunderheadPlugin.CrashTime * (signature ? SignatureDiveSpeed : 1f);
             RecoverTime = ThunderheadPlugin.RecoverTime;
             Height = ThunderheadPlugin.Height;
             HoverSpeedPercent = ThunderheadPlugin.HoverSpeedPercent;
-            VolleySize = ThunderheadPlugin.VolleySize;
+            HoldTime = signature ? ThunderheadPlugin.SignatureWindupHold : 0f;
+            VolleySize = EnhancedTier ? ThunderheadPlugin.EnhancedVolleySize : ThunderheadPlugin.VolleySize;
             levitator = Levitator.On(parent);
         }
 
@@ -141,15 +184,21 @@ namespace WoLThunderhead
                 return;
 
             time += Time.deltaTime;
-            // On the ground the wizard holds still; up in the air they hover, steering slowly with
-            // the stick (and the lightning and the landing follow them).
-            airVelocity = tookOff && !landed ? HoverVelocity() : Vector2.zero;
+            float t = time - WindupTime;
+            float hoverEnd = RiseTime + HoverTimeNow;
+            float holdEnd = hoverEnd + HoldTime;
+            float crashEnd = holdEnd + CrashTime;
+            // On the ground the wizard holds still; up in the air the standard leap hangs still too,
+            // while the enhanced one steers slowly with the stick (and the lightning and the landing
+            // follow). The signature commits at the wind-up: no steering in the hold and the dive.
+            bool canSteer = steering && tookOff && !landed && (!signature || t < hoverEnd);
+            airVelocity = canSteer ? HoverVelocity() : Vector2.zero;
             if (parent.rigidbody2D != null)
                 parent.rigidbody2D.velocity = airVelocity;
             Vector2 ground = parent.transform.position;
 
             // A moment's crouch on the ground (still vulnerable)...
-            if (time < WindupTime)
+            if (t < 0f)
             {
                 parent.anim?.PlayDirectional(parent.JumpAnimStr, -1, 0f);
                 return;
@@ -160,10 +209,8 @@ namespace WoLThunderhead
                 tookOff = true;
                 TakeOff(ground);
             }
-            float t = time - WindupTime;
-            float hoverEnd = RiseTime + HoverTimeNow;
-            float crashEnd = hoverEnd + CrashTime;
 
+            float top = signature ? 1f + SignatureHoldLift : 1f;
             float lift;
             if (t < RiseTime)
             {
@@ -175,16 +222,36 @@ namespace WoLThunderhead
             {
                 lift = 1f;
                 parent.anim?.PlayDirectional(parent.ChargeAnimStr, -1, 0.5f);
+                if (cloud != null && signature)
+                    cloud.Growth = Mathf.Lerp(CloudGrowFrom, CloudGrowTo, (t - RiseTime) / Mathf.Max(HoverTimeNow, 0.01f));
                 if (t >= nextVolley)
                 {
                     nextVolley = t + VolleyInterval;
                     Volley(ground);
                 }
             }
+            else if (t < holdEnd)
+            {
+                // The signature's wind-up: rising a touch higher, crackling, before the dive.
+                if (!windupStarted)
+                    StartHold(ground);
+                float h = (t - hoverEnd) / HoldTime;
+                lift = 1f + SignatureHoldLift * (1f - (1f - h) * (1f - h));
+                parent.anim?.PlayDirectional(parent.ChargeAnimStr, -1, 0.9f);
+                if (cloud != null)
+                    cloud.Growth = Mathf.Lerp(CloudGrowTo, CloudGrowHold, h);
+                if (t >= nextCrackle)
+                {
+                    nextCrackle = t + CrackleInterval;
+                    Crackle(ground);
+                }
+            }
             else if (t < crashEnd)
             {
-                float c = (t - hoverEnd) / CrashTime;
-                lift = 1f - c * c;                     // slamming down, faster and faster
+                if (signature && !diveStarted)
+                    StartDive(ground);
+                float c = (t - holdEnd) / CrashTime;
+                lift = top * (1f - c * c);             // slamming down, faster and faster
                 parent.anim?.PlayDirectional(parent.GSlamAnimStr, -1, 0.2f);
             }
             else
@@ -195,15 +262,19 @@ namespace WoLThunderhead
                     landed = true;
                     Slam(ground);
                 }
+                if (signature && !ringFired && t >= crashEnd + RingDelay)
+                    Ring();
                 parent.anim?.PlayDirectional(parent.GSlamAnimStr, -1, 0.6f);
             }
-            electric?.Update(lift);
-            cloud?.Update(lift, levitator);
+            electric?.Update(Mathf.Min(lift, 1f));
+            cloud?.Update(Mathf.Min(lift, 1f), levitator);
             if (levitator != null)
                 levitator.height = Height * lift + (t >= RiseTime && t < hoverEnd ? Mathf.Sin(t * 7f) * 0.06f : 0f);
 
             if (landed && t >= crashEnd + RecoverTime)
             {
+                if (signature && !ringFired)
+                    Ring();
                 done = true;
                 Land();
                 base.ExecuteSkill();
@@ -224,7 +295,7 @@ namespace WoLThunderhead
             base.OnExit();
         }
 
-        // ---- Hovering ----
+        // ---- Hovering (enhanced and signature) ----
 
         // The stick moves the hovering wizard at their move speed with the hover mod on it (a
         // fraction of walking pace), facing the way they go. Walls stop them as usual (their body
@@ -282,25 +353,30 @@ namespace WoLThunderhead
             }
         }
 
+        // The steering's speed (enhanced and signature), and the cast's line in the log.
         private void StartHover()
         {
-            if (parent.movement == null)
-                return;
-            try
+            string steer = "steering off (hangs still)";
+            if (steering && parent.movement != null)
             {
-                float before = parent.movement.moveSpeedStat.CurrentValue;
-                parent.movement.moveSpeedStat.RemoveMod(HoverSpeedModID);
-                parent.movement.moveSpeedStat.AddMod(new NumVarStatMod(HoverSpeedModID, HoverSpeedPercent / 100f - 1f, 10, VarStatModType.Multiplicative));
-                float after = parent.movement.moveSpeedStat.CurrentValue;
-                ThunderheadPlugin.Log($"Thunderhead: cast ({Variant()}), " +
-                    $"{RiseTime + HoverTimeNow + CrashTime:0.00}s in the air ({RiseTime:0.00} up, {HoverTimeNow:0.00} hovering, {CrashTime:0.00} down), " +
-                    $"volleys of {VolleySize} every {VolleyInterval:0.000}s within {RadiusNow:0.0} u, slam size {SlamScaleNow:0.0}, " +
-                    $"hover speed {HoverSpeedPercent:0}% of move speed ({before:0.0} -> {after:0.0} u/s)");
+                try
+                {
+                    float before = parent.movement.moveSpeedStat.CurrentValue;
+                    parent.movement.moveSpeedStat.RemoveMod(HoverSpeedModID);
+                    parent.movement.moveSpeedStat.AddMod(new NumVarStatMod(HoverSpeedModID, HoverSpeedPercent / 100f - 1f, 10, VarStatModType.Multiplicative));
+                    float after = parent.movement.moveSpeedStat.CurrentValue;
+                    steer = $"steering on at {HoverSpeedPercent:0}% of move speed ({before:0.0} -> {after:0.0} u/s)";
+                }
+                catch (System.Exception e)
+                {
+                    steer = $"steering on, but couldn't slow it: {e.Message}";
+                }
             }
-            catch (System.Exception e)
-            {
-                ThunderheadPlugin.Log($"Thunderhead: couldn't slow the hover: {e.Message}");
-            }
+            ThunderheadPlugin.Log($"Thunderhead: cast ({Variant()}), " +
+                $"{RiseTime + HoverTimeNow + HoldTime + CrashTime:0.00}s in the air ({RiseTime:0.00} up, {HoverTimeNow:0.00} hovering, " +
+                (signature ? $"{HoldTime:0.00} wind-up, " : "") + $"{CrashTime:0.00} down), " +
+                $"volleys of {VolleySize} every {VolleyInterval:0.000}s within {RadiusNow:0.0} u, slam size {SlamScaleNow:0.0}, {steer}" +
+                (signature ? $", cinematic {(cinematic != null ? "on" : "off")}" : ""));
         }
 
         private void StopHover()
@@ -328,6 +404,8 @@ namespace WoLThunderhead
             catch
             {
             }
+            cinematic?.Finish("a new cast started");
+            cinematic = signature && ThunderheadPlugin.Cinematic ? SignatureCinematic.Begin() : null;
             StartHover();
             if (parent.hurtBoxCollider != null)
             {
@@ -342,6 +420,47 @@ namespace WoLThunderhead
             cloud = StormCloud.On(parent, signature);
             Dust(ground, 30, 0.9f);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(ground), null, 24f, -1f, 0.6f, false);
+            if (signature)
+                SignatureTakeOff(ground);
+        }
+
+        // The signature launches on a bolt from the sky: a flash, a thunderclap, sparks and a
+        // shake, and the stage starts going dark.
+        private void SignatureTakeOff(Vector2 ground)
+        {
+            Bolt(ground, TakeOffBoltSize);
+            Effect("LightningHitEffect", 10, ground);
+            Effect("BurnMarkMedEmitter", 1, ground);
+            Sound("ThunderClap", ground, -1f, 0.8f);
+            Shake(TakeOffShake);
+            string did = cinematic != null ? cinematic.TakeOff(ThunderheadPlugin.StageDarken) : "cinematic off";
+            ThunderheadPlugin.Log($"Thunderhead: signature take-off: bolt, thunder, {did}");
+        }
+
+        // The wind-up at the top: the camera pushes in, the stage darkens further, they crackle.
+        private void StartHold(Vector2 ground)
+        {
+            windupStarted = true;
+            cinematic?.Windup(ThunderheadPlugin.CameraZoom);
+            Sound("ChaosLightningCrackle", ground, -1f, 0.9f);
+            ThunderheadPlugin.Log($"Thunderhead: signature wind-up ({HoldTime:0.00}s){(cinematic != null ? $", zoom {ThunderheadPlugin.CameraZoom:0.00}" : "")}");
+        }
+
+        private void Crackle(Vector2 ground)
+        {
+            Vector2 wizard = ground + new Vector2(0f, Height * (1f + SignatureHoldLift) + 0.55f);
+            Effect("LightningAuraEffect", 2, wizard + Random.insideUnitCircle * 0.5f, -Height);
+            Spark(wizard + Random.insideUnitCircle * 0.7f, HitSparkType.Medium);
+        }
+
+        // The dive: a streak of lightning down to the landing spot and the camera pushing in.
+        private void StartDive(Vector2 ground)
+        {
+            diveStarted = true;
+            cinematic?.Dive();
+            Sound("ElectricSwoop", ground, -1f, 1f);
+            Line(ground + new Vector2(0f, Height * (1f + SignatureHoldLift)), ground);
+            ThunderheadPlugin.Log($"Thunderhead: signature dive ({CrashTime:0.00}s)");
         }
 
         private void Touchdown()
@@ -383,6 +502,13 @@ namespace WoLThunderhead
                 levitator.Off();
                 levitator = null;
             }
+            // The cinematic eases the light and the camera back by itself and puts everything back
+            // when it's done (or at once on a level load).
+            if (cinematic != null)
+            {
+                cinematic.Finish(landed ? "landed" : "cut short");
+                cinematic = null;
+            }
             if (loggedLanding)
                 return;
             loggedLanding = true;
@@ -394,23 +520,23 @@ namespace WoLThunderhead
             float moved = Vector2.Distance(takeOffSpot, parent.transform.position);
             ThunderheadPlugin.Log($"Thunderhead: {(signature ? "signature storm " : "")}{(landed ? "landed" : "cut short in the air")} {moved:0.0} u from take-off, " +
                 $"{strikesFired} strikes in {volleyCount} volleys hit {strikeHits} time(s), slam hit {slamHits} time(s)" +
+                (signature ? $", ring of {ringFiredCount} bolts hit {ringHits} time(s)" : "") +
                 (heldAtPitEdge ? ", held back at a pit's edge" : ""));
         }
 
         // Counting what the lightning hits (each burst's attack announces every enemy it touches).
-        private void CountHits(LightningBurst burst, bool slam)
+        private void CountHits(LightningBurst burst, Attack.EntityCollisionEventHandler counter)
         {
             if (burst == null || burst.attack == null)
                 return;
-            if (slam)
-                burst.attack.entityCollisionEventHandlers += OnSlamHit;
-            else
-                burst.attack.entityCollisionEventHandlers += OnStrikeHit;
+            burst.attack.entityCollisionEventHandlers += counter;
         }
 
         private void OnStrikeHit(Entity hit) => strikeHits++;
 
         private void OnSlamHit(Entity hit) => slamHits++;
+
+        private void OnRingHit(Entity hit) => ringHits++;
 
         // ---- Lightning ----
 
@@ -418,7 +544,8 @@ namespace WoLThunderhead
         // strikes of the whole leap are laid out as a sunflower spiral over the circle (even
         // coverage, nothing bunched up), turned a random way each cast, and each volley takes
         // every so-many of them, so every volley strikes near, middle and far all round you.
-        // Otherwise each lands at random.
+        // Otherwise each lands at random. The signature's strikes also leave sparks and scorch
+        // marks, and each volley shakes the camera a little.
         private void Volley(Vector2 ground)
         {
             int size = VolleySize;
@@ -443,12 +570,23 @@ namespace WoLThunderhead
                 // A signature cast's hits are marked as the game marks its own (isUltimate), so
                 // they don't refill the gauge they just spent.
                 CountHits(LightningBurst.CreateBurst(spot, parent.skillCategory, skillID, signature ? SignatureStrikeLevel : StrikeLevel,
-                    ThunderheadPlugin.StrikeSize, signature), false);
+                    ThunderheadPlugin.StrikeSize, signature), OnStrikeHit);
                 Bolt(spot, 1f);
+                if (signature)
+                {
+                    Effect("LightningHitEffect", 2, spot);
+                    Effect("BurnMarkXSmallEmitter", 1, spot);
+                }
                 strikesFired++;
             }
             volleyCount++;
-            Spark(ground + new Vector2(0f, Height + 0.6f));
+            Spark(ground + new Vector2(0f, Height + 0.6f), HitSparkType.Medium);
+            if (signature)
+            {
+                Shake(StrikeShake);
+                if (volleyCount % StrikeThunderEvery == 0)
+                    Sound("ThunderClap", ground, 0.3f, Random.Range(0.9f, 1.1f));
+            }
         }
 
         private const float GoldenAngle = 2.39996f; // radians
@@ -457,19 +595,62 @@ namespace WoLThunderhead
         private void Slam(Vector2 ground)
         {
             Touchdown();
+            landingSpot = ground;
             float scale = SlamScaleNow;
-            CountHits(LightningBurst.CreateBurst(ground, parent.skillCategory, skillID, signature ? SignatureSlamLevel : SlamLevel, scale, signature), true);
-            Bolt(ground, signature ? SignatureSlamBoltSize : 1.6f);
-            Dust(ground, signature ? SignatureSlamDust : 80, scale);
-            Shake(signature ? SignatureSlamShake : 1.4f);
-            try
+            CountHits(LightningBurst.CreateBurst(ground, parent.skillCategory, skillID, signature ? SignatureSlamLevel : SlamLevel, scale, signature), OnSlamHit);
+            Bolt(ground, signature ? SignatureSlamBoltSize : SlamBoltSize);
+            Dust(ground, signature ? SignatureSlamDust : SlamDust, scale);
+            // The game's own thunder (Thunder Drop's landing, Player.UseThunderDrop).
+            Sound("ThunderClap", ground, -1f, signature ? 0.75f : 1f);
+            if (!signature)
             {
-                TimeScaleController.FreezeForFrames(3, false);
+                Shake(SlamShake);
+                HitStop(SlamHitStop);
+                return;
             }
-            catch
+            // The signature impact: a crater, scorch, a burst of sparks, rays of light, a big
+            // shake, and the cinematic's hit-stop, flash, light and slow-motion.
+            Shake(SignatureSlamShake, true);
+            Effect("LightningHitEffect", 12, ground);
+            Effect("LightningHitEffectLarge", 4, ground);
+            Effect("FloorCrater", 1, ground);
+            Effect("BurnMarkLargeEmitter", 1, ground);
+            Sound("GroundSlam", ground, -1f, 0.85f);
+            Beams(ground);
+            string did;
+            if (cinematic != null)
+                did = cinematic.Impact(ThunderheadPlugin.HitStopFrames, ThunderheadPlugin.ImpactFlash, ThunderheadPlugin.ImpactSlowMo);
+            else
             {
+                HitStop(ThunderheadPlugin.HitStopFrames);
+                did = $"hit-stop {ThunderheadPlugin.HitStopFrames} frames (cinematic off)";
             }
-            SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(ground), null, 24f, -1f, 0.5f, false);
+            ThunderheadPlugin.Log($"Thunderhead: signature impact: {did}, shake {SignatureSlamShake:0.0}, slam size {scale:0.0}");
+        }
+
+        // The signature's ring: bolts radiating out from the landing, striking just past the
+        // slam's edge, each a signature strike.
+        private void Ring()
+        {
+            ringFired = true;
+            int count = ThunderheadPlugin.RingBolts;
+            if (count <= 0)
+                return;
+            float distance = SlamScaleNow + RingOutside;
+            float turn = Random.value * 2f * Mathf.PI;
+            for (int i = 0; i < count; i++)
+            {
+                float angle = turn + i * 2f * Mathf.PI / count;
+                // A true circle like the slam's own hit area, so no bolt lands inside it.
+                Vector2 spot = landingSpot + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
+                Line(landingSpot, spot);
+                CountHits(LightningBurst.CreateBurst(spot, parent.skillCategory, skillID, SignatureStrikeLevel, RingBurstSize, true), OnRingHit);
+                Bolt(spot, RingBurstSize);
+                Effect("BurnMarkSmallEmitter", 1, spot);
+                ringFiredCount++;
+            }
+            Shake(RingShake, true);
+            ThunderheadPlugin.Log($"Thunderhead: signature ring: {count} bolts at {distance:0.0} u");
         }
 
         // The game's lightning bolt from the sky, just its animation.
@@ -506,11 +687,77 @@ namespace WoLThunderhead
             }
         }
 
-        private static void Spark(Vector2 position)
+        // One of the game's pooled particle effects (GameController.CreatePools), sortOffset
+        // as the game uses it to draw effects up in the air in front.
+        private static void Effect(string pool, int count, Vector2 position, float? sortOffset = null)
         {
             try
             {
-                PoolManager.GetPoolItem<HitSparkEmitter>().EmitSingle(HitSparkType.Medium, position, position, null, null, 0f);
+                PoolManager.GetPoolItem<ParticleEffect>(pool).Emit(count, (Vector3?)(Vector3)position, null, null, 0f, sortOffset);
+            }
+            catch (System.Exception e)
+            {
+                Failed(pool, e);
+            }
+        }
+
+        // The game's lightning line (TeleStrike's) from one spot to another.
+        private static void Line(Vector2 from, Vector2 to)
+        {
+            try
+            {
+                PoolManager.GetPoolItem<SectionedTrailEmitter>("LightningLine").Emit(from, to);
+            }
+            catch (System.Exception e)
+            {
+                Failed("LightningLine", e);
+            }
+        }
+
+        // Rays of light from the impact, as the ending altar sends them out.
+        private static void Beams(Vector2 position)
+        {
+            try
+            {
+                float start = Random.Range(0f, 360f);
+                for (int i = 0; i < LightBeams; i++)
+                {
+                    AnimEffect beam = PoolManager.GetPoolItem<AnimEffect>("LightBeam");
+                    if (beam == null)
+                        continue;
+                    float angle = start + 360f / LightBeams * i + Random.Range(-20f, 20f);
+                    beam.Play(position, string.Empty, Random.Range(0f, 0.15f), default(Vector2), LightBeamSpeed, LightBeamScale, new Vector3(0f, 0f, angle));
+                }
+            }
+            catch (System.Exception e)
+            {
+                Failed("LightBeam", e);
+            }
+        }
+
+        private static void Sound(string clip, Vector2 position, float volume, float pitch)
+        {
+            try
+            {
+                SoundManager.PlayAudioWithDistance(clip, new Vector2?(position), null, 24f, volume, pitch, false);
+            }
+            catch (System.Exception e)
+            {
+                Failed("sound " + clip, e);
+            }
+        }
+
+        private static void Failed(string what, System.Exception e)
+        {
+            if (failedEffects.Add(what))
+                ThunderheadPlugin.Log($"Thunderhead: effect {what} unavailable: {e.Message}");
+        }
+
+        private static void Spark(Vector2 position, HitSparkType type)
+        {
+            try
+            {
+                PoolManager.GetPoolItem<HitSparkEmitter>().EmitSingle(type, position, position, null, null, 0f);
             }
             catch
             {
@@ -528,11 +775,24 @@ namespace WoLThunderhead
             }
         }
 
-        private static void Shake(float intensity)
+        private static void Shake(float intensity, bool ignoreShakeCount = false)
         {
             try
             {
-                CameraController.ShakeCamera(intensity, false);
+                CameraController.ShakeCamera(intensity, ignoreShakeCount);
+            }
+            catch
+            {
+            }
+        }
+
+        private static void HitStop(int frames)
+        {
+            if (frames <= 0)
+                return;
+            try
+            {
+                TimeScaleController.FreezeForFrames(frames, false);
             }
             catch
             {

@@ -6,8 +6,8 @@ namespace WoLThunderhead
     // The dark storm cloud the wizard rides while up in the air: a solid pixel-art cloud drawn in
     // the game's style (shaded, no dark outline), one puff in front of their feet and one behind,
     // carried up with their lifted picture. It billows gently, flickers with lightning now and
-    // then, and fades in as they rise and out as they land. The signature storm's cloud is bigger
-    // and flickers much more often.
+    // then, and fades in as they rise and out as they land. The signature storm's cloud is bigger,
+    // flickers much more often and swells as the storm goes on (Growth, set by the state).
     public class StormCloud
     {
         private const float StormySize = 1.4f;       // the signature cloud's size, times CloudSize
@@ -27,8 +27,12 @@ namespace WoLThunderhead
         private readonly GameObject root;
         private readonly SpriteRenderer frontPuff, backPuff;
         private readonly bool stormy;
+        private readonly float size;
         private float flashUntil;
         private float nextFlash;
+
+        // A multiplier on the cloud's size, for the signature storm's cloud growing as it rages.
+        public float Growth = 1f;
 
         private StormCloud(Player player, bool stormy)
         {
@@ -44,7 +48,7 @@ namespace WoLThunderhead
             }
             root = new GameObject("Thunderhead Cloud");
             root.transform.SetParent(body.transform, false);
-            float size = ThunderheadPlugin.CloudSize * (stormy ? StormySize : 1f);
+            size = ThunderheadPlugin.CloudSize * (stormy ? StormySize : 1f);
             root.transform.localScale = new Vector3(size, size, 1f);
             frontPuff = Puff("Front", front, new Vector3(0f, 1f / ppu, 0f));
             backPuff = Puff("Back", back, new Vector3(2f / ppu, 6f / ppu, 0f));
@@ -71,6 +75,8 @@ namespace WoLThunderhead
             if (root == null || body == null)
                 return;
             float now = Time.time;
+            float grown = size * Growth;
+            root.transform.localScale = new Vector3(grown, grown, 1f);
             // Billowing: the puffs drift a little against each other.
             float ppu = front.pixelsPerUnit;
             frontPuff.transform.localPosition = new Vector3(Mathf.Sin(now * 2.1f) * 1.5f / ppu, (1f + Mathf.Sin(now * 3.3f)) / ppu, 0f);
