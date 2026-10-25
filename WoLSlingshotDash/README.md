@@ -53,8 +53,8 @@ in what the launch does.
 > **Feint Swap**: Hold to charge, then release to hurl an ice feint through your foes; press again
 > to swap places with it, and it explodes in a freezing blast!
 >
-> *Enhanced: Reaches full range in half the charge time, and leaves a new feint where you were,
-> exploding 2 seconds later!*
+> *Faster charge; leaves an exploding feint behind. Signature: hurl 6 feints, then chain-swap
+> through them all!* (the game shows this one line for both the enhanced and the signature version)
 
 Not a dash any more: it goes in a normal arcana slot, and your dash stays your dash.
 
@@ -74,6 +74,32 @@ Not a dash any more: it goes in a normal arcana slot, and your dash stays your d
   shattered as it landed: it wasn't set up as an ally, so its own ice bursts broke it.)
 - **Enhanced**: full range at **0.5 seconds** of holding, and a **new feint is left
   where you swapped from**, drawing enemies to it, and **explodes the same way 2 seconds later**.
+
+**Signature** (0.24.0; put Feint Swap in the signature slot and cast it with the gauge full):
+
+- **Fan throw**: hold and release as usual, and **six feints** fly out at once in a **fan 110
+  degrees wide** centred on your aim, as far as the normal throw at that charge (each stopping
+  short of walls), each bursting through the enemies on its way (3 damage a burst, and the six
+  can't stack on one enemy: one burst every 0.15 s at most). A frosty flash, the room dims a
+  little and the camera pulls back to show the fan.
+- **Wait**: they stand for 2 seconds, or until you press again / cast again (same rules as the
+  normal feint: the press that threw them never counts).
+- **Chained swaps**: you swap onto them **one after another, 0.2 s apart**, sweeping across the
+  fan from its **left end to its right** (left as seen facing along your aim). Each one you land
+  on goes off in an **icicle spin**: a ring of 8 icicles (the game's ice shard sprite) spins out
+  from you and bursts into the game's icicle shards with a Frost Nova (17 damage, a sure freeze,
+  radius 1.75), with a 2-frame hit-stop and a shake that grows with each swap. The **last one**
+  is bigger: 12 icicles, radius 2.4, 22 damage and a 2 s freeze, a longer hit-stop, a big shake,
+  a flash and the room lighting up before settling back. Feints enemies broke before their turn
+  are **skipped**.
+- Enhanced as well (the usual case, since the game empowers whatever sits in the signature
+  slot): the charge is full in half the time, and a feint is left **where you stood when the
+  chain began**, exploding 2 s later (15).
+- Its hits don't refill the gauge. The camera, time and light always go back to normal: when the
+  last spin settles, when the cast is cut short (all feints broken, the wizard gone or dead), on
+  a level load, and by a watchdog if anything ever runs long.
+- The signature is unlocked together with the arcana (`SignatureUnlocksWithArcana`, under
+  `[General]`, default on); off, its Signature drop has to be found in a run like the game's own.
 
 (The old dash version is still in the mod, hidden, so a save that has it equipped still loads;
 the shop offers the new one.)
@@ -137,6 +163,7 @@ swish also tell you it's ready.
 | Vacuum Fist | 4 per drag, 2 per vacuum pulse (about 20 at most) | Drags along, then pulls in; enhanced trail gusts 3 each |
 | Blazing Kick | 4 per trail burst, 10 from the blast (about 18 at most) | Shoves aside, then throws away; enhanced, every hit burns |
 | Feint Swap | 4 per ice burst on the path (one or two an enemy), 15 from the explosion (about 23 at most) | A sure freeze for 1.5 s; the feint draws enemies; enhanced, a second explosion where you were. 0.23.7 trimmed the path bursts from 6: a sure freeze plus a teleport keeps the damage low |
+| Feint Swap signature | 17 per icicle spin (22 the last), 3 per burst on the path | One spin on an enemy is about 20-23 with a burst or two. Six feints landing on one spot (stopped by a wall in front of you) can't pass 5 x 17 + 22 + 9 = 116, 131 with the enhanced feint left behind, in line with the game's own signatures (~120 on one enemy) |
 | Vine Slingshot | 3 per grip tick (every 0.4 s, up to 2 s) and 14 from the kick | Grip stuns; the kick knocks back hard; enhanced snares 2 every 0.5 s |
 | Charged Leap | Caught projectiles ×1.5, plus 10 from the landing burst | Only as strong as what you catch |
 
@@ -193,7 +220,9 @@ Anything not in the config file lives in the code:
 - **Each arcana's attacks**: `SlingshotDashState.cs` (Air), `BlazingSlingshotState.cs` (Fire),
   `FrostSlingshotState.cs` (Water), `VineSlingshotState.cs` (Earth; the vines are drawn in
   `VineLines.cs`) and `StormSlingshotState.cs` (Lightning): burst sizes, intervals, throw distance and so on, as
-  constants at the top or numbers in the calls.
+  constants at the top or numbers in the calls. Feint Swap is `FeintSwapState.cs`, its signature
+  `FeintSwapSignature.cs` (fan, timings, spin sizes), `IcicleSpin.cs` (the icicle rings) and
+  `FeintCinematic.cs` (flash, light, camera pull-back, hit-stops).
 
 To build your change, push it to a branch and open a pull request: GitHub Actions builds every
 mod and, once merged, publishes the zips on the
@@ -213,4 +242,5 @@ have them unlocked right away.
 ## Troubleshooting
 
 If holding dash doesn't charge, check `BepInEx\LogOutput.log` for the lines starting with
-`Dash button` and send them over.
+`Dash button` and send them over. For Feint Swap's signature, the lines starting with
+`Feint Swap: signature` (and `Feint Swap: cast (`) tell each beat of the cast.

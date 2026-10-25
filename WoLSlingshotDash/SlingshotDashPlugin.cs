@@ -16,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.23.7";
+        public const string PluginVersion = "0.24.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -34,6 +34,7 @@ namespace WoLSlingshotDash
         private static ConfigEntry<float> vineHoldPoseFrame;
         private static ConfigEntry<string> vineDark, vineMid, vineLight;
         private ConfigEntry<bool> modEnabled;
+        private ConfigEntry<bool> signatureWithArcana;
 
         private static SlingshotDashPlugin instance;
 
@@ -127,6 +128,10 @@ namespace WoLSlingshotDash
             modEnabled = Config.Bind("General", "Enabled", true,
                 "Offer the Slingshot arcana (Air, Fire, Water, Earth and Lightning) in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
+            signatureWithArcana = Config.Bind("General", "SignatureUnlocksWithArcana", true,
+                "Unlock Feint Swap's signature version along with the arcana itself, so it can go in the " +
+                "signature slot as soon as you have it. Off: its Signature drop has to be found in a run, " +
+                "like the game's own arcana.");
             chargeAnimation = Config.Bind("Charge", "Animation", "Jump",
                 new ConfigDescription("Animation for the backward hop and the held pose while charging.",
                     new AcceptableValueList<string>("Jump", "Charge", "Slide", "Hurt", "Kick", "Parry", "Slam", "PBAoE", "Fall", "None")));
@@ -282,7 +287,8 @@ namespace WoLSlingshotDash
                 ID = FeintSwapState.staticID,
                 displayName = "Feint Swap",
                 description = "Hold to charge, then release to hurl an ice feint through your foes; press again to swap places with it, and it explodes in a freezing blast!",
-                enhancedDescription = "Reaches full range in half the charge time, and leaves a new feint where you were, exploding 2 seconds later!",
+                // The game shows this one text for both the enhanced and the signature version.
+                enhancedDescription = "Faster charge; leaves an exploding feint behind. Signature: hurl 6 feints, then chain-swap through them all!",
                 icon = LoadIcon("icon_ice.png"),
                 tier = 2,
                 stateType = typeof(FeintSwapState),
@@ -301,13 +307,27 @@ namespace WoLSlingshotDash
                     // explosion: a sure freeze plus a teleport and a decoy keeps the damage low
                     // (Frost Feint, the dash, is 12 with its freeze; Frost Fan 25). (0.23.7: the
                     // path bursts were 6.)
-                    damage = new[] { 15, 4 },
+                    //
+                    // Levels 3 to 5 are the signature (FeintSwapSignature.cs), so the levels above
+                    // stay as they are: 3 the ice bursts along the six feints' flights, 4 each
+                    // icicle spin as you swap onto a feint, 5 the bigger last one. One spin on an
+                    // enemy is 17 (the plain explosion's 15 and a bit), with a burst or two on the
+                    // way, about 20-23. Where everything lands on one spot (all six feints stopped
+                    // by a wall right in front of you), 5 x 17 + 22 + 3 bursts x 3 = 116, and 131
+                    // with the enhanced feint left behind (15), against the game's own signatures'
+                    // ~120 on one enemy (85-175). In open ground the feints land 1.5 to 4 apart, so
+                    // an enemy is usually in one spin, two or three at the shortest throw.
+                    // sameTargetImmunityTime on these levels: the six feints' bursts can't stack on
+                    // one enemy (at most one every 0.15 s), and nothing from one spin hits twice,
+                    // while the next spin, 0.2 s later, still can.
+                    damage = new[] { 15, 4, 3, 17, 22 },
                     cooldown = new[] { Mathf.Max(0.5f, cooldownSeconds.Value) },
-                    knockbackMultiplier = new[] { 0f, 10f },
+                    knockbackMultiplier = new[] { 0f, 10f, 10f, 0f, 0f },
                     hitStunDurationModifier = new[] { 1f },
-                    sameAttackImmunityTime = new[] { 0.5f, 0.1f },
-                    freezeChance = new[] { 1f, 0f },
-                    freezeDuration = new[] { 1.5f }
+                    sameAttackImmunityTime = new[] { 0.5f, 0.1f, 0.1f, 0.5f, 0.5f },
+                    sameTargetImmunityTime = new[] { 0f, 0f, 0.15f, 0.15f, 0.15f },
+                    freezeChance = new[] { 1f, 0f, 0f, 1f, 1f },
+                    freezeDuration = new[] { 1.5f, 1.5f, 1.5f, 1.5f, 2f }
                 },
                 priceMultiplier = 3,
                 unlockCondition = () => modEnabled.Value
@@ -373,6 +393,17 @@ namespace WoLSlingshotDash
                 unlockCondition = () => modEnabled.Value
             });
 
+            // Feint Swap's signature version only shows up in the spellbook's Signature list once
+            // it's unlocked; see SignatureUnlock.cs.
+            try
+            {
+                SignatureUnlock.Install(new Harmony(PluginGuid + ".signature"), FeintSwapState.staticID,
+                    () => signatureWithArcana.Value, message => Log("Feint Swap: " + message));
+            }
+            catch (System.Exception e)
+            {
+                Logger.LogError($"Feint Swap signature unlock hook failed to install: {e.Message}");
+            }
             try
             {
                 SlingshotHud.Install(new Harmony(PluginGuid));

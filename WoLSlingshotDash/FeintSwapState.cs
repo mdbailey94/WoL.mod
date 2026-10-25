@@ -17,7 +17,13 @@ namespace WoLSlingshotDash
     // Holding up to 1 s scales the throw (a bit over a plain dash's length, up to MaxDistance);
     // enhanced, full at 0.5 s. Held 2 s, it throws by itself. The cooldown starts with the
     // throw. Dash to cancel the charge.
-    public class FeintSwapState : Player.SkillState
+    //
+    // Cast from the signature slot with the gauge full (isUltimate), the release throws six
+    // feints in a fan instead, and when they've stood their time (or on a re-press / recast) you
+    // swap onto each in turn, 0.2 s apart, every one going off in a spinning ring of icicles: see
+    // FeintSwapSignature.cs. Enhanced and signature are separate flags and stack (the game
+    // empowers whatever sits in the signature slot, so a signature cast is usually both).
+    public partial class FeintSwapState : Player.SkillState
     {
         public new static string staticID = "FeintSwap";
 
@@ -46,6 +52,7 @@ namespace WoLSlingshotDash
         private float nextEffect;
         private bool thrown;
         private bool done;
+        private bool signature;   // this cast is the signature (isUltimate at cast time)
 
         // The feint that is out right now (per wizard would be cleaner, but each wizard's state
         // object is its own instance of this class, so one per state).
@@ -53,6 +60,9 @@ namespace WoLSlingshotDash
 
         public FeintSwapState(FSM newFSM, Player newEnt) : base(staticID, newFSM, newEnt)
         {
+            // Lets the arcana into the signature slot: the spellbook's Signature page and the
+            // saved loadout both require it (SpellBookUI.LoadEleSkillDict, Player.InitSkills).
+            hasSignatureVariant = true;
             applyStopElementStatus = true;
             // The cooldown starts with the throw (see Throw), not with the press.
             disableStartCooldown = true;
@@ -74,14 +84,38 @@ namespace WoLSlingshotDash
             nextEffect = 0f;
             thrown = false;
             done = false;
+            // The game sets isUltimate for a signature cast (the signature slot's arcana with the
+            // gauge full) and clears it once the state exits (Player.HandleOverdrive), so it's
+            // read once here.
+            signature = isUltimate;
             // Cast again while a feint is out (the cooldown has run its course): that's the swap,
             // not a second feint.
             if (outFeint != null && !outFeint.swapped)
             {
                 outFeint.swapRequested = true;
-                done = true;
-                SlingshotDashPlugin.Log("Feint Swap: cast again with the feint out, swap requested");
+                if (!signature)
+                {
+                    done = true;
+                    SlingshotDashPlugin.Log("Feint Swap: cast again with the feint out, swap requested");
+                    return;
+                }
+                // With the gauge full, any press of the button is the signature cast (the game
+                // spends the gauge on entering), so don't waste it on the swap: that feint swaps
+                // now and the signature charges as usual.
+                SlingshotDashPlugin.Log("Feint Swap: signature cast with a feint out: that feint swaps now, and the signature charges");
             }
+            SlingshotDashPlugin.Log($"Feint Swap: cast ({Variant()})");
+        }
+
+        // Which version of the arcana this cast is, for the log: normal, enhanced (the relic-based
+        // empowerment, IsEmpowered), signature (the gauge cast, isUltimate) or both at once.
+        private string Variant()
+        {
+            if (IsEmpowered && signature)
+                return "both: enhanced + signature";
+            if (signature)
+                return "signature";
+            return IsEmpowered ? "enhanced" : "normal";
         }
 
         public override void ExecuteSkill()
@@ -183,6 +217,12 @@ namespace WoLSlingshotDash
             Vector2 start = parent.transform.position;
             float shortest = SlingshotDashPlugin.DashLength(parent) * MinRangeScale;
             float distance = Mathf.Lerp(shortest, Mathf.Max(shortest, MaxDistance), power);
+            if (signature)
+            {
+                // The signature: six feints in a fan (FeintSwapSignature.cs).
+                ThrowFan(start, direction, distance, power);
+                return;
+            }
             // Stop short of walls so you never swap into one.
             RaycastHit2D hit = Physics2D.Raycast(start, direction, distance, ChaosCollisions.layerAllWallAndObst);
             if (hit.collider != null)
@@ -425,8 +465,9 @@ namespace WoLSlingshotDash
 
         // The feint: the game's ice decoy set up the way its own Ice Dash sets one up (an icy copy
         // of the wizard, on the allies' side so enemies go after it and your own attacks pass it
-        // by), kept out of harm's way while it flies.
-        private GameObject SpawnDecoy(Vector2 position)
+        // by), kept out of harm's way while it flies. Its own attack (what it does if it's broken)
+        // is at the given level, and marked as a signature cast's when ultimate.
+        private GameObject SpawnDecoy(Vector2 position, int level = 1, bool ultimate = false)
         {
             try
             {
@@ -436,7 +477,7 @@ namespace WoLSlingshotDash
                 decoy.gameObject.name = skillID + parent.skillCategory;
                 decoy.parentEnt = parent;
                 decoy.parentGroup = GameController.allies;
-                decoy.attack.SetAttackInfo(parent.skillCategory, skillID);
+                decoy.attack.SetAttackInfo(parent.skillCategory, skillID, level, ultimate);
                 decoy.duration = DecoyLifetime;
                 decoy.facingDirection = parent.facingDirection;
                 decoy.isFacingRight = parent.isFacingRight;

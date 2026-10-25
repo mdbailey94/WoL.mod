@@ -3,7 +3,8 @@
 A new **Earth standard arcana**, added with [LegendAPI](https://github.com/yekoc/LegendAPI).
 
 > **Stone Charge**: Raise a stone bulwark and keep running: the faster you move, the more force it
-> stores. Run into a foe or press again to crash forward and unload all of it!
+> stores, and dashing keeps it up. Run or dash into a foe or press again to crash forward and
+> unload all of it!
 >
 > *Enhanced: Stores force faster and crashes wider!*
 
@@ -14,7 +15,7 @@ A new **Earth standard arcana**, added with [LegendAPI](https://github.com/yekoc
 | Price | 6 (like Aegis Charge and Terra Ring) |
 | Damage | Shove 3 as the shield forms. Bash 2 and crash 4 at no stored force, scaling evenly to 12 and 24 at full (6x): an enemy caught by both takes 6 to 36 |
 | Knockback | Bash and crash 10 at no force to 70 at full, along the way you rush; the crash's hitstun is 2.5x from 75% force up |
-| Shield up | up to 4 s; 30% less damage from hits in front, no stagger (you still take the damage) |
+| Shield up | up to 4 s; 30% less damage from hits in front, no stagger (you still take the damage); dashing keeps it |
 | Force | 25% a second running at base speed, more the faster you are (x1.4 sprinting, x1.15 a speed relic...), nothing standing still. Enhanced +35% |
 | Rush | 2.5 units in 0.12 s; crash radius 2 (enhanced 2.5) a unit ahead of where you stop |
 | Cooldown | 6 s, counting from the crash (or a cancel) |
@@ -29,8 +30,16 @@ the cloak and speed buffs count too. Standing still stores nothing. Rock debris 
 it builds, the ground cracks behind you from half force, and a rock aura swirls at full.
 
 Behind the shield, hits coming from in front do **30% less** and nothing staggers or knocks you
-back, but you still take the damage, you can't cast anything else, and a **dash drops the shield
-and loses all the force**.
+back, but you still take the damage and you can't cast anything else.
+
+**A dash keeps the shield and the force** (0.3.0). It's your normal dash, played without leaving
+the shield: the same distance and speed (your dash's duration and the dash speed stats, so dash
+relics count), animation, air burst, dust, trails and sound, over pits the way a dash goes over
+them, then the usual quarter-second slide before you can dash again (or a chained dash with the
+skip-the-slide relic). The shield turns to the way you dash. The dash itself stores no force (its
+speed is forced, not your run), and it doesn't make your dash arcana's attack, but **dash the shield
+into an enemy** (during the dash or the slide after it) and it crashes on the spot with the force
+you had. Only the slam before the shield is up can still be dashed out of (cancelling the cast).
 
 **Run the shield into an enemy** or **press the button again** (or let the 4 seconds run out) to
 **unload** with whatever force is stored by then (0.2.0: running into an enemy crashes at once,
@@ -47,7 +56,7 @@ and the rush telegraphs it.
 
 `BepInEx\LogOutput.log` shows:
 
-- `Stone Charge 0.2.0 registered` at start-up.
+- `Stone Charge 0.3.0 registered` at start-up.
 - `Stone Charge: cast: shield up for 4 s, force builds 25%/s at base run speed (full in 4.0 s at
   x1.00, 2.9 s sprinting); press again to crash, 30% less from hits in front, braced` each cast
   (`cast (enhanced)` when it is).
@@ -60,13 +69,24 @@ and the rush telegraphs it.
   the armour applies in a cast.
 - `Stone Charge: unload (press) at 100% force after 3.1 s (speed x1.40, peak x1.40): rush 2.5 u,
   bash 12 + crash 24 damage (x6.0), knockback 70, stun x2.5, crash radius 2.0` on the second press
-  (`unload (ran into <enemy>)` when the shield hit an enemy, `unload (timeout)` when the time ran
-  out), with `; took N hit(s) on the shield, M from the sides
-  or behind` if you were hit.
+  (`unload (ran into <enemy>)` when the shield hit an enemy, `unload (dashed into <enemy>)` when it
+  hit one during a dash or its slide, `unload (timeout)` when the time ran out), with `; took N
+  hit(s) on the shield, M from the sides or behind` if you were hit.
+- `Stone Charge: dash 1 behind the shield: toward (0.71, 0.71) at S u/s for 0.125 s (~D u,
+  Dash's dash), 45% force kept, 2.2 s of shield left` each dash while the shield is up (S and D
+  are your dash speed stat and the distance it gives; the name is your dash arcana's ID)
+  (`(chained, slide skipped)` with the skip-the-slide relic, `, evading` with a dash-evade relic),
+  then one of:
+  - `Stone Charge: dash 1 over without a contact crash: 45% force kept, 1.8 s of shield left` once
+    its slide is over;
+  - `Stone Charge: dash 1 ended in a contact crash: <enemy> at 45% force` (followed by the
+    `unload (dashed into <enemy>)` line) when the shield hit an enemy during the dash or slide;
+  - `Stone Charge: dash 1 cut short by the unload (press)` (or `(timeout)`).
 - `Stone Charge: crash: bash hit 1, crash hit 2 for 24 damage each before armour (EarthArcher(Clone),
   ...)` once the rush is over, or `crash hit nothing (...)`.
-- `Stone Charge: shield dropped (dashed) after 1.8 s with 45% force lost` when a dash (or a death)
-  cuts it short.
+- `Stone Charge: shield dropped (died) after 1.8 s with 45% force lost` when a death (or a fall,
+  `(fell)`, landing a dash on a pit) cuts it short; `cancelled (dashed) before the shield went up`
+  when you dash out of the slam.
 - `Stone Charge: the shield turns with you` once; `couldn't ...` / `effect '...' unavailable` lines
   if a game object or a cosmetic effect can't be made (the arcana carries on without it).
 
@@ -77,7 +97,9 @@ watching the `force` lines come in (debris at 25%, floor spikes from 50%), then 
 and press the button again: you rush 2.5 units and the dummy takes the bash and the crash, shown in
 the `unload` and `crash:` lines. Cast and press again straight away (standing still) for the weak
 version: `unload (press) at 0% force ... bash 2 + crash 4 damage (x1.0), knockback 10`. Dash while
-charging for the `shield dropped (dashed)` line.
+charging: the shield stays up and turns with you, the `force` you had is kept (`dash 1 behind the
+shield ... force kept`, then `dash 1 over without a contact crash`); run up some force, then dash
+straight at the dummy for `dash N ended in a contact crash` and `unload (dashed into ...)`.
 
 ## Settings
 

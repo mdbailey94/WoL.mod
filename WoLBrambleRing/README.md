@@ -23,7 +23,7 @@ a **signature version**, so it can go in the signature slot.
 | Control | Snare: the game's root (held in place, no knockback), renewed by every prick, 1 s past the last. Bosses are slowed instead (50% for 2 s) |
 | Cooldown | 6 s |
 | Reach | about 2.4 units around where it was cast (enhanced: 3.4). 0.4.1 drew it in from 3 (4): it was too big |
-| Signature | All three rows erupt outward (reach 3.4), stands 6 s, 10 for the catch and 6 a prick, every half second each snared enemy is dragged 0.5 units toward the centre, and a closing crush of 12 on everything inside (88 for an enemy held the whole way) |
+| Signature | All three rows erupt outward, wider than the enhanced thicket (rows 1.4, 2.4 and 3.5 out, reach 4; 0.4.2 widened it from 3.4), stands 6 s, 10 for the catch and 6 a prick, every half second each snared enemy is dragged 0.5 units toward the centre, and a closing crush of 12 on everything inside (88 for an enemy held the whole way) |
 
 Your wizard slams the ground (Rippling Vines' slam) and thorny vines knit a thicket around them,
 one after another round the ring, in two rows about 1.1 and 1.9 units out. The vines are the
@@ -46,8 +46,8 @@ pricked.
 ## Signature
 
 Put Bramble Ring in the **signature slot** (the spellbook in your house lists it under Signature
-Arcana) and cast it with the signature gauge full: the thicket comes up at its **full, enhanced
-size** (all three rows, everything within 4 units), stands **6 seconds** (the catch and 11
+Arcana) and cast it with the signature gauge full: the thicket comes up at its **full size, wider
+than the enhanced one** (three rows about 1.4, 2.4 and 3.5 units out, everything within 4 units), stands **6 seconds** (the catch and 11
 pricks), hits harder (10 for the catch, 6 a prick) and the **vines tighten**: every half second each
 snared enemy is **dragged half a unit toward the centre** (its body is moved the way Mortal Coil
 drags the enemies it hooks, since the snare itself blocks knockback), never into a wall, until it's
@@ -91,7 +91,7 @@ list). If you'd rather earn it the vanilla way, finding its Signature drop in a 
 
 `BepInEx\LogOutput.log` shows:
 
-- `Bramble Ring 0.4.0 registered` at start-up.
+- `Bramble Ring 0.4.2 registered` at start-up.
 - `Bramble Ring: cast (normal) at (x, y)` each cast; the version that ran is `normal`, `enhanced`,
   `signature` or `both: enhanced + signature`.
 - `Bramble Ring: knitted 18 vines in 2 rows 1.5-2.5 out` once the rows are up, with how many spots
@@ -102,7 +102,7 @@ list). If you'd rather earn it the vanilla way, finding its Signature drop in a 
     camera punch-in to 0.88, the earth cracks`
   - `Bramble Ring: signature: gloom on, room light 0.70 dimming to 0.39 and tinting green` (or
     `signature: no gloom, this room has no stage light`)
-  - `Bramble Ring: signature: vines erupted outward in 3 rows 1.5-3.5 out, 0.16 s centre to edge:
+  - `Bramble Ring: signature: vines erupted outward in 3 rows 1.4-3.5 out, 0.16 s centre to edge:
     34 vines`
   - `Bramble Ring: signature: constrict pulse 3, dragged 2 inward` on each tick that dragged anyone
   - `Bramble Ring: signature: final snap, 34 vines whipped shut, crushed 3 enemies for 36 damage

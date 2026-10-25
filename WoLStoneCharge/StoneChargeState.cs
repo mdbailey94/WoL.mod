@@ -13,7 +13,10 @@ namespace WoLStoneCharge
     // speed relics, the cloak and speed buffs count, the speeds a dash forces for a moment don't):
     // standing still stores nothing. The shield turns to face the way you run, hits from the
     // front do less (FrontArmour) and you aren't staggered (Brace), but you still take the damage,
-    // and you can't cast anything else; a dash drops the shield and all the force with it.
+    // and you can't cast anything else. A dash keeps the shield and the force (0.3.0): it's the
+    // game's own dash (BaseDashState's speed and duration stats, so dash relics count, its look
+    // and sound, airborne over pits, then the 0.25 s slide) played inside this state, turning the
+    // shield with it; it stores no force, but dashing the shield into an enemy crashes at once.
     //
     // Press the button again, run the shield into an enemy, or let the time run out to unload,
     // with whatever force is stored by then: a short rush forward
@@ -51,8 +54,22 @@ namespace WoLStoneCharge
         // Running the shield into an enemy crashes at once: anything this close to the shield's
         // spot while you're on the move counts.
         private const float ContactRadius = 0.9f;
+        // The dash behind the shield: the game's dash and slide, copied from BaseDashState and
+        // SlideState (Player.cs) so the shield needn't be dropped for the real dash state.
+        // BaseDashState.dashDuration when the dash arcana isn't a BaseDashState (the stat's mods,
+        // dash relics, still apply on top, as they do to the real dash).
+        private const float DefaultDashDuration = 0.125f;
+        // SlideState: 0.25 s gliding on along the dash, from half its slideSpeed up to it, before
+        // you can dash again; this is all the spacing the game puts between dashes (the dash
+        // arcana's cooldown only gates its attack, which this dash doesn't make).
+        private const float SlideTime = 0.25f;
+        private const float SlideSpeed = 5f;
+        // SlideState.maxIgnoreCount: with the skip-the-slide relic, dashes chain this many times.
+        private const int MaxDashChain = 2;
+        private const string DashModID = "StoneCharge_Dash";
 
         private enum Phase { Raising, Charging, Rushing, Recovering, Done }
+        private enum DashPhase { None, Dashing, Sliding }
 
         private Phase phase;
         private float time;             // seconds since the shield went up
@@ -79,6 +96,17 @@ namespace WoLStoneCharge
         private int bashHits, crashHits;
         private int crashDamage;
         private readonly List<string> hitNames = new List<string>();
+        // The dash behind the shield.
+        private DashPhase dashPhase;
+        private Vector2 dashDir;        // the game's dashVector (raw input, as the dash takes it)
+        private float slideTime;
+        private int dashes, dashChain;
+        private Vector2 lastHere;       // last frame's position: a fast dash is checked in between too
+        private bool replayAnim;        // the run/idle animation is due again after a slide
+        private bool dashDurationOn, dashEvadeOn, dashAirborne;
+        private readonly NumVarStatMod dashDurationMod = new NumVarStatMod(DashModID, DefaultDashDuration, 10, VarStatModType.OverrideWithMods);
+        private readonly NumVarStatMod dashEvadeMod = new NumVarStatMod(DashModID + "Evade", 1f, 10, VarStatModType.Override);
+        private readonly BoolVarStatMod dashAirborneMod = new BoolVarStatMod(DashModID, newModValue: true);
         private static readonly HashSet<string> failed = new HashSet<string>();
 
         public override string OnEnterAnimStr => parent.GSlamAnimStr;
@@ -119,6 +147,11 @@ namespace WoLStoneCharge
             force = 0f;
             bashHits = crashHits = crashDamage = 0;
             hitNames.Clear();
+            dashPhase = DashPhase.None;
+            slideTime = 0f;
+            dashes = dashChain = 0;
+            replayAnim = false;
+            lastHere = parent.transform.position;
             // The shield goes up the way you're aiming (or facing).
             aim = inputVector != Vector2.zero ? inputVector.normalized : Entity.GetFacingDirectionVector(parent.facingDirection).normalized;
             if (aim == Vector2.zero)
@@ -174,7 +207,9 @@ namespace WoLStoneCharge
             base.FixedUpdate();
             if (parent.rigidbody2D == null)
                 return;
-            if (phase == Phase.Rushing)
+            if (phase == Phase.Charging && dashPhase != DashPhase.None)
+                DashMove();
+            else if (phase == Phase.Rushing)
                 parent.rigidbody2D.velocity = rushDir * rushSpeed;
             else if (phase == Phase.Recovering)
                 parent.rigidbody2D.velocity = Vector2.zero;
@@ -182,6 +217,7 @@ namespace WoLStoneCharge
 
         public override void OnExit()
         {
+            EndDash();
             StopSprint();
             SetArmour(false);
             StopListening();
@@ -203,7 +239,7 @@ namespace WoLStoneCharge
             if (!unloaded)
             {
                 string next = fsm.nextStateName ?? "";
-                string why = next.Contains("Dash") ? "dashed" : next.Contains("Dead") ? "died" : $"left for {next}";
+                string why = next.Contains("Dash") ? "dashed" : next.Contains("Dead") ? "died" : next.Contains("Fall") ? "fell" : $"left for {next}";
                 if (phase == Phase.Raising)
                     Log($"cancelled ({why}) before the shield went up");
                 else
@@ -253,54 +289,271 @@ namespace WoLStoneCharge
         // Every frame the shield is up: run about, store force, watch for the second press.
         private void Charge()
         {
-            if (CancelToDash(false))
-                return;
             float dt = Time.deltaTime;
             time += dt;
-
-            Vector2 input = GetInputVector(false, false, false);
-            bool moving = input.sqrMagnitude > InputDeadZone;
             Vector3 here = parent.transform.position;
-            if (moving)
+
+            // A dash press dashes behind the shield instead of leaving for the dash state.
+            TryDash();
+            bool dashing = dashPhase != DashPhase.None;
+            bool moving;
+            if (dashing)
             {
-                parent.movement.moveVector = input;
-                parent.movement.MoveToMoveVector();
-                if (!wasMoving)
-                {
-                    parent.FaceTarget(here + (Vector3)input);
-                    parent.anim.PlayDirectional("Run" + parent.facingDirection);
-                }
-                else
-                    parent.PlayAnimOnFaceDirChange("Run", here + (Vector3)input);
-                aim = input.normalized;
+                // The dash and its slide move the wizard (FixedUpdate). They count as being on the
+                // move for the sprint and the contact crash, but store no force: their speed is
+                // forced, like the Override speed mods SpeedFactor leaves out.
+                moving = true;
                 moveTime += dt;
-                if (!sprinting && moveTime >= StoneChargePlugin.SprintDelay)
-                    StartSprint();
-                lastSpeed = SpeedFactor();
-                peakSpeed = Mathf.Max(peakSpeed, lastSpeed);
-                float rate = StoneChargePlugin.EnergyPerSecond * (IsEmpowered ? 1f + StoneChargePlugin.EnhancedEnergyBonus / 100f : 1f);
-                energy = Mathf.Min(100f, energy + dt * rate * lastSpeed);
             }
             else
             {
-                parent.movement.EndMovement();
-                if (wasMoving || time <= dt)
-                    parent.anim.PlayDirectional("Idle" + parent.facingDirection);
-                moveTime = 0f;
-                StopSprint();
+                Vector2 input = GetInputVector(false, false, false);
+                moving = input.sqrMagnitude > InputDeadZone;
+                if (moving)
+                {
+                    parent.movement.moveVector = input;
+                    parent.movement.MoveToMoveVector();
+                    if (!wasMoving || replayAnim)
+                    {
+                        parent.FaceTarget(here + (Vector3)input);
+                        parent.anim.PlayDirectional("Run" + parent.facingDirection);
+                    }
+                    else
+                        parent.PlayAnimOnFaceDirChange("Run", here + (Vector3)input);
+                    aim = input.normalized;
+                    moveTime += dt;
+                    if (!sprinting && moveTime >= StoneChargePlugin.SprintDelay)
+                        StartSprint();
+                    lastSpeed = SpeedFactor();
+                    peakSpeed = Mathf.Max(peakSpeed, lastSpeed);
+                    float rate = StoneChargePlugin.EnergyPerSecond * (IsEmpowered ? 1f + StoneChargePlugin.EnhancedEnergyBonus / 100f : 1f);
+                    energy = Mathf.Min(100f, energy + dt * rate * lastSpeed);
+                }
+                else
+                {
+                    parent.movement.EndMovement();
+                    if (wasMoving || time <= dt || replayAnim)
+                        parent.anim.PlayDirectional("Idle" + parent.facingDirection);
+                    moveTime = 0f;
+                    StopSprint();
+                }
+                replayAnim = false;
             }
             wasMoving = moving;
             shield?.Aim(aim);
             Milestones();
             ChargeEffects(moving);
 
+            // A dash covers most of a unit a frame: check halfway from last frame's spot as well.
             Enemy struck;
             if (time >= StoneChargePlugin.MinPressTime && skillSlot >= 0 && parent.inputDevice.GetButtonDown("Skill" + skillSlot))
                 Unload("press");
-            else if (moving && time >= StoneChargePlugin.MinPressTime && ShieldTouches(here, out struck))
-                Unload("ran into " + struck.name);
+            else if (moving && time >= StoneChargePlugin.MinPressTime &&
+                (ShieldTouches(here, out struck) || (dashing && ShieldTouches(((Vector2)here + lastHere) * 0.5f, out struck))))
+                Unload((dashing ? "dashed into " : "ran into ") + struck.name);
             else if (time >= StoneChargePlugin.ChargeTime)
                 Unload("timeout");
+            lastHere = here;
+        }
+
+        // ---- The dash behind the shield ----
+
+        // The dash button while the shield is up: a fresh press when not dashing (as the game's
+        // TransitionToSkill reads it), or the button held during the slide with the skip-the-slide
+        // relic (SlideState.Update), up to MaxDashChain dashes in a row.
+        private void TryDash()
+        {
+            if (dashPhase == DashPhase.Dashing || parent.inputDevice == null || !parent.MovementEnabled)
+                return;
+            Player.SkillState dashSkill = parent.GetDashSkill();
+            if (dashSkill == null)
+                return;
+            int slot = dashSkill.SetSkillSlot();
+            if (slot < 0)
+                return;
+            if (dashPhase == DashPhase.None)
+            {
+                if (!parent.inputDevice.GetButtonDown("Skill" + slot))
+                    return;
+                dashChain = 0;
+            }
+            else
+            {
+                if (!(parent.ignoreDashSlide.CurrentValue && dashChain < MaxDashChain && parent.inputDevice.GetButton("Skill" + slot)))
+                    return;
+                dashChain++;
+            }
+            StartDash(dashSkill);
+        }
+
+        // BaseDashState.OnEnter, minus leaving this state and the dash arcana's own attack.
+        private void StartDash(Player.SkillState dashSkill)
+        {
+            Player.BaseDashState baseDash = dashSkill as Player.BaseDashState;
+            float duration = baseDash != null ? baseDash.dashDuration : DefaultDashDuration;
+            // The way BaseDashState takes it: the aim for a mouse dash, else the move input (or the
+            // aim with a locked controller aim), else the way you face; it turns the wizard too.
+            Vector2 dir;
+            if (parent.inputDevice.IsMouseDash)
+                dir = GetInputVector();
+            else
+                dir = GetInputVector(true, parent.inputDevice.inputScheme == ChaosInputDevice.InputScheme.Gamepad && ChaosInputDevice.lockControllerAim);
+            if (dir == Vector2.zero)
+                dir = aim;
+            bool chained = dashPhase == DashPhase.Sliding;
+            dashPhase = DashPhase.Dashing;
+            dashes++;
+            dashDir = dir;
+            aim = dir.normalized;
+            // Drop the run's velocity (this also resets Movement's dash timer for DashToTarget).
+            parent.movement.EndMovement();
+
+            try
+            {
+                // The dash's duration as BaseDashState sets it (an override the stat's other mods,
+                // dash relics, still apply to); DashToTarget then reads the stats each step.
+                dashDurationMod.modValue = duration;
+                parent.movement.dashDurationStat.AddMod(dashDurationMod);
+                dashDurationOn = true;
+                parent.movement.dashTimer = duration;
+                parent.movement.dashVector = dir;
+                if (baseDash != null && baseDash.forceEvadeStat.CurrentValue && parent.health != null)
+                {
+                    parent.health.evadeStat.AddMod(dashEvadeMod);
+                    dashEvadeOn = true;
+                }
+            }
+            catch (System.Exception e)
+            {
+                LogOnce("dash", $"couldn't set up the dash's stats: {e.Message}");
+            }
+            // Over pits like the game's dash: airborne, the pit-edge collider off, and through enemies.
+            Airborne(true);
+            if (!floorToggled)
+            {
+                try
+                {
+                    parent.ToggleEnemyFloorCollisions(false);
+                    floorToggled = true;
+                }
+                catch
+                {
+                }
+            }
+            parent.anim.PlayDirectional(parent.DashAnimStr);
+            Vector2 from = parent.attackOriginTrans.position;
+            Effect("dashburst", () => PoolManager.GetPoolItem<DashAirBurst>().Burst(from, dir));
+            Effect("dashdust", () => parent.dustEmitter.EmitDirBurst(15, Globals.GetRotationVector(-dir).z));
+            Effect("dashtrails", () => parent.dashTrails.SetActive(true));
+            Effect("dashsound", () => SoundManager.PlayWithDistAndSPR("StandardDash", parent.transform.position));
+            shield?.Aim(aim);
+
+            float speed = parent.movement.dashSpeedStat.CurrentValue;
+            float length = parent.movement.dashDurationStat.CurrentValue;
+            Log($"dash {dashes} behind the shield{(chained ? " (chained, slide skipped)" : "")}: toward ({aim.x:0.00}, {aim.y:0.00}) " +
+                $"at {speed:0.#} u/s for {length:0.###} s (~{speed * length:0.#} u, {dashSkill.skillID}'s dash), " +
+                $"{energy:0}% force kept, {StoneChargePlugin.ChargeTime - time:0.0} s of shield left{(dashEvadeOn ? ", evading" : "")}");
+        }
+
+        // FixedUpdate during the dash: BaseDashState.FixedUpdate (DashToTarget: dashVector at the
+        // dash speed stat until the dash duration stat runs out), then SlideState.FixedUpdate.
+        private void DashMove()
+        {
+            if (dashPhase == DashPhase.Dashing)
+            {
+                if (parent.movement.DashToTarget())
+                    FinishDash();
+                return;
+            }
+            slideTime += Time.fixedDeltaTime;
+            if (slideTime >= SlideTime)
+            {
+                EndSlide();
+                return;
+            }
+            parent.rigidbody2D.velocity = dashDir * Mathf.Lerp(SlideSpeed * 0.5f, SlideSpeed, slideTime / SlideTime);
+            Vector2 dir = dashDir;
+            Effect("slidedust", () => parent.dustEmitter.EmitDirBurst(1, -Globals.GetRotationVector(dir).z, 10f, -1f, 0.75f));
+        }
+
+        // BaseDashState.DashFinished, then SlideState.OnEnter: land, then glide on for SlideTime.
+        private void FinishDash()
+        {
+            RemoveDashStats();
+            Effect("dashtrails", () => parent.dashTrails.SetActive(false));
+            Airborne(false);
+            if (floorToggled)
+            {
+                floorToggled = false;
+                try { parent.ToggleEnemyFloorCollisions(); } catch { }
+            }
+            parent.movement.EndMovement();
+            dashPhase = DashPhase.Sliding;
+            slideTime = 0f;
+            parent.anim.PlayDirectional(parent.SlideAnimStr);
+            // With the skip-the-slide relic the slide stays airborne, so a chained dash crosses on.
+            if (parent.ignoreDashSlide.CurrentValue && dashChain < MaxDashChain)
+                Airborne(true);
+        }
+
+        private void EndSlide()
+        {
+            Airborne(false);
+            parent.movement.EndMovement();
+            dashPhase = DashPhase.None;
+            replayAnim = true;
+            Log($"dash {dashes} over without a contact crash: {energy:0}% force kept, {StoneChargePlugin.ChargeTime - time:0.0} s of shield left");
+        }
+
+        // Ends a dash or slide at once (the unload, or leaving the state): the dash's stats and
+        // airborne status come off. Enemy floor collisions are left to the caller (the rush wants
+        // them off; OnExit puts them back).
+        private void EndDash()
+        {
+            if (dashPhase == DashPhase.None && !dashDurationOn && !dashEvadeOn && !dashAirborne)
+                return;
+            RemoveDashStats();
+            if (dashPhase == DashPhase.Dashing)
+                Effect("dashtrails", () => parent.dashTrails.SetActive(false));
+            Airborne(false);
+            dashPhase = DashPhase.None;
+        }
+
+        private void RemoveDashStats()
+        {
+            if (dashDurationOn)
+            {
+                dashDurationOn = false;
+                try { parent.movement.dashDurationStat.RemoveMod(dashDurationMod.ID); } catch { }
+            }
+            if (dashEvadeOn)
+            {
+                dashEvadeOn = false;
+                try { parent.health.evadeStat.RemoveMod(dashEvadeMod); } catch { }
+            }
+        }
+
+        // The dash's pit handling (BaseDashState.OnEnter / DashFinished): airborne, so the Fall
+        // component lets you over pits, and the pit-edge collider off. Landing puts the collider
+        // back only off a pit (TogglePreventFallCollider), so landing on one drops you in, as the
+        // game's dash does.
+        private void Airborne(bool on)
+        {
+            if (on == dashAirborne)
+                return;
+            dashAirborne = on;
+            try
+            {
+                if (on)
+                    parent.airborneStat.AddMod(dashAirborneMod);
+                else
+                    parent.airborneStat.RemoveMod(dashAirborneMod);
+                parent.TogglePreventFallCollider(!on);
+            }
+            catch (System.Exception e)
+            {
+                LogOnce("airborne", $"couldn't set the dash's airborne status: {e.Message}");
+            }
         }
 
         // A live enemy (not an ally) touching the shield's spot ahead of the wizard.
@@ -541,6 +794,14 @@ namespace WoLStoneCharge
         // The second press or the timeout: commit to the rush.
         private void Unload(string trigger)
         {
+            if (dashPhase != DashPhase.None)
+            {
+                // Mid-dash or mid-slide: the rush takes over from here, along the dash.
+                Log(trigger.StartsWith("dashed into")
+                    ? $"dash {dashes} ended in a contact crash: {trigger.Substring("dashed into ".Length)} at {energy:0}% force"
+                    : $"dash {dashes} cut short by the unload ({trigger})");
+                EndDash();
+            }
             phase = Phase.Rushing;
             unloaded = true;
             force = Mathf.Clamp01(energy / 100f);
@@ -640,6 +901,12 @@ namespace WoLStoneCharge
             {
                 floorToggled = false;
                 try { parent.ToggleEnemyFloorCollisions(); } catch { }
+            }
+            // A dash that crashed over a pit landed with the pit-edge collider off (it stays off
+            // over a pit); the rush may have carried you off it, so check again where you stop.
+            if (dashes > 0)
+            {
+                try { parent.TogglePreventFallCollider(true); } catch { }
             }
             Effect("dust", () => PoolManager.GetPoolItem<DustEmitter>().EmitCircle(30 + Mathf.RoundToInt(40f * force), radius * 0.5f, -6f, -1f, new Vector3?(at), null));
             Effect("debris", () => PoolManager.GetPoolItem<RockDebrisEmitter>().EmitSingle(RockDebrisType.Default, new int?(6 + Mathf.RoundToInt(10f * force)),

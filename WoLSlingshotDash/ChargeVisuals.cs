@@ -85,8 +85,9 @@ namespace WoLSlingshotDash
             sr.color = new Color(1f, 1f, 1f, fade);
         }
 
-        // A 5x9 crystal in the game's frost blues, at the wizard sprite's pixel size.
-        private static Sprite ShardSprite(Player player)
+        // A 5x9 crystal in the game's frost blues, at the wizard sprite's pixel size (also Feint
+        // Swap's signature icicles when the game's own can't be had, IcicleSpin.cs).
+        internal static Sprite ShardSprite(Player player)
         {
             if (sprite != null)
                 return sprite;

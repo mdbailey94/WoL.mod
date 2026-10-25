@@ -13,7 +13,7 @@ namespace WoLStoneCharge
     {
         public const string PluginGuid = "mdbailey94.wol.stonecharge";
         public const string PluginName = "Stone Charge";
-        public const string PluginVersion = "0.2.0";
+        public const string PluginVersion = "0.3.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -65,8 +65,8 @@ namespace WoLStoneCharge
             {
                 ID = StoneChargeState.staticID,
                 displayName = "Stone Charge",
-                description = "Raise a stone bulwark and keep running: the faster you move, the more force it stores. " +
-                    "Run into a foe or press again to crash forward and unload all of it!",
+                description = "Raise a stone bulwark and keep running: the faster you move, the more force it stores, " +
+                    "and dashing keeps it up. Run or dash into a foe or press again to crash forward and unload all of it!",
                 enhancedDescription = "Stores force faster and crashes wider!",
                 icon = LoadIcon("icon.png"),
                 // Same tier and price as Aegis Charge and Terra Ring, the vanilla Earth arcana it's

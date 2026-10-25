@@ -51,6 +51,11 @@ namespace WoLBrambleRing
         // Enhanced: the third, wider row, and how long after the outer row is knitted it spreads.
         private const float SpreadRowRadius = 2.9f;
         private const float SpreadRowDelay = 0.3f;
+        // Signature: its three rows erupt a little wider than the enhanced thicket's (reach 4
+        // rather than 3.4). (0.4.2: it shared the enhanced rows, and felt small for the gauge.)
+        private const float SignatureInnerRowRadius = 1.4f;
+        private const float SignatureOuterRowRadius = 2.4f;
+        private const float SignatureSpreadRowRadius = 3.5f;
         // The thicket reaches this far past its widest row: everything inside is pricked.
         private const float ThicketMargin = 0.5f;
         // Distance between neighbouring vines along a row (Rippling Vines spaces its 1.4 apart),
@@ -283,8 +288,8 @@ namespace WoLBrambleRing
                 this.center = center;
                 this.enhanced = enhanced;
                 this.signature = signature;
-                // The signature thicket is knitted at its full, enhanced size straight away.
-                radius = (signature ? SpreadRowRadius : OuterRowRadius) + ThicketMargin;
+                // The signature thicket erupts at its full, widest size straight away.
+                radius = (signature ? SignatureSpreadRowRadius : OuterRowRadius) + ThicketMargin;
             }
 
             public float Duration => signature ? SignatureRingDuration : enhanced ? EnhancedRingDuration : RingDuration;
@@ -367,7 +372,7 @@ namespace WoLBrambleRing
         {
             ring.vines = NewVines(ring);
             float spin = Random.Range(0f, 360f);
-            float[] rows = { InnerRowRadius, OuterRowRadius, SpreadRowRadius };
+            float[] rows = { SignatureInnerRowRadius, SignatureOuterRowRadius, SignatureSpreadRowRadius };
             var positions = new List<Vector2>();
             int blocked = 0;
             for (int row = 0; row < rows.Length; row++)
@@ -397,7 +402,7 @@ namespace WoLBrambleRing
                     yield return new WaitForSeconds(EruptionRowInterval);
             }
             Effect("sound", () => SoundManager.PlayAudioWithDistance("VineWaveEnd", ring.center, null, 24f, -1f, 0.9f));
-            Log($"signature: vines erupted outward in {rows.Length} rows {InnerRowRadius:0.0}-{SpreadRowRadius:0.0} out, " +
+            Log($"signature: vines erupted outward in {rows.Length} rows {rows[0]:0.0}-{rows[rows.Length - 1]:0.0} out, " +
                 $"{EruptionRowInterval * (rows.Length - 1):0.00} s centre to edge: {ring.vines.Count} vines" +
                 (blocked > 0 ? $" ({blocked} skipped in walls or pits)" : ""));
         }
