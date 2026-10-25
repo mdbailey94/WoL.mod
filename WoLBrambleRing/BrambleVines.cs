@@ -28,6 +28,8 @@ namespace WoLBrambleRing
         public int Count => vines.Count;
 
         // onGrab is called with each entity a vine's hit box catches (just before the vine hits it).
+        // ultimate marks the hits as a signature cast's (the game's isUltimate), so they don't
+        // refill the gauge.
         public BrambleVines(Player player, string skillID, int level, bool ultimate, System.Action<Entity> onGrab)
         {
             this.player = player;

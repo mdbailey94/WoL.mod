@@ -10,20 +10,36 @@ namespace WoLTidalWall
     // wave rolls forward and keeps shoving whatever it catches straight along your aim. The last
     // row is a bigger crest that hits harder (skill level 2). A lane of the wave that runs into a
     // wall stops there, so the water breaks against walls instead of passing through them.
+    //
+    // Cast from the signature slot with the gauge full (isUltimate, the game's flag for a signature
+    // cast; it's set on the state just before the cast and cleared when the state exits) it's a
+    // tidal WAVE: 5 wide like the enhanced wall, rolling on twice as far, with a little larger rows
+    // that freeze everything they catch (skill levels 3 and 4, which have a 100% freeze chance).
+    // Enhanced and signature are separate flags and stack: a signature cast of the enhanced
+    // arcana (the usual case, the game empowers whatever sits in the signature slot) rolls 10 rows.
     public class TidalWallState : Player.SkillState
     {
         public new static string staticID = "TidalWall";
 
         private const int Lanes = 3;                   // orbs side by side in each row
-        private const int EnhancedLanes = 5;
+        private const int EnhancedLanes = 5;           // enhanced and signature
         private const int Rows = 4;                    // rows rolling forward, the last one is the crest
         private const int EnhancedRows = 5;
+        private const int SignatureRowsMultiplier = 2; // the signature wave rolls this many times as far (8, 10 enhanced)
         private const float FirstRowDistance = 1.75f;  // from the wizard (Water Wall's spawn distance)
         private const float RowSpacing = 1.4f;         // how much further out each row rises
         private const float LaneSpacing = 1.3f;        // gap between the orbs in a row
         private const float RowInterval = 0.1f;       // seconds between rows; a row bursts as the next one rises
         private const float SurgeScale = 1f;           // size of the orbs in the rolling rows
         private const float CrestScale = 1.3f;         // size of the crest (Tidal Blast's enhanced orb is 1.25)
+        private const float SignatureSurgeScale = 1.15f; // the signature wave's rows and crest are a little larger
+        private const float SignatureCrestScale = 1.5f;
+        // Skill levels (SkillStats in the plugin): the rolling rows, the crest, and the signature
+        // wave's rows and crest, which hit harder and always freeze.
+        private const int RowLevel = 1;
+        private const int CrestLevel = 2;
+        private const int SignatureRowLevel = 3;
+        private const int SignatureCrestLevel = 4;
         private const float FinishDelay = 0.15f;       // seconds after the crest before the wizard can act
         private const float WallBackoff = 0.3f;        // an orb that would land in a wall stops this far short
         private const float MinWallGap = 0.5f;         // a blocked orb closer than this to the last one isn't made
@@ -36,6 +52,7 @@ namespace WoLTidalWall
         private Vector2 side;
         private int lanes;
         private int rows;
+        private bool signature;   // this cast is the signature wave (isUltimate at cast time)
         private float time;
         private int ticks;
         private bool started;
@@ -59,6 +76,9 @@ namespace WoLTidalWall
 
         public TidalWallState(FSM newFSM, Player newEnt) : base(staticID, newFSM, newEnt)
         {
+            // Lets the arcana into the signature slot: the spellbook's Signature page and the
+            // saved loadout both require it (SpellBookUI.LoadEleSkillDict, Player.InitSkills).
+            hasSignatureVariant = true;
             applyStopElementStatus = true;
             SetAnimTimes(
                 0.1f,  // start
@@ -81,8 +101,11 @@ namespace WoLTidalWall
             side = Globals.GetPerpendicular(direction);
             origin = parent.attackOriginTrans.position;
 
-            lanes = IsEmpowered ? EnhancedLanes : Lanes;
-            rows = IsEmpowered ? EnhancedRows : Rows;
+            // The game sets isUltimate for a signature cast (the signature slot's arcana with the
+            // gauge full) and clears it once the state exits, so it's read once here.
+            signature = isUltimate;
+            lanes = IsEmpowered || signature ? EnhancedLanes : Lanes;
+            rows = (IsEmpowered ? EnhancedRows : Rows) * (signature ? SignatureRowsMultiplier : 1);
             waiting = new WaterBlast[lanes];
             lanePosition = new Vector2[lanes];
             laneBlocked = new bool[lanes];
@@ -99,8 +122,19 @@ namespace WoLTidalWall
             targetIDs.Clear();
             targets.Clear();
 
-            TidalWallPlugin.Log($"Tidal Wall: cast{(IsEmpowered ? " (enhanced)" : string.Empty)}, " +
+            TidalWallPlugin.Log($"Tidal Wall: cast ({Variant()}), " +
                 $"{rows} rows x {lanes} wide toward ({direction.x:0.00}, {direction.y:0.00})");
+        }
+
+        // Which version of the arcana this cast is, for the log: normal, enhanced (the relic-based
+        // empowerment, IsEmpowered), signature (the gauge cast, isUltimate) or both at once.
+        private string Variant()
+        {
+            if (IsEmpowered && signature)
+                return "both: enhanced + signature";
+            if (signature)
+                return "signature";
+            return IsEmpowered ? "enhanced" : "normal";
         }
 
         public override void ExecuteSkill()
@@ -216,9 +250,14 @@ namespace WoLTidalWall
             if (orb == null || orb.attack == null)
                 return null;
 
-            orb.transform.localScale *= crest ? CrestScale : SurgeScale;
-            int level = crest ? 2 : 1;
-            orb.attack.SetAttackInfo(parent.skillCategory, skillID, level, false);
+            if (signature)
+                orb.transform.localScale *= crest ? SignatureCrestScale : SignatureSurgeScale;
+            else
+                orb.transform.localScale *= crest ? CrestScale : SurgeScale;
+            int level = crest ? (signature ? SignatureCrestLevel : CrestLevel) : (signature ? SignatureRowLevel : RowLevel);
+            // A signature cast's hits are marked as the game marks its own (isUltimate), so they
+            // don't refill the gauge they just spent.
+            orb.attack.SetAttackInfo(parent.skillCategory, skillID, level, signature);
             orb.attack.knockbackOverwriteVector = direction;
             orb.blastSkillLevel = level;
             orb.attack.attackCollisionEventHandlers += OnHit;
@@ -275,8 +314,8 @@ namespace WoLTidalWall
                     frozen++;
             }
             string walls = lanesBroken > 0 ? $", {lanesBroken} lane(s) broke on walls" : string.Empty;
-            TidalWallPlugin.Log($"Tidal Wall: wave done, {blasts} bursts, {hits} hits on {targetIDs.Count} targets, " +
-                $"{frozen} frozen{walls}");
+            TidalWallPlugin.Log($"Tidal Wall: {(signature ? "signature " : string.Empty)}wave done, {blasts} bursts, " +
+                $"{hits} hits on {targetIDs.Count} targets, {frozen} frozen{walls}");
         }
 
         private static void LogOrbOnce(WaterBlast orb)

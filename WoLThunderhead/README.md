@@ -1,11 +1,15 @@
 # Thunderhead (Wizard of Legend)
 
-A new **Lightning standard arcana**, added with [LegendAPI](https://github.com/yekoc/LegendAPI).
+A new **Lightning standard arcana**, added with [LegendAPI](https://github.com/yekoc/LegendAPI). It
+has a **signature version**, so it can go in the signature slot.
 
 > **Thunderhead**: Leap high into the air, out of reach, and hover as lightning rains down around
 > you, then crash down in a thunderous slam!
 >
 > *Enhanced: Stay up longer, strike wider and slam harder!*
+>
+> *Signature: A true thunderstorm, twice as long with lightning raining twice as fast over a wider
+> area, ending in a huge shocking slam!*
 
 A leap like Heroic Leap's:
 
@@ -28,10 +32,30 @@ A leap like Heroic Leap's:
 - Dash to cancel only before take-off. Cooldown 7 seconds.
 - **Enhanced**: 1.5 seconds up, strikes over a wider area and a bigger slam.
 
+## Signature
+
+Put Thunderhead in the **signature slot** (the spellbook in your house lists it under Signature
+Arcana) and cast it with the signature gauge full: the leap becomes a **true thunderstorm**. The
+wizard hangs in the air **twice as long** (2 s; 3 s when the arcana is also enhanced, which it
+always is in the signature slot), lightning rains at **twice the rate** (volleys of three every
+eighth of a second, 8 damage each) over a circle **half again as wide**, under a bigger, flickering
+storm cloud, and the landing is a **bigger slam** (half again the size, 35 damage) that **always
+shocks**, with a bigger bolt, more dust and a harder shake. Hover speed is the same as ever. All of
+it is multipliers on the normal (or enhanced) values, in the config's `[Signature]` section. As with
+the game's own arcana the cast spends the whole gauge and its hits don't refill it.
+
+The signature version is **unlocked along with the arcana** (buy it once and it's in the Signature
+list). If you'd rather earn it the vanilla way, finding its Signature drop in a run, turn
+`SignatureUnlocksWithArcana` off.
+
 The bolts are the game's own lightning from the sky (just its animation; the hits come from the
 game's lightning bursts). The log says `Thunderhead: using the game's lightning bolts`. Each cast
-also logs a `Thunderhead: cast ...` line (air time and hover speed) and a `Thunderhead: landed ...`
-line (how far you moved, how many strikes were fired and how many times they and the slam hit).
+also logs a `Thunderhead: cast (normal), ...` line (the version that ran: `normal`, `enhanced`,
+`signature` or `both: enhanced + signature`, then air time, volley rate and radius, slam size and
+hover speed) and a `Thunderhead: landed ...` line (`Thunderhead: signature storm landed ...` for a
+signature cast: how far you moved, how many strikes were fired and how many times they and the
+slam hit). When the signature is unlocked you get `Thunderhead: signature unlocked along with the
+arcana ...` once. The gauge fills by dealing damage; the training dummies in your house work for that.
 
 ## Settings
 
@@ -40,6 +64,7 @@ you start the game with the mod), or in-game with a config manager mod if you ha
 
 | Section | Setting | Default | What it does |
 | --- | --- | --- | --- |
+| General | `SignatureUnlocksWithArcana` | true | Unlock the signature version along with the arcana (off: find its Signature drop in a run) |
 | Leap | `Height` | 4 | How high the wizard leaps |
 | Leap | `WindupTime` | 0.12 | Seconds crouching before take-off (still hittable) |
 | Leap | `RiseTime` | 0.25 | Seconds rising to the top |
@@ -53,17 +78,23 @@ you start the game with the mod), or in-game with a config manager mod if you ha
 | Lightning | `EvenSpread` | true | Spread the strikes evenly over the area (off: random spots) |
 | Lightning | `StrikeSize` | 1 | Each strike's hit area |
 | Lightning | `SlamSize` / `EnhancedSlamSize` | 2.4 / 3 | The landing slam's hit area |
-| Look | `Cloud` / `CloudSize` | true / 1 | Ride a dark storm cloud while up, and its size |
+| Signature | `AirTimeMultiplier` | 2 | The signature cast hangs up this many times as long |
+| Signature | `StrikeRateMultiplier` | 2 | Volleys come this many times as often |
+| Signature | `RadiusMultiplier` | 1.5 | The strikes' circle is this many times as wide |
+| Signature | `SlamSizeMultiplier` | 1.5 | The signature slam's hit area, times the slam size |
+| Look | `Cloud` / `CloudSize` | true / 1 | Ride a dark storm cloud while up, and its size (the signature cloud is 1.4x) |
 | Look | `Electric` | true | Crackle with electricity while in the air |
 | Look | `AuraSize` | 1 | Size of the electric aura in the air |
 | Balance | `StrikeDamage` / `SlamDamage` | 5 / 14 | Damage |
+| Balance | `SignatureStrikeDamage` / `SignatureSlamDamage` | 8 / 35 | Damage in the signature cast (its slam always shocks) |
 | Balance | `StrikeKnockback` / `SlamKnockback` | 6 / 45 | Knockback |
 | Balance | `StrikeShockChance` / `SlamShockChance` | 0.2 / 0.5 | Chance to shock (0 to 1) |
 | Balance | `Cooldown` | 7 | Cooldown in seconds |
 
-**Leap**, **Lightning** and **Look** settings take effect the next time you cast it; **Balance** settings
-after restarting the game. (0.6.0 replaced `AirMoveSpeed` with `HoverSpeedPercent` and raised the
-cooldown from 6 to 7; an old `AirMoveSpeed` line left in the config file is ignored.)
+**Leap**, **Lightning**, **Signature** and **Look** settings take effect the next time you cast it;
+**Balance** settings after restarting the game. (0.6.0 replaced `AirMoveSpeed` with
+`HoverSpeedPercent` and raised the cooldown from 6 to 7; an old `AirMoveSpeed` line left in the
+config file is ignored. 0.7.0 added the signature version.)
 
 ## Install
 

@@ -36,6 +36,11 @@
       <HintPath>$(LibDir)\LegendApi.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- Harmony (ships with BepInEx) for the signature unlock patch in SignatureUnlock.cs. -->
+    <Reference Include="0Harmony">
+      <HintPath>$(LibDir)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>

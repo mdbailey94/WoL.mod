@@ -2,6 +2,7 @@ using System.IO;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
+using HarmonyLib;
 using LegendAPI;
 using UnityEngine;
 
@@ -13,10 +14,11 @@ namespace WoLBrambleRing
     {
         public const string PluginGuid = "mdbailey94.wol.bramblering";
         public const string PluginName = "Bramble Ring";
-        public const string PluginVersion = "0.2.1";
+        public const string PluginVersion = "0.3.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
+        private ConfigEntry<bool> signatureWithArcana;
 
         public static void Log(string message) => log?.LogInfo(message);
 
@@ -26,6 +28,14 @@ namespace WoLBrambleRing
             modEnabled = Config.Bind("General", "Enabled", true,
                 "Offer Bramble Ring in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
+            signatureWithArcana = Config.Bind("General", "SignatureUnlocksWithArcana", true,
+                "Unlock Bramble Ring's signature version along with the arcana itself, so it can go in the " +
+                "signature slot as soon as you have it. Off: its Signature drop has to be found in a run, " +
+                "like the game's own arcana.");
+            // The signature version only shows up in the spellbook's Signature list once it's
+            // unlocked; see SignatureUnlock.cs.
+            SignatureUnlock.Install(new Harmony(PluginGuid), BrambleRingState.staticID,
+                () => signatureWithArcana.Value, message => Log("Bramble Ring: " + message));
             // The arcana (BrambleRingState) logs each cast, each enemy caught and the thicket's
             // end, so a run can be checked from BepInEx\LogOutput.log.
 
@@ -34,7 +44,9 @@ namespace WoLBrambleRing
                 ID = BrambleRingState.staticID,
                 displayName = "Bramble Ring",
                 description = "Knit a thicket of thorny vines around you that snares the enemies inside and pricks them while it stands!",
-                enhancedDescription = "The thicket stands longer and spreads outward into a wider ring!",
+                // The game shows this one text for both the enhanced and the signature version.
+                enhancedDescription = "The thicket stands longer and spreads wider! Signature: the full thicket at once, " +
+                    "for longer, with vines that drag snared enemies inward!",
                 icon = LoadIcon("icon.png"),
                 // Same tier and price as Rippling Vines and Terra Ring, the vanilla Earth arcana
                 // it's closest to.
@@ -55,13 +67,18 @@ namespace WoLBrambleRing
                     // of its tier for damage. Embracing Vines does 25 a wave with a 2.5 s root;
                     // Terra Ring 15 a ring, cascading, with no hold. (0.2.1: pricks were 5, 30 a
                     // full stand.)
-                    damage = new[] { 5, 3 },
+                    // Levels 3 and 4 are the signature thicket's catch and pricks: the catch and
+                    // 11 pricks over its 6 s, 76 for an enemy held the whole way, for the whole
+                    // gauge. Vanilla signature casts land higher in a burst (Heroic Leap's 40 + 50,
+                    // Tidal Blast's 12 blasts of 50-60); this one is spread over a 6 s hard snare
+                    // that also drags everything to the centre, so it stays under them.
+                    damage = new[] { 5, 3, 10, 6 },
                     cooldown = new[] { 6f },
                     // The thicket holds enemies rather than shoving them.
                     knockbackMultiplier = new[] { 0f },
                     // The catch flinches; the pricks after it don't, so a snared enemy can still
                     // fight back from inside the thicket.
-                    canHitStun = new[] { true, false },
+                    canHitStun = new[] { true, false, true, false },
                     hitStunDurationModifier = new[] { 1f },
                     // No shake on every prick (the cast shakes once).
                     shakeCamera = new[] { false },
@@ -73,9 +90,9 @@ namespace WoLBrambleRing
                     // anything else the game won't let a grab hold aren't snared.
                     rootChance = new[] { 1f },
                     rootDuration = new[] { 1f },
-                    // On the catch only: the game's slow (level 2 is 50% move speed for 2 s), so
-                    // enemies that can't be snared are at least slowed while inside.
-                    slowChance = new[] { 1f, 0f },
+                    // On the catch only (levels 1 and 3): the game's slow (level 2 is 50% move
+                    // speed for 2 s), so enemies that can't be snared are at least slowed while inside.
+                    slowChance = new[] { 1f, 0f, 1f, 0f },
                     slowLevel = new[] { 2 }
                 },
                 priceMultiplier = 6,

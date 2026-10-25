@@ -13,13 +13,33 @@ namespace WoLThunderhead
     //
     // The hits are the game's lightning bursts; each strike also shows the game's own lightning
     // bolt from the sky (stripped down to its animation, so it can't hit anything itself).
+    //
+    // Cast from the signature slot with the gauge full (isUltimate, the game's flag for a signature
+    // cast, set on the state just before the cast and cleared when it exits) it's a true
+    // thunderstorm: twice the air time, strikes raining at twice the rate over a wider circle, and
+    // a bigger landing slam that always shocks (skill levels 4 and 5). The multipliers are in the
+    // config's [Signature] section and apply on top of the normal or enhanced values, so a
+    // signature cast of the enhanced arcana (the usual case, the game empowers whatever sits in the
+    // signature slot) gets both. The hover speed is the same in every version.
     public class ThunderheadState : Player.SkillState
     {
         public new static string staticID = "Thunderhead";
 
+        // Skill levels (SkillStats in the plugin): the strikes while up, the landing slam, and the
+        // signature storm's strikes and slam (level 3 is the harmless bolt used for the look).
+        private const int StrikeLevel = 1;
+        private const int SlamLevel = 2;
+        private const int SignatureStrikeLevel = 4;
+        private const int SignatureSlamLevel = 5;
+        // The signature slam's bolt, dust and shake, against the normal slam's 1.6, 80 and 1.4.
+        private const float SignatureSlamBoltSize = 2.2f;
+        private const int SignatureSlamDust = 120;
+        private const float SignatureSlamShake = 2f;
+
         // Timings and sizes come from the config (ThunderheadPlugin), read as each cast starts.
         private float WindupTime, RiseTime, CrashTime, RecoverTime, Height, HoverSpeedPercent;
         private int VolleySize;
+        private bool signature;   // this cast is the signature storm (isUltimate at cast time)
 
         private float time;
         private float nextVolley;
@@ -49,6 +69,9 @@ namespace WoLThunderhead
 
         public ThunderheadState(FSM newFSM, Player newEnt) : base(staticID, newFSM, newEnt)
         {
+            // Lets the arcana into the signature slot: the spellbook's Signature page and the
+            // saved loadout both require it (SpellBookUI.LoadEleSkillDict, Player.InitSkills).
+            hasSignatureVariant = true;
             applyStopElementStatus = true;
             SetAnimTimes(
                 0.05f, // start
@@ -59,14 +82,33 @@ namespace WoLThunderhead
                 0.6f); // exit
         }
 
-        private float HoverTimeNow => IsEmpowered ? ThunderheadPlugin.EnhancedAirTime : ThunderheadPlugin.AirTime;
-        private float RadiusNow => IsEmpowered ? ThunderheadPlugin.EnhancedRadius : ThunderheadPlugin.Radius;
-        private float VolleyInterval => IsEmpowered ? ThunderheadPlugin.EnhancedVolleyInterval : ThunderheadPlugin.VolleyInterval;
-        private float SlamScaleNow => IsEmpowered ? ThunderheadPlugin.EnhancedSlamSize : ThunderheadPlugin.SlamSize;
+        // The enhanced values when enhanced, and the signature multipliers on top for a signature cast.
+        private float HoverTimeNow => (IsEmpowered ? ThunderheadPlugin.EnhancedAirTime : ThunderheadPlugin.AirTime)
+            * (signature ? ThunderheadPlugin.SignatureAirTimeMultiplier : 1f);
+        private float RadiusNow => (IsEmpowered ? ThunderheadPlugin.EnhancedRadius : ThunderheadPlugin.Radius)
+            * (signature ? ThunderheadPlugin.SignatureRadiusMultiplier : 1f);
+        private float VolleyInterval => (IsEmpowered ? ThunderheadPlugin.EnhancedVolleyInterval : ThunderheadPlugin.VolleyInterval)
+            / (signature ? ThunderheadPlugin.SignatureStrikeRateMultiplier : 1f);
+        private float SlamScaleNow => (IsEmpowered ? ThunderheadPlugin.EnhancedSlamSize : ThunderheadPlugin.SlamSize)
+            * (signature ? ThunderheadPlugin.SignatureSlamSizeMultiplier : 1f);
+
+        // Which version of the arcana this cast is, for the log: normal, enhanced (the relic-based
+        // empowerment, IsEmpowered), signature (the gauge cast, isUltimate) or both at once.
+        private string Variant()
+        {
+            if (IsEmpowered && signature)
+                return "both: enhanced + signature";
+            if (signature)
+                return "signature";
+            return IsEmpowered ? "enhanced" : "normal";
+        }
 
         public override void OnEnter()
         {
             base.OnEnter();
+            // The game sets isUltimate for a signature cast (the signature slot's arcana with the
+            // gauge full) and clears it once the state exits, so it's read once here.
+            signature = isUltimate;
             time = 0f;
             nextVolley = 0f;
             volleyCount = 0;
@@ -250,8 +292,9 @@ namespace WoLThunderhead
                 parent.movement.moveSpeedStat.RemoveMod(HoverSpeedModID);
                 parent.movement.moveSpeedStat.AddMod(new NumVarStatMod(HoverSpeedModID, HoverSpeedPercent / 100f - 1f, 10, VarStatModType.Multiplicative));
                 float after = parent.movement.moveSpeedStat.CurrentValue;
-                ThunderheadPlugin.Log($"Thunderhead: cast{(IsEmpowered ? " (enhanced)" : "")}, " +
+                ThunderheadPlugin.Log($"Thunderhead: cast ({Variant()}), " +
                     $"{RiseTime + HoverTimeNow + CrashTime:0.00}s in the air ({RiseTime:0.00} up, {HoverTimeNow:0.00} hovering, {CrashTime:0.00} down), " +
+                    $"volleys of {VolleySize} every {VolleyInterval:0.000}s within {RadiusNow:0.0} u, slam size {SlamScaleNow:0.0}, " +
                     $"hover speed {HoverSpeedPercent:0}% of move speed ({before:0.0} -> {after:0.0} u/s)");
             }
             catch (System.Exception e)
@@ -296,7 +339,7 @@ namespace WoLThunderhead
             electric?.Off();
             electric = ElectricLook.On(parent);
             cloud?.Off();
-            cloud = StormCloud.On(parent);
+            cloud = StormCloud.On(parent, signature);
             Dust(ground, 30, 0.9f);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(ground), null, 24f, -1f, 0.6f, false);
         }
@@ -349,7 +392,7 @@ namespace WoLThunderhead
                 return;
             }
             float moved = Vector2.Distance(takeOffSpot, parent.transform.position);
-            ThunderheadPlugin.Log($"Thunderhead: {(landed ? "landed" : "cut short in the air")} {moved:0.0} u from take-off, " +
+            ThunderheadPlugin.Log($"Thunderhead: {(signature ? "signature storm " : "")}{(landed ? "landed" : "cut short in the air")} {moved:0.0} u from take-off, " +
                 $"{strikesFired} strikes in {volleyCount} volleys hit {strikeHits} time(s), slam hit {slamHits} time(s)" +
                 (heldAtPitEdge ? ", held back at a pit's edge" : ""));
         }
@@ -397,7 +440,10 @@ namespace WoLThunderhead
                 else
                     offset = Random.insideUnitCircle * radius;
                 Vector2 spot = ground + new Vector2(offset.x, offset.y * 0.7f);
-                CountHits(LightningBurst.CreateBurst(spot, parent.skillCategory, skillID, 1, ThunderheadPlugin.StrikeSize, false), false);
+                // A signature cast's hits are marked as the game marks its own (isUltimate), so
+                // they don't refill the gauge they just spent.
+                CountHits(LightningBurst.CreateBurst(spot, parent.skillCategory, skillID, signature ? SignatureStrikeLevel : StrikeLevel,
+                    ThunderheadPlugin.StrikeSize, signature), false);
                 Bolt(spot, 1f);
                 strikesFired++;
             }
@@ -412,10 +458,10 @@ namespace WoLThunderhead
         {
             Touchdown();
             float scale = SlamScaleNow;
-            CountHits(LightningBurst.CreateBurst(ground, parent.skillCategory, skillID, 2, scale, false), true);
-            Bolt(ground, 1.6f);
-            Dust(ground, 80, scale);
-            Shake(1.4f);
+            CountHits(LightningBurst.CreateBurst(ground, parent.skillCategory, skillID, signature ? SignatureSlamLevel : SlamLevel, scale, signature), true);
+            Bolt(ground, signature ? SignatureSlamBoltSize : 1.6f);
+            Dust(ground, signature ? SignatureSlamDust : 80, scale);
+            Shake(signature ? SignatureSlamShake : 1.4f);
             try
             {
                 TimeScaleController.FreezeForFrames(3, false);

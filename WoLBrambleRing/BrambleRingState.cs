@@ -15,6 +15,14 @@ namespace WoLBrambleRing
     //
     // Enhanced, the thicket stands half as long again and the vines spread outward into a third,
     // wider row a moment later.
+    //
+    // Cast from the signature slot with the gauge full (isUltimate, the game's flag for a signature
+    // cast; it's set on the state just before the cast and cleared when the state exits, so the
+    // thicket remembers it) the thicket knits all three rows at once, stands 6 s, hits harder
+    // (skill levels 3 and 4) and the vines tighten: every tick drags each snared enemy half a unit
+    // toward the centre (moving its body the way Mortal Coil drags the enemies it has hooked; the
+    // root only stops an enemy's own movement and knockback, not that). Enhanced and signature are
+    // separate flags; the signature's size and time take over when both are set.
     public class BrambleRingState : Player.SkillState
     {
         public new static string staticID = "BrambleRing";
@@ -32,15 +40,25 @@ namespace WoLBrambleRing
         // and the fewest a row gets.
         private const float VineSpacing = 1.4f;
         private const int MinVinesPerRow = 6;
-        // How long the thicket stands, normal and enhanced.
+        // How long the thicket stands, normal, enhanced and signature.
         private const float RingDuration = 3f;
         private const float EnhancedRingDuration = 4.5f;
+        private const float SignatureRingDuration = 6f;
         // Enemies inside are pricked every TickInterval from the moment it's cast: 6 pricks over
-        // 3 s, 9 enhanced. The first prick on an enemy (the catch) is skill level 1, which also
-        // carries the slow; every prick after it is level 2.
+        // 3 s, 9 enhanced, 12 signature. The first prick on an enemy (the catch) is skill level 1,
+        // which also carries the slow; every prick after it is level 2. The signature thicket's
+        // catch and pricks are levels 3 and 4.
         private const float TickInterval = 0.5f;
         private const int CatchLevel = 1;
         private const int PrickLevel = 2;
+        private const int SignatureCatchLevel = 3;
+        private const int SignaturePrickLevel = 4;
+        // Signature: how far each tick drags a snared enemy toward the centre, how close to the
+        // centre the dragging stops, and the clear ground a dragged enemy needs at its new spot
+        // (so it's never pulled into a wall or an obstacle).
+        private const float SignaturePullPerTick = 0.5f;
+        private const float PullStopRadius = 0.5f;
+        private const float PullClearance = 0.3f;
         // Vines knit, and later wither, one after another this far apart, so the ring runs round.
         private const float VineStagger = 0.02f;
         // The outer row starts this long after the inner one.
@@ -60,6 +78,9 @@ namespace WoLBrambleRing
 
         public BrambleRingState(FSM newFSM, Player newEnt) : base(staticID, newFSM, newEnt)
         {
+            // Lets the arcana into the signature slot: the spellbook's Signature page and the
+            // saved loadout both require it (SpellBookUI.LoadEleSkillDict, Player.InitSkills).
+            hasSignatureVariant = true;
             isMeleeSkill = true;
             applyStopElementStatus = true;
             // Rippling Vines' timings: the slam lands at 0.3, and you can move again from 0.75.
@@ -75,9 +96,11 @@ namespace WoLBrambleRing
         {
             base.ExecuteSkill();
 
-            // The thicket stays where you slammed, even once you've walked off.
-            var ring = new Ring((Vector2)parent.transform.position, IsEmpowered);
-            Log($"cast at ({ring.center.x:0.0}, {ring.center.y:0.0}){(ring.enhanced ? ", enhanced" : "")}");
+            // The thicket stays where you slammed, even once you've walked off. isUltimate is the
+            // game's flag for a signature cast (the signature slot's arcana with the gauge full);
+            // it's cleared once this state exits, so the ring keeps its own copy.
+            var ring = new Ring((Vector2)parent.transform.position, IsEmpowered, isUltimate);
+            Log($"cast ({ring.Variant}) at ({ring.center.x:0.0}, {ring.center.y:0.0})");
 
             // Run on the wizard, so the thicket outlives this state.
             parent.StartCoroutine(Knit(ring));
@@ -89,6 +112,7 @@ namespace WoLBrambleRing
         {
             public readonly Vector2 center;
             public readonly bool enhanced;
+            public readonly bool signature;
             public float radius;                  // how far out counts as inside
             public bool ended;
             public BrambleVines vines;
@@ -98,22 +122,36 @@ namespace WoLBrambleRing
             public int vineHits;                  // hits by the vines' own hit boxes
             public int pricks;                    // pricks dealt by the ticks (the vines' hits aside)
             public int prickDamage;               // their damage before the enemy's armour
+            public int pulls;                     // signature: nudges toward the centre
+            public float pulled;                  // and how far they added up to
             private readonly Dictionary<int, AttackInfo> infos = new Dictionary<int, AttackInfo>();
 
-            public Ring(Vector2 center, bool enhanced)
+            public Ring(Vector2 center, bool enhanced, bool signature)
             {
                 this.center = center;
                 this.enhanced = enhanced;
-                radius = OuterRowRadius + ThicketMargin;
+                this.signature = signature;
+                // The signature thicket is knitted at its full, enhanced size straight away.
+                radius = (signature ? SpreadRowRadius : OuterRowRadius) + ThicketMargin;
             }
 
-            // The skill's attack at a level, as the game would generate it for a hit box.
-            public AttackInfo Info(Player player, string skillID, int level, bool ultimate)
+            public float Duration => signature ? SignatureRingDuration : enhanced ? EnhancedRingDuration : RingDuration;
+            public int CatchLevel => signature ? SignatureCatchLevel : BrambleRingState.CatchLevel;
+            public int PrickLevel => signature ? SignaturePrickLevel : BrambleRingState.PrickLevel;
+
+            // Which version of the arcana this cast is, for the log: normal, enhanced (the
+            // relic-based empowerment, IsEmpowered), signature (the gauge cast, isUltimate) or both.
+            public string Variant => enhanced && signature ? "both: enhanced + signature" : signature ? "signature" : enhanced ? "enhanced" : "normal";
+
+            // The skill's attack at a level, as the game would generate it for a hit box. A
+            // signature cast's hits are marked as the game marks its own (isUltimate), so they
+            // don't refill the gauge they just spent.
+            public AttackInfo Info(Player player, string skillID, int level)
             {
                 AttackInfo info;
                 if (!infos.TryGetValue(level, out info))
                 {
-                    info = AttackInfo.GetInfo(player, player.skillCategory, skillID, level, ultimate);
+                    info = AttackInfo.GetInfo(player, player.skillCategory, skillID, level, signature);
                     infos[level] = info;
                 }
                 return info;
@@ -121,10 +159,11 @@ namespace WoLBrambleRing
         }
 
         // Raises the rows of vines, one vine after another round the ring: the inner row, the
-        // outer row a moment later and, enhanced, the wider third row after that.
+        // outer row a moment later and, enhanced, the wider third row after that (signature: the
+        // third row straight after the second).
         private IEnumerator Knit(Ring ring)
         {
-            ring.vines = new BrambleVines(parent, skillID, CatchLevel, isUltimate, entity =>
+            ring.vines = new BrambleVines(parent, skillID, ring.CatchLevel, ring.signature, entity =>
             {
                 ring.vineHits++;
                 if (!ring.ended && ring.caught.Add(entity))
@@ -147,9 +186,10 @@ namespace WoLBrambleRing
             Log($"knitted {ring.vines.Count} vines in 2 rows {InnerRowRadius:0.0}-{OuterRowRadius:0.0} out" +
                 (blocked > 0 ? $" ({blocked} skipped in walls or pits)" : ""));
 
-            if (!ring.enhanced)
+            if (!ring.enhanced && !ring.signature)
                 yield break;
-            yield return new WaitForSeconds(SpreadRowDelay);
+            if (!ring.signature)
+                yield return new WaitForSeconds(SpreadRowDelay);
             if (ring.ended)
                 yield break;
             int before = ring.vines.Count;
@@ -158,7 +198,7 @@ namespace WoLBrambleRing
             ring.radius = SpreadRowRadius + ThicketMargin;
             Effect("sound", () => SoundManager.PlayAudioWithDistance("VineWaveEnd", ring.center, null, 24f, -1f, 0.9f));
             yield return parent.StartCoroutine(RaiseRow(ring, positions));
-            Log($"vines spread outward: {ring.vines.Count - before} more at {SpreadRowRadius:0.0} out" +
+            Log($"vines spread outward{(ring.signature ? " at once" : "")}: {ring.vines.Count - before} more at {SpreadRowRadius:0.0} out" +
                 (blocked > 0 ? $" ({blocked} skipped in walls or pits)" : ""));
         }
 
@@ -178,7 +218,7 @@ namespace WoLBrambleRing
         // withers away.
         private IEnumerator Stand(Ring ring)
         {
-            float duration = ring.enhanced ? EnhancedRingDuration : RingDuration;
+            float duration = ring.Duration;
             float end = Time.time + duration;
             float nextTick = Time.time;
             while (Time.time < end)
@@ -198,7 +238,8 @@ namespace WoLBrambleRing
 
         // Pricks every enemy inside the thicket. Newly caught enemies get the catch hit (level 1,
         // with the slow) unless a vine already hit them; enemies the game won't let anything grab
-        // (bosses) get the catch hit every time, so the slow keeps up in place of the snare.
+        // (bosses) get the catch hit every time, so the slow keeps up in place of the snare. The
+        // signature thicket also drags every snared enemy a step toward the centre.
         private void Tick(Ring ring)
         {
             foreach (Enemy enemy in EnemiesInside(ring.center, ring.radius))
@@ -206,7 +247,7 @@ namespace WoLBrambleRing
                 bool first = ring.caught.Add(enemy);
                 bool byVine = ring.grabbed.Contains(enemy);
                 bool cannotSnare = enemy.health != null && enemy.health.ignoreGrab;
-                int level = (first && !byVine) || cannotSnare ? CatchLevel : PrickLevel;
+                int level = (first && !byVine) || cannotSnare ? ring.CatchLevel : ring.PrickLevel;
                 if (first)
                 {
                     Remember(ring, enemy);
@@ -221,8 +262,40 @@ namespace WoLBrambleRing
                     }
                 }
                 Prick(ring, enemy, level);
+                if (ring.signature && !cannotSnare)
+                    Tighten(ring, enemy);
                 if (first)
                     Log($"caught {enemy.name}{(byVine ? " in a vine" : "")}, {Status(enemy)}");
+            }
+        }
+
+        // The vines tighten: the snared enemy's body is moved SignaturePullPerTick toward the
+        // centre (its rigidbody, the way Mortal Coil drags the enemies it has hooked: the game's
+        // root zeroes an enemy's own movement and ignores knockback, so a shove wouldn't do it),
+        // but never into a wall or an obstacle, and not once it's at the centre. Enemies the game
+        // won't let anything grab (bosses) aren't dragged either, as they aren't snared.
+        private static void Tighten(Ring ring, Enemy enemy)
+        {
+            Vector2 from = enemy.transform.position;
+            Vector2 toCenter = ring.center - from;
+            if (toCenter.magnitude <= PullStopRadius)
+                return;
+            float step = Mathf.Min(SignaturePullPerTick, toCenter.magnitude - PullStopRadius);
+            Vector2 to = from + toCenter.normalized * step;
+            try
+            {
+                if (!Globals.CheckCircle(to, PullClearance, ChaosCollisions.layerUpperWallAndObst))
+                    return;
+                if (enemy.rigidbody2D != null)
+                    enemy.rigidbody2D.MovePosition(to);
+                else
+                    enemy.transform.position = to;
+                ring.pulls++;
+                ring.pulled += step;
+            }
+            catch (System.Exception e)
+            {
+                LogOnce("pull", $"couldn't drag {enemy.name} toward the centre: {e.Message}");
             }
         }
 
@@ -232,7 +305,7 @@ namespace WoLBrambleRing
         {
             if (enemy.health == null)
                 return;
-            AttackInfo info = ring.Info(parent, skillID, level, isUltimate);
+            AttackInfo info = ring.Info(parent, skillID, level);
             if (info == null)
             {
                 LogOnce("stats", $"no stats for level {level}, pricking nothing");
@@ -309,9 +382,10 @@ namespace WoLBrambleRing
                 return;
             }
             string names = string.Join(", ", ring.names.ToArray()) + (ring.caught.Count > ring.names.Count ? ", ..." : "");
-            Log($"thicket withered after {duration:0.0} s: caught {ring.caught.Count} ({names}), " +
+            string pulls = ring.signature ? $", dragged them toward the centre {ring.pulls} times ({ring.pulled:0.0} u in all)" : "";
+            Log($"{(ring.signature ? "signature " : "")}thicket withered after {duration:0.0} s: caught {ring.caught.Count} ({names}), " +
                 $"{ring.grabbed.Count} of them by a vine first ({ring.vineHits} vine hits in all), " +
-                $"{ring.pricks} pricks for {ring.prickDamage} damage before armour");
+                $"{ring.pricks} pricks for {ring.prickDamage} damage before armour{pulls}");
         }
 
         // Runs a cosmetic effect; if it's unavailable it's skipped (and logged once) instead of

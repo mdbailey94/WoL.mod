@@ -6,9 +6,16 @@ namespace WoLThunderhead
     // The dark storm cloud the wizard rides while up in the air: a solid pixel-art cloud drawn in
     // the game's style (shaded, no dark outline), one puff in front of their feet and one behind,
     // carried up with their lifted picture. It billows gently, flickers with lightning now and
-    // then, and fades in as they rise and out as they land.
+    // then, and fades in as they rise and out as they land. The signature storm's cloud is bigger
+    // and flickers much more often.
     public class StormCloud
     {
+        private const float StormySize = 1.4f;       // the signature cloud's size, times CloudSize
+        private const float FlashGapMin = 0.35f;     // seconds between flickers
+        private const float FlashGapMax = 0.9f;
+        private const float StormyFlashGapMin = 0.1f;
+        private const float StormyFlashGapMax = 0.35f;
+
         private static readonly Color32 Dark = new Color32(46, 50, 66, 255);
         private static readonly Color32 Mid = new Color32(72, 78, 98, 255);
         private static readonly Color32 Light = new Color32(108, 114, 138, 255);
@@ -19,11 +26,13 @@ namespace WoLThunderhead
         private readonly SpriteRenderer body;
         private readonly GameObject root;
         private readonly SpriteRenderer frontPuff, backPuff;
+        private readonly bool stormy;
         private float flashUntil;
         private float nextFlash;
 
-        private StormCloud(Player player)
+        private StormCloud(Player player, bool stormy)
         {
+            this.stormy = stormy;
             body = player.spriteRenderer;
             float ppu = body.sprite != null ? body.sprite.pixelsPerUnit : 16f;
             if (front == null)
@@ -35,18 +44,19 @@ namespace WoLThunderhead
             }
             root = new GameObject("Thunderhead Cloud");
             root.transform.SetParent(body.transform, false);
-            float size = ThunderheadPlugin.CloudSize;
+            float size = ThunderheadPlugin.CloudSize * (stormy ? StormySize : 1f);
             root.transform.localScale = new Vector3(size, size, 1f);
             frontPuff = Puff("Front", front, new Vector3(0f, 1f / ppu, 0f));
             backPuff = Puff("Back", back, new Vector3(2f / ppu, 6f / ppu, 0f));
             Update(0f, null);
         }
 
-        public static StormCloud On(Player player)
+        // stormy: the signature storm's cloud.
+        public static StormCloud On(Player player, bool stormy = false)
         {
             try
             {
-                return player != null && player.spriteRenderer != null && ThunderheadPlugin.Cloud ? new StormCloud(player) : null;
+                return player != null && player.spriteRenderer != null && ThunderheadPlugin.Cloud ? new StormCloud(player, stormy) : null;
             }
             catch (System.Exception e)
             {
@@ -68,7 +78,7 @@ namespace WoLThunderhead
             // Lightning flickering inside now and then.
             if (now >= nextFlash)
             {
-                nextFlash = now + Random.Range(0.35f, 0.9f);
+                nextFlash = now + (stormy ? Random.Range(StormyFlashGapMin, StormyFlashGapMax) : Random.Range(FlashGapMin, FlashGapMax));
                 flashUntil = now + 0.06f;
             }
             Color tint = now < flashUntil ? Flash : Color.white;
