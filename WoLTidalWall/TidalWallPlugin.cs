@@ -14,7 +14,7 @@ namespace WoLTidalWall
     {
         public const string PluginGuid = "mdbailey94.wol.tidalwall";
         public const string PluginName = "Tidal Wall";
-        public const string PluginVersion = "0.3.0";
+        public const string PluginVersion = "0.3.1";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -60,11 +60,13 @@ namespace WoLTidalWall
                     // carried the whole way takes 3 pushes and the crash, 3x4 + 6 = 18 (4x4 + 6 = 22
                     // enhanced, which rolls further). 0.2.0's rows of Tidal Blast orbs did up to 44
                     // and could freeze; Tidal Blast itself is 15 + 50.
-                    // Levels 3 and 4 are the signature wave's pushes and crash: 5x10 + 70 = 120 for
-                    // an enemy carried all the way (6x10 + 70 = 130 when also enhanced), for the
-                    // whole gauge. Vanilla signatures land about there: Tidal Blast's is 12 blasts
-                    // of 50-60, Heroic Leap's 40 + 50. (0.2.0: 124 / 148.)
-                    damage = new[] { 4, 6, 10, 70 },
+                    // Levels 3 and 4 are the signature wave's pushes and crash: 5x10 + 60 = 110 for
+                    // an enemy carried all the way (6x10 + 60 = 120 when also enhanced), for the
+                    // whole gauge. Vanilla water signatures do about 110-125 to one enemy (Glacial
+                    // Cross 30 + 30 + 50, Tidal Blast's pull and two or three of its 50-60 blasts);
+                    // this one also carries and freezes everything it sweeps, so it sits at that,
+                    // not above. (0.3.0: crash 70, 130; 0.2.0: 124 / 148.)
+                    damage = new[] { 4, 6, 10, 60 },
                     cooldown = new[] { 6f },
                     // Knockback is always straight along your aim (overwrite), so the wall shoves
                     // everything the same way; the pushes are light so enemies stay in front of it

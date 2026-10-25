@@ -20,7 +20,7 @@ a **signature version**, so it can go in the signature slot.
 | Knockback | 20 per push, 40 for the crash, always straight along your aim |
 | Freeze | none |
 | Projectiles | enemy projectiles that touch the wall are stopped (or bounced back) |
-| Signature | 8 columns (10 enhanced) 1.7x as tall, 10.4 wide (13), rushes 15 (18) at 12/s, 10 per push every 0.25 s and **70** for the crash, which **freezes** everything for 2.5 s: up to 120 per enemy (130) |
+| Signature | 8 columns (10 enhanced) 1.7x as tall, 10.4 wide (13), rushes 15 (18) at 12/s, 10 per push every 0.25 s and **60** for the crash, which **freezes** everything for 2.5 s: up to 110 per enemy (120), about what the game's water signatures do to one enemy (0.3.1 trimmed the crash from 70) |
 
 A single wall of water rises across your aim a short way in front of you, stands for a moment, then
 rolls slowly forward as one front. Everything it touches is shoved along with it, pushed again
@@ -63,7 +63,7 @@ list). If you'd rather earn it the vanilla way, finding its Signature drop in a 
 
 ## Checking it works
 
-`BepInEx\LogOutput.log` shows `Tidal Wall 0.3.0 registered` at start-up. A normal cast logs:
+`BepInEx\LogOutput.log` shows `Tidal Wall 0.3.1 registered` at start-up. A normal cast logs:
 
 ```
 Tidal Wall: cast (normal), wall 4.5 wide (5 columns), rolls 6.0 at 6.0/s (1.00 s), a push every 0.35 s, toward (1.00, 0.00)

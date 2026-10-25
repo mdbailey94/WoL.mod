@@ -14,7 +14,7 @@ namespace WoLThunderhead
     {
         public const string PluginGuid = "mdbailey94.wol.thunderhead";
         public const string PluginName = "Thunderhead";
-        public const string PluginVersion = "0.8.0";
+        public const string PluginVersion = "0.8.1";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -130,10 +130,12 @@ namespace WoLThunderhead
                     //   18 strikes): 4 strikes and the slam, about 34, more when you steer onto them.
                     // Levels 4 and 5 are the signature storm's strikes (also its ring of bolts round
                     // the landing) and slam: 2.4 s of volleys every 0.1 s (72 strikes within 4.2
-                    // tiles), so an enemy close by takes 6 or 7 strikes and the slam, about 85,
-                    // 100 or so when you steer onto them, for the whole gauge. Vanilla signature
-                    // casts land about there: Heroic Leap's is 40 + 50, Thunder Drop's 30 plus a ring
-                    // of 10-damage javelins.
+                    // tiles). A strike's circle plus the enemy's own hurtbox reaches 1.2-1.5 tiles,
+                    // so an enemy kept under the storm takes about 8-13 strikes and the slam: about
+                    // 110 (90-125 by the enemy's size), for the whole gauge. Vanilla lightning
+                    // signatures do about 110-130 to one enemy: Shock Nova's 11 pulses of 10,
+                    // Thunder Drop's 30 plus 9-10 of its 10-damage javelins. (0.8.0: strikes 8,
+                    // about 125.)
                     damage = new[] { Mathf.Clamp(strikeDamage.Value, 0, 200), Mathf.Clamp(slamDamage.Value, 0, 500), 0,
                         Mathf.Clamp(signatureStrikeDamage.Value, 0, 200), Mathf.Clamp(signatureSlamDamage.Value, 0, 500) },
                     cooldown = new[] { Mathf.Clamp(cooldown.Value, 0.5f, 60f) },
@@ -225,7 +227,7 @@ namespace WoLThunderhead
             slamKnockback = Float("Balance", "SlamKnockback", 45f, 0f, 200f, "Knockback of the slam." + restart);
             strikeShockChance = Float("Balance", "StrikeShockChance", 0.2f, 0f, 1f, "Chance a strike shocks (0 to 1)." + restart);
             slamShockChance = Float("Balance", "SlamShockChance", 0.5f, 0f, 1f, "Chance the slam shocks (0 to 1)." + restart);
-            signatureStrikeDamage = Config.Bind("Balance", "SignatureStrikeDamage", 8,
+            signatureStrikeDamage = Config.Bind("Balance", "SignatureStrikeDamage", 7,
                 new ConfigDescription("Damage of each lightning strike in the signature cast." + restart, new AcceptableValueRange<int>(0, 200)));
             signatureSlamDamage = Config.Bind("Balance", "SignatureSlamDamage", 35,
                 new ConfigDescription("Damage of the signature cast's landing slam (it always shocks)." + restart, new AcceptableValueRange<int>(0, 500)));

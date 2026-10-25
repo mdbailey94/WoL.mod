@@ -42,7 +42,7 @@ enhances the signature slot) and turns it into a **cinematic storm**:
 
 1. **Take-off**: the wizard launches on a bolt from the sky, with a flash, a thunderclap and a
    shake, and the stage starts going **dark**.
-2. **The storm** (2.4 s, steerable): lightning rains down **every tenth of a second** (8 damage
+2. **The storm** (2.4 s, steerable): lightning rains down **every tenth of a second** (7 damage
    each) over a circle half again as wide, each strike with sparks and a scorch mark and the
    camera jolting, under a storm cloud that **swells** as it rages.
 3. **Wind-up**: at the top the wizard holds for a quarter second, rising a little and crackling
@@ -50,7 +50,7 @@ enhances the signature slot) and turns it into a **cinematic storm**:
 4. **The dive**: a streak of lightning straight down and a fast dive.
 5. **Impact**: the game **freezes for 4 frames** under a **white flash**, a huge shocking slam
    (35 damage, half again the enhanced size) with a crater, rays of light and a **big shake**; a
-   **ring of 8 lightning bolts** radiates out to strike just beyond the slam (8 damage each), the
+   **ring of 8 lightning bolts** radiates out to strike just beyond the slam (7 damage each), the
    **light floods back** and time eases back from a moment of **slow motion** as the camera
    pulls out.
 
@@ -119,7 +119,7 @@ you start the game with the mod), or in-game with a config manager mod if you ha
 | Look | `Electric` | true | Crackle with electricity while in the air |
 | Look | `AuraSize` | 1 | Size of the electric aura in the air |
 | Balance | `StrikeDamage` / `SlamDamage` | 5 / 14 | Damage |
-| Balance | `SignatureStrikeDamage` / `SignatureSlamDamage` | 8 / 35 | Damage in the signature cast (strikes and ring; its slam always shocks) |
+| Balance | `SignatureStrikeDamage` / `SignatureSlamDamage` | 7 / 35 | Damage in the signature cast (strikes and ring; its slam always shocks) |
 | Balance | `StrikeKnockback` / `SlamKnockback` | 6 / 45 | Knockback |
 | Balance | `StrikeShockChance` / `SlamShockChance` | 0.2 / 0.5 | Chance to shock (0 to 1) |
 | Balance | `Cooldown` | 7 | Cooldown in seconds |
@@ -135,6 +135,10 @@ defaults for those settings is moved to the new ones the first time 0.8.0 starts
 which); values you changed yourself are kept. (0.6.0 replaced `AirMoveSpeed` with
 `HoverSpeedPercent` and raised the cooldown from 6 to 7; an old `AirMoveSpeed` line left in the
 config file is ignored. 0.7.0 added the signature version.)
+
+**0.8.1** lowered `SignatureStrikeDamage` from 8 to 7, so the signature does about what the game's
+own lightning signatures do to one enemy (about 110 for one kept under the storm). A config file
+made by an earlier version keeps 8 until you change it.
 
 ## Install
 
