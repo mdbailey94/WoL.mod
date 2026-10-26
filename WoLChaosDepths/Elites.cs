@@ -134,7 +134,7 @@ namespace WoLChaosDepths
                 id = entity.GetInstanceID();
                 if (!rolled.Add(id))
                     continue;
-                if (entity is Boss || entity is MiniBoss || entity is Player)
+                if (entity is Boss || entity is MiniBoss || entity is Player || Stationary(entity))
                     continue;
                 if (UnityEngine.Random.value < odds)
                     MakeElite(entity, Affixes[UnityEngine.Random.Range(0, Affixes.Length)]);
@@ -143,6 +143,19 @@ namespace WoLChaosDepths
             foreach (KeyValuePair<int, Entity> pair in eliteEntities)
                 if (pair.Value != null && pair.Value.spriteRenderer != null && pair.Value.health != null && pair.Value.health.CurrentHealthValue > 0)
                     pair.Value.spriteRenderer.color = elites[pair.Key].tint;
+        }
+
+        // Spawners and turrets (Coffin, EnemyTurret...) don't move or fight like a creature, so
+        // an elite affix on them reads as a bug.
+        private static readonly string[] StationaryNames = { "Coffin", "Turret", "Spawner", "Totem", "Factory" };
+
+        private static bool Stationary(Entity entity)
+        {
+            string name = entity.GetType().Name;
+            foreach (string part in StationaryNames)
+                if (name.IndexOf(part, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            return false;
         }
 
         public static void MakeElite(Entity entity, Affix affix)
