@@ -274,8 +274,32 @@ namespace WoLChaosDepths
                 if (circle == null)
                     circle = UnityEngine.Object.FindObjectOfType<MiniBossActivationCircle>();
                 if (circle == null)
+                    foreach (MiniBossActivationCircle any in Resources.FindObjectsOfTypeAll<MiniBossActivationCircle>())
+                        if (any != null && any.gameObject.scene.IsValid())
+                        {
+                            circle = any;
+                            break;
+                        }
+                // The developer skip sometimes leaves the wizard on the start pad: put the wizard
+                // on the circle, so the mini-boss and its exit spawn where the sweeps reach.
+                Player wizard = FirstPlayer();
+                if (wizard != null && circle != null)
+                {
+                    float away = Vector2.Distance(wizard.transform.position, circle.transform.position);
+                    if (away > 3f)
+                    {
+                        wizard.transform.position = circle.transform.position;
+                        ChaosDepthsPlugin.Log($"Debug: the wizard was {away:0} units from the skull altar; moved onto it");
+                    }
+                }
+                if (circle == null)
                 {
                     ExitRoomEventHandler room = UnityEngine.Object.FindObjectOfType<ExitRoomEventHandler>();
+                    if (room != null && wizard != null && Vector2.Distance(wizard.transform.position, room.transform.position) > 6f)
+                    {
+                        wizard.transform.position = room.transform.position;
+                        ChaosDepthsPlugin.Log("Debug: moved the wizard to the exit room");
+                    }
                     if (room == null)
                     {
                         ChaosDepthsPlugin.Log("Debug: no skull altar or exit room handler in this scene");

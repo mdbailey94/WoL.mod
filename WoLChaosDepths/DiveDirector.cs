@@ -89,6 +89,7 @@ namespace WoLChaosDepths
             {
                 // Starting a run from the Hub: pick the realm and the floor count.
                 bossesCleared = 0;
+                bossKilledIn.Clear();
                 bossSceneCounted = null;
                 inRun = true;
                 string result = null;
@@ -231,8 +232,20 @@ namespace WoLChaosDepths
         }
 
         // True when the arena's boss has not been defeated (a forced or debug exit, not a win).
+        // Scenes where a boss was killed with credit (from the plugin's kill hook): some arenas
+        // never fill in their own boss fields.
+        private static readonly HashSet<string> bossKilledIn = new HashSet<string>();
+
+        public static void BossKilled(Entity boss)
+        {
+            if (boss is Boss)
+                bossKilledIn.Add(CurrentScene());
+        }
+
         public static bool BossStillAlive(string scene)
         {
+            if (bossKilledIn.Contains(scene))
+                return false;
             try
             {
                 BossRoomEventHandler room = UnityEngine.Object.FindObjectOfType<BossRoomEventHandler>();
