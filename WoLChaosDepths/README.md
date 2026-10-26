@@ -19,6 +19,11 @@ normal run. It proves three things the plan depends on, with no new screens yet:
 `loot.json` is written with the defaults the first time and can be edited: weights, affix ranges,
 labels and suffixes.
 
+Both files are read and written by the mod's own small JSON code (`Json.cs`): 0.1.0 used Unity's
+`JsonUtility`, which in this game's Unity (5.6) can't see a plugin's classes, so it wrote `{}` and
+nothing was kept. 0.1.1 rewrites a `{}` `loot.json` with the defaults; an empty `characterN.json`
+from 0.1.0 starts a fresh character.
+
 ## What to test
 
 - Play a few floors. The log should show `Player 1: Wizard, level 1, 0/60 xp`, then `found:` lines

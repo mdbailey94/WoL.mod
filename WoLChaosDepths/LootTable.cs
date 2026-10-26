@@ -48,11 +48,20 @@ namespace WoLChaosDepths
 
         public static void Load()
         {
+            bool rewrite = false;
             try
             {
                 if (File.Exists(FilePath))
                 {
-                    Current = JsonUtility.FromJson<Data>(File.ReadAllText(FilePath));
+                    string text = File.ReadAllText(FilePath);
+                    // 0.1.0 wrote an empty "{}" here (JsonUtility can't see plugin classes):
+                    // replace that with the real defaults.
+                    if (text.Trim() == "{}")
+                    {
+                        rewrite = true;
+                        throw new FormatException("left empty by 0.1.0, rewriting it with the defaults");
+                    }
+                    Current = Json.Read<Data>(text);
                     if (Current != null && Current.rarities.Count > 0 && Current.affixes.Count > 0)
                     {
                         ChaosDepthsPlugin.Log($"Loot table: {Current.rarities.Count} rarities, {Current.affixes.Count} affixes from {FilePath}");
@@ -69,8 +78,11 @@ namespace WoLChaosDepths
             try
             {
                 Directory.CreateDirectory(SaveStore.Folder);
-                if (!File.Exists(FilePath))
-                    File.WriteAllText(FilePath, JsonUtility.ToJson(Current, true));
+                if (rewrite || !File.Exists(FilePath))
+                {
+                    File.WriteAllText(FilePath, Json.Write(Current));
+                    ChaosDepthsPlugin.Log($"Loot table: wrote the defaults ({Current.rarities.Count} rarities, {Current.affixes.Count} affixes) to {FilePath}");
+                }
             }
             catch (Exception e)
             {

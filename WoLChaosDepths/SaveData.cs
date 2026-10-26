@@ -6,8 +6,9 @@ using UnityEngine;
 namespace WoLChaosDepths
 {
     // One Chaos Depths character: its own file, nothing to do with the game's save. Written as
-    // JSON through Unity's JsonUtility (public fields only, so every field below is one), with a
-    // version number for later upgrades and a .bak copy kept from the previous save.
+    // JSON by Json.cs (public fields only, so every field below is one; Unity's JsonUtility can't
+    // see plugin classes), with a version number for later upgrades and a .bak copy kept from the
+    // previous save.
     [Serializable]
     public class CharacterSave
     {
@@ -62,7 +63,7 @@ namespace WoLChaosDepths
             {
                 if (File.Exists(path))
                 {
-                    CharacterSave save = JsonUtility.FromJson<CharacterSave>(File.ReadAllText(path));
+                    CharacterSave save = Json.Read<CharacterSave>(File.ReadAllText(path));
                     if (save != null)
                     {
                         Upgrade(save);
@@ -78,7 +79,7 @@ namespace WoLChaosDepths
                 {
                     if (File.Exists(path + ".bak"))
                     {
-                        CharacterSave save = JsonUtility.FromJson<CharacterSave>(File.ReadAllText(path + ".bak"));
+                        CharacterSave save = Json.Read<CharacterSave>(File.ReadAllText(path + ".bak"));
                         if (save != null)
                         {
                             Upgrade(save);
@@ -105,7 +106,7 @@ namespace WoLChaosDepths
                 Directory.CreateDirectory(Folder);
                 if (File.Exists(path))
                     File.Copy(path, path + ".bak", true);
-                File.WriteAllText(path, JsonUtility.ToJson(save, true));
+                File.WriteAllText(path, Json.Write(save));
             }
             catch (Exception e)
             {
