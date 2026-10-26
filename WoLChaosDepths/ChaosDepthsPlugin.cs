@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using BepInEx;
 using BepInEx.Configuration;
+using Rewired;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -18,7 +19,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.1.1";
+        public const string PluginVersion = "0.2.0";
 
         private const float KillDedupeSeconds = 2f;
 
@@ -27,6 +28,9 @@ namespace WoLChaosDepths
         private static ConfigEntry<float> healthPerLevel, xpPerHealth, bossXpMultiplier, dropChance;
         private static ConfigEntry<int> levelCap, bossDropRarity;
         private static ConfigEntry<bool> autoEquip, logKills;
+        private static ConfigEntry<string> panelKey, panelButton;
+        private static KeyCode openKey = KeyCode.I;
+        private InventoryPanel panel;
 
         public static float HealthPerLevel => Mathf.Clamp(healthPerLevel?.Value ?? 0.02f, 0f, 0.1f);
         public static void Log(string message) => log?.LogInfo(message);
@@ -58,6 +62,20 @@ namespace WoLChaosDepths
             autoEquip = Config.Bind("Loot", "AutoEquip", true,
                 "Equip a found item when it's better than the one in its slot (there's no inventory screen yet).");
 
+            panelKey = Config.Bind("Panel", "KeyboardKey", "I", "Keyboard key that opens the inventory (a Unity KeyCode name, e.g. I, Tab, F1).");
+            panelButton = Config.Bind("Panel", "ControllerButton", "RightStick",
+                "Controller button that opens the inventory: RightStick (R3), LeftStick (L3), Back (Select/View) or None.");
+            try
+            {
+                openKey = (KeyCode)Enum.Parse(typeof(KeyCode), panelKey.Value.Trim(), true);
+            }
+            catch
+            {
+                Logger.LogWarning($"Unknown key '{panelKey.Value}', using I");
+                openKey = KeyCode.I;
+            }
+            panel = new InventoryPanel(OnInventoryChanged);
+
             LootTable.Load();
             try
             {
@@ -69,6 +87,7 @@ namespace WoLChaosDepths
             }
             SceneManager.activeSceneChanged += (from, to) =>
             {
+                panel?.Close();
                 SaveAll();
                 lastHitBy.Clear();
                 lastKillTime.Clear();
@@ -82,18 +101,133 @@ namespace WoLChaosDepths
         // Twice a second: make sure each active player has a character and their stats on.
         private void Update()
         {
-            if (!modEnabled.Value || Time.unscaledTime < nextTick)
+            if (!modEnabled.Value)
                 return;
-            nextTick = Time.unscaledTime + 0.5f;
+            if (panel.Open)
+            {
+                panel.Update();
+                return;
+            }
             Player[] players = GameController.activePlayers;
             if (players == null)
                 return;
+            Player opener = OpenRequested(players);
+            if (opener != null)
+            {
+                panel.Show(opener, CharacterOf(opener));
+                return;
+            }
+            if (Time.unscaledTime < nextTick)
+                return;
+            nextTick = Time.unscaledTime + 0.5f;
             foreach (Player player in players)
             {
                 if (player == null)
                     continue;
                 StatMods.Apply(player, CharacterOf(player));
             }
+        }
+
+        private void OnGUI()
+        {
+            if (modEnabled.Value && panel != null && panel.Open)
+                panel.Draw();
+        }
+
+        private void OnInventoryChanged(Player player, CharacterSave save)
+        {
+            StatMods.Apply(player, save);
+            SaveStore.Save(player.playerID, save);
+        }
+
+        // ---- Opening the panel ----
+
+        public static bool OpenKeyPressed() => Input.GetKeyDown(openKey);
+
+        // The player who asked for the inventory this frame: the keyboard key (first player), or
+        // the controller button on a pad a player holds. Not while the game's own pause menu is
+        // up, or mid-dash or attack (idle and running only, like the shops).
+        private Player OpenRequested(Player[] players)
+        {
+            try
+            {
+                if (TimeScaleController.paused)
+                    return null;
+                if (OpenKeyPressed())
+                {
+                    foreach (Player player in players)
+                        if (player != null && CanOpen(player))
+                            return player;
+                    return null;
+                }
+                if (!ReInput.isReady)
+                    return null;
+                foreach (Player player in players)
+                {
+                    if (player == null || player.inputDevice == null || player.inputDevice.rewiredPlayer == null)
+                        continue;
+                    foreach (Joystick joystick in player.inputDevice.rewiredPlayer.controllers.Joysticks)
+                    {
+                        if (ButtonJustPressed(joystick) && CanOpen(player))
+                            return player;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                LogError($"open check: {e.Message}");
+            }
+            return null;
+        }
+
+        private static bool CanOpen(Player player)
+        {
+            try
+            {
+                if (!player.gameObject.activeInHierarchy || (GameUI.dialogManager != null && GameUI.dialogManager.IsActive))
+                    return false;
+                string state = player.fsm != null ? player.fsm.currentStateName : null;
+                return state == null || state.Contains("Idle") || state.Contains("Run");
+            }
+            catch
+            {
+                return true;
+            }
+        }
+
+        // XInput order: A0 B1 X2 Y3 LB4 RB5 Back6 Start7 LS8 RS9; named pads by button name.
+        private static bool ButtonJustPressed(Joystick joystick)
+        {
+            if (joystick == null || joystick.Buttons == null)
+                return false;
+            string which = (panelButton.Value ?? "").Trim().ToLowerInvariant();
+            int index;
+            string[] names;
+            switch (which)
+            {
+                case "leftstick": index = 8; names = new[] { "left stick button", "l3", "ls", "left stick" }; break;
+                case "back": index = 6; names = new[] { "back", "select", "view", "share" }; break;
+                case "none": return false;
+                default: index = 9; names = new[] { "right stick button", "r3", "rs", "right stick" }; break;
+            }
+            bool generic = true;
+            foreach (Rewired.Controller.Button button in joystick.Buttons)
+            {
+                if (button != null && !string.IsNullOrEmpty(button.name) && !button.name.StartsWith("Button ", StringComparison.OrdinalIgnoreCase))
+                {
+                    generic = false;
+                    break;
+                }
+            }
+            for (int i = 0; i < joystick.Buttons.Count; i++)
+            {
+                Rewired.Controller.Button button = joystick.Buttons[i];
+                if (button == null || !button.justPressed)
+                    continue;
+                if (generic ? i == index : !string.IsNullOrEmpty(button.name) && Array.IndexOf(names, button.name.Trim().ToLowerInvariant()) >= 0)
+                    return true;
+            }
+            return false;
         }
 
         private CharacterSave CharacterOf(Player player)

@@ -19,6 +19,7 @@ namespace WoLChaosDepths
         public int totalXp;
         public int kills;
         public int itemsFound;
+        public int dust;        // Chaos Dust from salvaged items
         public List<ItemData> inventory = new List<ItemData>();
         // Item id equipped in each slot, "" for none; same order as LootTable.Slots.
         public List<string> equipped = new List<string>();

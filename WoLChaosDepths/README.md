@@ -1,7 +1,7 @@
-# Chaos Depths (Wizard of Legend) - EXPERIMENTAL, M0 technical test 1
+# Chaos Depths (Wizard of Legend) - EXPERIMENTAL, M0 technical tests
 
-The first technical test for the Chaos Depths RPG plan: a **persistent character** on top of a
-normal run. It proves three things the plan depends on, with no new screens yet:
+The technical tests for the Chaos Depths RPG plan: a **persistent character** on top of a normal
+run, and one custom screen. It proves four things the plan depends on:
 
 1. **A save of its own.** Each player gets `BepInEx\config\ChaosDepths\characterN.json` (with a
    `.bak` of the previous save). The game's own save is never touched.
@@ -15,6 +15,13 @@ normal run. It proves three things the plan depends on, with no new screens yet:
    Found items go into the save; until there is an inventory screen, an item is **equipped
    automatically when it beats the one in its slot**, and its stats go on through the game's own
    stat modifiers.
+
+4. **A custom screen on a controller.** Press **R3** (click the right stick) or **I** on the
+   keyboard to open the inventory over the paused game: your level and experience bar, the three
+   equipped slots and the inventory list with rarity colours. Move with the stick or arrow keys;
+   **A / Enter** equips or unequips the highlighted item (an asterisk marks equipped ones);
+   **hold A** for 0.7 s, or press **Delete**, to salvage it into Chaos Dust (1 / 3 / 8 / 20 by
+   rarity); **B / Esc** or the open key closes. The game's own pause menu is left alone.
 
 `loot.json` is written with the defaults the first time and can be edited: weights, affix ranges,
 labels and suffixes.
@@ -33,10 +40,15 @@ from 0.1.0 starts a fresh character.
 - `Stats applied ... items: Damage +12%` lines show the equipped bonuses; check a damage number
   on a dummy before and after a damage item.
 - In co-op, each player has their own file and level.
+- Open the inventory with R3 (or I), move, equip something, salvage something, close: the game
+  should pause while it's open and carry on after. The log shows `Inventory opened`, `Equipped`,
+  `Salvaged` lines.
 
 ## Settings
 
 `BepInEx\config\mdbailey94.wol.chaosdepths.cfg`: `HealthPerLevel`, `XpPerEnemyHealth`,
-`BossXpMultiplier`, `LevelCap`, `DropChance`, `BossDropMinRarity`, `AutoEquip`, `LogKills`.
+`BossXpMultiplier`, `LevelCap`, `DropChance`, `BossDropMinRarity`, `AutoEquip`, `LogKills`,
+and under `[Panel]` the open controls: `KeyboardKey` (I) and `ControllerButton` (RightStick,
+LeftStick, Back or None).
 
 To start over, delete the `characterN.json` files while the game is closed.

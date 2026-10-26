@@ -109,6 +109,15 @@ namespace WoLChaosDepths
             return data;
         }
 
+        public static int RarityIndex(string name)
+        {
+            Data data = Current ?? Defaults();
+            for (int i = 0; i < data.rarities.Count; i++)
+                if (data.rarities[i].name == name)
+                    return i;
+            return 0;
+        }
+
         public static AffixDef Affix(string key)
         {
             foreach (AffixDef def in Current.affixes)
