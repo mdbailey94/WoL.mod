@@ -20,13 +20,14 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.3.13";
+        public const string PluginVersion = "0.4.0";
 
 
         private static BepInEx.Logging.ManualLogSource log;
         private static ConfigEntry<bool> modEnabled;
         private static ConfigEntry<float> healthPerLevel, xpPerHealth, bossXpMultiplier, dropChance;
-        private static ConfigEntry<int> levelCap, bossDropRarity;
+        private static ConfigEntry<int> levelCap, bossDropRarity, floorBossDropRarity;
+        private static ConfigEntry<float> floorBossXpMultiplier;
         private static ConfigEntry<bool> autoEquip, logKills;
         private static ConfigEntry<string> panelKey, panelButton;
         private static ConfigEntry<bool> diveEnabled, debugEnabled;
@@ -66,6 +67,10 @@ namespace WoLChaosDepths
             bossXpMultiplier = Config.Bind("Progression", "BossXpMultiplier", 10f,
                 new ConfigDescription("Bosses give this many times the experience their health would.", new AcceptableValueRange<float>(1f, 50f)));
             levelCap = Config.Bind("Progression", "LevelCap", 50, new ConfigDescription("Highest level.", new AcceptableValueRange<int>(2, 99)));
+            floorBossXpMultiplier = Config.Bind("Progression", "FloorBossXpMultiplier", 4f,
+                "Experience multiplier for the floor boss summoned at the skull altar (realm bosses use BossXpMultiplier).");
+            floorBossDropRarity = Config.Bind("Loot", "FloorBossDropMinRarity", 1,
+                "The floor boss always drops an item of at least this rarity (0 Common, 1 Magic, 2 Rare, 3 Legendary).");
             dropChance = Config.Bind("Loot", "DropChance", 0.15f,
                 new ConfigDescription("Chance a kill drops an item (bosses always do).", new AcceptableValueRange<float>(0f, 1f)));
             bossDropRarity = Config.Bind("Loot", "BossDropMinRarity", 2,
@@ -96,6 +101,7 @@ namespace WoLChaosDepths
             realmsPerDive = Config.Bind("Dive", "RealmsPerDive", 0,
                 new ConfigDescription("Realm bosses to beat before the dive ends and you return to the Hub. 0 = the whole run as the game plays it.",
                     new AcceptableValueRange<int>(0, 6)));
+            Elites.Bind(Config);
             debugEnabled = Config.Bind("Debug", "Enabled", false,
                 "Test keys: F6 kill all enemies, F7 skip floor, F8 god mode, F9 gold, F10 auto-dive (kill and skip floor after floor until the run ends), F11 log every relic's ID and name.");
             autoDiveRelics = Config.Bind("Debug", "AutoDiveRelics", "",
@@ -124,6 +130,7 @@ namespace WoLChaosDepths
                 SaveAll();
                 lastHitBy.Clear();
                 lastKillTime.Clear();
+                Elites.ClearScene();
                 deathHooked.Clear();
             };
             Logger.LogInfo($"{PluginName} {PluginVersion} loaded (EXPERIMENTAL); saves in {SaveStore.Folder}");
@@ -155,6 +162,8 @@ namespace WoLChaosDepths
                 return;
             nextTick = Time.unscaledTime + 0.5f;
             DiveDirector.Tick();
+            if (InTrials())
+                Elites.Tick();
             foreach (Player player in players)
             {
                 if (player == null)
@@ -349,17 +358,28 @@ namespace WoLChaosDepths
                 if (!lastHitBy.TryGetValue(id, out player) || player == null)
                     return;
                 CharacterSave save = CharacterOf(player);
-                bool boss = IsBoss(entity);
+                // Realm bosses, floor bosses (the skull altar's), elites, then everyone else.
+                bool boss = entity is Boss || (IsBoss(entity) && !(entity is MiniBoss));
+                bool floorBoss = entity is MiniBoss;
+                string elite = Elites.AffixOf(entity);
                 if (boss)
                     DiveDirector.BossKilled(entity);
                 float maxHealth = entity.health != null && entity.health.healthStat != null ? entity.health.healthStat.ModifiedValue : 10f;
-                int xp = Mathf.Max(1, Mathf.RoundToInt(maxHealth * xpPerHealth.Value * (boss ? bossXpMultiplier.Value : 1f)));
+                float mult = boss ? bossXpMultiplier.Value : floorBoss ? floorBossXpMultiplier.Value : elite != null ? Elites.XpMultiplier : 1f;
+                int xp = Mathf.Max(1, Mathf.RoundToInt(maxHealth * xpPerHealth.Value * mult));
                 save.kills++;
-                if (logKills.Value || boss)
-                    Log($"{entity.GetType().Name}{(boss ? " (boss)" : "")} slain by player {player.playerID + 1}: +{xp} xp");
+                string kind = boss ? " (boss)" : floorBoss ? " (floor boss)" : elite != null ? $" ({elite} elite)" : "";
+                if (logKills.Value || kind.Length > 0)
+                    Log($"{entity.GetType().Name}{kind} slain by player {player.playerID + 1}: +{xp} xp");
                 AddXp(player, save, xp);
-                if (boss || UnityEngine.Random.value < dropChance.Value)
-                    Drop(player, save, boss ? bossDropRarity.Value : 0);
+                if (boss)
+                    Drop(player, save, bossDropRarity.Value);
+                else if (floorBoss)
+                    Drop(player, save, floorBossDropRarity.Value);
+                else if (elite != null)
+                    Drop(player, save, Elites.DropMinRarity);
+                else if (UnityEngine.Random.value < dropChance.Value)
+                    Drop(player, save, 0);
                 if (boss)
                     SaveStore.Save(player.playerID, save);
             }
@@ -425,7 +445,7 @@ namespace WoLChaosDepths
 
         private void Drop(Player player, CharacterSave save, int minRarity)
         {
-            ItemData item = LootTable.Roll(save.level, minRarity);
+            ItemData item = LootTable.Roll(save.level + Elites.AscensionLevel(), minRarity, Elites.RarityBoost());
             save.inventory.Add(item);
             save.itemsFound++;
             string text = $"{item.rarity} {item.name} ({LootTable.Describe(item)})";

@@ -71,3 +71,16 @@ and under `[Panel]` the open controls: `KeyboardKey` (I) and `ControllerButton` 
 LeftStick, Back or None).
 
 To start over, delete the `characterN.json` files while the game is closed.
+
+## Elites and Ascension (0.4.0, milestone M3)
+
+- In the trials, each ordinary enemy has an 8% chance (`[Elites] Chance`) to spawn as an
+  elite: 2.5x health, a tint, and one affix. **Swift** moves 40% faster (blue), **Armored** takes
+  40% less damage (grey), **Giant** is drawn bigger with 1.5x more health again (red).
+- Elites give extra experience and always drop an item of at least Magic rarity.
+- The floor boss summoned at the skull altar now has its own rewards (`FloorBossXpMultiplier`
+  4, `FloorBossDropMinRarity` Magic) instead of a realm boss's (10x experience, Rare or better).
+- With the Ascension mod installed, each Ascension level adds 1% elite chance, 15% weight to
+  Magic and better rarities (`[Loot] RarityBoostPerAscension`), and one item level.
+- Log lines: `Elites: chance ...` once per floor, `Elite: Swift Archer (health ...)`, and
+  `... (Swift elite) slain by player 1`.

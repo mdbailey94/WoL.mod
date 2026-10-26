@@ -128,10 +128,11 @@ namespace WoLChaosDepths
 
         // A random item for this item level; minRarity (0-based index into rarities) forces at
         // least that rarity, e.g. for a boss drop.
-        public static ItemData Roll(int itemLevel, int minRarity = 0)
+        // rarityBoost scales the weight of Magic and better (0.3 = +30%), e.g. from Ascension.
+        public static ItemData Roll(int itemLevel, int minRarity = 0, float rarityBoost = 0f)
         {
             Data data = Current ?? (Current = Defaults());
-            int rarityIndex = PickRarity(data, minRarity);
+            int rarityIndex = PickRarity(data, minRarity, rarityBoost);
             RarityDef rarity = data.rarities[rarityIndex];
             string slot = Slots[UnityEngine.Random.Range(0, Slots.Length)];
 
@@ -164,15 +165,21 @@ namespace WoLChaosDepths
             return item;
         }
 
-        private static int PickRarity(Data data, int minRarity)
+        private static float Weight(Data data, int index, float rarityBoost)
         {
-            int total = 0;
+            float w = Mathf.Max(0, data.rarities[index].weight);
+            return index > 0 ? w * (1f + Mathf.Max(0f, rarityBoost)) : w;
+        }
+
+        private static int PickRarity(Data data, int minRarity, float rarityBoost)
+        {
+            float total = 0f;
             for (int i = minRarity; i < data.rarities.Count; i++)
-                total += Mathf.Max(0, data.rarities[i].weight);
-            int roll = UnityEngine.Random.Range(0, Mathf.Max(1, total));
+                total += Weight(data, i, rarityBoost);
+            float roll = UnityEngine.Random.Range(0f, Mathf.Max(0.0001f, total));
             for (int i = minRarity; i < data.rarities.Count; i++)
             {
-                roll -= Mathf.Max(0, data.rarities[i].weight);
+                roll -= Weight(data, i, rarityBoost);
                 if (roll < 0)
                     return i;
             }
