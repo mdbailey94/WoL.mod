@@ -826,7 +826,8 @@ namespace WoLChaosDepths
                     {
                         name = "?";
                     }
-                    lines.Add($"{pair.Key} = {name} ({(pair.Value != null ? pair.Value.GetType().Name : "?")})");
+                    bool locked = LootManager.lockedItemIDList != null && LootManager.lockedItemIDList.Contains(pair.Key);
+                    lines.Add($"{pair.Key} = {name} ({(pair.Value != null ? pair.Value.GetType().Name : "?")}){(locked ? " [locked]" : "")}");
                 }
                 lines.Sort();
                 ChaosDepthsPlugin.Log($"Debug: {lines.Count} relics:\n  " + string.Join("\n  ", lines.ToArray()));
@@ -858,8 +859,9 @@ namespace WoLChaosDepths
                         ChaosDepthsPlugin.Log($"Auto-dive: already holding relic '{id}'");
                         continue;
                     }
+                    bool locked = LootManager.lockedItemIDList != null && LootManager.lockedItemIDList.Contains(id);
                     bool added = player.inventory.AddItem(id, true, true);
-                    ChaosDepthsPlugin.Log($"Auto-dive: relic '{id}' {(added ? "given" : "could not be given (unknown ID? press F11 for the list)")}");
+                    ChaosDepthsPlugin.Log($"Auto-dive: relic '{id}'{(locked ? " (still locked in this save)" : "")} {(added ? "given" : "could not be given (unknown ID? press F11 for the list)")}");
                 }
                 catch (Exception e)
                 {
