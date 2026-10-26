@@ -26,7 +26,7 @@ run, and one custom screen. It proves four things the plan depends on:
 5. **Shaping a dive** (0.3.0). Three `[Dive]` settings, each defaulting to the game's own
    behaviour: `Realm` (which realm the run starts in: Earth, Fire, Water, Air, Lightning, or
    `Game` for the game's order), `FloorsPerRealm` (floors before each realm's boss; 0 = the
-   game's count), and `RealmsPerDive` (realm bosses to beat before the dive ends and you return
+   game's usual two), and `RealmsPerDive` (realm bosses to beat before the dive ends and you return
    to the Hub; 0 = the whole run). Every level load logs what the game thinks the run is: stage,
    tier, floors per realm, the realm order and the boss scenes.
 

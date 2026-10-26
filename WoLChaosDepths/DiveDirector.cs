@@ -13,50 +13,60 @@ namespace WoLChaosDepths
     //   (the game runs all realms, then the final boss).
     // Everything the game decides about a run is logged at each level load, so the test shows
     // what it does with the changes.
+    //
+    // The hook is on GameController.LoadLevel, the one call every scene change goes through: the
+    // Hub's trials portal doesn't use NextLevelLoader.LoadNextLevel (the first test, and the
+    // Ascension mod before it, found that hook silent on the way into a run).
     public static class DiveDirector
     {
         private const string HubScene = "Hub";
         private static int bossesCleared;
         private static bool inRun;
         private static bool loggedNames;
+        private static string bossSceneCounted;
 
         public static void Install(Harmony harmony)
         {
-            harmony.CreateClassProcessor(typeof(PortalPatch)).Patch();
+            harmony.CreateClassProcessor(typeof(LoadLevelPatch)).Patch();
             GameController.levelLoadEventHandlers += OnLevelLoad;
         }
 
-        [HarmonyPatch(typeof(NextLevelLoader), nameof(NextLevelLoader.LoadNextLevel))]
-        private static class PortalPatch
+        [HarmonyPatch(typeof(GameController), nameof(GameController.LoadLevel))]
+        private static class LoadLevelPatch
         {
-            private static bool Prefix(NextLevelLoader __instance)
+            private static void Prefix(ref string givenLevelName)
             {
                 try
                 {
-                    OnPortal(__instance);
+                    string chosen = OnDestination(givenLevelName ?? "");
+                    if (chosen != null && chosen != givenLevelName)
+                        givenLevelName = chosen;
                 }
                 catch (Exception e)
                 {
-                    ChaosDepthsPlugin.LogError($"dive portal: {e.Message}");
+                    ChaosDepthsPlugin.LogError($"dive load: {e.Message}");
                 }
-                return true;
             }
         }
 
-        // The portal is about to load the game's choice: here it can still be changed.
-        private static void OnPortal(NextLevelLoader loader)
+        // A scene is about to load: the destination can still be changed. Returns the new one,
+        // or null to leave it.
+        private static string OnDestination(string destination)
         {
             if (!ChaosDepthsPlugin.DiveEnabled)
-                return;
-            string destination = loader.nextLevelName ?? "";
-            bool here = IsTrial("");
+                return null;
+            string current = GameController.CurrentSceneName ?? "";
+            bool here = IsTrial(current);
             bool there = IsTrial(destination);
+            ChaosDepthsPlugin.Log($"Dive: loading '{destination}' from '{current}' (trial here {here}, there {there})");
 
             if (!here && there)
             {
                 // Starting a run from the Hub: pick the realm and the floor count.
                 bossesCleared = 0;
+                bossSceneCounted = null;
                 inRun = true;
+                string result = null;
                 string realm = ChaosDepthsPlugin.DiveRealm;
                 if (!string.IsNullOrEmpty(realm) && !realm.Equals("Game", StringComparison.OrdinalIgnoreCase))
                 {
@@ -64,23 +74,23 @@ namespace WoLChaosDepths
                     if (scene != null && scene != destination)
                     {
                         ChaosDepthsPlugin.Log($"Dive: first realm {destination} -> {scene}");
-                        loader.nextLevelName = scene;
+                        result = scene;
                     }
                 }
                 ApplyFloors("run start");
-                return;
+                return result;
             }
 
-            if (here && NextLevelLoader.InBossScene("") && there)
+            if (here && NextLevelLoader.InBossScene(current) && there && bossSceneCounted != current)
             {
                 // Leaving a boss arena for the next realm: maybe the dive is over instead.
+                bossSceneCounted = current;
                 bossesCleared++;
                 int limit = ChaosDepthsPlugin.RealmsPerDive;
-                ChaosDepthsPlugin.Log($"Dive: boss {bossesCleared} cleared (dive ends after {(limit > 0 ? limit.ToString() : "all")})");
+                ChaosDepthsPlugin.Log($"Dive: boss {bossesCleared} cleared in '{current}' (dive ends after {(limit > 0 ? limit.ToString() : "all")})");
                 if (limit > 0 && bossesCleared >= limit)
                 {
                     ChaosDepthsPlugin.Log($"Dive complete: {destination} -> {HubScene}");
-                    loader.nextLevelName = HubScene;
                     inRun = false;
                     try
                     {
@@ -89,8 +99,18 @@ namespace WoLChaosDepths
                     catch
                     {
                     }
+                    return HubScene;
                 }
             }
+            return null;
+        }
+
+        // Twice a second from the plugin: the game may reset its floor counter, so keep it set
+        // for the whole run.
+        public static void Tick()
+        {
+            if (inRun && ChaosDepthsPlugin.DiveEnabled && IsTrial(""))
+                ApplyFloors("tick");
         }
 
         // Moves the realm's tier scene to the front of the game's order; returns it, or null.
@@ -122,15 +142,20 @@ namespace WoLChaosDepths
             return match;
         }
 
+        // The game's counter read 1 while it played its usual two floors before a boss, so the
+        // setting (floors you want) is one more than the counter. If a test shows otherwise, this
+        // is the line to change.
         private static void ApplyFloors(string when)
         {
             int floors = ChaosDepthsPlugin.FloorsPerRealm;
             if (floors <= 0)
                 return;
+            int counter = Mathf.Max(0, floors - 1);
             int before = GameController.stagesPerTier;
-            GameController.stagesPerTier = floors;
-            if (before != floors)
-                ChaosDepthsPlugin.Log($"Dive ({when}): floors per realm {before} -> {floors}");
+            if (before == counter)
+                return;
+            GameController.stagesPerTier = counter;
+            ChaosDepthsPlugin.Log($"Dive ({when}): floors per realm {floors} (the game's counter {before} -> {counter})");
         }
 
         // Every level load: keep the floor count, and log what the game thinks the run is.

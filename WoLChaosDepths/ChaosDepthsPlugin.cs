@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.3.1";
+        public const string PluginVersion = "0.3.2";
 
         private const float KillDedupeSeconds = 2f;
 
@@ -151,6 +151,7 @@ namespace WoLChaosDepths
             if (Time.unscaledTime < nextTick)
                 return;
             nextTick = Time.unscaledTime + 0.5f;
+            DiveDirector.Tick();
             foreach (Player player in players)
             {
                 if (player == null)

@@ -23,7 +23,7 @@ namespace WoLChaosDepths
             if (Input.GetKeyDown(KeyCode.F6))
                 KillAll();
             if (Input.GetKeyDown(KeyCode.F7))
-                SkipStage();
+                SkipStage(host);
             if (Input.GetKeyDown(KeyCode.F8))
                 GodMode();
             if (Input.GetKeyDown(KeyCode.F9))
@@ -53,14 +53,8 @@ namespace WoLChaosDepths
         {
             try
             {
-                DebugMenu menu = Menu();
-                if (menu != null)
-                {
-                    menu.WrathOfTheDeveloper();
-                    ChaosDepthsPlugin.Log("Debug: wrath of the developer (all enemies killed)");
-                    return;
-                }
-                // No developer menu object: a huge hit on everyone the game lists as an enemy.
+                // First a huge hit from the player on everyone the game lists as an enemy, so the
+                // kills are credited (experience, loot); then the developer menu for anything left.
                 Player player = FirstPlayer();
                 int hit = 0;
                 if (GameController.enemies != null)
@@ -77,7 +71,10 @@ namespace WoLChaosDepths
                         hit++;
                     }
                 }
-                ChaosDepthsPlugin.Log($"Debug: killed {hit} enemies (no developer menu object)");
+                DebugMenu menu = Menu();
+                if (menu != null)
+                    menu.WrathOfTheDeveloper();
+                ChaosDepthsPlugin.Log($"Debug: hit {hit} enemies as the player" + (menu != null ? ", then wrath of the developer" : ""));
             }
             catch (Exception e)
             {
@@ -85,29 +82,78 @@ namespace WoLChaosDepths
             }
         }
 
-        public static void SkipStage()
+        // The developer menu's skip only teleports the wizard to the floor's exit room (the first
+        // test showed), so F7 goes straight for the exit portal.
+        public static void SkipStage(MonoBehaviour host)
         {
+            host.StartCoroutine(SkipAndForce());
+        }
+
+        private static IEnumerator SkipAndForce()
+        {
+            string scene = GameController.CurrentSceneName;
             try
             {
-                DebugMenu menu = Menu();
-                if (menu != null)
-                {
-                    menu.SkipStage();
-                    ChaosDepthsPlugin.Log("Debug: skip stage (developer menu)");
-                    return;
-                }
-                NextLevelLoader loader = UnityEngine.Object.FindObjectOfType<NextLevelLoader>();
-                if (loader == null)
-                {
-                    ChaosDepthsPlugin.Log("Debug: no exit portal in this scene to skip with");
-                    return;
-                }
-                loader.forceTriggerExit = true;
-                ChaosDepthsPlugin.Log($"Debug: forcing the exit portal (to '{loader.nextLevelName}')");
+                Menu()?.SkipStage();
+                ChaosDepthsPlugin.Log("Debug: skip stage (developer menu: teleports to the exit room)");
             }
             catch (Exception e)
             {
                 ChaosDepthsPlugin.LogError($"Debug skip: {e.Message}");
+            }
+            yield return new WaitForSecondsRealtime(1.5f);
+            if (GameController.CurrentSceneName == scene)
+                ForceExit();
+        }
+
+        // Makes the floor's exit portal load its level: the loader whose destination is a trial
+        // scene, by forceTriggerExit, then LoadNextLevel, then the game's LoadLevel itself.
+        private static string ForceExit()
+        {
+            try
+            {
+                NextLevelLoader[] loaders = UnityEngine.Object.FindObjectsOfType<NextLevelLoader>();
+                var names = new System.Collections.Generic.List<string>();
+                NextLevelLoader exit = null;
+                foreach (NextLevelLoader loader in loaders)
+                {
+                    names.Add($"{loader.name} -> '{loader.nextLevelName}'");
+                    if (exit == null && !string.IsNullOrEmpty(loader.nextLevelName) && IsTrialScene(loader.nextLevelName))
+                        exit = loader;
+                }
+                if (exit == null)
+                {
+                    foreach (NextLevelLoader loader in loaders)
+                        if (!string.IsNullOrEmpty(loader.nextLevelName))
+                        {
+                            exit = loader;
+                            break;
+                        }
+                }
+                ChaosDepthsPlugin.Log($"Debug: exit portals here: {(names.Count == 0 ? "none" : string.Join("; ", names.ToArray()))}");
+                if (exit == null)
+                    return null;
+                exit.forceTriggerExit = true;
+                exit.LoadNextLevel();
+                ChaosDepthsPlugin.Log($"Debug: forced the exit portal '{exit.name}' to load '{exit.nextLevelName}'");
+                return exit.nextLevelName;
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"Debug force exit: {e.Message}");
+                return null;
+            }
+        }
+
+        private static bool IsTrialScene(string scene)
+        {
+            try
+            {
+                return NextLevelLoader.InTierScene(scene) || NextLevelLoader.InBossScene(scene);
+            }
+            catch
+            {
+                return false;
             }
         }
 
@@ -202,13 +248,41 @@ namespace WoLChaosDepths
                 yield return new WaitForSecondsRealtime(1.5f);
                 KillAll();
                 yield return new WaitForSecondsRealtime(1f);
-                SkipStage();
-                // Wait for the scene to change (up to 25 s), then let it settle.
+                try
+                {
+                    Menu()?.SkipStage();
+                }
+                catch
+                {
+                }
+                yield return new WaitForSecondsRealtime(1.5f);
+                string forced = null;
+                if (GameController.CurrentSceneName == scene)
+                    forced = ForceExit();
+                // Wait for the scene to change (up to 20 s); as a last resort load it directly.
                 float waited = 0f;
-                while (GameController.CurrentSceneName == scene && waited < 25f)
+                while (GameController.CurrentSceneName == scene && waited < 20f)
                 {
                     yield return new WaitForSecondsRealtime(0.5f);
                     waited += 0.5f;
+                }
+                if (GameController.CurrentSceneName == scene && !string.IsNullOrEmpty(forced))
+                {
+                    ChaosDepthsPlugin.Log($"Auto-dive: the portal didn't load '{forced}'; loading it directly");
+                    try
+                    {
+                        GameController.LoadLevel(forced);
+                    }
+                    catch (Exception e)
+                    {
+                        ChaosDepthsPlugin.LogError($"Auto-dive load: {e.Message}");
+                    }
+                    waited = 0f;
+                    while (GameController.CurrentSceneName == scene && waited < 20f)
+                    {
+                        yield return new WaitForSecondsRealtime(0.5f);
+                        waited += 0.5f;
+                    }
                 }
                 if (GameController.CurrentSceneName == scene)
                 {
@@ -236,16 +310,21 @@ namespace WoLChaosDepths
                 {
                     if (!DebugMenu.godModeOn)
                         menu.GodMode();
+                    ChaosDepthsPlugin.Log($"Auto-dive: god mode {(DebugMenu.godModeOn ? "on" : "could not be turned on")}");
                 }
                 else
                 {
                     Player player = FirstPlayer();
                     if (player != null && player.health != null)
+                    {
                         player.health.invulnerable = true;
+                        ChaosDepthsPlugin.Log("Auto-dive: player invulnerable (no developer menu object)");
+                    }
                 }
             }
-            catch
+            catch (Exception e)
             {
+                ChaosDepthsPlugin.LogError($"Auto-dive god mode: {e.Message}");
             }
         }
     }
