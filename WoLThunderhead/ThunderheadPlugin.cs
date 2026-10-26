@@ -14,7 +14,7 @@ namespace WoLThunderhead
     {
         public const string PluginGuid = "mdbailey94.wol.thunderhead";
         public const string PluginName = "Thunderhead";
-        public const string PluginVersion = "0.8.1";
+        public const string PluginVersion = "0.9.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -31,7 +31,7 @@ namespace WoLThunderhead
         private static ConfigEntry<float> height, windupTime, riseTime, airTime, enhancedAirTime, crashTime, recoverTime;
         private static ConfigEntry<float> radius, enhancedRadius, volleyInterval, enhancedVolleyInterval, auraSize, strikeSize, slamSize, enhancedSlamSize;
         private static ConfigEntry<int> volleySize, enhancedVolleySize;
-        private static ConfigEntry<bool> evenSpread, electricLook, stormCloud;
+        private static ConfigEntry<bool> evenSpread, electricLook, stormCloud, drawn;
         private static ConfigEntry<float> hoverSpeedPercent, cloudSize;
         private static ConfigEntry<float> signatureAirTime, signatureStrikeRate, signatureRadius, signatureSlamSize, signatureHold;
         private static ConfigEntry<bool> cinematic;
@@ -56,6 +56,7 @@ namespace WoLThunderhead
         public static bool Cloud => stormCloud?.Value ?? true;
         public static float CloudSize => Get(cloudSize, 1f, 0.3f, 3f);
         public static bool ElectricLook => electricLook?.Value ?? true;
+        public static bool Drawn => drawn?.Value ?? true;
         public static float AuraSize => Get(auraSize, 1f, 0.2f, 4f);
         public static int VolleySize => Mathf.Clamp(volleySize?.Value ?? 2, 1, 12);
         public static int EnhancedVolleySize => Mathf.Clamp(enhancedVolleySize?.Value ?? 3, 1, 12);
@@ -215,6 +216,9 @@ namespace WoLThunderhead
             electricLook = Config.Bind("Look", "Electric", true,
                 "Crackle with electricity while up in the air (the game's electric aura, sparks and a flickering glow).");
             stormCloud = Config.Bind("Look", "Cloud", true, "Ride a dark storm cloud while up in the air.");
+            drawn = Config.Bind("Look", "Drawn", true,
+                "The standard and enhanced leap's drawn effects: glyphs where the bolts will land, scorch marks, arcs round the wizard, " +
+                "lightning inside the cloud, the landing ring, the slam's shockwave and crater (the signature storm has its own look).");
             cloudSize = Float("Look", "CloudSize", 1f, 0.3f, 3f, "Size of the storm cloud.");
             auraSize = Float("Look", "AuraSize", 1f, 0.2f, 4f, "Size of the electric aura round the wizard in the air.");
 

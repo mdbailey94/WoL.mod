@@ -92,7 +92,7 @@ namespace WoLBrambleRing
         // Leaves thrown up from an enemy at each prick.
         private const int PrickLeaves = 1;
         // The ID the game gives its root status (Health.HandleRootStatusEffect).
-        private const string RootStatusID = "RootStatus";
+        internal const string RootStatusID = "RootStatus";
 
         // ---- Signature beats ----
         // Windup: the slam is played from the very start (normalized time 0, as Grasping Earth
@@ -256,7 +256,12 @@ namespace WoLBrambleRing
                 parent.StartCoroutine(Erupt(ring));
             }
             else
+            {
+                // The normal and enhanced thicket's drawn look (ThicketLook.cs); the signature
+                // keeps its own.
+                Effect("drawn thicket", () => ring.look = new ThicketLook(parent, ring.center, ring.Duration));
                 parent.StartCoroutine(Knit(ring));
+            }
             parent.StartCoroutine(Stand(ring));
         }
 
@@ -281,6 +286,7 @@ namespace WoLBrambleRing
             public int levelAtCast;               // signature: BrambleCinematics.LevelLoads at the cast
             public bool aborted;                  // signature: left behind by a level load
             public BrambleCinematics.Hold gloom;  // signature: its hold on the room's light
+            public ThicketLook look;              // normal and enhanced: the drawn look (null for the signature)
             private readonly Dictionary<int, AttackInfo> infos = new Dictionary<int, AttackInfo>();
 
             public Ring(Vector2 center, bool enhanced, bool signature)
@@ -322,16 +328,19 @@ namespace WoLBrambleRing
         {
             ring.vines = NewVines(ring);
             CastEffects(ring.center);
+            Look(ring, "drawn roots", look => look.Cast());
 
             // A random turn for each cast, so the vines don't always stand in the same places.
             float spin = Random.Range(0f, 360f);
             var positions = new List<Vector2>();
             int blocked = BrambleVines.RowPositions(ring.center, InnerRowRadius, spin, VineSpacing, MinVinesPerRow, false, positions);
             yield return parent.StartCoroutine(RaiseRow(ring, positions));
+            Look(ring, "drawn undergrowth", look => look.Row(positions, InnerRowRadius));
             yield return new WaitForSeconds(RowInterval);
             positions.Clear();
             blocked += BrambleVines.RowPositions(ring.center, OuterRowRadius, spin, VineSpacing, MinVinesPerRow, true, positions);
             yield return parent.StartCoroutine(RaiseRow(ring, positions));
+            Look(ring, "drawn undergrowth", look => look.Row(positions, OuterRowRadius));
             Log($"knitted {ring.vines.Count} vines in 2 rows {InnerRowRadius:0.0}-{OuterRowRadius:0.0} out" +
                 (blocked > 0 ? $" ({blocked} skipped in walls or pits)" : ""));
 
@@ -346,6 +355,7 @@ namespace WoLBrambleRing
             ring.radius = SpreadRowRadius + ThicketMargin;
             Effect("sound", () => SoundManager.PlayAudioWithDistance("VineWaveEnd", ring.center, null, 24f, -1f, 0.9f));
             yield return parent.StartCoroutine(RaiseRow(ring, positions));
+            Look(ring, "drawn undergrowth", look => look.Row(positions, SpreadRowRadius));
             Log($"vines spread outward: {ring.vines.Count - before} more at {SpreadRowRadius:0.0} out" +
                 (blocked > 0 ? $" ({blocked} skipped in walls or pits)" : ""));
         }
@@ -413,7 +423,8 @@ namespace WoLBrambleRing
             {
                 if (ring.ended)
                     yield break;
-                ring.vines.Raise(position);
+                if (ring.vines.Raise(position) != null)
+                    Look(ring, "drawn sprouting", look => look.Vine(position));
                 if (VineStagger > 0f)
                     yield return new WaitForSeconds(VineStagger);
             }
@@ -444,9 +455,11 @@ namespace WoLBrambleRing
                     nextTick += TickInterval;
                     Tick(ring);
                 }
+                Look(ring, "drawn coil tend", look => look.Tend());
                 yield return null;
             }
             ring.ended = true;
+            Look(ring, "drawn wither", look => look.Wither());
             if (ring.signature && !ring.aborted)
                 yield return parent.StartCoroutine(FinalSnap(ring));
             // The light comes back while the vines wither.
@@ -483,6 +496,7 @@ namespace WoLBrambleRing
                     }
                 }
                 Prick(ring, enemy, level);
+                Look(ring, "drawn coil", look => look.Snare(enemy));
                 if (ring.signature && !cannotSnare && Tighten(ring, enemy))
                     (dragged ?? (dragged = new List<Vector2>())).Add(HitPoint(enemy));
                 if (first)
@@ -554,6 +568,16 @@ namespace WoLBrambleRing
             Vector2 at = HitPoint(enemy);
             Effect("leaves", () => PoolManager.GetPoolItem<LeafEmitter>().EmitSingle(PrickLeaves, at, null, null, 0f, null,
                 LeafEmitter.LeafColor.Green));
+            Look(ring, "drawn thorns", look => look.Prick(enemy, at));
+        }
+
+        // Runs a piece of the normal and enhanced thicket's drawn look (nothing for the signature,
+        // which has none); like every cosmetic, skipped (and logged once) if it fails.
+        private static void Look(Ring ring, string name, System.Action<ThicketLook> draw)
+        {
+            ThicketLook look = ring.look;
+            if (look != null)
+                Effect(name, () => draw(look));
         }
 
         // The skill's own hit at a level, dealt straight to the enemy, coming from the thicket's
@@ -743,6 +767,8 @@ namespace WoLBrambleRing
 
         private static void LogEnd(Ring ring, float duration)
         {
+            if (ring.look != null)
+                Log(ring.look.Summary());
             if (ring.caught.Count == 0)
             {
                 Log($"thicket withered after {duration:0.0} s, caught nothing");

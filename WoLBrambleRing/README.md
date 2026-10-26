@@ -43,6 +43,19 @@ snared: they get the catch (and its slow) on every prick instead.
 wider row of vines spreads out about 2.9 units from the centre, so everything within 3.4 units is
 pricked.
 
+### Look
+
+0.5.0 gives the normal and enhanced thicket its own drawn pixel-art animations, so it reads as a
+living plant rather than a ring of rock (looks only: damage, snare, timing and reach are unchanged;
+the signature keeps its own cinematic eruption). Roots creep out over the floor from your feet; under
+every vine the soil bulges and bursts open, throwing tumbling clods; thorny shoots push up between
+the vines and unfurl their leaves, swaying while it stands; roots creep across the floor from row to
+row. Each prick stabs hooked thorns in at the enemy from round it, with a red spark; snared enemies
+have two thorny vines spiral up their legs and squeeze. At the end everything browns, droops and
+crumbles, withered leaves flutter down and puffs of dry dust rise. Each drawn visual logs
+`Bramble Ring: visual '...' ready (...)` the first time it plays, and each thicket logs
+`Bramble Ring: look: ...` with what it drew.
+
 ## Signature
 
 Put Bramble Ring in the **signature slot** (the spellbook in your house lists it under Signature

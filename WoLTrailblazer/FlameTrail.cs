@@ -17,6 +17,10 @@ namespace WoLTrailblazer
     // evenly (with the default 230%: one level every +14.4% speed, so a plain sprint is level 3).
     // The level sets the hits' damage, knockback and burn chance, and the size of the fire.
     // Enhanced counts as one level more.
+    //
+    // On top of the game's flames, the drawn fire (BlazeLook): flames licking up round the wizard,
+    // embers, the ring of fire on the floor, flames and char marks on the trail, and a flare-up as
+    // it burns out.
     public class FlameTrail : MonoBehaviour
     {
         private const int MaxPatches = 40;
@@ -36,6 +40,7 @@ namespace WoLTrailblazer
             public float nextFlame;
             public int level;
             public GameObject column; // Searing Rush's fire, if available
+            public BlazeLook.PatchLook look; // its drawn flames (the char mark plays out by itself)
         }
 
         private Player player;
@@ -47,6 +52,12 @@ namespace WoLTrailblazer
         private float nextAura;
         private float nextAuraFlame;
         private readonly List<Patch> patches = new List<Patch>();
+        // The drawn fire, and what this frame's Update worked out for it (drawn in LateUpdate,
+        // once the wizard has moved).
+        private BlazeLook look;
+        private bool lookLit;
+        private int lookLevel = 1;
+        private float lookRing;
         private static bool loggedSpeed, loggedPatch, loggedLevels;
         private static string lastBurstError;
 
@@ -65,6 +76,15 @@ namespace WoLTrailblazer
             trail.travelled = 0f;
             trail.nextAura = 0f;
             trail.enabled = true;
+            // The drawn fire, if it's on (checked each cast).
+            if (!TrailblazerPlugin.Drawn)
+            {
+                trail.look?.Off();
+                trail.look = null;
+            }
+            else if (trail.look == null)
+                trail.look = BlazeLook.For(player);
+            trail.look?.Ignite(player.transform.position);
             TrailblazerPlugin.Log($"Trailblazer: lit for {duration:0.#} s");
             if (!loggedLevels)
             {
@@ -83,10 +103,12 @@ namespace WoLTrailblazer
             {
                 if (player != null && litUntil > 0f)
                 {
-                    // Burnt out: a last puff of flame.
+                    // Burnt out: a last puff of flame, and the drawn flare-up.
                     Flames(player.transform.position, 6, 0.8f);
                     litUntil = 0f;
+                    look?.BurntOut(player.transform.position, lookLevel);
                 }
+                lookLit = false;
                 if (patches.Count == 0)
                     enabled = false;
                 return;
@@ -97,6 +119,9 @@ namespace WoLTrailblazer
             bool empowered = skill != null && skill.IsEmpowered;
             int level = Level(speed, empowered);
             float size = SizeOf(level);
+            lookLit = true;
+            lookLevel = level;
+            lookRing = TrailblazerPlugin.AuraSize * HitScale(size); // the ring's hit radius (a burst's scale is its radius)
 
             // The ring round the wizard.
             if (now >= nextAura)
@@ -139,9 +164,10 @@ namespace WoLTrailblazer
             if (patches.Count >= MaxPatches)
             {
                 SearingLook.PutOut(patches[0].column);
+                look?.PatchOut(patches[0].look);
                 patches.RemoveAt(0);
             }
-            patches.Add(new Patch
+            var patch = new Patch
             {
                 position = position,
                 until = now + TrailblazerPlugin.TrailLinger * (0.8f + 0.2f * size),
@@ -151,7 +177,9 @@ namespace WoLTrailblazer
                 column = TrailblazerPlugin.SearingFire
                     ? SearingLook.Light(position, ColumnScale(level), player != null ? player.spriteRenderer : null)
                     : null
-            });
+            };
+            patch.look = look?.Patch(position, level, patch.until - now, patch.column != null);
+            patches.Add(patch);
             if (!loggedPatch)
             {
                 loggedPatch = true;
@@ -174,6 +202,7 @@ namespace WoLTrailblazer
                 if (now >= patch.until)
                 {
                     SearingLook.PutOut(patch.column);
+                    look?.PatchOut(patch.look);
                     patches.RemoveAt(i);
                     continue;
                 }
@@ -230,11 +259,28 @@ namespace WoLTrailblazer
         // Searing Rush's fire columns, against the game's own size (full size when sprinting).
         private static float ColumnScale(int level) => TrailblazerPlugin.FlameSize * SizeOf(level);
 
+        // The drawn fire on the wizard, after they've moved this frame.
+        private void LateUpdate()
+        {
+            if (!lookLit || look == null || player == null || Time.time >= litUntil)
+                return;
+            look.Lit(lookLevel, lookRing);
+        }
+
+        private void OnDisable()
+        {
+            look?.Off();
+        }
+
         private void OnDestroy()
         {
             foreach (Patch patch in patches)
+            {
                 SearingLook.PutOut(patch.column);
+                look?.PatchOut(patch.look, true);
+            }
             patches.Clear();
+            look?.Off();
         }
 
         // A hit of the fire at a spot. The game only keeps SkillStats.maxSkillLevel (5) levels of

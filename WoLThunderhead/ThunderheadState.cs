@@ -87,6 +87,14 @@ namespace WoLThunderhead
         private ElectricLook electric;
         private StormCloud cloud;
         private SignatureCinematic cinematic;
+        // The drawn look of a standard or enhanced cast (glyphs where the bolts will land, scorch
+        // marks, arcs, the landing ring and shockwave); null for the signature. The next volley's
+        // strike spots are worked out a volley early (the same spread, just sooner) so the glyphs
+        // can show where they'll land.
+        private ThunderVisuals visuals;
+        private readonly List<Vector2> plannedOffsets = new List<Vector2>();
+        private readonly List<Vector2> struckSpots = new List<Vector2>();
+        private int plannedVolley = -1;
         private Vector2 airVelocity;
         private Vector2 takeOffSpot;
         private Vector2 landingSpot;
@@ -161,6 +169,10 @@ namespace WoLThunderhead
             heldAtPitEdge = false;
             strikesFired = strikeHits = slamHits = ringHits = ringFiredCount = 0;
             loggedLanding = false;
+            visuals?.Off();
+            visuals = null;
+            plannedVolley = -1;
+            plannedOffsets.Clear();
             WindupTime = ThunderheadPlugin.WindupTime;
             RiseTime = ThunderheadPlugin.RiseTime;
             CrashTime = ThunderheadPlugin.CrashTime * (signature ? SignatureDiveSpeed : 1f);
@@ -228,6 +240,8 @@ namespace WoLThunderhead
                 {
                     nextVolley = t + VolleyInterval;
                     Volley(ground);
+                    if (visuals != null && nextVolley < hoverEnd)
+                        PlanVolley(t, nextVolley, ground);
                 }
             }
             else if (t < holdEnd)
@@ -268,6 +282,7 @@ namespace WoLThunderhead
             }
             electric?.Update(Mathf.Min(lift, 1f));
             cloud?.Update(Mathf.Min(lift, 1f), levitator);
+            visuals?.Air(t, ground, Mathf.Min(lift, 1f), RiseTime, hoverEnd, crashEnd, levitator);
             if (levitator != null)
                 levitator.height = Height * lift + (t >= RiseTime && t < hoverEnd ? Mathf.Sin(t * 7f) * 0.06f : 0f);
 
@@ -422,6 +437,26 @@ namespace WoLThunderhead
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(ground), null, 24f, -1f, 0.6f, false);
             if (signature)
                 SignatureTakeOff(ground);
+            else
+            {
+                visuals?.Off();
+                visuals = ThunderVisuals.On(parent, IsEmpowered, ThunderheadPlugin.StrikeSize, SlamScaleNow);
+                visuals?.TakeOff(ground);
+                // The first volley comes as they reach the top.
+                if (visuals != null && HoverTimeNow > 0f)
+                    PlanVolley(0f, RiseTime, ground);
+            }
+        }
+
+        // The next volley's strike spots, worked out now so their glyphs can show where they'll
+        // land (Volley uses these same spots when it fires).
+        private void PlanVolley(float from, float until, Vector2 ground)
+        {
+            plannedOffsets.Clear();
+            plannedVolley = volleyCount;
+            for (int i = 0; i < VolleySize; i++)
+                plannedOffsets.Add(StrikeOffset(i));
+            visuals?.Telegraph(plannedOffsets, from, until, ground);
         }
 
         // The signature launches on a bolt from the sky: a flash, a thunderclap, sparks and a
@@ -497,6 +532,8 @@ namespace WoLThunderhead
             electric = null;
             cloud?.Off();
             cloud = null;
+            visuals?.Off();
+            visuals = null;
             if (levitator != null)
             {
                 levitator.Off();
@@ -549,24 +586,15 @@ namespace WoLThunderhead
         private void Volley(Vector2 ground)
         {
             int size = VolleySize;
-            float radius = RadiusNow;
-            bool even = ThunderheadPlugin.EvenSpread;
-            int volleys = Mathf.Max(1, Mathf.CeilToInt(HoverTimeNow / VolleyInterval - 0.001f));
-            int total = volleys * size;
+            // A standard or enhanced cast planned this volley's spots a volley early (for its
+            // glyphs); otherwise they're worked out now.
+            bool planned = plannedVolley == volleyCount && plannedOffsets.Count == size;
+            struckSpots.Clear();
             for (int i = 0; i < size; i++)
             {
-                Vector2 offset;
-                if (even)
-                {
-                    int j = (i * volleys + volleyCount) % total;
-                    float distance = radius * Mathf.Sqrt((j + 0.5f) / total);
-                    float angle = spiralTurn + j * GoldenAngle;
-                    offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance
-                        + Random.insideUnitCircle * 0.08f * radius;
-                }
-                else
-                    offset = Random.insideUnitCircle * radius;
+                Vector2 offset = planned ? plannedOffsets[i] : StrikeOffset(i);
                 Vector2 spot = ground + new Vector2(offset.x, offset.y * 0.7f);
+                struckSpots.Add(spot);
                 // A signature cast's hits are marked as the game marks its own (isUltimate), so
                 // they don't refill the gauge they just spent.
                 CountHits(LightningBurst.CreateBurst(spot, parent.skillCategory, skillID, signature ? SignatureStrikeLevel : StrikeLevel,
@@ -580,6 +608,7 @@ namespace WoLThunderhead
                 strikesFired++;
             }
             volleyCount++;
+            plannedVolley = -1;
             Spark(ground + new Vector2(0f, Height + 0.6f), HitSparkType.Medium);
             if (signature)
             {
@@ -587,6 +616,30 @@ namespace WoLThunderhead
                 if (volleyCount % StrikeThunderEvery == 0)
                     Sound("ThunderClap", ground, 0.3f, Random.Range(0.9f, 1.1f));
             }
+            else
+            {
+                visuals?.Struck(struckSpots);
+                if (visuals != null)
+                    cloud?.Pulse();
+            }
+        }
+
+        // Where strike i of the current volley lands, from the spot below. Spread evenly (the
+        // default) it's the volley's share of the leap's sunflower spiral, nudged a little;
+        // otherwise anywhere in the circle.
+        private Vector2 StrikeOffset(int i)
+        {
+            int size = VolleySize;
+            float radius = RadiusNow;
+            if (!ThunderheadPlugin.EvenSpread)
+                return Random.insideUnitCircle * radius;
+            int volleys = Mathf.Max(1, Mathf.CeilToInt(HoverTimeNow / VolleyInterval - 0.001f));
+            int total = volleys * size;
+            int j = (i * volleys + volleyCount) % total;
+            float distance = radius * Mathf.Sqrt((j + 0.5f) / total);
+            float angle = spiralTurn + j * GoldenAngle;
+            return new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance
+                + Random.insideUnitCircle * 0.08f * radius;
         }
 
         private const float GoldenAngle = 2.39996f; // radians
@@ -604,6 +657,7 @@ namespace WoLThunderhead
             Sound("ThunderClap", ground, -1f, signature ? 0.75f : 1f);
             if (!signature)
             {
+                visuals?.Slam(ground);
                 Shake(SlamShake);
                 HitStop(SlamHitStop);
                 return;

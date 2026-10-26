@@ -70,6 +70,125 @@ namespace WoLSlingshotDash
             crackle = Crackle.Create(parent);
             if (sphere == null)
                 ring = StaticRing.Create(parent);
+            ChargeLook();
+        }
+
+        // ---- The look (only for show) ----
+        private const string Name = "Charged Leap";
+        private const float RingMinScale = 0.7f, RingMaxScale = 1.05f; // the drawn static ring round your feet
+        private const int RingOrder = 2;               // its halves sort this far behind / in front of the wizard
+        private const float ZapRadius = 0.9f;          // sparks snapping round your body...
+        private const float ZapLiftMin = 0.2f, ZapLiftMax = 1.5f;
+        private const float RushZapInterval = 0.05f;   // ...and along the leap
+        private const float GhostInterval = 0.035f;    // afterimages left along the leap, alternating
+        private const float GhostLife = 0.18f;
+        private static readonly Color GhostYellow = new Color(1f, 0.94f, 0.48f, 0.6f);
+        private static readonly Color GhostViolet = new Color(0.66f, 0.55f, 1f, 0.6f);
+        private const float BoltLength = 4f;           // a drawn bolt spans 64 px = 4 units
+        private const int MaxPathBolts = 4;            // the trail struck along the leap, at most this many
+        private const float BoltLift = 0.6f;           // drawn at about chest height
+        private FxHandle ringBack, ringFront;
+        private float nextZap, nextGhost;
+        private bool ghostYellow, fullCue;
+        private Vector2 leapFrom, leapAim;
+
+        // Flair only: a drawn ring of static crackling round your feet (far half behind you, near
+        // half in front), growing with the charge.
+        private void ChargeLook()
+        {
+            PixelFx.Setup(parent);
+            fullCue = false;
+            StopRing();
+            Effects.Visual("static ring", () =>
+            {
+                SpriteRenderer body = parent.spriteRenderer;
+                var back = new FxOpts { follow = parent.transform, offset = new Vector2(0f, 0.1f), orderFrom = body, orderDelta = -RingOrder, scale = RingMinScale };
+                var front = back;
+                front.orderDelta = RingOrder;
+                ringBack = FxSprite.Play(StormArt.RingBack, parent.transform.position, back);
+                ringFront = FxSprite.Play(StormArt.RingFront, parent.transform.position, front);
+                PixelFx.Once("storm charge", $"{Name}: look 'charge' playing (drawn static ring and sparks, game hit sparks, " +
+                    "LightningAuraEffect at full charge)");
+            });
+        }
+
+        private void StopRing()
+        {
+            ringBack.Stop();
+            ringFront.Stop();
+            ringBack = default(FxHandle);
+            ringFront = default(FxHandle);
+        }
+
+        private static void Zap(Vector2 at, float lift, float scale) =>
+            Effects.Visual("spark", () => FxSprite.Play(StormArt.Zap, at, new FxOpts
+            {
+                lift = lift,
+                layer = FxLayer.Effect,
+                scale = scale,
+                rotation = Random.value < 0.5f ? 0f : 45f,
+                speed = Random.Range(0.8f, 1.2f)
+            }));
+
+        // Flair only: a bolt from where you leapt, the game's lightning start along the aim, and
+        // the wizard's own dash streaks.
+        private void LaunchLook(Vector2 center, Vector2 aim, float charge)
+        {
+            PixelFx.Setup(parent);
+            StopRing();
+            leapFrom = center;
+            leapAim = aim;
+            nextZap = 0f;
+            nextGhost = 0f;
+            float angle = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
+            Effects.Visual("bolt", () => FxSprite.Play(StormArt.Bolt, center, new FxOpts
+            {
+                rotation = angle,
+                lift = BoltLift,
+                layer = FxLayer.Effect,
+                scale = 0.6f + 0.3f * charge
+            }));
+            Effects.Game("LightningStart", 1, center + new Vector2(aim.x, aim.y * 0.5f), ParticleEffectOverrides.StartLifeTime0p25, angle);
+            Effects.DashTrails(parent, Name);
+            PixelFx.Once("storm launch", $"{Name}: look 'launch' played (drawn bolt, game LightningStart, lightning flash and dash trails)");
+        }
+
+        // Flair only: the landing: a drawn thunder burst and shock ring, a bolt struck back along
+        // the whole leap, and the game's lightning hits and scorch mark.
+        private void LandLook(Vector2 position, float burstScale)
+        {
+            float size = 0.8f + 0.35f * burstScale;
+            Effects.Visual("thunder burst", () => FxSprite.Play(StormArt.Burst, position, new FxOpts { lift = 0.6f, layer = FxLayer.Effect, scale = size }));
+            Effects.Visual("shock ring", () => FxSprite.Play(StormArt.Ring, position, new FxOpts { layer = FxLayer.Ground, scale = size }));
+            Vector2 path = position - leapFrom;
+            float length = path.magnitude;
+            if (length > 0.5f)
+            {
+                Vector2 along = path / length;
+                float angle = Mathf.Atan2(along.y, along.x) * Mathf.Rad2Deg;
+                int bolts = Mathf.Clamp(Mathf.CeilToInt(length / BoltLength), 1, MaxPathBolts);
+                float each = length / bolts;
+                for (int i = 0; i < bolts; i++)
+                {
+                    Vector2 from = leapFrom + along * (each * i);
+                    float stretch = each / BoltLength;
+                    Effects.Visual("bolt", () => FxSprite.Play(StormArt.Bolt, from, new FxOpts
+                    {
+                        rotation = angle,
+                        lift = BoltLift,
+                        layer = FxLayer.Effect,
+                        scale = stretch,
+                        speed = 1.2f
+                    }));
+                }
+            }
+            for (int i = 0; i < 6; i++)
+                Zap(position + Random.insideUnitCircle * 1.4f * size, Random.Range(ZapLiftMin, ZapLiftMax), 1f);
+            Effects.Game("LightningHitEffect", 2, position + Vector2.up * 0.75f);
+            Effects.Game("LightningAuraEffect", 1, position + Vector2.up * 0.75f);
+            Effects.Game("BurnMarkXSmallEmitter", 1, position);
+            PixelFx.Once("storm land", $"{Name}: look 'landing' played (drawn thunder burst, shock ring, bolt along the leap and sparks, " +
+                "game LightningHitEffect, LightningAuraEffect and BurnMarkXSmallEmitter)");
         }
 
         private MagSphere SpawnSphere()
@@ -122,6 +241,15 @@ namespace WoLSlingshotDash
         {
             Vector2 center = parent.transform.position;
             crackle?.Draw(center, Mathf.Clamp01(holdTime));
+            float ringScale = Mathf.Lerp(RingMinScale, RingMaxScale, Mathf.Clamp01(holdTime));
+            ringBack.SetScale(ringScale);
+            ringFront.SetScale(ringScale);
+            // Full: a flash of the game's lightning aura round you.
+            if (!fullCue && holdTime >= 1f)
+            {
+                fullCue = true;
+                Effects.Game("LightningAuraEffect", 1, center + Vector2.up * 0.75f);
+            }
             if (sphere != null)
             {
                 // Leave the sphere to do its thing; just keep what it holds off your side.
@@ -139,6 +267,9 @@ namespace WoLSlingshotDash
         {
             Vector2 offset = Random.insideUnitCircle * (0.4f + 0.6f * charge);
             Effects.Spark(position + offset, charge >= 0.7f ? HitSparkType.Medium : HitSparkType.Small);
+            // Flair only: drawn sparks snapping on and off round your body.
+            Vector2 at = position + new Vector2(Random.Range(-ZapRadius, ZapRadius), Random.Range(-0.2f, 0.2f));
+            Zap(at, Random.Range(ZapLiftMin, ZapLiftMax), 0.8f + 0.4f * charge);
         }
 
         protected override void OnLaunch(float charge)
@@ -185,15 +316,29 @@ namespace WoLSlingshotDash
             held.Clear();
             speeds.Clear();
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(center), null, 24f, -1f, 1.6f, false);
+            LaunchLook(center, aim, charge);
         }
 
-        // Flair only: crackling sparks behind you through the leap.
+        // Flair only: crackling sparks behind you through the leap, and afterimages.
         protected override void WhileDashing(float charge)
         {
+            Vector2 position = parent.transform.position;
+            if (Time.time >= nextGhost)
+            {
+                nextGhost = Time.time + GhostInterval;
+                ghostYellow = !ghostYellow;
+                Effects.Visual("storm afterimage", () => PixelFx.Afterimage(parent, ghostYellow ? GhostYellow : GhostViolet, GhostLife, Name));
+            }
+            if (Time.time >= nextZap)
+            {
+                nextZap = Time.time + RushZapInterval;
+                Vector2 side = new Vector2(-leapAim.y, leapAim.x) * Random.Range(-0.4f, 0.4f);
+                Zap(position + side, Random.Range(ZapLiftMin, ZapLiftMax), 1f);
+            }
             if (Time.time < nextCrackle)
                 return;
             nextCrackle = Time.time + CrackleInterval;
-            Effects.Spark(parent.transform.position, HitSparkType.Small);
+            Effects.Spark(position, HitSparkType.Small);
         }
 
         protected override void OnLand(float charge)
@@ -203,10 +348,12 @@ namespace WoLSlingshotDash
             // Enhanced: half as big again.
             float scale = (1.2f + 0.4f * charge) * (IsEmpowered ? 1.5f : 1f);
             LightningBurst.CreateBurst(parent.transform.position, parent.skillCategory, skillID, 1, scale, false);
+            LandLook(parent.transform.position, scale);
         }
 
         protected override void OnStateExit()
         {
+            StopRing();
             RemoveSphere();
             RemoveRing();
             RemoveCrackle();

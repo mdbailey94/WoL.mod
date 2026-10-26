@@ -56,6 +56,7 @@ namespace WoLRollingGale
 
             parent.FaceTarget(origin + direction);
             parent.anim.PlayDirectional(parent.GSlamAnimStr, -1, animExecTime);
+            GaleLook.Cast(parent, origin, direction);
         }
 
         public override void ExecuteSkill()
@@ -95,8 +96,18 @@ namespace WoLRollingGale
             };
             PoolManager.GetPoolItem<ParticleEffect>("AirVortex").Emit(new int?(1), new Vector3?(position), vortex,
                 new Vector3?(new Vector3(0f, 0f, Random.Range(0f, 360f))), 0f, null, null);
+
+            // The drawn look (GaleLook): the spiral and sucked-in debris, the crescents rolling on
+            // to each new burst, and a puff when the last echo is spent.
+            GaleLook.Burst(position, scale, echo, direction);
             if (echo)
+            {
+                if (index == burstCount - 1)
+                    GaleLook.End(position);
                 return;
+            }
+            Vector2 previous = index == 0 ? origin : origin + direction * (FirstBurstDistance + BurstSpacing * (index - 1));
+            GaleLook.Roll(previous, position, direction);
             PoolManager.GetPoolItem<ParticleEffect>("WindBurstEffect").Emit(new int?(2), new Vector3?(position), null, null, 0f, null, null);
             PoolManager.GetPoolItem<DustEmitter>().EmitCircle(60, 1.5f, -8f, -1f, new Vector3?(position), null);
 

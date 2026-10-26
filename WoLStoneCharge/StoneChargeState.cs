@@ -67,6 +67,21 @@ namespace WoLStoneCharge
         // SlideState.maxIgnoreCount: with the skip-the-slide relic, dashes chain this many times.
         private const int MaxDashChain = 2;
         private const string DashModID = "StoneCharge_Dash";
+        // The drawn look (StoneArt, ShieldRunes), all cosmetic:
+        private const float WakeInterval = 0.09f;      // seconds between puffs of dust thrown back while running
+        private const float CrackInterval = 0.2f;      // seconds between drawn floor cracks behind you from half force
+        private const float CrackFps = 24f;
+        private const float CrackLife = 0.9f;          // the crack forms, holds, then steps out
+        private const float EmberInterval = 0.08f;    // seconds between embers rising off you at full force
+        private const float EmberFps = 12f;
+        private const float PulseFps = 20f;
+        private const float CraterFps = 18f;
+        private const float CraterLife = 1.1f;
+        private const float CraterWidth = 3f;          // the crater sheet's width in units (48 px)
+        private const float CraterFill = 0.8f;         // drawn crater width against the crash's hit diameter
+        private const int MinShards = 4;               // rock shards flung by the crash, MinShards + ShardsPerForce * force
+        private const int ShardsPerForce = 6;
+        private const float ShardFps = 12f;
 
         private enum Phase { Raising, Charging, Rushing, Recovering, Done }
         private enum DashPhase { None, Dashing, Sliding }
@@ -107,6 +122,11 @@ namespace WoLStoneCharge
         private readonly NumVarStatMod dashDurationMod = new NumVarStatMod(DashModID, DefaultDashDuration, 10, VarStatModType.OverrideWithMods);
         private readonly NumVarStatMod dashEvadeMod = new NumVarStatMod(DashModID + "Evade", 1f, 10, VarStatModType.Override);
         private readonly BoolVarStatMod dashAirborneMod = new BoolVarStatMod(DashModID, newModValue: true);
+        // The drawn look.
+        private ShieldRunes runes;
+        private StoneOrbit orbit;
+        private float nextWake, nextCrack, nextEmber;
+        private int drawnCracks, drawnEmbers, drawnShards, flung;
         private static readonly HashSet<string> failed = new HashSet<string>();
 
         public override string OnEnterAnimStr => parent.GSlamAnimStr;
@@ -152,6 +172,10 @@ namespace WoLStoneCharge
             dashes = dashChain = 0;
             replayAnim = false;
             lastHere = parent.transform.position;
+            runes = null;
+            orbit = null;
+            nextWake = nextCrack = nextEmber = 0f;
+            drawnCracks = drawnEmbers = drawnShards = flung = 0;
             // The shield goes up the way you're aiming (or facing).
             aim = inputVector != Vector2.zero ? inputVector.normalized : Entity.GetFacingDirectionVector(parent.facingDirection).normalized;
             if (aim == Vector2.zero)
@@ -231,6 +255,19 @@ namespace WoLStoneCharge
                 floorToggled = false;
                 try { parent.ToggleEnemyFloorCollisions(); } catch { }
             }
+            // The drawn chunks circling you and anything riding on you go too (the shield's
+            // cracks are part of the shield and go with it).
+            if (orbit != null)
+            {
+                StoneOrbit circling = orbit;
+                Effect("orbit", () => circling.Stop());
+                orbit = null;
+            }
+            Effect("cleanup", () => FxSprite.StopAll(this));
+            if (StoneChargePlugin.DrawnEffects && phase != Phase.Raising)
+                Log($"drawn: shield cracks at stage {(runes != null ? runes.Stage : 0)} of {ShieldRunes.Stages}{(runes == null ? " (no overlay)" : "")}, " +
+                    $"{drawnCracks} floor crack(s), {drawnEmbers} ember(s), {flung} chunk(s) flung, {drawnShards} shard(s); {FxSprite.Live} fx sprite(s) live");
+            runes = null;
             if (shield != null)
             {
                 shield.Drop();
@@ -276,6 +313,16 @@ namespace WoLStoneCharge
                 listening = true;
             }
             Effect("dust", () => PoolManager.GetPoolItem<DustEmitter>().EmitCircle(20, 0.75f, -1f, -1f, new Vector3?(parent.transform.position), null));
+            if (StoneChargePlugin.DrawnEffects)
+            {
+                // The ground splitting under the slab (the game's floor crack, as Earth Axe and
+                // Boulder Drop make), a stone pulse at the feet, and the shield's crack overlay.
+                Vector2 spot = at + aim * BashOffset;
+                Effect("floor crack", () => PoolManager.GetPoolItem<FloorCrackEmitter>().Emit(new int?(1), new Vector3?(spot), null, null, 0f, null, null));
+                Effect("pulse ring", () => Pulse(parent.transform.position, false, 0.8f));
+                Effect("shield cracks", () => runes = ShieldRunes.Attach(shield != null ? shield.Renderer : null));
+                orbit = new StoneOrbit();
+            }
             Effect("shake", () => CameraController.ShakeCamera(0.25f, false));
             Effect("sound", () => SoundManager.PlayAudioWithDistance("EarthExplosion", new Vector2?(at), null, 24f, -1f, 1.1f, false));
 
@@ -595,6 +642,13 @@ namespace WoLStoneCharge
                 int step = milestones;
                 Effect("form", () => PoolManager.GetPoolItem<ParticleEffect>("RockFormEffect").Emit(new int?(4 + 3 * step), new Vector3?(at), RockFormEffect.SmallSettings, null, 0f, null, null));
                 Effect("sound", () => SoundManager.PlayAudioWithDistance("EarthPebble", new Vector2?(at), null, 24f, -1f, 0.8f + 0.15f * step, false));
+                if (StoneChargePlugin.DrawnEffects)
+                {
+                    // The shield's cracks spread a step, and a ring pulses out over the floor
+                    // (ember-lit from three quarters).
+                    runes?.SetStage(step);
+                    Effect("pulse ring", () => Pulse(at, step >= 3, 0.9f + 0.15f * step));
+                }
                 if (percent >= 100f)
                 {
                     Effect("shake", () => CameraController.ShakeCamera(0.15f, false));
@@ -608,6 +662,8 @@ namespace WoLStoneCharge
         // arcana's spikes, no hit); at full a steady rock aura.
         private void ChargeEffects(bool moving)
         {
+            if (StoneChargePlugin.DrawnEffects)
+                DrawnCharge(moving);
             if (time >= nextEffect)
             {
                 nextEffect = time + EffectInterval;
@@ -627,6 +683,85 @@ namespace WoLStoneCharge
                 nextSpike = time + SpikeInterval * (energy >= 3f * MilestoneStep ? 0.7f : 1f);
                 SpawnSpike();
             }
+        }
+
+        // The drawn side of the force building: stone chunks circling you from half force,
+        // dust thrown back from your feet as you run (the game's dash dust, a puff at a time),
+        // drawn cracks spreading in the floor behind you from half force (ember-lit at full) and
+        // embers rising off you at full.
+        private void DrawnCharge(bool moving)
+        {
+            int step = Mathf.FloorToInt(energy / MilestoneStep + 0.0001f);
+            if (orbit != null)
+            {
+                StoneOrbit circling = orbit;
+                Effect("orbit", () => circling.Update(parent, step, this));
+            }
+            Vector2 feet = parent.transform.position;
+            bool running = moving && dashPhase == DashPhase.None;
+            if (running && time >= nextWake)
+            {
+                nextWake = time + WakeInterval;
+                Vector2 dir = aim;
+                int count = 1 + step / 2;
+                Effect("dust wake", () => parent.dustEmitter.EmitDirBurst(count, Globals.GetRotationVector(-dir).z, 3f, -1f, 0.4f, new Vector3?(feet - dir * 0.3f)));
+            }
+            if (running && step >= 2 && time >= nextCrack)
+            {
+                nextCrack = time + CrackInterval;
+                Vector2 behind = feet - aim * 0.6f + Random.insideUnitCircle * 0.2f;
+                bool glow = step >= 4;
+                Effect("floor crack", () => FloorCrack(behind, glow, 1f));
+            }
+            if (step >= 4 && time >= nextEmber)
+            {
+                nextEmber = time + EmberInterval;
+                Effect("ember", () => RiseEmber(feet));
+            }
+        }
+
+        private void FloorCrack(Vector2 at, bool glow, float size)
+        {
+            FxSprite fx = FxSprite.Spawn(StoneArt.Crack(glow), at, "TargetLineGround", 0);
+            if (fx == null)
+                return;
+            fx.fps = CrackFps;
+            fx.life = CrackLife;
+            fx.fadeAt = 0.6f;
+            fx.size = size;
+            fx.sr.flipX = Random.value < 0.5f;
+            drawnCracks++;
+        }
+
+        private void RiseEmber(Vector2 feet)
+        {
+            Vector2 offset = Random.insideUnitCircle;
+            offset.x *= 0.7f;
+            offset.y *= 0.35f;
+            Vector2 at = feet + offset + new Vector2(0f, 0.2f);
+            FxSprite fx = FxSprite.Spawn(StoneArt.Ember, at, "Actor", 0);
+            if (fx == null)
+                return;
+            fx.velocity = new Vector2(Random.Range(-0.2f, 0.2f), Random.Range(1f, 1.6f));
+            fx.fps = EmberFps;
+            fx.life = StoneArt.Ember.Length / EmberFps;
+            fx.fadeAt = 1f;
+            fx.sortRef = parent.spriteRenderer;
+            fx.sortOffset = offset.y > 0f ? -1 : 1;
+            drawnEmbers++;
+        }
+
+        // A ring pulsing out over the floor (milestones, the raise, the crash).
+        private static void Pulse(Vector2 at, bool glow, float size)
+        {
+            Sprite[] frames = StoneArt.Pulse(glow);
+            FxSprite fx = FxSprite.Spawn(frames, at, "TargetLineGround", 1);
+            if (fx == null)
+                return;
+            fx.fps = PulseFps;
+            fx.life = frames.Length / PulseFps;
+            fx.fadeAt = 1f;
+            fx.size = size;
         }
 
         // The Charge arcana's floor spikes, as it spawns them: a cosmetic spike behind the wizard.
@@ -839,6 +974,23 @@ namespace WoLStoneCharge
             Effect("sound", () => SoundManager.PlayAudioWithDistance("EarthCrumble", new Vector2?(at), null, 24f, -1f, 1.1f, false));
             Effect("debris", () => PoolManager.GetPoolItem<RockBurstDirectionalEffect>("RockBurstDirectionalEffect").EmitSingle(RockDebrisType.Default,
                 new int?(3 + Mathf.RoundToInt(5f * force)), new Vector3?(at + rushDir * BashOffset), null, new Vector3?(Globals.GetRotationVector(rushDir)), 0f, null));
+            if (StoneChargePlugin.DrawnEffects)
+            {
+                // The circling chunks thrown ahead along the rush, a crack torn where you push
+                // off and dust blasted back.
+                if (orbit != null)
+                {
+                    StoneOrbit circling = orbit;
+                    flung += circling.Count;
+                    Vector2 dir = rushDir;
+                    Effect("orbit", () => circling.Fling(dir));
+                    orbit = null;
+                }
+                bool glow = force >= 0.999f;
+                Effect("floor crack", () => FloorCrack(at, glow, 1.1f));
+                Vector2 back = -rushDir;
+                Effect("dust wake", () => parent.dustEmitter.EmitDirBurst(8 + Mathf.RoundToInt(8f * force), Globals.GetRotationVector(back).z, -1f, -1f, -1f, new Vector3?(at)));
+            }
             Bash();
         }
 
@@ -851,6 +1003,13 @@ namespace WoLStoneCharge
             {
                 bashedMid = true;
                 Bash();
+                if (StoneChargePlugin.DrawnEffects)
+                {
+                    // A second crack furrowed halfway along the rush.
+                    Vector2 mid = parent.transform.position;
+                    bool glow = force >= 0.999f;
+                    Effect("floor crack", () => FloorCrack(mid, glow, 1.1f));
+                }
             }
             if (rushTime >= StoneChargePlugin.RushTime)
                 Crash();
@@ -911,6 +1070,19 @@ namespace WoLStoneCharge
             Effect("dust", () => PoolManager.GetPoolItem<DustEmitter>().EmitCircle(30 + Mathf.RoundToInt(40f * force), radius * 0.5f, -6f, -1f, new Vector3?(at), null));
             Effect("debris", () => PoolManager.GetPoolItem<RockDebrisEmitter>().EmitSingle(RockDebrisType.Default, new int?(6 + Mathf.RoundToInt(10f * force)),
                 new Vector3?(at), RockDebrisEmitter.FloorExplosionOverrideR1p5, null, 0f, null));
+            if (StoneChargePlugin.DrawnEffects)
+            {
+                // The game's crater and floor crack (Earth Axe's: the large crater from half
+                // force), the drawn crater racing out under it (ember-lit from StunEnergy), a
+                // ring pulsing out to the crash's edge and rock shards flung mostly ahead.
+                bool big = force >= 0.5f;
+                bool glow = Stuns;
+                Effect("floor crack", () => PoolManager.GetPoolItem<FloorCrackEmitter>().Emit(new int?(1), new Vector3?(at), null, null, 0f, null, null));
+                Effect("game crater", () => PoolManager.GetPoolItem<ParticleEffect>(big ? "FloorCraterLarge" : "FloorCrater").Emit(new int?(1), new Vector3?(at), null, null, 0f, null, null));
+                Effect("crater", () => Crater(at, radius, glow));
+                Effect("pulse ring", () => Pulse(at, glow, radius * 2f / CraterWidth));
+                Effect("rock shard", () => Shards(at));
+            }
             Effect("shake", () => CameraController.ShakeCamera(0.4f + 0.8f * force, false));
             if (force >= 0.999f)
             {
@@ -919,6 +1091,44 @@ namespace WoLStoneCharge
             Effect("sound", () => SoundManager.PlayAudioWithDistance("EarthExplosionShort", new Vector2?(at), null, 24f, -1f, 1.1f - 0.3f * force, false));
             Effect("sound", () => SoundManager.PlayAudioWithDistance("EarthPebble", new Vector2?(at), null, 24f, -1f, 1f, false));
             parent.anim.PlayDirectional(parent.GSlamAnimStr, -1, 0.3f);
+        }
+
+        // The drawn crater, sized to the crash's hit area.
+        private void Crater(Vector2 at, float radius, bool glow)
+        {
+            FxSprite fx = FxSprite.Spawn(StoneArt.Crater(glow), at, "TargetLineGround", 0);
+            if (fx == null)
+                return;
+            fx.fps = CraterFps;
+            fx.life = CraterLife;
+            fx.fadeAt = 0.65f;
+            fx.size = radius * 2f * CraterFill / CraterWidth;
+        }
+
+        // Rock shards flung out of the crash, most of them on ahead along the rush, a couple
+        // back; each hops in an arc, tumbling, lands and steps out. More at higher force.
+        private void Shards(Vector2 at)
+        {
+            int count = Mathf.Min(MinShards + ShardsPerForce, MinShards + Mathf.RoundToInt(ShardsPerForce * force));
+            float ahead = Mathf.Atan2(rushDir.y, rushDir.x) * Mathf.Rad2Deg;
+            for (int i = 0; i < count; i++)
+            {
+                float angle = (i < 2 ? ahead + 180f : ahead) + Random.Range(-75f, 75f);
+                Vector2 dir = new Vector2(Mathf.Cos(angle * Mathf.Deg2Rad), Mathf.Sin(angle * Mathf.Deg2Rad));
+                FxSprite fx = FxSprite.Spawn(StoneArt.Shard(i), at + dir * 0.3f, "Effect", 0);
+                if (fx == null)
+                    return;
+                fx.velocity = dir * Random.Range(3f, 6.5f) * (0.8f + 0.4f * force);
+                fx.drag = 2.5f;
+                fx.life = Random.Range(0.55f, 0.75f);
+                fx.hop = Random.Range(0.5f, 1.2f);
+                fx.hopTime = fx.life * 0.8f;
+                fx.loop = true;
+                fx.fps = ShardFps;
+                fx.Skip(i);
+                fx.fadeAt = 0.75f;
+                drawnShards++;
+            }
         }
 
         private void Recover()

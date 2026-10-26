@@ -101,6 +101,9 @@ namespace WoLTidalWall
         private BoxCollider2D hitBox;
         private int hitObjID;
         private AudioSource loop;
+        // The normal and enhanced wave's drawn look (WaveLook.cs); null for the signature, which
+        // keeps its own.
+        private WaveLook look;
 
         // For the log line at the end.
         private readonly Dictionary<int, Entity> enemies = new Dictionary<int, Entity>();
@@ -162,6 +165,11 @@ namespace WoLTidalWall
             {
                 Effects.Sound("AquaBeamStart", s.Center, 0.9f);
                 Effects.Shake(0.2f);
+                look = new WaveLook(s);
+                var points = new List<Vector2>();
+                for (int i = 0; i < s.Columns; i++)
+                    points.Add(ColumnPoint(i));
+                Effects.Try("drawn rise", () => look.Rise(points));
             }
         }
 
@@ -297,6 +305,8 @@ namespace WoLTidalWall
             phaseTime += dt;
             if (s.CinematicToken != 0 && !restored)
                 Cinematic.KeepAlive(s.CinematicToken);
+            if (look != null)
+                Effects.Try("drawn churn", look.Tend);
 
             switch (phase)
             {
@@ -360,6 +370,8 @@ namespace WoLTidalWall
         {
             TendColumns();
             CenterWall();
+            if (look != null)
+                Effects.Try("drawn crests", () => look.Crests(columns, wallUp, transform));
             phase = Phase.Holding;
             phaseTime = 0f;
             if (hitCollider != null)
@@ -435,6 +447,8 @@ namespace WoLTidalWall
             }
             transform.position = pos + s.Direction * step;
             rolled += step;
+            if (look != null)
+                Effects.Try("drawn trail", () => look.Rolled(step, transform.position));
 
             sprayClock += dt;
             float interval = s.Signature ? SignatureSprayInterval : SprayInterval;
@@ -468,6 +482,8 @@ namespace WoLTidalWall
             Effects.Drops(at, s.Signature ? 4 : 2, s.Signature);
             if (sprays % 3 == 0)
                 Effects.Splash(at, s.Direction);
+            if (look != null)
+                Effects.Try("drawn spray", () => look.Spray(at));
             if (!wallUp)
             {
                 // No WaterWall to look at: twice the spray.
@@ -540,7 +556,14 @@ namespace WoLTidalWall
                 Effects.Drops(at, s.Signature ? 14 : 8, true);
                 if (s.Signature)
                     Effects.Ice(at, 25);
+                if (look != null)
+                {
+                    int burst = i;
+                    Effects.Try("drawn crash", () => look.CrashBurst(at, burst));
+                }
             }
+            if (look != null)
+                Effects.Try("drawn crash end", look.Crash);
             Effects.Sound("DelugeBomb", center, s.Signature ? 0.8f : 1f);
             if (wall != null)
             {
@@ -614,6 +637,8 @@ namespace WoLTidalWall
             hitThisPulse = true;
             if (hurt == null)
                 return;
+            if (look != null)
+                Effects.Try("drawn churn hit", () => look.Hit(hurt));
             int id = hurt.GetInstanceID();
             if (hurt is Enemy)
                 enemies[id] = hurt;
@@ -660,6 +685,8 @@ namespace WoLTidalWall
             TidalWallPlugin.Log($"Tidal Wall: {s.Variant} wave {crashReason} after rolling {rolled:0.0} of {s.Distance:0.0}: " +
                 $"swept {enemies.Count} enemies{others}, {hits} hits, {damage} damage, {frozen} frozen, " +
                 $"{blocked} projectiles blocked ({columnsUp} of {s.Columns} water columns)");
+            if (look != null)
+                TidalWallPlugin.Log(look.Summary());
         }
 
         // However this object goes (the crash run out, a level load, anything else), nothing it
@@ -672,6 +699,8 @@ namespace WoLTidalWall
             if (barrier != null)
                 barrier.reflectEventHandlers -= OnBlock;
             StopLoop();
+            if (look != null)
+                Effects.Try("drawn end", look.End);
             if (phase != Phase.Crashed)
                 crashReason = "was removed before it crashed";
             Report();

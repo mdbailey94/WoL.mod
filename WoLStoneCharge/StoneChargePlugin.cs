@@ -13,7 +13,7 @@ namespace WoLStoneCharge
     {
         public const string PluginGuid = "mdbailey94.wol.stonecharge";
         public const string PluginName = "Stone Charge";
-        public const string PluginVersion = "0.3.0";
+        public const string PluginVersion = "0.4.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -23,7 +23,7 @@ namespace WoLStoneCharge
         // ---- Settings (BepInEx\config\mdbailey94.wol.stonecharge.cfg) ----
         // [Charge] and [Crash] apply the next time you cast it; [Balance] after restarting the game.
         private static ConfigEntry<float> chargeTime, minPressTime, energyPerSecond, enhancedEnergyBonus, sprintDelay, frontArmour;
-        private static ConfigEntry<bool> brace;
+        private static ConfigEntry<bool> brace, drawnEffects;
         private static ConfigEntry<float> rushDistance, rushTime, bashRadius, crashRadius, enhancedCrashRadius;
         private static ConfigEntry<float> fullMultiplier, knockback, fullKnockback, stunEnergy, stunMultiplier;
         private static ConfigEntry<int> raiseDamage, bashDamage, crashDamage;
@@ -39,6 +39,7 @@ namespace WoLStoneCharge
         public static float SprintDelay => Get(sprintDelay, 1f, 0f, 5f);
         public static float FrontArmourPercent => Get(frontArmour, 30f, 0f, 90f);
         public static bool Brace => brace?.Value ?? true;
+        public static bool DrawnEffects => drawnEffects?.Value ?? true;
         public static float RushDistance => Get(rushDistance, 2.5f, 0.5f, 6f);
         public static float RushTime => Get(rushTime, 0.12f, 0.05f, 0.5f);
         public static float BashRadius => Get(bashRadius, 1.2f, 0.3f, 3f);
@@ -149,6 +150,11 @@ namespace WoLStoneCharge
                 "Percent of full force from which the crash stuns longer (see StunMultiplier).");
             stunMultiplier = Float("Crash", "StunMultiplier", 2.5f, 1f, 6f,
                 "How much longer the crash's hitstun lasts at StunEnergy and above (1 = no longer).");
+
+            drawnEffects = Config.Bind("Look", "DrawnEffects", true,
+                "Draw the mod's own pixel-art effects on top of the game's (0.4.0): glowing cracks and a rune in the shield, " +
+                "stone chunks circling you, floor cracks, embers, a crater, pulse rings and flung shards, plus the game's " +
+                "floor crack and crater. Off = the 0.3.0 look. Cosmetic only; applies on the next cast.");
 
             const string restart = " Applies after restarting the game.";
             raiseDamage = Config.Bind("Balance", "RaiseDamage", 3,

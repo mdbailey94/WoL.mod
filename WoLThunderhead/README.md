@@ -63,7 +63,37 @@ The signature version is **unlocked along with the arcana** (buy it once and it'
 list). If you'd rather earn it the vanilla way, finding its Signature drop in a run, turn
 `SignatureUnlocksWithArcana` off.
 
+## Look
+
+Since **0.9.0** the standard and enhanced leap have their own drawn pixel-art effects on top of the
+game's bolts, sparks and dust (the signature storm keeps its cinematic look, unchanged):
+
+- **Take-off**: a ring of lightning bursts out over the ground from your feet.
+- **In the air**: jagged arcs crackle round the wizard (more of them when enhanced), and lightning
+  crawls through the storm cloud and forks down out of it with each flicker and each volley.
+- **Strike glyphs**: a dashed ring the size of each strike's hit circle appears on the ground
+  wherever the next volley's bolts will land, an inner ring closing in as it charges from blue to
+  white and flashing just before they strike (the same spots the bolts then hit; enhanced, they
+  follow you as you steer).
+- **Scorch marks**: each strike leaves a white starburst, a ring of cyan, then a soot mark whose
+  cracks glow and cool before it fades.
+- **Landing ring**: in the last moments up there a charged ring the size of the slam comes up under
+  you, chevrons pointing in, flickering as you dive.
+- **The slam**: a shockwave of lightning races out to the slam's edge and leaves a cracked crater
+  that glows, cools and fades.
+
+They're drawn in code at the game's pixel size, with a lightning palette, and pooled (capped, put
+away when the cast ends or the level changes). `Drawn` in `[Look]` turns them off. Purely visual:
+damage, hit areas, timings and strike spots are as before.
+
 ## Log
+
+The drawn effects log one line each the first time they play, for example
+`Thunderhead: visual 'strike glyph' ready (7 sprites, ppu 16)` (also `strike scorch`,
+`wizard arcs`, `cloud lightning`, `landing ring`, `take-off shockwave`, `slam shockwave` and
+`slam crater`), and once which sorting layers they draw on: `Thunderhead: drawn effects sort on
+'Shadow' (#n) (floor marks) and 'TargetLineGround' (#n) (ground glyphs), the wizard on ...`. If one
+can't be made it says `Thunderhead: visual '...' skipped: ...` once and the cast goes on without it.
 
 The bolts are the game's own lightning from the sky (just its animation; the hits come from the
 game's lightning bursts). The log (`BepInEx\LogOutput.log`) says:
@@ -117,6 +147,7 @@ you start the game with the mod), or in-game with a config manager mod if you ha
 | Signature | `ImpactSlowMo` | 0.3 | Seconds of slow motion after the hit-stop (0 = none) |
 | Look | `Cloud` / `CloudSize` | true / 1 | Ride a dark storm cloud while up, and its size (the signature cloud is 1.4x and swells) |
 | Look | `Electric` | true | Crackle with electricity while in the air |
+| Look | `Drawn` | true | The standard and enhanced leap's drawn effects (glyphs, scorch marks, arcs, landing ring, shockwave, crater) |
 | Look | `AuraSize` | 1 | Size of the electric aura in the air |
 | Balance | `StrikeDamage` / `SlamDamage` | 5 / 14 | Damage |
 | Balance | `SignatureStrikeDamage` / `SignatureSlamDamage` | 7 / 35 | Damage in the signature cast (strikes and ring; its slam always shocks) |

@@ -17,6 +17,23 @@ Each burst lands further out along your aim and is a little larger than the last
 again a moment later. Bursts pull enemies inward, like Gust Burst does, and each one can grab an
 enemy again, so they get dragged along the whole line.
 
+## Look
+
+On top of the game's air vortex, wind burst and dust, the line has its own drawn pixel art
+(painted in code at the game's pixel size, in a pale cyan/white Air palette with outlines and
+shading):
+
+- **Cast**: the game's dash air burst and air shockwave at your hands, and a gust crescent (6 frames)
+  rolling off along your aim.
+- **Travel**: three crescents curling forward from each burst to the next, with the game's wind trail.
+- **Each burst**: an inward spiral on the floor (8 frames: it forms from the rim, its three arms
+  draw in, then it collapses into the eye) with dust, leaves and pebbles spiralling into it and the
+  game's dust suction. Echo pulses get a smaller, quicker spiral.
+- **End**: a wind puff breaking apart over the last burst, with the game's spinning air bursts.
+
+Visual only: hits, timing and pull are unchanged. The log says
+`Rolling Gale: visual '<name>' ready (...)` the first time each one plays, or which one it skipped.
+
 ## Install
 
 1. Install BepInExPack of Legend, **LegendAPI** and **HookGenPatcher** (all on Thunderstore).

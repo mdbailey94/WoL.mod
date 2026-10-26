@@ -74,6 +74,31 @@ namespace WoLSlingshotDash
             });
         }
 
+        // One of the game's named particle effects (its pooled "ParticleEffect"s, e.g. "AirVortex"),
+        // optionally turned to point along `angle` (degrees) and/or started after `delay`.
+        public static void Game(string effect, int count, Vector2 position, ParticleSystemOverride overrides = null,
+            float angle = float.NaN, float delay = 0f) =>
+            Try(effect, () => PoolManager.GetPoolItem<ParticleEffect>(effect).Emit(new int?(count), new Vector3?(position),
+                overrides, float.IsNaN(angle) ? null : new Vector3?(new Vector3(0f, 0f, angle)), delay, null, null));
+
+        // The mod's own drawn visuals (PixelFx.cs), made safe the same way: one that fails is
+        // logged once and skipped from then on.
+        public static void Visual(string name, System.Action effect) => Try(name, effect);
+
+        // The wizard's own dash streaks (Player.dashTrails), which the game only shows on a plain
+        // dash; the dash's end turns them off again (BaseDashState.DashFinished).
+        public static void DashTrails(Player player, string owner) =>
+            Try("dash trails", () =>
+            {
+                GameObject trails = player != null ? player.dashTrails : null;
+                if (trails == null)
+                    return;
+                trails.SetActive(true);
+                PixelFx.Once("dash trails", $"{owner}: the wizard's dash trails on during the rush " +
+                    $"({trails.GetComponentsInChildren<TrailRenderer>(true).Length} trail(s), " +
+                    $"{trails.GetComponentsInChildren<ParticleSystem>(true).Length} particle system(s))");
+            });
+
         public static void Shake(float intensity) =>
             Try("camera shake", () => CameraController.ShakeCamera(intensity, false));
 

@@ -110,6 +110,98 @@ namespace WoLSlingshotDash
             Effects.Leaves(anchor, 6);
             Effects.Dust(start, 14, 0.5f);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(start), null, 24f, -1f, 0.8f, false);
+            GrabLook(start, direction);
+        }
+
+        // ---- The look (only for show) ----
+        private const string Name = "Vine Slingshot";
+        private const float RockGravity = 22f;          // tumbling rocks fall back this fast...
+        private const float RockHopMin = 2.5f, RockHopMax = 4.5f; // ...after hopping up this fast
+        private const float PullDustInterval = 0.04f;  // dust kicked up along the pull...
+        private const float PullRockInterval = 0.09f;  // ...and rocks
+        private const float PullDustDrift = 1.5f;
+        private const int KickRocks = 6;               // rocks thrown along the kick
+        private const float KickRockCone = 40f;        // degrees either side of the kick
+        private float nextPullDust, nextPullRock;
+
+        private static void Rock(Vector2 at, Vector2 throwVelocity, float hop, FxLayer layer = FxLayer.Actor) =>
+            Effects.Visual("tumbling rock", () => FxSprite.Play(EarthArt.Rock, at, new FxOpts
+            {
+                velocity = throwVelocity,
+                drag = 1.2f,
+                hop = hop,
+                gravity = RockGravity,
+                spin = Random.Range(-240f, 240f),
+                loopFor = hop * 2f / RockGravity + 0.25f,
+                speed = Random.Range(0.8f, 1.3f),
+                layer = layer
+            }));
+
+        private static void DustPuff(Vector2 at, Vector2 drift, float scale) =>
+            Effects.Visual("dust puff", () => FxSprite.Play(EarthArt.Dust, at, new FxOpts
+            {
+                velocity = drift,
+                drag = 2f,
+                scale = scale,
+                flipX = Random.value < 0.5f,
+                sortOffset = -0.2f
+            }));
+
+        // Flair only: the fist's shockwave on the floor with rocks and dust thrown up, and where
+        // the vines take hold, the game's thorns on an enemy (rocks and dust on a wall or floor).
+        private void GrabLook(Vector2 start, Vector2 direction)
+        {
+            PixelFx.Setup(parent);
+            Effects.Visual("ground shockwave", () => FxSprite.Play(EarthArt.Ring, start, new FxOpts { layer = FxLayer.Ground, scale = 0.6f }));
+            for (int i = 0; i < 3; i++)
+            {
+                float a = (i * 120f + Random.Range(-30f, 30f)) * Mathf.Deg2Rad;
+                var outward = new Vector2(Mathf.Cos(a), Mathf.Sin(a) * 0.6f);
+                Rock(start + outward * 0.3f, outward * Random.Range(1f, 2f), Random.Range(RockHopMin, RockHopMax));
+                DustPuff(start + outward * 0.4f, outward * PullDustDrift, 0.9f);
+            }
+            if (target != null)
+                Effects.Game("ThornEmitter", 10, anchor);
+            else
+            {
+                Rock(anchor, -direction * 1.5f, RockHopMin);
+                DustPuff(anchor, Vector2.zero, 1f);
+            }
+            PixelFx.Once("earth grab", $"{Name}: look 'grab' played (drawn ground shockwave, tumbling rocks and dust, " +
+                "game ThornEmitter on a grabbed enemy)");
+        }
+
+        // Flair only: dust puffs and rocks kicked up behind you as you're pulled in.
+        private void PullLook(Vector2 position, Vector2 direction)
+        {
+            if (Time.time >= nextPullDust)
+            {
+                nextPullDust = Time.time + PullDustInterval;
+                DustPuff(position + Random.insideUnitCircle * 0.2f, -direction * PullDustDrift, Random.Range(0.8f, 1.15f));
+            }
+            if (Time.time >= nextPullRock)
+            {
+                nextPullRock = Time.time + PullRockInterval;
+                Rock(position, -direction * Random.Range(1.5f, 3f) + Random.insideUnitCircle, Random.Range(RockHopMin * 0.6f, RockHopMin));
+            }
+        }
+
+        // Flair only: the kick: a burst of rock shards along it, the floor's shockwave, the impact,
+        // rocks thrown on ahead, and the game's floor crater.
+        private void KickLook(Vector2 impact, Vector2 direction)
+        {
+            float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+            Effects.Visual("rock burst", () => FxSprite.Play(EarthArt.Impact, impact, new FxOpts { rotation = angle, lift = 0.3f, layer = FxLayer.Effect }));
+            Effects.Visual("ground shockwave", () => FxSprite.Play(EarthArt.Ring, impact, new FxOpts { layer = FxLayer.Ground, scale = 1.15f }));
+            Effects.Visual("earth kick impact", () => FxSprite.Play(EarthArt.Star, impact, new FxOpts { rotation = angle, lift = 0.6f, layer = FxLayer.Effect }));
+            for (int i = 0; i < KickRocks; i++)
+            {
+                float a = angle + Random.Range(-KickRockCone, KickRockCone);
+                var fling = new Vector2(Mathf.Cos(a * Mathf.Deg2Rad), Mathf.Sin(a * Mathf.Deg2Rad));
+                Rock(impact, fling * Random.Range(4f, 7f), Random.Range(RockHopMin, RockHopMax + 1f));
+            }
+            Effects.Game("FloorCraterMed", 1, impact);
+            PixelFx.Once("earth kick", $"{Name}: look 'kick' played (drawn rock burst, ground shockwave, kick impact and rocks, game FloorCraterMed)");
         }
 
         protected override void WhileCharging(float holdTime)
@@ -130,6 +222,12 @@ namespace WoLSlingshotDash
             Effects.Pebbles(position, 1 + Mathf.RoundToInt(3 * charge));
             if (Random.value < 0.3f + 0.4f * charge)
                 Effects.Leaves(position, 1);
+            // Flair only: now and then a stone hops up out of the cracked floor.
+            if (Random.value < 0.35f + 0.35f * charge)
+            {
+                Vector2 jiggle = Random.insideUnitCircle * 0.5f;
+                Rock(position + jiggle, jiggle * 1.5f, Random.Range(RockHopMin * 0.7f, RockHopMax));
+            }
         }
 
         protected override void OnLaunch(float charge)
@@ -142,6 +240,12 @@ namespace WoLSlingshotDash
             parent.FaceTarget(anchor);
             parent.anim?.PlayDirectional(parent.KickAnimStr, -1, 0f);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(launchFrom), null, 24f, -1f, 1.1f, false);
+            // Flair only: you tear free of the floor in a burst of dust.
+            nextPullDust = 0f;
+            nextPullRock = 0f;
+            Vector2 away = (launchFrom - anchor).sqrMagnitude > 0.01f ? (launchFrom - anchor).normalized : Vector2.down;
+            for (int i = 0; i < 3; i++)
+                DustPuff(launchFrom + Random.insideUnitCircle * 0.3f, (away + Random.insideUnitCircle * 0.6f) * PullDustDrift, 1.1f);
         }
 
         protected override void WhileDashing(float charge)
@@ -158,6 +262,7 @@ namespace WoLSlingshotDash
                 Effects.Dust(position, 4, 0.3f);
                 Effects.Pebbles(position, 2);
             }
+            PullLook(parent.transform.position, (anchor - launchFrom).sqrMagnitude > 0.01f ? (anchor - launchFrom).normalized : Vector2.right);
         }
 
         // Pull yourself along the vines, and kick on arrival.
@@ -223,6 +328,7 @@ namespace WoLSlingshotDash
             Effects.Leaves(impact, 8);
             Effects.Dust(position, 50, 1.2f);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(position), null, 24f, -1f, 0.7f, false);
+            KickLook(impact, direction);
             if (kickedEnemy != null)
                 SlingshotDashPlugin.Run(Skid(kickedEnemy.transform, direction));
             target = null;
@@ -238,10 +344,13 @@ namespace WoLSlingshotDash
                 last = enemy.position;
                 Effects.Dust(last, 6, 0.35f);
                 Effects.Pebbles(last, 2);
+                // Flair only: a drawn dust puff kicked up behind the skid.
+                DustPuff(last, -direction * 1f, 0.9f);
                 yield return new WaitForSeconds(SkidInterval);
             }
             Effects.Crack(last + direction * 0.3f);
             Effects.Dust(last, 16, 0.6f);
+            DustPuff(last, Vector2.zero, 1.2f);
         }
 
         private void FollowTarget()

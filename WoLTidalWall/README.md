@@ -36,6 +36,18 @@ itself, so you're free to move or cast again straight away.
 0.2.0's version was rows of Tidal Blast's water orbs bursting one after another (up to 44 per enemy,
 with a freeze chance). That was too close to Tidal Blast and too strong for a standard arcana.
 
+### Look
+
+0.4.0 gives the normal and enhanced wall its own drawn pixel-art animations on top of the game's
+water effects (looks only: damage, timing and reach are unchanged; the signature keeps its own
+cinematic look). A jet of water bursts up as each column rises, with a ripple spreading over the
+floor; a foam crest curls along the top of every column while it stands and rolls; the front flings
+droplets that splat where they land and fans of spray; the wave leaves a wet trail of puddles that
+glint and dry up; every swept enemy is churned in a ring of swirling, bubbling foam; and the crash
+throws up a crown of water at each burst, with mist hanging over it, foam washing out over the floor
+and droplets raining down. Each drawn visual logs `Tidal Wall: visual '...' ready (...)` the first
+time it plays, and each wave logs `Tidal Wall: look: ...` with what it drew.
+
 ## Signature
 
 Put Tidal Wall in the **signature slot** (the spellbook in your house lists it under Signature

@@ -59,6 +59,12 @@ namespace WoLTidalWall
             Try("water twirl", () => PoolManager.GetPoolItem<ParticleEffect>("WaterTwirlFormEffect").Emit(new int?(1),
                 new Vector3?(position), null, null, 0f, null, null));
 
+        // A bubble popping (the bubble projectiles' "BubblePopEffect", BubbleProjectile), for
+        // enemies churned in the wave.
+        public static void Bubbles(Vector2 position) =>
+            Try("bubble pop", () => PoolManager.GetPoolItem<ParticleEffect>("BubblePopEffect").Emit(new int?(1),
+                new Vector3?(position), null, null, 0f, null, null));
+
         // Ice shards bursting (Water Ward, the ice boss: "IcicleBreakEffect"), for the frozen crash.
         public static void Ice(Vector2 position, int count) =>
             Try("ice shards", () => PoolManager.GetPoolItem<ParticleEffect>("IcicleBreakEffect").Emit(new int?(count),

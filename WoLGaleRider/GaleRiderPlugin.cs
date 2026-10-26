@@ -13,7 +13,7 @@ namespace WoLGaleRider
     {
         public const string PluginGuid = "mdbailey94.wol.galerider";
         public const string PluginName = "Gale Rider";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.2.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -26,7 +26,7 @@ namespace WoLGaleRider
         private static ConfigEntry<bool> hopOffOnPress;
         private static ConfigEntry<float> minSize, maxSize, enhancedMaxSize, peakSpeedPercent;
         private static ConfigEntry<float> vortexSize;
-        private static ConfigEntry<bool> dust;
+        private static ConfigEntry<bool> dust, drawnEffects;
         private static ConfigEntry<int> damage;
         private static ConfigEntry<float> knockback, peakKnockback, hitInterval, cooldown;
 
@@ -41,6 +41,7 @@ namespace WoLGaleRider
         public static float PeakSpeedPercent => Get(peakSpeedPercent, 200f, 110f, 600f);
         public static float VortexSize => Get(vortexSize, 1f, 0.3f, 3f);
         public static bool Dust => dust?.Value ?? true;
+        public static bool DrawnEffects => drawnEffects?.Value ?? true;
         // Balance numbers are read again by the state for the knockback it sets on the ball each
         // frame; the stats registered below are what the game keeps (restart to change those).
         public static float Knockback => Get(knockback, 15f, 0f, 200f);
@@ -121,6 +122,9 @@ namespace WoLGaleRider
 
             vortexSize = Float("Look", "VortexSize", 1f, 0.3f, 3f, "Size of the swirling wind drawn round you, relative to the ball.");
             dust = Config.Bind("Look", "Dust", true, "Kick up a ring of dust as the ball rolls.");
+            drawnEffects = Config.Bind("Look", "DrawnEffects", true,
+                "Draw the mod's own pixel-art wind ball, floor ring, streaks, gust puffs and gather/unravel on top of the " +
+                "game's wind effects (0.2.0). Off = the 0.1.0 look. Cosmetic only.");
 
             const string restart = " Applies after restarting the game.";
             damage = Config.Bind("Balance", "Damage", 4,

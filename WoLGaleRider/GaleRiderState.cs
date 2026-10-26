@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Chaos.AnimatorExtensions;
 using UnityEngine;
 
@@ -31,6 +32,22 @@ namespace WoLGaleRider
         private const float DustInterval = 0.15f;       // seconds between rings of dust
         private const float BaseSpeedFactor = 1f;       // x1.0 base run speed: smallest ball, weakest shove
         private const float LoopPitch = 1.15f;          // the game's tornado loop, a touch higher (Whirlwind uses 1.2)
+        // The drawn look (GaleArt), all cosmetic:
+        private const float DrawnVortexInterval = 0.09f; // the game's AirVortex puffs thinned out under the drawn ball
+        private const float BallLift = 0.45f;           // the drawn ball's middle above the feet (WindBall.Lift)
+        private const float GatherFps = 30f;            // the gather's 6 frames in 0.2 s, over the cast's wind-up
+        private const float StreakInterval = 0.11f;     // seconds between wind streaks at level 1...
+        private const float StreakPerLevel = 0.007f;    // ...this much sooner each level (0.047 s at 10)
+        private const float StreakFps = 20f;
+        private const float StreakDrift = 0.6f;         // u/s the streaks drift back, plus StreakDriftPerLevel a level
+        private const float StreakDriftPerLevel = 0.12f;
+        private const float WakeInterval = 0.1f;        // seconds between puffs of dust thrown back behind
+        private const float TrailInterval = 0.45f;      // seconds between the game's wind trails behind, from TrailLevel
+        private const int TrailLevel = 4;
+        private const float TrailLength = 2.5f;
+        private const float PuffInterval = 0.05f;       // at most one drawn gust puff this often (a crowd hit at once)
+        private const float PuffFps = 22f;
+        private const float UnravelFps = 24f;
 
         // Numbers come from the config (GaleRiderPlugin), read as each cast starts.
         private float RideTimeNow, SpeedPercent, MinSize, MaxSize, PeakSpeedFactor, HitInterval, Knockback, PeakKnockback;
@@ -63,6 +80,12 @@ namespace WoLGaleRider
         private bool loggedEnd;
         private string endReason;
         private static bool loggedSpeed, loggedLevels;
+        // The drawn look.
+        private WindBall windBall;
+        private float nextStreak, nextWake, nextTrail, lastPuff;
+        private int streaks, puffs;
+        private float lastBallWidth;
+        private static readonly HashSet<string> failed = new HashSet<string>();
 
         public GaleRiderState(FSM newFSM, Player newEnt) : base(staticID, newFSM, newEnt)
         {
@@ -108,6 +131,27 @@ namespace WoLGaleRider
             if (direction == Vector2.zero)
                 direction = Vector2.right;
             direction.Normalize();
+            windBall = null;
+            nextStreak = nextWake = nextTrail = 0f;
+            lastPuff = -99f;
+            streaks = puffs = 0;
+            // The wind gathering round the wizard over the wind-up, flashing as the ball forms.
+            if (GaleRiderPlugin.DrawnEffects)
+            {
+                Effect("gather", () =>
+                {
+                    FxSprite fx = FxSprite.Spawn(GaleArt.Gather, parent.transform.position, "Effect", 0);
+                    if (fx == null)
+                        return;
+                    fx.Follow(parent.transform, new Vector2(0f, BallLift));
+                    fx.fps = GatherFps;
+                    fx.life = GaleArt.Gather.Length / GatherFps;
+                    fx.fadeAt = 1f;
+                    fx.owner = this;
+                    fx.sortRef = parent.spriteRenderer;
+                    fx.sortOffset = 1;
+                });
+            }
         }
 
         public override void ExecuteSkill()
@@ -300,6 +344,17 @@ namespace WoLGaleRider
             catch
             {
             }
+            if (GaleRiderPlugin.DrawnEffects)
+            {
+                Effect("wind ball", () => windBall = WindBall.Create(parent, this));
+                // The game's own air kick-off, as Rushing Typhoon starts its rush: a spinning
+                // burst at the feet, a shockwave and a wind trail out the way they set off.
+                Vector2 dir = direction;
+                Effect("spinning burst", () => PoolManager.GetPoolItem<ParticleEffect>("SpinningAirBurst").Emit(new int?(1), new Vector3?(spot), null, null, 0f, null, null));
+                Effect("shockwave", () => PoolManager.GetPoolItem<ParticleEffect>("AirWaveShockwave").Emit(new int?(1), new Vector3?(spot + dir * 0.5f), null,
+                    new Vector3?(Globals.GetRotationVector(dir)), 0f, null, null));
+                Effect("wind trail", () => PoolManager.GetPoolItem<SectionedTrailEmitter>("WindTrail").Emit(spot, spot + dir * 5f, -1, false, -1f, true, 0.3f));
+            }
             SoundManager.PlayAudioWithDistance("TornadoStart", new Vector2?(spot), null, 24f, -1f, LoopPitch, false);
             try
             {
@@ -348,10 +403,31 @@ namespace WoLGaleRider
                 Vector2 where = hit != null && hit.hurtBoxTransform != null ? (Vector2)hit.hurtBoxTransform.position
                     : hit != null ? (Vector2)hit.transform.position : (Vector2)parent.transform.position;
                 PoolManager.GetPoolItem<ParticleEffect>("WindBurstEffect").Emit(new int?(1), new Vector3?(where), null, null, 0f, null, null);
+                if (GaleRiderPlugin.DrawnEffects && time - lastPuff >= PuffInterval)
+                {
+                    lastPuff = time;
+                    Effect("gust puff", () => GustPuff(where));
+                }
             }
             catch
             {
             }
+        }
+
+        // A drawn gust puff on the enemy, swelling along the way it's shoved; bigger at speed.
+        private void GustPuff(Vector2 where)
+        {
+            FxSprite fx = FxSprite.Spawn(GaleArt.Puff, where, "Effect", 0);
+            if (fx == null)
+                return;
+            fx.angle = PixelArt.Angle(direction);
+            fx.size = 1f + 0.06f * (speedLevel - 1);
+            fx.fps = PuffFps;
+            fx.life = GaleArt.Puff.Length / PuffFps;
+            fx.fadeAt = 1f;
+            fx.velocity = direction * 1.5f;
+            fx.drag = 4f;
+            puffs++;
         }
 
         // The ride's move-speed mod, like Aero Ring's: a multiplier on the move-speed stat (so
@@ -409,6 +485,15 @@ namespace WoLGaleRider
         private void Dismount()
         {
             StopRide();
+            // The drawn ball and anything else riding on the wizard go with it.
+            float ballWidth = windBall != null ? windBall.Width : 0f;
+            if (windBall != null)
+            {
+                Effect("wind ball", () => windBall.Stop());
+                windBall = null;
+            }
+            Effect("cleanup", () => FxSprite.StopAll(this));
+            lastBallWidth = ballWidth;
             try
             {
                 parent.ToggleEnemyFloorCollisions(true);
@@ -446,12 +531,29 @@ namespace WoLGaleRider
             }
             Vector2 spot = parent.transform.position;
             Dust(spot, 30, 0.25f);
+            if (GaleRiderPlugin.DrawnEffects)
+                Effect("unravel", () => Unravel(spot));
             SoundManager.PlayAudioWithDistance("WindBlastSharp", new Vector2?(spot), null, 24f, -1f, 1f, false);
             if (time < RideTimeNow && endReason == "ride over")
                 endReason = "cut short";
             GaleRiderPlugin.Log($"Gale Rider: {endReason} after {time:0.00}s, travelled {travelled:0.0} u, hit {hits} time(s), " +
                 $"biggest knockback {biggestKnockback:0.#} (last speed x{currentSpeed:0.00}, level {speedLevel})" +
-                (heldAtPitEdge ? ", held back at a pit's edge" : ""));
+                (heldAtPitEdge ? ", held back at a pit's edge" : "") +
+                (GaleRiderPlugin.DrawnEffects ? $"; drawn: ball {lastBallWidth:0.0} u wide, {streaks} streak(s), {puffs} gust puff(s), {FxSprite.Live} fx sprite(s) live" : ""));
+        }
+
+        // The ball coming apart where the ride ends: the gather played backwards, sized to it.
+        private void Unravel(Vector2 spot)
+        {
+            Sprite[] frames = GaleArt.Unravel;
+            FxSprite fx = FxSprite.Spawn(frames, spot + new Vector2(0f, BallLift), "Effect", 0);
+            if (fx == null)
+                return;
+            // The gather sheet is 48 px (3 units) wide.
+            fx.size = Mathf.Clamp(lastBallWidth / 3f, 0.8f, 2f);
+            fx.fps = UnravelFps;
+            fx.life = frames.Length / UnravelFps;
+            fx.fadeAt = 0.6f;
         }
 
         // ---- Speed ----
@@ -518,9 +620,11 @@ namespace WoLGaleRider
         // kicked up as it rolls.
         private void Effects()
         {
+            if (GaleRiderPlugin.DrawnEffects)
+                DrawnEffects();
             if (time < nextVortex)
                 return;
-            nextVortex = time + VortexInterval;
+            nextVortex = time + (GaleRiderPlugin.DrawnEffects ? DrawnVortexInterval : VortexInterval);
             Vector2 spot = parent.attackOriginTrans != null ? (Vector2)parent.attackOriginTrans.position : (Vector2)parent.transform.position;
             float look = currentSize * GaleRiderPlugin.VortexSize;
             try
@@ -542,6 +646,78 @@ namespace WoLGaleRider
             {
                 nextDust = time + DustInterval;
                 Dust(parent.transform.position, Mathf.RoundToInt(8f + 8f * currentSize), 0.2f * currentSize);
+            }
+        }
+
+        // The drawn ball kept to the hit's size and the speed level; wind streaks flicking off
+        // behind it, dust thrown back from the feet, and from TrailLevel the game's wind trail
+        // streaming behind (Rushing Typhoon's).
+        private void DrawnEffects()
+        {
+            if (windBall != null)
+            {
+                WindBall ball = windBall;
+                Effect("wind ball", () => ball.Update(currentSize, speedLevel, GaleRiderPlugin.VortexSize));
+            }
+            Vector2 feet = parent.transform.position;
+            bool moving = velocity.sqrMagnitude > 0.25f;
+            if (time >= nextStreak)
+            {
+                nextStreak = time + Mathf.Max(0.03f, StreakInterval - StreakPerLevel * (speedLevel - 1));
+                Effect("wind streak", () => Streak(feet));
+            }
+            if (moving && GaleRiderPlugin.Dust && time >= nextWake)
+            {
+                nextWake = time + WakeInterval;
+                Vector2 dir = direction;
+                int count = 1 + speedLevel / 4;
+                Effect("dust wake", () => parent.dustEmitter.EmitDirBurst(count, Globals.GetRotationVector(-dir).z, 4f, -1f, 0.45f, new Vector3?(feet - dir * 0.3f)));
+            }
+            if (moving && speedLevel >= TrailLevel && time >= nextTrail)
+            {
+                nextTrail = time + TrailInterval;
+                Vector2 from = feet + new Vector2(0f, BallLift) - direction * TrailLength;
+                Vector2 to = feet + new Vector2(0f, BallLift);
+                Effect("wind trail", () => PoolManager.GetPoolItem<SectionedTrailEmitter>("WindTrail").Emit(from, to, -1, false, -1f, true, 0.3f));
+            }
+        }
+
+        // A drawn wind streak off the back edge of the ball, pointing the way they ride and
+        // drifting back; behind the wizard if it's above their middle, in front if below.
+        private void Streak(Vector2 feet)
+        {
+            float half = windBall != null ? windBall.Width * 0.5f : currentSize;
+            Vector2 side = new Vector2(-direction.y, direction.x);
+            Vector2 middle = feet + new Vector2(0f, BallLift);
+            Vector2 at = middle + side * (Random.Range(-0.85f, 0.85f) * half * 0.6f) - direction * (half * Random.Range(0.3f, 0.7f));
+            FxSprite fx = FxSprite.Spawn(GaleArt.Streak, at, "Actor", 0);
+            if (fx == null)
+                return;
+            fx.angle = PixelArt.Angle(direction);
+            fx.fps = StreakFps;
+            fx.life = GaleArt.Streak.Length / StreakFps;
+            fx.fadeAt = 1f;
+            fx.velocity = -direction * (StreakDrift + StreakDriftPerLevel * speedLevel);
+            fx.drag = 2f;
+            fx.sortRef = parent.spriteRenderer;
+            fx.sortOffset = at.y > middle.y ? -1 : 1;
+            streaks++;
+        }
+
+        // Runs a cosmetic effect; if it's unavailable it's skipped (and logged once) instead of
+        // stopping the ride.
+        private static void Effect(string name, System.Action effect)
+        {
+            if (failed.Contains(name))
+                return;
+            try
+            {
+                effect();
+            }
+            catch (System.Exception e)
+            {
+                failed.Add(name);
+                GaleRiderPlugin.Log($"Gale Rider: effect '{name}' unavailable, skipping it: {e.Message}");
             }
         }
 

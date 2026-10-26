@@ -33,6 +33,12 @@ in what the launch does.
 - Everything scales with charge.
 - **Enhanced**: gusts are left all along your path, each blowing twice (3 damage a gust, pushing
   enemies away from the line).
+- **Look** (0.25.0): a drawn ring of wind crescents spins round your feet while you charge (its
+  far side behind you, its near side in front), growing with the charge and snapping tight at
+  full. The launch bursts a fan of speed lines out behind you with the game's air shockwaves, and
+  you rush in the wizard's own dash streaks, leaving curling gust streaks and pale afterimages.
+  The punch lands in a drawn implosion (wind spiralling in to a pop), a ring on the floor closing
+  in (again with each vacuum pulse), an impact star and the game's air vortex.
 
 ### Blazing Kick (Fire)
 
@@ -47,6 +53,12 @@ in what the launch does.
   everyone nearby away.
 - Everything scales with charge.
 - **Enhanced**: every hit, trail and blast alike, **sets the enemy on fire**.
+- **Look** (0.25.0): while you charge, a ring of drawn flames lights up round your feet, more and
+  taller as it builds, with embers drifting up, flaring with the game's ring of fire at full. You
+  take off in a small blast, leave guttering flames, embers, scorch marks and smoke along the
+  rush, and the kick lands in a drawn fireball that bursts into a ring of fire with smoke rising
+  inside, a scorch ring on the floor, an impact star and a spray of embers, with the game's fire
+  ring, large scorch mark and smoke.
 
 ### Feint Swap (Water) - a standard arcana
 
@@ -125,6 +137,12 @@ the shop offers the new one.)
 - **Enhanced**: when the vines take hold, more vines **spread to up to 5 enemies** within 4 tiles,
   coiling round them and rooting them (2 damage every 0.5 s) while you hold and for **3 seconds
   after the kick**, anchored where the kick landed.
+- **Look** (0.25.0): the punch into the ground sends a drawn shockwave across the floor and
+  throws up tumbling rocks and dust; the game's thorns burst where the vines grab an enemy. While
+  you hold, stones keep hopping up out of the floor. The pull kicks up dust puffs and rocks
+  behind you, and the kick bursts into a cone of drawn rock shards along it, a floor shockwave,
+  an impact star and rocks thrown on ahead, with the game's floor crater; the target skids away
+  in puffs of dust.
 
 ### Charged Leap (Lightning)
 
@@ -140,6 +158,12 @@ the shop offers the new one.)
   hitting harder than before (×1.5), while you **dash after them** and land with a small
   **lightning burst**.
 - **Enhanced**: the landing burst is half as big again.
+- **Look** (0.25.0): a drawn ring of static crackles round your feet while you charge, with sparks
+  snapping round you and the game's lightning aura at full. The leap fires a drawn bolt along your
+  aim with the game's lightning start, and you go in the wizard's dash streaks, leaving yellow and
+  violet afterimages and sparks. The landing is a drawn thunder burst with a shock ring on the
+  floor and a bolt struck back along the whole leap, with the game's lightning hits and a scorch
+  mark (all bigger with the enhanced burst).
 
 ### Flair
 
@@ -148,6 +172,13 @@ timing): Vacuum Fist's whirl of wind, the punch it winds up and the dust drawn i
 Blazing Kick's fiery blasts and the kick it swings into at the end of its rush, Feint Swap's splashes,
 shimmering trail and glints at both ends, and Charged Leap's lightning flash and crackling sparks.
 Most come with a small camera shake.
+
+The four dashes' **Look** effects (above) mix the game's own effects with pixel art the mod draws
+in code (`PixelArt.cs`): 4 to 8 frame animations in a 5 to 7 colour palette per element, at the
+game's 16 pixels per unit, sorted with the wizard, on the effects layer or flat on the floor. They
+are pooled (at most 160 on screen), stop when the dash ends and are cleared on a level load. The
+log says `<arcana>: visual '<name>' ready (...)` the first time each one plays, and
+`<arcana>: look '<moment>' played (...)` the first time each moment of a dash shows.
 
 ### Balance
 
@@ -223,6 +254,9 @@ Anything not in the config file lives in the code:
   constants at the top or numbers in the calls. Feint Swap is `FeintSwapState.cs`, its signature
   `FeintSwapSignature.cs` (fan, timings, spin sizes), `IcicleSpin.cs` (the icicle rings) and
   `FeintCinematic.cs` (flash, light, camera pull-back, hit-stops).
+- **The dashes' drawn effects**: the drawings and palettes in `PixelArt.cs`, the sprites that play
+  them (pool, sorting, afterimages) in `PixelFx.cs`, and when and where each plays in the arcana's
+  state file (the "look" constants and the `...Look` methods).
 
 To build your change, push it to a branch and open a pull request: GitHub Actions builds every
 mod and, once merged, publishes the zips on the

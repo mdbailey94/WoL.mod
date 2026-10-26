@@ -8,6 +8,9 @@ namespace WoLThunderhead
     // carried up with their lifted picture. It billows gently, flickers with lightning now and
     // then, and fades in as they rise and out as they land. The signature storm's cloud is bigger,
     // flickers much more often and swells as the storm goes on (Growth, set by the state).
+    // The standard and enhanced clouds also show the lightning inside: a drawn bolt crawling
+    // across the cloud's belly and forking down out of it with each flicker and each volley
+    // (Pulse, from the state).
     public class StormCloud
     {
         private const float StormySize = 1.4f;       // the signature cloud's size, times CloudSize
@@ -30,6 +33,13 @@ namespace WoLThunderhead
         private readonly float size;
         private float flashUntil;
         private float nextFlash;
+        // The drawn lightning inside (not the signature's cloud): a child of the front puff, so it
+        // billows with it and goes when the cloud does.
+        private readonly SpriteRenderer innerBolt;
+        private Sprite[] boltFrames;
+        private float boltStart = -1f;
+        private const float FlashTime = 0.06f;        // seconds the cloud stays lit by a flicker
+        private const float InnerBoltHeight = 1f;     // pixels above the front puff's pivot
 
         // A multiplier on the cloud's size, for the signature storm's cloud growing as it rages.
         public float Growth = 1f;
@@ -52,7 +62,69 @@ namespace WoLThunderhead
             root.transform.localScale = new Vector3(size, size, 1f);
             frontPuff = Puff("Front", front, new Vector3(0f, 1f / ppu, 0f));
             backPuff = Puff("Back", back, new Vector3(2f / ppu, 6f / ppu, 0f));
+            if (!stormy && ThunderheadPlugin.Drawn)
+            {
+                try
+                {
+                    ThunderArt.Use(ppu);
+                    var go = new GameObject("Inner Bolt");
+                    go.transform.SetParent(frontPuff.transform, false);
+                    go.transform.localPosition = new Vector3(0f, InnerBoltHeight / ppu, 0f);
+                    innerBolt = go.AddComponent<SpriteRenderer>();
+                }
+                catch (System.Exception e)
+                {
+                    Fx.Fail("cloud lightning", e);
+                    innerBolt = null;
+                }
+            }
             Update(0f, null);
+        }
+
+        // A volley struck: the cloud lights up and lightning crawls through it (standard and
+        // enhanced clouds only).
+        public void Pulse()
+        {
+            if (stormy || root == null)
+                return;
+            flashUntil = Time.time + FlashTime;
+            StartBolt(Time.time);
+        }
+
+        private void StartBolt(float now)
+        {
+            if (innerBolt == null)
+                return;
+            try
+            {
+                Sprite[][] variants = ThunderArt.CloudBolts();
+                boltFrames = variants[Random.Range(0, variants.Length)];
+                boltStart = now;
+                Fx.Ready("cloud lightning", ThunderArt.Count(variants), ThunderArt.Ppu, body);
+            }
+            catch (System.Exception e)
+            {
+                Fx.Fail("cloud lightning", e);
+                boltStart = -1f;
+            }
+        }
+
+        // The inner bolt's frames, as bright as the cloud is solid, just in front of the front puff.
+        private void UpdateBolt(float now, float alpha)
+        {
+            if (innerBolt == null)
+                return;
+            int frame = boltStart >= 0f && boltFrames != null ? Mathf.FloorToInt((now - boltStart) / ThunderArt.CloudBoltFrameTime) : -1;
+            if (frame < 0 || frame >= boltFrames.Length)
+            {
+                boltStart = -1f;
+                innerBolt.sprite = null;
+                return;
+            }
+            innerBolt.sprite = boltFrames[frame];
+            innerBolt.color = new Color(1f, 1f, 1f, alpha);
+            innerBolt.sortingLayerID = frontPuff.sortingLayerID;
+            innerBolt.sortingOrder = frontPuff.sortingOrder + 1;
         }
 
         // stormy: the signature storm's cloud.
@@ -85,7 +157,8 @@ namespace WoLThunderhead
             if (now >= nextFlash)
             {
                 nextFlash = now + (stormy ? Random.Range(StormyFlashGapMin, StormyFlashGapMax) : Random.Range(FlashGapMin, FlashGapMax));
-                flashUntil = now + 0.06f;
+                flashUntil = now + FlashTime;
+                StartBolt(now);
             }
             Color tint = now < flashUntil ? Flash : Color.white;
             // Solid at the top, fading in and out with the rise and the landing.
@@ -99,6 +172,17 @@ namespace WoLThunderhead
             frontPuff.sortingOrder = order + 2;
             backPuff.sortingLayerID = layer;
             backPuff.sortingOrder = order - 1;
+            try
+            {
+                UpdateBolt(now, alpha);
+            }
+            catch (System.Exception e)
+            {
+                Fx.Fail("cloud lightning", e);
+                if (innerBolt != null)
+                    innerBolt.sprite = null;
+                boltStart = -1f;
+            }
         }
 
         public void Off()

@@ -20,6 +20,9 @@ namespace WoLStoneCharge
 
         public bool Alive => shield != null && shield.gameObject != null;
 
+        // The game's shield sprite (for the drawn cracks laid over it), or null.
+        public SpriteRenderer Renderer => Alive ? shield.spriteRenderer : null;
+
         public Vector2 Position(Player player) =>
             Alive ? (Vector2)shield.transform.position : (Vector2)player.attackOriginTrans.position;
 

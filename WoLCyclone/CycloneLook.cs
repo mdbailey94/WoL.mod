@@ -3,13 +3,16 @@ using UnityEngine;
 
 namespace WoLCyclone
 {
-    // What Cyclone looks like, all from the game's own wind effects:
-    // - the Twister arcana's little tornado, growing from tiny to big with the charge;
+    // What Cyclone looks like:
+    // - the drawn funnel (CycloneFunnel): stacked spinning bands that widen and darken as it
+    //   grows, debris orbiting it, a dust ring at its base, and its collapse or gust-ring burst;
+    // - if that can't be drawn, the Twister arcana's little tornado instead, growing from tiny to
+    //   big with the charge;
     // - the air boss's storm vortex (dust, debris and light streaks), fading in around it as it
     //   grows, for the hurricane at full power;
     // - the air vortex swirls (drawn by the state), which also stand in if these can't be made.
     //
-    // Each is made from the game's prefab and stripped down to just its looks: every script,
+    // The game's ones are made from its prefabs and stripped down to just their looks: every script,
     // collider and rigidbody is removed, so nothing of the original (its flight time, its hit count,
     // its attack, the storm's pull) can hurt anyone or make it vanish early. What's left (sprites,
     // animations, particles, sound) is kept looping and scaled as one with the object.
@@ -21,18 +24,37 @@ namespace WoLCyclone
         private const float StormStart = 0.4f;     // storm size as it appears and at full power
         private const float StormEnd = 1.3f;
 
+        private CycloneFunnel funnel;
         private Look twister;
         private Look storm;
         private bool stormTried;
         private static bool loggedTwister, loggedStorm;
 
-        public CycloneLook(Vector2 position)
+        public CycloneLook(Vector2 position, Player player)
         {
-            twister = Look.Make(() => Twister.Prefab, position, TwisterStart, "twister", ref loggedTwister);
+            funnel = CycloneFunnel.Create(position, player);
+            if (funnel == null)
+                twister = Look.Make(() => Twister.Prefab, position, TwisterStart, "twister", ref loggedTwister);
+        }
+
+        // Burst at full power: the funnel blows apart in a gust ring this wide (units, radius).
+        public void Burst(float radius) => EndFunnel(true, radius);
+
+        // Let go early: the funnel collapses.
+        public void DieDown() => EndFunnel(false, 0f);
+
+        private void EndFunnel(bool blow, float radius)
+        {
+            // Unity null (not ?.), as a level load may have destroyed it.
+            if (funnel != null)
+                funnel.End(blow, radius);
+            funnel = null;
         }
 
         public void Update(Vector2 position, float progress)
         {
+            if (funnel != null)
+                funnel.Set(position, progress);
             twister?.Set(position, Mathf.Lerp(TwisterStart, TwisterEnd, progress), 0.5f + progress);
             if (!stormTried && progress >= StormFrom)
             {
@@ -46,8 +68,11 @@ namespace WoLCyclone
             }
         }
 
+        // Cast over (or cut short by a dash, a hit or a level change): the game's effects go at
+        // once; the funnel, unless already ending, collapses on its own and then removes itself.
         public void Remove()
         {
+            EndFunnel(false, 0f);
             twister?.Remove();
             storm?.Remove();
             twister = null;

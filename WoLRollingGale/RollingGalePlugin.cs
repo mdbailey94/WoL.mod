@@ -13,12 +13,16 @@ namespace WoLRollingGale
     {
         public const string PluginGuid = "mdbailey94.wol.rollinggale";
         public const string PluginName = "Rolling Gale";
-        public const string PluginVersion = "0.3.2";
+        public const string PluginVersion = "0.4.0";
 
+        private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
+
+        public static void Log(string message) => log?.LogInfo(message);
 
         private void Awake()
         {
+            log = Logger;
             modEnabled = Config.Bind("General", "Enabled", true,
                 "Offer Rolling Gale in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");

@@ -71,7 +71,7 @@ namespace WoLCyclone
                 distance = Mathf.Max(0.8f, wall.distance - 0.4f);
             center = (Vector2)parent.transform.position + aim * distance;
             look?.Remove();
-            look = new CycloneLook(center);
+            look = new CycloneLook(center, parent);
         }
 
         public override void ExecuteSkill()
@@ -251,6 +251,8 @@ namespace WoLCyclone
         {
             float scale = EndHitScale * (IsEmpowered ? EnhancedBurstScale : BurstScale);
             WindBurst.CreateBurst(center, parent.skillCategory, skillID, 5, scale);
+            // The drawn funnel blows apart in a gust ring the size of the burst (its own try/catch).
+            look?.Burst(scale);
             try
             {
                 PoolManager.GetPoolItem<ParticleEffect>("WindBurstEffect").Emit(new int?(6), new Vector3?(center), null, null, 0f, null, null);
@@ -278,6 +280,7 @@ namespace WoLCyclone
         // Let go early: it just blows itself out.
         private void DieDown()
         {
+            look?.DieDown();
             try
             {
                 PoolManager.GetPoolItem<DustEmitter>().EmitCircle(30, 1f, -5f, -1f, new Vector3?(center), null);

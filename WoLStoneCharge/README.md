@@ -52,11 +52,45 @@ and the rush telegraphs it.
 
 **Enhanced**, force builds 35% faster and the crash is wider (radius 2.5).
 
+## Look
+
+0.4.0 adds hand-made pixel art (drawn in code at the game's 16 pixels a unit, in five stone
+browns and four ember tones) on top of the game's own earth effects:
+
+- **Raise**: the game's floor crack splits the ground under the slab and a stone ring pulses at
+  your feet.
+- **The shield fills with force**: glowing cracks spread through the game's shield sprite itself
+  (cut to its actual outline, read from the sprite), radiating from a point of strain at its middle,
+  with the light running outward along them (4 frames, looping). More and longer cracks at each 25%,
+  dim orange at 25%, gold at 50%, white-hot from 75%; at full an earth rune (an open diamond round
+  a cross) burns in the middle, pulsing faster.
+- **Each 25% of force**: a ring pulses out over the floor (ember-lit from 75%).
+- **Running**: dust thrown back from your feet; from half force drawn cracks form in the floor
+  behind you (6 frames), ember-lit at full, as well as the game's floor spikes. Stone chunks
+  circle you, tumbling (4 frames, re-lit each quarter turn): two at 50%, three at 75%, four at
+  full, glowing with an ember edge and vein; embers rise off you at full force.
+- **Unload**: the circling chunks are flung ahead along the rush, a crack tears where you push off
+  and another halfway, and dust blasts back.
+- **Crash**: the game's crater (the large one from half force) and floor crack, a drawn crater
+  racing out under it with a ring of rubble thrown up (7 frames, ember-lit from 75%), a ring pulsing
+  out to the crash's edge, and 4 to 10 rock shards flung in arcs, mostly ahead. Shake and hit-stop
+  are unchanged.
+
+Set `[Look] DrawnEffects = false` for the 0.3.0 look. Everything here is cosmetic: damage, hit
+areas, timings and movement are unchanged.
+
 ## Log
 
 `BepInEx\LogOutput.log` shows:
 
-- `Stone Charge 0.3.0 registered` at start-up.
+- `Stone Charge 0.4.0 registered` at start-up.
+- The drawn look, once each the first time it's made: `Stone Charge: visual 'shield cracks' ready
+  for <sprite> (16 sprites of WxH, ppu P, N crack pixels, rune, cut to the shield's outline (M px))`
+  (once per shield facing; `an ellipse in its bounds (couldn't read the sprite)` if the sprite
+  couldn't be read, `no room for the rune` if it's too small), and `visual 'pulse ring'`, `'stone
+  chunk'`, `'floor crack'`, `'ember'`, `'crater'`, `'rock shard'` `ready (N sprites of WxH, ppu 16)`.
+- `Stone Charge: drawn: shield cracks at stage 4 of 4, 9 floor crack(s), 20 ember(s), 4 chunk(s)
+  flung, 10 shard(s); N fx sprite(s) live` as each cast ends.
 - `Stone Charge: cast: shield up for 4 s, force builds 25%/s at base run speed (full in 4.0 s at
   x1.00, 2.9 s sprinting); press again to crash, 30% less from hits in front, braced` each cast
   (`cast (enhanced)` when it is).
@@ -123,6 +157,7 @@ straight at the dummy for `dash N ended in a contact crash` and `unload (dashed 
 | Balance | `RaiseDamage` / `RaiseKnockback` | 3 / 8 | The shove as the shield forms |
 | Balance | `BashDamage` / `CrashDamage` | 2 / 4 | Base damage of the bash and the crash |
 | Balance | `Cooldown` | 6 | Cooldown in seconds |
+| Look | `DrawnEffects` | true | The drawn cracks, rune, chunks, crater and shards (off = 0.3.0 look) |
 
 **Charge** and **Crash** settings take effect on the next cast; **Balance** settings after
 restarting the game.

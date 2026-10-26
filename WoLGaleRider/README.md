@@ -28,8 +28,27 @@ A ride like Aero Ring's, with Tearing Whirlwind's rolling hit:
   the game's slide, like Tearing Whirlwind. Cooldown 7 seconds (from the cast).
 - **Enhanced**: 4.5 seconds on the ball, and the biggest ball is radius 3.
 
-The look is the game's own wind: AirVortex swirls sized to the ball, wind twirls and bursts, a
-ring of dust as it rolls, and the tornado loop sound. The ride's time shows on the cast bar.
+## Look
+
+0.2.0 adds hand-made pixel art (drawn in code at the game's 16 pixels a unit, in a five-colour
+air palette: deep-teal outline, teal, aqua, pale aqua, white) on top of the game's own wind:
+
+- **Cast**: four wisps spiral in round you over the wind-up and flash as the ball forms (6 frames),
+  with the game's spinning air burst, a shockwave and a wind trail out the way you set off.
+- **The wind ball**: three tapering streaks (and three fainter ones between them) and a dashed rim
+  spinning round you, 8 frames, drawn in four sizes so its pixels stay chunky. Its far half is drawn
+  behind you and its near half in front, so you ride inside it. It's sized to the ball's hit area
+  and spins faster the faster you go; from speed level 3 a faint glow copy spins behind it,
+  brighter each level. A dashed gust ring turns on the floor under it.
+- **Travel**: wind streaks flick off the back of the ball (6 frames: stretch, curl, break up),
+  more often the faster you go; dust is thrown back from your feet; from level 4 the game's wind
+  trail streams behind you. The game's AirVortex swirls and dust ring are still there.
+- **Hits**: a gust puff swells on each enemy along the way it's shoved (5 frames), with the
+  game's wind burst. Hit feel (shake, hit-stop) is unchanged.
+- **End**: the ball unravels (the cast's gather played backwards) as you skid off.
+
+Set `[Look] DrawnEffects = false` for the 0.1.0 look. Everything here is cosmetic: damage, hit
+area, timings and movement are unchanged. The ride's time shows on the cast bar.
 
 ## In the log
 
@@ -44,6 +63,13 @@ Each cast logs:
   ended early; `, held back at a pit's edge` if a pit stopped you).
 
 The first cast also logs the level mapping and the raw speed read (`run speed ... of base ...`).
+
+The drawn look logs once each, the first time it's made: `Gale Rider: visual 'gather' ready (6
+sprites of 48x36, ppu 16)`, `visual 'wind ball' ready (128 sprites: 8 frames x 4 sizes ...)`,
+`visual 'wind streak'`, `visual 'gust puff'`, `visual 'unravel'`, and `wind ball drawn on the
+wizard's layer '...'`. The end-of-ride line then adds `; drawn: ball 3.0 u wide, 25 streak(s), 4
+gust puff(s), N fx sprite(s) live`. If any drawn effect fails it logs `effect '<name>'
+unavailable, skipping it: ...` once and the ride carries on without it.
 
 ## Settings
 
@@ -61,6 +87,7 @@ start the game with the mod), or in-game with a config manager mod if you have o
 | Ball | `PeakSpeedPercent` | 200 | Speed (% of base run speed) at which the ball peaks |
 | Look | `VortexSize` | 1 | Size of the swirling wind, relative to the ball |
 | Look | `Dust` | true | Kick up dust as the ball rolls |
+| Look | `DrawnEffects` | true | The drawn wind ball, streaks, puffs and gather (off = 0.1.0 look) |
 | Balance | `Damage` | 4 | Damage of each hit |
 | Balance | `Knockback` / `PeakKnockback` | 15 / 70 | Knockback at base run speed / at the peak |
 | Balance | `HitInterval` | 0.33 | Seconds between hits on the same enemy |
