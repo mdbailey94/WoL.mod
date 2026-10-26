@@ -23,6 +23,13 @@ run, and one custom screen. It proves four things the plan depends on:
    **hold A** for 0.7 s, or press **Delete**, to salvage it into Chaos Dust (1 / 3 / 8 / 20 by
    rarity); **B / Esc** or the open key closes. The game's own pause menu is left alone.
 
+5. **Shaping a dive** (0.3.0). Three `[Dive]` settings, each defaulting to the game's own
+   behaviour: `Realm` (which realm the run starts in: Earth, Fire, Water, Air, Lightning, or
+   `Game` for the game's order), `FloorsPerRealm` (floors before each realm's boss; 0 = the
+   game's count), and `RealmsPerDive` (realm bosses to beat before the dive ends and you return
+   to the Hub; 0 = the whole run). Every level load logs what the game thinks the run is: stage,
+   tier, floors per realm, the realm order and the boss scenes.
+
 `loot.json` is written with the defaults the first time and can be edited: weights, affix ranges,
 labels and suffixes.
 
@@ -43,6 +50,11 @@ from 0.1.0 starts a fresh character.
 - Open the inventory with R3 (or I), move, equip something, salvage something, close: the game
   should pause while it's open and carry on after. The log shows `Inventory opened`, `Equipped`,
   `Salvaged` lines.
+- Dive test: set `Realm = Fire`, `FloorsPerRealm = 2`, `RealmsPerDive = 1`, start a run from the
+  Hub. Expected: the first floor is a Fire floor (log `Dive: first realm X -> Fire`), the boss
+  comes after 2 floors, and leaving the boss arena shows `Dive complete!` and lands you in the
+  Hub. The `Dive: '...' -> '...'` log lines show the counters at each load; send them if any step
+  doesn't match.
 
 ## Settings
 

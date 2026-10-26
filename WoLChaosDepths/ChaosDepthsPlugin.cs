@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using BepInEx;
 using BepInEx.Configuration;
+using HarmonyLib;
 using Rewired;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -19,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.2.1";
+        public const string PluginVersion = "0.3.0";
 
         private const float KillDedupeSeconds = 2f;
 
@@ -29,6 +30,14 @@ namespace WoLChaosDepths
         private static ConfigEntry<int> levelCap, bossDropRarity;
         private static ConfigEntry<bool> autoEquip, logKills;
         private static ConfigEntry<string> panelKey, panelButton;
+        private static ConfigEntry<bool> diveEnabled;
+        private static ConfigEntry<string> diveRealm;
+        private static ConfigEntry<int> floorsPerRealm, realmsPerDive;
+
+        public static bool DiveEnabled => (modEnabled?.Value ?? false) && (diveEnabled?.Value ?? false);
+        public static string DiveRealm => diveRealm?.Value ?? "Game";
+        public static int FloorsPerRealm => Mathf.Clamp(floorsPerRealm?.Value ?? 0, 0, 5);
+        public static int RealmsPerDive => Mathf.Clamp(realmsPerDive?.Value ?? 0, 0, 6);
         private static KeyCode openKey = KeyCode.I;
         private InventoryPanel panel;
 
@@ -75,6 +84,24 @@ namespace WoLChaosDepths
                 openKey = KeyCode.I;
             }
             panel = new InventoryPanel(OnInventoryChanged);
+            diveEnabled = Config.Bind("Dive", "Enabled", true,
+                "Shape the run as a dive (the settings below) and log what the game does with it.");
+            diveRealm = Config.Bind("Dive", "Realm", "Game",
+                new ConfigDescription("Which realm a run starts in. Game = the game's own order.",
+                    new AcceptableValueList<string>("Game", "Earth", "Fire", "Water", "Air", "Lightning")));
+            floorsPerRealm = Config.Bind("Dive", "FloorsPerRealm", 0,
+                new ConfigDescription("Floors before each realm's boss. 0 = the game's own count.", new AcceptableValueRange<int>(0, 5)));
+            realmsPerDive = Config.Bind("Dive", "RealmsPerDive", 0,
+                new ConfigDescription("Realm bosses to beat before the dive ends and you return to the Hub. 0 = the whole run as the game plays it.",
+                    new AcceptableValueRange<int>(0, 6)));
+            try
+            {
+                DiveDirector.Install(new Harmony(PluginGuid));
+            }
+            catch (Exception e)
+            {
+                Logger.LogError($"Dive director failed to install: {e.Message}");
+            }
 
             LootTable.Load();
             try
