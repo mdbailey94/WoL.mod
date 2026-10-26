@@ -75,6 +75,7 @@ namespace WoLChaosDepths
             if (!Open)
                 return;
             Open = false;
+            ChaosDepthsPlugin.Log("Inventory closed");
             try
             {
                 if (pausedByUs)
@@ -247,8 +248,9 @@ namespace WoLChaosDepths
             GUI.depth = -100;
             try
             {
-                int u = PixelUI.Unit;
-                int font = Mathf.Max(10, Mathf.RoundToInt(3.5f * u));
+                // A little bigger than the altar prompt: 3 units and 12 px at 720p, 4 and 16 at 1080p.
+                int u = Mathf.Max(3, Mathf.FloorToInt(Screen.height / 240f));
+                int font = Mathf.Max(12, 4 * u);
                 float w = 176 * u, h = 118 * u;
                 var panel = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
                 PixelUI.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.45f));
@@ -260,14 +262,14 @@ namespace WoLChaosDepths
                 float x = panel.x + 5 * u, y = panel.y + 4 * u, lineH = 5 * u;
 
                 // Header: name, level, experience bar, dust.
-                GUI.Label(new Rect(x, y, w, lineH), $"{save.name}   Level {save.level}", text);
-                GUI.Label(new Rect(x, y, w - 10 * u, lineH), $"Chaos Dust {save.dust}   Kills {save.kills}", right);
+                Label(new Rect(x, y, w, lineH), $"{save.name}   Level {save.level}", text);
+                Label(new Rect(x, y, w - 10 * u, lineH), $"Chaos Dust {save.dust}   Kills {save.kills}", right);
                 y += lineH;
                 int need = ChaosDepthsPlugin.XpToNext(save.level);
                 float barW = w - 10 * u;
                 PixelUI.Fill(new Rect(x, y + u, barW, 2 * u), PixelUI.PipEmpty);
                 PixelUI.Fill(new Rect(x, y + u, barW * Mathf.Clamp01(save.xp / (float)Mathf.Max(1, need)), 2 * u), PixelUI.Accent);
-                GUI.Label(new Rect(x, y + 3 * u, w, lineH), $"{save.xp} / {need} xp", dim);
+                Label(new Rect(x, y + 3 * u, w, lineH), $"{save.xp} / {need} xp", dim);
                 y += lineH + 3 * u;
                 PixelUI.Fill(new Rect(x, y, barW, u), PixelUI.InnerLine);
                 y += 2 * u;
@@ -275,20 +277,20 @@ namespace WoLChaosDepths
                 // Left: equipped slots.  Right: inventory list.
                 float leftW = 58 * u, listX = x + leftW + 4 * u, listW = barW - leftW - 4 * u;
                 float top = y;
-                GUI.Label(new Rect(x, y, leftW, lineH), "Equipped", dim);
+                Label(new Rect(x, y, leftW, lineH), "Equipped", dim);
                 y += lineH;
                 for (int i = 0; i < LootTable.Slots.Length; i++)
                 {
                     ItemData item = StatMods.FindItem(save, save.equipped[i]);
-                    GUI.Label(new Rect(x, y, leftW, lineH), LootTable.Slots[i], dim);
+                    Label(new Rect(x, y, leftW, lineH), LootTable.Slots[i], dim);
                     y += lineH;
-                    GUI.Label(new Rect(x + 2 * u, y, leftW, lineH), item != null ? item.name : "-", Rarity(item, font));
+                    Label(new Rect(x + 2 * u, y, leftW, lineH), item != null ? item.name : "-", Rarity(item, font));
                     y += lineH;
                     if (item != null)
                     {
                         foreach (string line in Wrap(LootTable.Describe(item), 26))
                         {
-                            GUI.Label(new Rect(x + 2 * u, y, leftW, lineH), line, dim);
+                            Label(new Rect(x + 2 * u, y, leftW, lineH), line, dim);
                             y += lineH;
                         }
                     }
@@ -296,10 +298,10 @@ namespace WoLChaosDepths
                 }
 
                 y = top;
-                GUI.Label(new Rect(listX, y, listW, lineH), $"Inventory ({save.inventory.Count})", dim);
+                Label(new Rect(listX, y, listW, lineH), $"Inventory ({save.inventory.Count})", dim);
                 y += lineH;
                 if (save.inventory.Count == 0)
-                    GUI.Label(new Rect(listX, y, listW, lineH), "Nothing yet. Items drop from enemies in the trials.", dim);
+                    Label(new Rect(listX, y, listW, lineH), "Nothing yet. Items drop from enemies in the trials.", dim);
                 for (int row = 0; row < Rows; row++)
                 {
                     int index = scroll + row;
@@ -310,12 +312,12 @@ namespace WoLChaosDepths
                     if (index == selected)
                         PixelUI.Fill(line, new Color(1f, 1f, 1f, 0.12f));
                     string mark = IsEquipped(item) ? "* " : "  ";
-                    GUI.Label(new Rect(listX + u, y, listW, lineH), mark + item.name, Rarity(item, font));
-                    GUI.Label(new Rect(listX, y, listW - u, lineH), item.rarity, Rarity(item, font, TextAnchor.UpperRight));
+                    Label(new Rect(listX + u, y, listW, lineH), mark + item.name, Rarity(item, font));
+                    Label(new Rect(listX, y, listW - u, lineH), item.rarity, Rarity(item, font, TextAnchor.UpperRight));
                     y += lineH;
                 }
                 if (save.inventory.Count > Rows)
-                    GUI.Label(new Rect(listX, y, listW, lineH), $"{scroll + 1}-{Mathf.Min(scroll + Rows, save.inventory.Count)} of {save.inventory.Count}", dim);
+                    Label(new Rect(listX, y, listW, lineH), $"{scroll + 1}-{Mathf.Min(scroll + Rows, save.inventory.Count)} of {save.inventory.Count}", dim);
 
                 // Selected item's details, and the equipped one for its slot.
                 float detailY = panel.yMax - 22 * u;
@@ -323,20 +325,20 @@ namespace WoLChaosDepths
                 ItemData chosen = Selected;
                 if (chosen != null)
                 {
-                    GUI.Label(new Rect(x, detailY, barW, lineH), $"{chosen.rarity} {chosen.name} (item level {chosen.itemLevel}): {LootTable.Describe(chosen)}", Rarity(chosen, font));
+                    Label(new Rect(x, detailY, barW, lineH), $"{chosen.rarity} {chosen.name} (item level {chosen.itemLevel}): {LootTable.Describe(chosen)}", Rarity(chosen, font));
                     int slot = SlotOf(chosen);
                     ItemData worn = slot >= 0 ? StatMods.FindItem(save, save.equipped[slot]) : null;
                     string compare = worn == null ? "Slot empty"
                         : worn == chosen ? "Equipped"
                         : $"Equipped {worn.rarity} {worn.name}: {LootTable.Describe(worn)}";
-                    GUI.Label(new Rect(x, detailY + lineH, barW, lineH), compare, dim);
+                    Label(new Rect(x, detailY + lineH, barW, lineH), compare, dim);
                     if (confirmHeldSince >= 0f && !confirmConsumed)
                     {
                         float held = Mathf.Clamp01((Time.unscaledTime - confirmHeldSince) / SalvageHold);
                         PixelUI.Fill(new Rect(x, detailY + 2 * lineH + u, barW * held, u), PixelUI.Accent);
                     }
                 }
-                GUI.Label(new Rect(x, panel.yMax - 8 * u, barW, lineH),
+                Label(new Rect(x, panel.yMax - 8 * u, barW, lineH),
                     "A / Enter: equip or unequip    hold A / Delete: salvage    B / Esc: close", dim);
             }
             catch (Exception e)
@@ -348,6 +350,16 @@ namespace WoLChaosDepths
                 GUI.matrix = previousMatrix;
                 GUI.color = previousColor;
             }
+        }
+
+        // A label with a one-pixel dark shadow, so the game's thin font reads on the panel.
+        private static void Label(Rect rect, string text, GUIStyle style)
+        {
+            Color color = style.normal.textColor;
+            style.normal.textColor = new Color(0f, 0f, 0f, 0.8f);
+            GUI.Label(new Rect(rect.x + 1f, rect.y + 1f, rect.width, rect.height), text, style);
+            style.normal.textColor = color;
+            GUI.Label(rect, text, style);
         }
 
         private static GUIStyle Rarity(ItemData item, int font, TextAnchor anchor = TextAnchor.UpperLeft)
