@@ -6,17 +6,21 @@ namespace WoLTidalWall
     // How the normal and enhanced wave looks, on top of the game's own water wall and water
     // effects (the signature wave keeps its own cinematic look and doesn't use this). It only
     // draws: nothing here touches the wave's hits, timing or movement.
-    //   Rise:  a jet of water bursts up as each column rises (drawn), with a ripple ring spreading
-    //          over the floor (drawn) and the game's water ring (Whirlpool's).
-    //   Stand and roll: a foam crest curls along the top of every column (drawn); the front
-    //          throws droplets that splat where they land and fans of spray (drawn, on top of the
-    //          game's water drops); the wave leaves a wet trail of puddles that glint and dry up
-    //          (drawn); every enemy it sweeps is churned in a ring of swirling foam, bubbling
-    //          (drawn, plus the game's bubble pop).
-    //   Crash: a crown of water fingers smashes up at each burst (drawn, with the game's splashes),
-    //          mist hangs over it, foam washes out over the floor and droplets rain down (drawn).
-    // Each drawn visual is logged once the first time it plays ("visual '...' ready"), and every
-    // wave logs what it drew ("look: ...") with its end-of-wave line.
+    //   Rise:  a splash crown bursts up at each column's foot as it rises (the game's WaterHitSmall
+    //          frames), with a ripple ring spreading over the floor (painted) and the game's water
+    //          ring (Whirlpool's).
+    //   Stand and roll: a jagged crest of water rides the top of every column (painted); the
+    //          front throws droplets that splash where they land (the game's WaterParticles
+    //          frames) and splash crowns (WaterHitSmall), on top of the game's water drops; the
+    //          wave leaves a wet trail of puddles that glint and dry up (painted); every enemy it
+    //          sweeps is churned in a ring of swirling water (painted), bubbles popping off it (the
+    //          game's BubblePop frames, plus its bubble pop effect).
+    //   Crash: a big splash crown at each burst (the game's WaterHitEffect frames, larger, with
+    //          the game's own splashes), mist hangs over it (the game's Smoke frames tinted pale
+    //          blue), foam washes out over the floor (painted) and droplets rain down.
+    // Painted ones are in the game's water style (WaveArt.cs). Each visual is logged once the
+    // first time it plays ("visual '...' ready", with where its frames come from), and every wave
+    // logs what it drew ("look: ...") with its end-of-wave line.
     internal sealed class WaveLook
     {
         // Crests: a column's top when its sprite can't be measured; the crest sits this far below
@@ -33,6 +37,7 @@ namespace WoLTidalWall
         private const float SurgeStagger = 0.03f;
         private const int SurgeSortBias = 2;             // in front of the column rising behind it
         private const float RingRadiusScale = 0.4f;      // the game's water ring, this much of the wall's width
+        private const float RippleFade = 0.3f;           // the ripple fades out over its last this long
         // Spray off the front: droplets per spray tick (WaveFront's SprayInterval), a plume every
         // few, thrown off the wall's face at a height, up and ahead of the wave, falling under
         // gravity to splat on the floor.
@@ -61,7 +66,8 @@ namespace WoLTidalWall
         // Crash: each burst's crown starts this far after the last; mist puffs and droplets per
         // burst; the foam lies bubbling this long before it breaks up; mist drifts on and up.
         private const float CrownStagger = 0.04f;
-        private const int MistPerBurst = 2;
+        private const int MistPerBurst = 4;
+        private const float CrownScale = 1.5f;          // the game's crown, shown this much larger for the crash
         private const int CrashDropletsPerBurst = 8;
         private const float FoamLoop = 0.5f;
         private const float MistDrift = 0.6f;
@@ -95,6 +101,15 @@ namespace WoLTidalWall
             // The crest is drawn rolling to the right; mirrored when the wave rolls left.
             flip = s.Direction.x < -0.1f;
             PixelArt.MatchPixelSize(s.Caster);
+            // Drawn with the material the game's own water wall sprites use.
+            try
+            {
+                if (WaterWall.Prefab != null)
+                    PixelArt.UseMaterialOf(WaterWall.Prefab.GetComponentInChildren<SpriteRenderer>(true), "the game's WaterWall");
+            }
+            catch
+            {
+            }
         }
 
         // The wall rising: a surge per column as it comes up, a ripple and the game's water ring.
@@ -102,11 +117,11 @@ namespace WoLTidalWall
         {
             for (int i = 0; i < columnPoints.Count; i++)
             {
-                if (PixelFx.Spawn(WaveArt.Surge, columnPoints[i], FxLayer.Actor, SurgeSortBias)?
+                if (PixelFx.Spawn(WaveArt.SmallCrown, columnPoints[i], FxLayer.Actor, SurgeSortBias)?
                     .Delay(SurgeFirstDelay + i * SurgeStagger).Flip(i % 2 == 1) != null)
                     surges++;
             }
-            PixelFx.Spawn(WaveArt.Ripple, s.Center, FxLayer.Floor);
+            PixelFx.Spawn(WaveArt.Ripple, s.Center, FxLayer.Floor)?.FadeOut(RippleFade);
             Effects.Ring(s.Center, s.Width * RingRadiusScale);
         }
 
@@ -122,6 +137,7 @@ namespace WoLTidalWall
                     if (column == null || !column.gameObject.activeSelf)
                         continue;
                     SpriteRenderer body = column.GetComponentInChildren<SpriteRenderer>();
+                    PixelArt.UseMaterialOf(body, "a water column");
                     float top = Measure(column, body);
                     PixelFx fx = PixelFx.Spawn(WaveArt.Crest, column.position, body != null ? FxLayer.Actor : FxLayer.Effect, CrestSortBias);
                     if (fx == null)
@@ -196,18 +212,19 @@ namespace WoLTidalWall
             if (sprays % PlumeEvery == 0)
             {
                 // The plume rides along with the front that threw it.
-                if (PixelFx.Spawn(WaveArt.Plume, at, FxLayer.Effect, SpraySortBias)?.Move(s.Direction * s.Speed).Flip(Random.value < 0.5f) != null)
+                if (PixelFx.Spawn(WaveArt.SmallCrown, at, FxLayer.Effect, SpraySortBias)?.Move(s.Direction * s.Speed).Flip(Random.value < 0.5f) != null)
                     plumes++;
             }
         }
 
         private void Droplet(Vector2 at, Vector2 velocity, float height)
         {
-            PixelFx fx = PixelFx.Spawn(WaveArt.Droplet, at, FxLayer.Effect, SpraySortBias);
+            // It flies on its first frame and splashes into specks where it lands (the rest).
+            PixelFx fx = PixelFx.Spawn(WaveArt.Droplet(Random.Range(0, WaveArt.DropletVariants)), at, FxLayer.Effect, SpraySortBias);
             if (fx == null)
                 return;
-            fx.Move(velocity).Arc(height, Random.Range(DropletMinLift, DropletMaxLift), DropletGravity,
-                spot => PixelFx.Spawn(WaveArt.Splat, spot, FxLayer.Floor, 2)).Offset(Random.value);
+            fx.Move(velocity).Arc(height, Random.Range(DropletMinLift, DropletMaxLift), DropletGravity, null, -1f, true)
+                .Flip(Random.value < 0.5f);
             droplets++;
         }
 
@@ -277,13 +294,16 @@ namespace WoLTidalWall
         // One burst of the crash (WaveFront throws 3 across the wall).
         public void CrashBurst(Vector2 at, int index)
         {
-            if (PixelFx.Spawn(WaveArt.Crown, at, FxLayer.Effect, SpraySortBias)?.Delay(index * CrownStagger).Flip(index % 2 == 1) != null)
+            if (PixelFx.Spawn(WaveArt.BigCrown, at, FxLayer.Effect, SpraySortBias)?.Scale(CrownScale).Delay(index * CrownStagger)
+                .Flip(index % 2 == 1) != null)
                 crowns++;
+            PixelAnim mist = WaveArt.MistPuff;
+            Color mistTint = mist != null && !mist.Fallback ? WaveArt.MistTint : Color.white;
             PixelFx.Spawn(WaveArt.FoamSpread, at + s.Direction * 0.4f, FxLayer.Floor, 1)?.Loop(FoamLoop).Delay(index * CrownStagger);
             for (int i = 0; i < MistPerBurst; i++)
             {
                 Vector2 drift = s.Direction * MistDrift + side * Random.Range(-MistDrift, MistDrift);
-                if (PixelFx.Spawn(WaveArt.MistPuff, at + side * Random.Range(-0.6f, 0.6f), FxLayer.Effect, SpraySortBias + 1)?
+                if (PixelFx.Spawn(mist, at + side * Random.Range(-0.8f, 0.8f), FxLayer.Effect, SpraySortBias + 1)?.Tint(mistTint)
                     .Move(drift, 1f).Arc(MistHeight, MistRise, 0f).Delay(0.08f + i * 0.1f).Flip(Random.value < 0.5f) != null)
                     mists++;
             }

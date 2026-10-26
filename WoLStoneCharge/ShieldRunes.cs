@@ -10,9 +10,9 @@ namespace WoLStoneCharge
     // alpha, falling back to an ellipse inside its bounds if that can't be done. Each of the
     // shield's sprites (one per facing) gets its own cracks, made once and kept.
     //
-    // A crack is a groove: shadow on its upper lip, light on its lower one, and an ember core
-    // whose light runs outward along it (4 frames, looping), dim orange at 25% force, gold at
-    // 50%, white-hot from 75%; more and longer cracks each step.
+    // A crack is a groove: shade on its upper lip and an ember core whose light runs outward
+    // along it (4 frames, looping), in the game's fire tones: orange at 25% force, yellow at 50%,
+    // pale yellow-white from 75%; more and longer cracks each step. No outlines (0.4.1).
     public class ShieldRunes : MonoBehaviour
     {
         public const int Stages = 4;               // force steps of 25%
@@ -208,14 +208,13 @@ namespace WoLStoneCharge
                 if (p.Crack < CracksAt[stage] && p.Step < LengthAt[stage])
                     on.Add(p.Y * w + p.X);
             }
-            // The groove's lips: shadow above, light below (lit from the top, like the rock).
+            // The groove's upper lip in shade (the light comes from the top, as on the game's
+            // rocks); no rims otherwise.
             foreach (int i in on)
             {
                 int x = i % w, y = i / w;
                 if (In(mask, w, h, x, y + 1) && !on.Contains((y + 1) * w + x) && g.Get(x, y + 1) == 0)
-                    g.Set(x, y + 1, 1);
-                if (In(mask, w, h, x, y - 1) && !on.Contains((y - 1) * w + x) && g.Get(x, y - 1) == 0)
-                    g.Set(x, y - 1, 5);
+                    g.Set(x, y + 1, 2);
             }
             // The ember core, its light running outward: brightest where (step - 2 * frame) is
             // a multiple of 8, a tone dimmer every two pixels behind.
@@ -229,7 +228,8 @@ namespace WoLStoneCharge
             }
             if (rune)
             {
-                // Burning in the middle, pulsing white-hot and gold, cut into the stone with an outline.
+                // Burning in the middle, pulsing pale and yellow, cut into the stone: a shade
+                // along the top of its strokes (as the cracks' lips), no outline.
                 int rw = Rune[0].Length, rh = Rune.Length;
                 int ox = cx - rw / 2, oy = cy - rh / 2;
                 var glyph = new PixelArt.Grid(w, h);
@@ -241,8 +241,8 @@ namespace WoLStoneCharge
                     {
                         if (glyph.Get(x, y) != 0)
                             g.Set(x, y, body);
-                        else if (In(mask, w, h, x, y) && (glyph.Get(x + 1, y) != 0 || glyph.Get(x - 1, y) != 0 || glyph.Get(x, y + 1) != 0 || glyph.Get(x, y - 1) != 0))
-                            g.Set(x, y, 1);
+                        else if (In(mask, w, h, x, y) && glyph.Get(x, y - 1) != 0)
+                            g.Set(x, y, 2);
                     }
                 }
             }

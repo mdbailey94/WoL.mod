@@ -4,20 +4,33 @@ using UnityEngine;
 namespace WoLThunderhead
 {
     // The drawn look of a standard or enhanced leap (the signature storm has its own, see
-    // SignatureCinematic), layered on the game's bolts, sparks and dust:
+    // SignatureCinematic), layered on the game's bolts, sparks and dust, in the game's own
+    // lightning style (ThunderArt) and with its own sprites where they fit:
     // - take-off: a ring of lightning bursting out over the ground from their feet;
-    // - in the air: arcs crackling round the wizard (thicker when enhanced), lightning flickering
-    //   inside the storm cloud (StormCloud), and a glyph on the ground wherever the next volley's
-    //   bolts will land, charging up from blue to white and flashing just before they strike;
-    // - each strike: a white starburst and a ring of cyan, then a scorch mark whose cracks glow
-    //   and cool before it fades (with a few of the game's lightning sparks for debris);
-    // - before the slam: a charged ring on the ground the size of the slam, chevrons closing in;
-    // - the slam: a shockwave of lightning racing out to the slam's edge and a cracked crater
-    //   that glows, cools and fades.
-    // Everything is a pooled sprite (Fx): the scorch marks and rings play out by themselves and
-    // the glyphs and the landing ring go back as soon as the cast ends, however it ends.
+    // - in the air: the game's little lightning frames (MiniLightning) crackling round the wizard
+    //   (more when enhanced), lightning flickering inside the storm cloud (StormCloud), and a
+    //   lightning circle on the ground wherever the next volley's bolts will land, closing up and
+    //   brightening from yellow to white and flashing just before they strike;
+    // - each strike: the game's lightning core bursting (LightningCoreLarge), the game's burn mark,
+    //   and cracks glowing white over it as they cool (with a game lightning spark for debris);
+    // - before the slam: a charged lightning circle on the ground the size of the slam;
+    // - the slam: a shockwave of lightning racing out to the slam's edge and the game's bigger
+    //   burn mark with cracks glowing over it.
+    // Everything is a pooled sprite (Fx): the marks and rings play out by themselves and the
+    // glyphs and the landing ring go back as soon as the cast ends, however it ends. A game
+    // sprite that isn't loaded is drawn instead (logged once).
     public class ThunderVisuals
     {
+        // The game's sprites used, by name (sprites.txt in the art dump), and its burn marks.
+        private const string ArcSprites = "MiniLightning";       // 16x16 jagged bolts, 6 frames
+        private const int ArcSpriteCount = 6;
+        private const string FlashSprites = "LightningCoreLarge"; // 32x32 lightning core bursting, 6 frames
+        private const int FlashSpriteCount = 6;
+        private const string StrikeBurnMark = "BurnMarkXSmallEmitter"; // as the signature's strikes leave
+        private const string SlamBurnMark = "BurnMarkMedEmitter";     // as the game's fire slams leave
+        private const int FlashCap = 16;
+        private const int FlashSlot = 4;
+
         // How many of each at once (past that the oldest is reused).
         private const int GlyphCap = 16;
         private const int ScorchCap = 30;
@@ -36,10 +49,10 @@ namespace WoLThunderhead
         private const float GlyphFadeIn = 0.06f;     // seconds the glyphs come in at half strength
         private const float GlyphFlashLead = 0.08f;  // they flicker with the flash frame this long before the strike
         private const float FlickerTime = 0.03f;     // seconds per flicker
-        private const float ScorchLife = 2.4f;
-        private const float ScorchFade = 0.8f;
-        private const float CraterLife = 3.2f;
-        private const float CraterFade = 1f;
+        private const float ScorchLife = 1.4f;       // the glowing cracks (the burn mark under them is the game's)
+        private const float ScorchFade = 0.6f;
+        private const float CraterLife = 2.4f;
+        private const float CraterFade = 0.8f;
         private const float CraterShare = 0.5f;      // the crater's radius, of the slam's
         private const float LandingRingLead = 0.35f; // seconds before the dive the landing ring comes up
         private const float RingFlashFrom = 0.85f;   // through the dive it flickers from here
@@ -176,22 +189,32 @@ namespace WoLThunderhead
             }
         }
 
-        // The volley struck: its glyphs go, and each strike leaves its flash and scorch.
+        // The volley struck: its glyphs go, and each strike leaves a flash (the game's lightning
+        // core), the game's own burn mark, and cracks glowing over it as they cool.
         public void Struck(List<Vector2> spots)
         {
             ClearGlyphs();
             try
             {
-                Sprite[][] variants = ThunderArt.StrikeScorch(strikeRadius);
+                Sprite[] game = GameSprites.Named(FlashSprites, FlashSpriteCount);
+                Sprite[] flash = game ?? ThunderArt.ImpactFlash(strikeRadius);
+                Fx.Source("strike flash", game, FlashSprites + "0-" + (FlashSpriteCount - 1));
+                Sprite[][] variants = ThunderArt.StrikeCracks(strikeRadius);
                 foreach (Vector2 spot in spots)
                 {
+                    FxSprite burst = Fx.Get("strike flash", FlashCap)
+                        .Play(flash, ThunderArt.FlashFrameTime, false, ThunderArt.FlashFrameTime * flash.Length).At(spot);
+                    burst.Renderer.flipX = Random.value < 0.5f;
+                    Fx.OnGround(burst.Renderer, FlashSlot, body);
+                    Fx.Effect(StrikeBurnMark, 1, spot);
                     FxSprite scorch = Fx.Get("strike scorch", ScorchCap)
-                        .Timeline(variants[Random.Range(0, variants.Length)], ThunderArt.ScorchTimes, ScorchLife)
+                        .Timeline(variants[Random.Range(0, variants.Length)], ThunderArt.CrackTimes, ScorchLife)
                         .Fade(ScorchFade).At(spot);
                     scorch.Renderer.flipX = Random.value < 0.5f;
                     Fx.OnFloor(scorch.Renderer, ScorchSlot, body);
                     Fx.Effect("LightningHitEffect", StrikeSparks, spot);
                 }
+                Fx.Ready("strike flash", flash.Length, ppu, body);
                 Fx.Ready("strike scorch", ThunderArt.Count(variants), ppu, body);
             }
             catch (System.Exception e)
@@ -240,16 +263,20 @@ namespace WoLThunderhead
             nextArc = Time.time + Random.Range(ArcGapMin, ArcGapMax) * (enhanced ? EnhancedArcGap : 1f);
             try
             {
-                Sprite[][] variants = ThunderArt.Arcs();
-                Sprite[] frames = variants[Random.Range(0, variants.Length)];
+                // The game's own little lightning frames, or drawn ones in eight directions.
+                Sprite[] game = GameSprites.Named(ArcSprites, ArcSpriteCount);
+                Fx.Source("wizard arcs", game, ArcSprites + "0-" + (ArcSpriteCount - 1));
+                Sprite[][] variants = game == null ? ThunderArt.Arcs() : null;
+                Sprite[] frames = game ?? variants[Random.Range(0, variants.Length)];
                 Vector2 start = (Vector2)body.transform.position + new Vector2(0f, BodyHeight) + Random.insideUnitCircle * ArcSpread;
                 FxSprite arc = Fx.Get("wizard arcs", ArcCap)
                     .Play(frames, ThunderArt.ArcFrameTime, false, ThunderArt.ArcFrameTime * frames.Length)
                     .On(body.transform, start);
+                arc.Renderer.flipX = Random.value < 0.5f;
                 // Just in front of the wizard, wherever their lifted picture is drawn.
                 arc.Renderer.sortingLayerID = levitator != null ? levitator.DrawLayer : body.sortingLayerID;
                 arc.Renderer.sortingOrder = (levitator != null ? levitator.DrawOrder : body.sortingOrder) + 1;
-                Fx.Ready("wizard arcs", ThunderArt.Count(variants), ppu, body);
+                Fx.Ready("wizard arcs", game != null ? game.Length : ThunderArt.Count(variants), ppu, body);
             }
             catch (System.Exception e)
             {
@@ -258,13 +285,14 @@ namespace WoLThunderhead
         }
 
         // Crashing down: the landing ring goes, a shockwave races out to the slam's edge and the
-        // crater is left glowing.
+        // crater (the game's bigger burn mark) is left with its cracks glowing.
         public void Slam(Vector2 ground)
         {
             landed = true;
             ClearGlyphs();
             ring.Release();
             Wave(ground, slamRadius, "slam shockwave");
+            Fx.Effect(SlamBurnMark, 1, ground, ParticleEffectOverrides.StartLifeTimeTwo);
             try
             {
                 Sprite[] frames = ThunderArt.Crater(ThunderArt.Pixels(slamRadius * CraterShare, 6, 36));

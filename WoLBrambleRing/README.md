@@ -56,6 +56,14 @@ crumbles, withered leaves flutter down and puffs of dry dust rise. Each drawn vi
 `Bramble Ring: visual '...' ready (...)` the first time it plays, and each thicket logs
 `Bramble Ring: look: ...` with what it drew.
 
+0.5.1 restyles it to match the game's own plant and earth art: the shoots between the vines are now
+the game's own thorny tendrils (VineArc, Churning Earth's), arching up and sinking back into the
+ground at the end; the creeping roots are the ground roots from the game's vine trap (Plants);
+clods are the game's rock debris (Rocks) and the dust its smoke (tinted). The coils, thorns, soil
+and leaves are repainted in colours sampled from the game's vine and earth sheets (olive vines, bone
+thorns, withered browns, earth), with no outlines, fading by alpha. If one of those game sheets
+isn't loaded, a painted stand-in is used and the log says so once.
+
 ## Signature
 
 Put Bramble Ring in the **signature slot** (the spellbook in your house lists it under Signature

@@ -117,42 +117,73 @@ namespace WoLSlingshotDash
         private const string Name = "Vine Slingshot";
         private const float RockGravity = 22f;          // tumbling rocks fall back this fast...
         private const float RockHopMin = 2.5f, RockHopMax = 4.5f; // ...after hopping up this fast
+        private const int RockKinds = 16;              // the game's rock debris sheet has 16 rocks
         private const float PullDustInterval = 0.04f;  // dust kicked up along the pull...
         private const float PullRockInterval = 0.09f;  // ...and rocks
         private const float PullDustDrift = 1.5f;
         private const int KickRocks = 6;               // rocks thrown along the kick
         private const float KickRockCone = 40f;        // degrees either side of the kick
+        // The game's earth wave spikes burst out of the floor along the kick, one after another.
+        private static readonly float[] SpikeAt = { 0.5f, 1.3f, 2.1f };
+        private const float SpikeDelay = 0.05f;
+        private const float SpikeJitter = 0.3f;
+        // Its spike sheet's rows: which lean right (flipped for a kick to the left) and which stand up.
+        private static readonly int[] LeaningSpikes = { 0, 3, 4, 7 };
+        private static readonly int[] UprightSpikes = { 2, 6 };
+        // Dust and the white rings and flash tinted the game's dusty earth browns.
+        private static readonly Color DustColour = new Color(0.75f, 0.66f, 0.52f, 0.9f);
+        private static readonly Color RingColour = new Color(0.85f, 0.75f, 0.6f, 1f);
+        private static readonly Color FlashColour = new Color(0.92f, 0.85f, 0.68f, 1f);
         private float nextPullDust, nextPullRock;
 
-        private static void Rock(Vector2 at, Vector2 throwVelocity, float hop, FxLayer layer = FxLayer.Actor) =>
-            Effects.Visual("tumbling rock", () => FxSprite.Play(EarthArt.Rock, at, new FxOpts
+        private static void Rock(Vector2 at, Vector2 throwVelocity, float hop) =>
+            Effects.Visual("rock debris", () =>
             {
-                velocity = throwVelocity,
-                drag = 1.2f,
-                hop = hop,
-                gravity = RockGravity,
-                spin = Random.Range(-240f, 240f),
-                loopFor = hop * 2f / RockGravity + 0.25f,
-                speed = Random.Range(0.8f, 1.3f),
-                layer = layer
-            }));
+                FxAnim rock = EarthArt.Rock.Get();
+                float airTime = hop * 2f / RockGravity + 0.25f;
+                FxSprite.Play(rock, at, new FxOpts
+                {
+                    velocity = throwVelocity,
+                    drag = 1.2f,
+                    hop = hop,
+                    gravity = RockGravity,
+                    spin = Random.Range(-240f, 240f),
+                    loopFor = airTime,
+                    // One of the game's 16 rocks, held while it tumbles; the drawn rock animates.
+                    still = rock != null && rock.FromGame ? Random.Range(1, RockKinds + 1) : 0,
+                    fadeFrom = 0.8f,
+                    shrinkTo = 0.6f,
+                    speed = Random.Range(0.8f, 1.3f)
+                });
+            });
 
         private static void DustPuff(Vector2 at, Vector2 drift, float scale) =>
-            Effects.Visual("dust puff", () => FxSprite.Play(EarthArt.Dust, at, new FxOpts
+            Effects.Visual("dust puffs", () => FxSprite.Play(EarthArt.Dust.Get(), at, new FxOpts
             {
                 velocity = drift,
                 drag = 2f,
                 scale = scale,
+                variant = Random.Range(0, 4),
                 flipX = Random.value < 0.5f,
+                colour = DustColour,
                 sortOffset = -0.2f
             }));
 
-        // Flair only: the fist's shockwave on the floor with rocks and dust thrown up, and where
+        private static void DustRing(Vector2 at, float scale) =>
+            Effects.Visual("dust ring", () =>
+            {
+                FxAnim ring = EarthArt.Ring.Get();
+                // The game's meteor ring is 93 to 145 px across; the drawn one 64.
+                float s = (ring != null && ring.FromGame ? 0.55f : 1f) * scale;
+                FxSprite.Play(ring, at, new FxOpts { layer = FxLayer.Ground, scale = s, colour = RingColour });
+            });
+
+        // Flair only: a dust ring spreading from the fist with rocks and dust thrown up, and where
         // the vines take hold, the game's thorns on an enemy (rocks and dust on a wall or floor).
         private void GrabLook(Vector2 start, Vector2 direction)
         {
             PixelFx.Setup(parent);
-            Effects.Visual("ground shockwave", () => FxSprite.Play(EarthArt.Ring, start, new FxOpts { layer = FxLayer.Ground, scale = 0.6f }));
+            DustRing(start, 0.6f);
             for (int i = 0; i < 3; i++)
             {
                 float a = (i * 120f + Random.Range(-30f, 30f)) * Mathf.Deg2Rad;
@@ -167,7 +198,7 @@ namespace WoLSlingshotDash
                 Rock(anchor, -direction * 1.5f, RockHopMin);
                 DustPuff(anchor, Vector2.zero, 1f);
             }
-            PixelFx.Once("earth grab", $"{Name}: look 'grab' played (drawn ground shockwave, tumbling rocks and dust, " +
+            PixelFx.Once("earth grab", $"{Name}: look 'grab' played (game meteor dust ring, rock debris and smoke puffs, " +
                 "game ThornEmitter on a grabbed enemy)");
         }
 
@@ -186,14 +217,48 @@ namespace WoLSlingshotDash
             }
         }
 
-        // Flair only: the kick: a burst of rock shards along it, the floor's shockwave, the impact,
-        // rocks thrown on ahead, and the game's floor crater.
+        // Flair only: the kick: the game's earth spikes bursting out of the floor one after another
+        // along it, its dust ring and a sandy star flash, rocks thrown on ahead, and its floor crater.
         private void KickLook(Vector2 impact, Vector2 direction)
         {
             float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-            Effects.Visual("rock burst", () => FxSprite.Play(EarthArt.Impact, impact, new FxOpts { rotation = angle, lift = 0.3f, layer = FxLayer.Effect }));
-            Effects.Visual("ground shockwave", () => FxSprite.Play(EarthArt.Ring, impact, new FxOpts { layer = FxLayer.Ground, scale = 1.15f }));
-            Effects.Visual("earth kick impact", () => FxSprite.Play(EarthArt.Star, impact, new FxOpts { rotation = angle, lift = 0.6f, layer = FxLayer.Effect }));
+            Effects.Visual("earth spikes", () =>
+            {
+                FxAnim spike = EarthArt.Spike.Get();
+                if (spike == null)
+                    return;
+                if (!spike.FromGame)
+                {
+                    // The drawn stand-in is one burst of shards pointing along the kick.
+                    FxSprite.Play(spike, impact, new FxOpts { rotation = angle, lift = 0.3f, layer = FxLayer.Effect });
+                    return;
+                }
+                bool upright = Mathf.Abs(direction.x) < 0.4f;
+                Vector2 side = new Vector2(-direction.y, direction.x);
+                for (int i = 0; i < SpikeAt.Length; i++)
+                {
+                    int[] rows = upright ? UprightSpikes : LeaningSpikes;
+                    FxSprite.Play(spike, impact + direction * SpikeAt[i] + side * Random.Range(-SpikeJitter, SpikeJitter), new FxOpts
+                    {
+                        variant = rows[Random.Range(0, rows.Length)],
+                        flipX = !upright && direction.x < 0f,
+                        delay = i * SpikeDelay
+                    });
+                }
+            });
+            DustRing(impact, 1.15f);
+            Effects.Visual("earth kick flash", () =>
+            {
+                FxAnim flash = EarthArt.Flash.Get();
+                FxSprite.Play(flash, impact, new FxOpts
+                {
+                    rotation = flash != null && flash.FromGame ? 0f : angle,
+                    lift = 0.6f,
+                    layer = FxLayer.Effect,
+                    scale = flash != null && flash.FromGame ? 0.4f : 1f,
+                    colour = FlashColour
+                });
+            });
             for (int i = 0; i < KickRocks; i++)
             {
                 float a = angle + Random.Range(-KickRockCone, KickRockCone);
@@ -201,7 +266,7 @@ namespace WoLSlingshotDash
                 Rock(impact, fling * Random.Range(4f, 7f), Random.Range(RockHopMin, RockHopMax + 1f));
             }
             Effects.Game("FloorCraterMed", 1, impact);
-            PixelFx.Once("earth kick", $"{Name}: look 'kick' played (drawn rock burst, ground shockwave, kick impact and rocks, game FloorCraterMed)");
+            PixelFx.Once("earth kick", $"{Name}: look 'kick' played (game earth spikes, meteor dust ring, star flash and rock debris, game FloorCraterMed)");
         }
 
         protected override void WhileCharging(float holdTime)

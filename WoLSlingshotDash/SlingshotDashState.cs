@@ -36,18 +36,22 @@ namespace WoLSlingshotDash
 
         // ---- The look (only for show) ----
         private const string Name = "Vacuum Fist";
-        private const float RingLift = 0.1f;          // the wind ring sits round the feet...
-        private const float RingMinScale = 0.75f;     // ...growing from this at a tap to...
-        private const float RingMaxScale = 1.2f;      // ...this at a full charge
+        private const float RingLift = 0.1f;          // the whirlwind turns round the feet...
+        private const float RingMinScale = 0.85f;     // ...growing from this at the start of the charge to...
+        private const float RingMaxScale = 1.15f;     // ...this at a full charge
         private const int RingOrder = 2;              // its halves sort this far behind / in front of the wizard
-        private const float StreakInterval = 0.045f;  // gust streaks left along the rush
+        private const float StreakInterval = 0.05f;   // wind wisps left along the rush
         private const float StreakSpread = 0.45f;     // how far to either side of your path
         private const float StreakMinLift = 0.3f, StreakMaxLift = 1.1f; // at about body height
         private const float StreakDrift = 2f;         // they blow back the way you came
+        private const int TrailVariants = 6;          // the game's wind trail has 6 kinds of wisp we use
         private const float GhostInterval = 0.06f;    // pale afterimages along the rush
         private const float GhostLife = 0.2f;
-        private static readonly Color GhostColor = new Color(0.78f, 1f, 0.95f, 0.5f);
+        // The game's palest wind colour (#cfebeb), for the afterimages and the white shockwave ring.
+        private static readonly Color GhostColor = new Color(0.81f, 0.92f, 0.92f, 0.5f);
+        private static readonly Color ShockColour = new Color(0.81f, 0.92f, 0.92f, 0.6f);
         private FxHandle ringBack, ringFront;
+        private float ringScale;
         private float nextStreak, nextGhost;
         private bool fullCue;
 
@@ -55,31 +59,33 @@ namespace WoLSlingshotDash
         protected override float ChargeEffectInterval => 0.035f;
         private float whirl;
 
-        // The drawn wind ring wraps round the wizard: its far half behind them, its near half in
-        // front, both following the hop.
+        // The game's whirlwind forms round the wizard and keeps turning: its far half behind them,
+        // its near half in front, both following the hop.
         protected override void OnChargeStarted()
         {
             PixelFx.Setup(parent);
             fullCue = false;
-            StopRing();
-            Effects.Visual("wind ring", () =>
+            StopRing(false);
+            ringScale = RingMinScale;
+            Effects.Visual("whirlwind", () =>
             {
                 SpriteRenderer body = parent.spriteRenderer;
                 var back = new FxOpts { follow = parent.transform, offset = new Vector2(0f, RingLift), orderFrom = body, orderDelta = -RingOrder, scale = RingMinScale };
                 var front = back;
                 front.orderDelta = RingOrder;
-                ringBack = FxSprite.Play(AirArt.RingBack, parent.transform.position, back);
-                ringFront = FxSprite.Play(AirArt.RingFront, parent.transform.position, front);
-                PixelFx.Once("air charge", $"{Name}: look 'charge' playing (drawn wind ring, game air puffs and wind swirl)");
+                FxAnim far = AirArt.WhirlBack.Get();
+                ringBack = FxSprite.Play(far, parent.transform.position, back);
+                ringFront = FxSprite.Play(AirArt.WhirlFront.Get(), parent.transform.position, front);
+                PixelFx.Once("air charge", $"{Name}: look 'charge' playing (" + (far != null && far.FromGame ? "the game's whirlwind" : "drawn wind ring") +
+                    ", game air puffs and wind swirl)");
             });
         }
 
         protected override void WhileCharging(float holdTime)
         {
-            float charge = Mathf.Clamp01(holdTime);
-            float scale = Mathf.Lerp(RingMinScale, RingMaxScale, charge);
-            ringBack.SetScale(scale);
-            ringFront.SetScale(scale);
+            ringScale = Mathf.Lerp(RingMinScale, RingMaxScale, Mathf.Clamp01(holdTime));
+            ringBack.SetScale(ringScale);
+            ringFront.SetScale(ringScale);
             // Full: the wind snaps tight round you (the game's spinning air burst).
             if (!fullCue && holdTime >= 1f)
             {
@@ -88,15 +94,22 @@ namespace WoLSlingshotDash
             }
         }
 
-        private void StopRing()
+        // Ends the charging whirlwind; at the launch it's left behind, rising and breaking up.
+        private void StopRing(bool released)
         {
+            if (released && ringBack.Alive)
+            {
+                Vector2 at = (Vector2)parent.transform.position + new Vector2(0f, RingLift);
+                float scale = ringScale;
+                Effects.Visual("whirlwind", () => FxSprite.Play(AirArt.WhirlOut.Get(), at, new FxOpts { scale = scale, sortOffset = -0.2f }));
+            }
             ringBack.Stop();
             ringFront.Stop();
             ringBack = default(FxHandle);
             ringFront = default(FxHandle);
         }
 
-        protected override void OnStateExit() => StopRing();
+        protected override void OnStateExit() => StopRing(false);
 
         protected override void ChargeEffect(Vector2 position, float charge)
         {
@@ -133,25 +146,36 @@ namespace WoLSlingshotDash
             LaunchLook(position, charge);
         }
 
-        // Flair only: the wind bursts out behind you (drawn gust and the game's air shockwaves,
-        // as Gale Blast throws them), and you ride off in the wizard's own dash streaks.
+        // Flair only: the game's dash air burst and wind twirl where you take off, its air
+        // shockwaves along the aim (as Gale Blast throws them), the whirlwind left behind, and you
+        // ride off in the wizard's own dash streaks.
         private void LaunchLook(Vector2 position, float charge)
         {
             PixelFx.Setup(parent);
-            StopRing();
+            StopRing(true);
             nextStreak = 0f;
             nextGhost = 0f;
             float aim = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-            Effects.Visual("launch gust", () => FxSprite.Play(AirArt.Cone, position + Vector2.up * 0.5f,
-                new FxOpts { rotation = aim + 180f, layer = FxLayer.Effect, scale = 0.8f + 0.4f * charge }));
+            Effects.Visual("dash air burst", () => PoolManager.GetPoolItem<DashAirBurst>().Burst(parent.attackOriginTrans.position, direction));
+            Effects.Visual("launch twirl", () =>
+            {
+                FxAnim twirl = AirArt.Twirl.Get();
+                // The drawn stand-in is a fan of speed lines, so it points back along the launch.
+                FxSprite.Play(twirl, position + Vector2.up * 0.5f, new FxOpts
+                {
+                    rotation = twirl != null && twirl.FromGame ? 0f : aim + 180f,
+                    layer = FxLayer.Effect,
+                    scale = 0.8f + 0.3f * charge
+                });
+            });
             Effects.Game("AirWaveShockwave", 1, position + direction * 0.75f, ParticleEffectOverrides.StartLifeTime0p5, aim);
             if (charge > 0.5f)
                 Effects.Game("AirWaveShockwave", 1, position + direction * 1.75f, ParticleEffectOverrides.StartLifeTime0p5, aim);
             Effects.DashTrails(parent, Name);
-            PixelFx.Once("air launch", $"{Name}: look 'launch' played (drawn launch gust, game AirWaveShockwave, dash trails)");
+            PixelFx.Once("air launch", $"{Name}: look 'launch' played (game DashAirBurst, wind twirl, AirWaveShockwave, the whirlwind breaking up, dash trails)");
         }
 
-        // Flair only: gust streaks whipping past and pale afterimages along the rush.
+        // Flair only: wind wisps whipping past and pale afterimages along the rush.
         private void RushLook(Vector2 position)
         {
             if (Time.time >= nextStreak)
@@ -159,14 +183,21 @@ namespace WoLSlingshotDash
                 nextStreak = Time.time + StreakInterval;
                 Vector2 side = new Vector2(-direction.y, direction.x) * Random.Range(-StreakSpread, StreakSpread);
                 float aim = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-                Effects.Visual("gust streak", () => FxSprite.Play(AirArt.Streak, position + side, new FxOpts
+                Effects.Visual("wind wisps", () =>
                 {
-                    rotation = aim,
-                    lift = Random.Range(StreakMinLift, StreakMaxLift),
-                    velocity = -direction * StreakDrift,
-                    drag = 3f,
-                    sortOffset = -side.y
-                }));
+                    FxAnim wisp = AirArt.Trail.Get();
+                    FxSprite.Play(wisp, position + side, new FxOpts
+                    {
+                        // The game's wisps curl every which way; the drawn streak points along the rush.
+                        rotation = wisp != null && wisp.FromGame ? 0f : aim,
+                        variant = Random.Range(0, TrailVariants),
+                        flipX = Random.value < 0.5f,
+                        lift = Random.Range(StreakMinLift, StreakMaxLift),
+                        velocity = -direction * StreakDrift,
+                        drag = 3f,
+                        sortOffset = -side.y
+                    });
+                });
             }
             if (Time.time >= nextGhost)
             {
@@ -175,21 +206,36 @@ namespace WoLSlingshotDash
             }
         }
 
-        // Flair only: the vacuum's look where the punch lands: drawn wind spiralling in to a pop,
-        // a ring on the floor closing in, the punch's impact, and the game's air vortex.
+        // Flair only: the vacuum where the punch lands: the game's air vortex drawing wisps in, its
+        // shockwave ring closing in on the floor, and its wind slash for the punch.
         private void LandLook(Vector2 position, float charge)
         {
-            float size = 0.9f + 0.45f * charge;
+            float size = 0.9f + 0.35f * charge;
             float aim = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
             // Flattened like the floor, so just behind the wizard (who stands in its middle).
-            Effects.Visual("vacuum implosion", () => FxSprite.Play(AirArt.Implode, position,
-                new FxOpts { lift = 0.3f, orderFrom = parent.spriteRenderer, orderDelta = -1, snapshotOrder = true, scale = size }));
-            Effects.Visual("vacuum ring", () => FxSprite.Play(AirArt.Ring, position,
-                new FxOpts { layer = FxLayer.Ground, reverse = true, scale = size }));
-            Effects.Visual("punch impact", () => FxSprite.Play(AirArt.Star, position + direction * 0.6f,
-                new FxOpts { rotation = aim, lift = 0.7f, layer = FxLayer.Effect, scale = 0.8f + 0.3f * charge }));
-            Effects.Game("AirVortex", 2, position);
-            PixelFx.Once("air land", $"{Name}: look 'vacuum punch' played (drawn implosion, closing ring and punch impact, game AirVortex)");
+            Effects.Visual("vacuum vortex", () =>
+            {
+                FxAnim vortex = AirArt.Vortex.Get();
+                FxSprite.Play(vortex, position,
+                    new FxOpts { lift = 0.4f, orderFrom = parent.spriteRenderer, orderDelta = -1, snapshotOrder = true, scale = size });
+                // The same art as the game's AirVortex particle: only add that when the drawn one stands in.
+                if (vortex == null || !vortex.FromGame)
+                    Effects.Game("AirVortex", 2, position);
+            });
+            Effects.Visual("vacuum ring", () => FxSprite.Play(AirArt.Ring.Get(), position,
+                new FxOpts { layer = FxLayer.Ground, reverse = true, scale = size, colour = ShockColour }));
+            Effects.Visual("punch slash", () =>
+            {
+                FxAnim slash = AirArt.Slash.Get();
+                FxSprite.Play(slash, position + direction * 0.7f, new FxOpts
+                {
+                    rotation = aim - (slash != null ? slash.BaseAngle : 0f),
+                    lift = 0.7f,
+                    layer = FxLayer.Effect,
+                    scale = 0.75f + 0.25f * charge
+                });
+            });
+            PixelFx.Once("air land", $"{Name}: look 'vacuum punch' played (game air vortex, closing shockwave ring and wind slash)");
         }
 
         protected override void WhileDashing(float charge)
@@ -258,8 +304,8 @@ namespace WoLSlingshotDash
                 Effects.Dust(position, 24, scale);
                 // Flair only: each pulse draws the floor in again (a smaller ring closing in).
                 if (i > 0)
-                    Effects.Visual("vacuum ring", () => FxSprite.Play(AirArt.Ring, position,
-                        new FxOpts { layer = FxLayer.Ground, reverse = true, scale = 0.35f * scale, speed = 1.4f }));
+                    Effects.Visual("vacuum ring", () => FxSprite.Play(AirArt.Ring.Get(), position,
+                        new FxOpts { layer = FxLayer.Ground, reverse = true, scale = 0.35f * scale, speed = 1.4f, colour = ShockColour }));
                 yield return new WaitForSeconds(VacuumPulseInterval);
             }
         }

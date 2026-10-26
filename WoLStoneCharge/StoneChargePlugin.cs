@@ -13,7 +13,7 @@ namespace WoLStoneCharge
     {
         public const string PluginGuid = "mdbailey94.wol.stonecharge";
         public const string PluginName = "Stone Charge";
-        public const string PluginVersion = "0.4.0";
+        public const string PluginVersion = "0.4.1";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -152,9 +152,9 @@ namespace WoLStoneCharge
                 "How much longer the crash's hitstun lasts at StunEnergy and above (1 = no longer).");
 
             drawnEffects = Config.Bind("Look", "DrawnEffects", true,
-                "Draw the mod's own pixel-art effects on top of the game's (0.4.0): glowing cracks and a rune in the shield, " +
-                "stone chunks circling you, floor cracks, embers, a crater, pulse rings and flung shards, plus the game's " +
-                "floor crack and crater. Off = the 0.3.0 look. Cosmetic only; applies on the next cast.");
+                "Add effects on top of the game's own (0.4.0; 0.4.1 plays the game's rock, crack and spike sprites where loaded): " +
+                "glowing cracks and a rune in the shield, stone chunks circling you, floor cracks, embers, dust rings, a crater, " +
+                "rock spikes and flung stones. Off = the 0.3.0 look. Cosmetic only; applies on the next cast.");
 
             const string restart = " Applies after restarting the game.";
             raiseDamage = Config.Bind("Balance", "RaiseDamage", 3,

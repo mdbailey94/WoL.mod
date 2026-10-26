@@ -22,23 +22,27 @@ A new **Air standard arcana**, added with [LegendAPI](https://github.com/yekoc/L
 
 ## Look
 
-The twister is drawn pixel art, painted in code at the game's pixel size:
+The twister is pixel art in the game's own wind style, at the game's pixel size:
 
-- **Funnel**: 3 to 7 stacked bands (6-frame spin loops, slanted streaks wrapping round them, lit
-  left and shaded right) that flare wider, grow taller and darken from breezy cyan to grey gale to
-  storm slate as it grows, swaying like a snaking tornado.
-- **Debris**: dust, leaves and pebbles (4-frame tumbles) orbiting it, more and faster as it grows, at
-  a radius that grows with it, passing behind it and in front.
+- **Funnel**: 3 to 7 stacked bands, each drawn like the game's spinning gust ring (brushed strokes
+  going round, the dark inner wall across the mouth, tails flicking off; its three wind tones, no
+  outline; 6-frame spin loops), that flare wider, grow taller and darken in two steps from the
+  game's wind teal to gale grey to storm slate as it grows, swaying like a snaking tornado, with the
+  game's wind wisps peeling off its sides.
+- **Debris**: the game's dust puffs and rocks, and leaves in its leaf green, orbiting it, more and
+  faster as it grows, at a radius that grows with it, passing behind it and in front.
 - **Dust ring**: a ring of dust puffs churning round its base.
-- **Endings**: let go and it collapses, dropping its debris; burst and it blows apart in a big
-  gust ring (8 frames) with wind streaks racing out and the debris flung away.
+- **Endings**: let go and it collapses, dropping its debris; burst and it blows apart in the game's
+  spinning gust ring (AirSpinnerBurst) with its wind slashes racing out and the debris flung away.
+  Any of the game's sprites that isn't loaded is replaced by a drawn stand-in in the same style.
 
 Around it are the game's own effects: the air boss's storm vortex (dust, debris, light streaks)
 building up, layered air swirls, dust streaming in, and gusts near full power. They're stripped
 down to just their looks (no scripts, so nothing of the originals can hurt anyone or vanish early).
 The hits come from invisible wind bursts, unchanged. If the drawn funnel can't be made, the game's
 Twister arcana tornado stands in. The log says `Cyclone: visual '<name>' ready (...)` the first time
-each drawn piece plays, `Cyclone: using the game's storm vortex`, and which (if any) it skipped.
+each piece plays, `Cyclone: using the game's ...` once per sprite set it borrows (or `... isn't
+loaded, drawing ...`), `Cyclone: using the game's storm vortex`, and which (if any) it skipped.
 
 ## Install
 

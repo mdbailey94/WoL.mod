@@ -30,22 +30,25 @@ A ride like Aero Ring's, with Tearing Whirlwind's rolling hit:
 
 ## Look
 
-0.2.0 adds hand-made pixel art (drawn in code at the game's 16 pixels a unit, in a five-colour
-air palette: deep-teal outline, teal, aqua, pale aqua, white) on top of the game's own wind:
+0.2.0 added these on top of the game's own wind; 0.2.1 plays the **game's own wind sprites** for
+them, so they match its art exactly:
 
-- **Cast**: four wisps spiral in round you over the wind-up and flash as the ball forms (6 frames),
-  with the game's spinning air burst, a shockwave and a wind trail out the way you set off.
-- **The wind ball**: three tapering streaks (and three fainter ones between them) and a dashed rim
-  spinning round you, 8 frames, drawn in four sizes so its pixels stay chunky. Its far half is drawn
-  behind you and its near half in front, so you ride inside it. It's sized to the ball's hit area
-  and spins faster the faster you go; from speed level 3 a faint glow copy spins behind it,
-  brighter each level. A dashed gust ring turns on the floor under it.
-- **Travel**: wind streaks flick off the back of the ball (6 frames: stretch, curl, break up),
-  more often the faster you go; dust is thrown back from your feet; from level 4 the game's wind
-  trail streams behind you. The game's AirVortex swirls and dust ring are still there.
-- **Hits**: a gust puff swells on each enemy along the way it's shoved (5 frames), with the
-  game's wind burst. Hit feel (shake, hit-stop) is unchanged.
-- **End**: the ball unravels (the cast's gather played backwards) as you skid off.
+- **Cast**: the game's whirlwind forming at your feet over the wind-up (`WindEffects_0-5`), with
+  its spinning air burst, a shockwave and a wind trail out the way you set off.
+- **The wind ball**: the game's ball of wind (`WindSlash/WindBall0-5`), behind you with its lower
+  half see-through in front, so you ride inside it. It's sized to the ball's hit area and spins
+  faster the faster you go; from speed level 3 a faint copy spins behind it, brighter each level.
+  Three thin wind arcs chase round on the floor under it.
+- **Travel**: the game's wind wisps (`WindTrail` sheet) flick off the back of the ball, more often
+  the faster you go; dust is thrown back from your feet; from level 4 the game's wind trail
+  streams behind you. The game's AirVortex swirls and dust ring are still there.
+- **Hits**: the game's gust arc breaking up (`WindSlash/WindArrowBreak0-5`), turned to open along
+  the shove, with its wind burst. Hit feel (shake, hit-stop) is unchanged.
+- **End**: the game's whirlwind lifting and coming apart (`WindEffects_8-12`) with its broken wind
+  ring spreading on the floor (`WindParticles` sheet) as you skid off.
+
+In a level that hasn't loaded those sheets, drawn frames stand in, in the game's wind colours
+(sampled from its sheets: `#cfebeb`, `#b6d5d5`, `#8b9d9d`), no outlines, fading out by alpha.
 
 Set `[Look] DrawnEffects = false` for the 0.1.0 look. Everything here is cosmetic: damage, hit
 area, timings and movement are unchanged. The ride's time shows on the cast bar.
@@ -64,12 +67,14 @@ Each cast logs:
 
 The first cast also logs the level mapping and the raw speed read (`run speed ... of base ...`).
 
-The drawn look logs once each, the first time it's made: `Gale Rider: visual 'gather' ready (6
-sprites of 48x36, ppu 16)`, `visual 'wind ball' ready (128 sprites: 8 frames x 4 sizes ...)`,
-`visual 'wind streak'`, `visual 'gust puff'`, `visual 'unravel'`, and `wind ball drawn on the
-wizard's layer '...'`. The end-of-ride line then adds `; drawn: ball 3.0 u wide, 25 streak(s), 4
-gust puff(s), N fx sprite(s) live`. If any drawn effect fails it logs `effect '<name>'
-unavailable, skipping it: ...` once and the ride carries on without it.
+The look logs once per visual which art it uses: `Gale Rider: visual 'wind ball' uses the game's
+WindSlash/WindBall0-5 (6 sprites of 48x48, ppu 16)` (also `'gather'`, `'unravel'`, `'gust puff'`,
+`'wind streak'`, `'unravel ring'`), or `visual '<name>': the game's ... isn't loaded here, using
+the drawn frames` followed by `visual '<name>' ready (N sprites of WxH, ppu 16)` when it draws its
+own; and `wind ball drawn on the wizard's layer '...'`. The end-of-ride line then adds `; drawn:
+ball 3.0 u wide (the game's WindBall), 25 streak(s), 4 gust puff(s), N fx sprite(s) live`. If any
+effect fails it logs `effect '<name>' unavailable, skipping it: ...` once and the ride carries on
+without it.
 
 ## Settings
 
@@ -87,7 +92,7 @@ start the game with the mod), or in-game with a config manager mod if you have o
 | Ball | `PeakSpeedPercent` | 200 | Speed (% of base run speed) at which the ball peaks |
 | Look | `VortexSize` | 1 | Size of the swirling wind, relative to the ball |
 | Look | `Dust` | true | Kick up dust as the ball rolls |
-| Look | `DrawnEffects` | true | The drawn wind ball, streaks, puffs and gather (off = 0.1.0 look) |
+| Look | `DrawnEffects` | true | The wind ball, streaks, gusts, gather and unravel (off = 0.1.0 look) |
 | Balance | `Damage` | 4 | Damage of each hit |
 | Balance | `Knockback` / `PeakKnockback` | 15 / 70 | Knockback at base run speed / at the peak |
 | Balance | `HitInterval` | 0.33 | Seconds between hits on the same enemy |

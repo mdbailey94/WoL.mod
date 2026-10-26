@@ -202,8 +202,9 @@ namespace WoLSlingshotDash
                     Vector2 point = start + dir * (length * f) + side * jag;
                     line.SetPosition(p, new Vector3(point.x, point.y, 0f));
                 }
-                Color core = Random.value < 0.5f ? new Color(1f, 1f, 0.85f, 1f) : new Color(0.8f, 0.9f, 1f, 1f);
-                Color tip = new Color(0.65f, 0.45f, 1f, 0.8f);
+                // The game's lightning colours (LightningStart): white or pale yellow, fading to yellow.
+                Color core = Random.value < 0.5f ? Color.white : (Color)new Color32(0xff, 0xfb, 0x89, 0xff);
+                Color tip = new Color32(0xfa, 0xf1, 0x52, 0xcc);
                 line.startColor = core;
                 line.endColor = tip;
                 line.startWidth = 0.09f + 0.05f * charge;

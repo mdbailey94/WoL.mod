@@ -16,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.25.0";
+        public const string PluginVersion = "0.25.2";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;

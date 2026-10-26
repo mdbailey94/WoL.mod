@@ -35,7 +35,7 @@ namespace WoLGaleRider
         // The drawn look (GaleArt), all cosmetic:
         private const float DrawnVortexInterval = 0.09f; // the game's AirVortex puffs thinned out under the drawn ball
         private const float BallLift = 0.45f;           // the drawn ball's middle above the feet (WindBall.Lift)
-        private const float GatherFps = 30f;            // the gather's 6 frames in 0.2 s, over the cast's wind-up
+        private const float GatherFps = 24f;            // the gather's 6 frames in a quarter second, over the cast's wind-up
         private const float StreakInterval = 0.11f;     // seconds between wind streaks at level 1...
         private const float StreakPerLevel = 0.007f;    // ...this much sooner each level (0.047 s at 10)
         private const float StreakFps = 20f;
@@ -47,7 +47,7 @@ namespace WoLGaleRider
         private const float TrailLength = 2.5f;
         private const float PuffInterval = 0.05f;       // at most one drawn gust puff this often (a crowd hit at once)
         private const float PuffFps = 22f;
-        private const float UnravelFps = 24f;
+        private const float UnravelFps = 16f;           // the unravel's 5-6 frames in about a third of a second
 
         // Numbers come from the config (GaleRiderPlugin), read as each cast starts.
         private float RideTimeNow, SpeedPercent, MinSize, MaxSize, PeakSpeedFactor, HitInterval, Knockback, PeakKnockback;
@@ -85,6 +85,7 @@ namespace WoLGaleRider
         private float nextStreak, nextWake, nextTrail, lastPuff;
         private int streaks, puffs;
         private float lastBallWidth;
+        private bool lastBallGame;
         private static readonly HashSet<string> failed = new HashSet<string>();
 
         public GaleRiderState(FSM newFSM, Player newEnt) : base(staticID, newFSM, newEnt)
@@ -135,17 +136,20 @@ namespace WoLGaleRider
             nextStreak = nextWake = nextTrail = 0f;
             lastPuff = -99f;
             streaks = puffs = 0;
-            // The wind gathering round the wizard over the wind-up, flashing as the ball forms.
+            // The wind gathering round the wizard over the wind-up: the game's whirlwind forming
+            // at their feet (or the drawn wisps spiralling in to a flash).
             if (GaleRiderPlugin.DrawnEffects)
             {
                 Effect("gather", () =>
                 {
-                    FxSprite fx = FxSprite.Spawn(GaleArt.Gather, parent.transform.position, "Effect", 0);
+                    Sprite[] game = GaleArt.GameGather;
+                    Sprite[] frames = game ?? GaleArt.Gather;
+                    FxSprite fx = FxSprite.Spawn(frames, parent.transform.position, "Effect", 0);
                     if (fx == null)
                         return;
-                    fx.Follow(parent.transform, new Vector2(0f, BallLift));
+                    fx.Follow(parent.transform, game != null ? GameSprites.PivotShift(game[0], GaleArt.GameWhirlBase, 1f) : new Vector2(0f, BallLift));
                     fx.fps = GatherFps;
-                    fx.life = GaleArt.Gather.Length / GatherFps;
+                    fx.life = frames.Length / GatherFps;
                     fx.fadeAt = 1f;
                     fx.owner = this;
                     fx.sortRef = parent.spriteRenderer;
@@ -414,16 +418,25 @@ namespace WoLGaleRider
             }
         }
 
-        // A drawn gust puff on the enemy, swelling along the way it's shoved; bigger at speed.
+        // A gust on the enemy, opening along the way it's shoved (the game's wind-arrow break,
+        // its arc turned to face the shove, or the drawn crescent); bigger at speed.
         private void GustPuff(Vector2 where)
         {
-            FxSprite fx = FxSprite.Spawn(GaleArt.Puff, where, "Effect", 0);
+            Sprite[] game = GaleArt.GameGust;
+            Sprite[] frames = game ?? GaleArt.Puff;
+            float size = 1f + 0.06f * (speedLevel - 1);
+            // The game's arc points up (+y), the drawn one along +x.
+            float angle = PixelArt.Angle(direction) - (game != null ? 90f : 0f);
+            Vector2 at = where;
+            if (game != null)
+                at += (Vector2)(Quaternion.Euler(0f, 0f, angle) * GameSprites.PivotShift(game[0], GaleArt.GameGustCentre, size));
+            FxSprite fx = FxSprite.Spawn(frames, at, "Effect", 0);
             if (fx == null)
                 return;
-            fx.angle = PixelArt.Angle(direction);
-            fx.size = 1f + 0.06f * (speedLevel - 1);
+            fx.angle = angle;
+            fx.size = size;
             fx.fps = PuffFps;
-            fx.life = GaleArt.Puff.Length / PuffFps;
+            fx.life = frames.Length / PuffFps;
             fx.fadeAt = 1f;
             fx.velocity = direction * 1.5f;
             fx.drag = 4f;
@@ -487,6 +500,7 @@ namespace WoLGaleRider
             StopRide();
             // The drawn ball and anything else riding on the wizard go with it.
             float ballWidth = windBall != null ? windBall.Width : 0f;
+            bool ballGame = windBall != null && windBall.UsesGameSprites;
             if (windBall != null)
             {
                 Effect("wind ball", () => windBall.Stop());
@@ -494,6 +508,7 @@ namespace WoLGaleRider
             }
             Effect("cleanup", () => FxSprite.StopAll(this));
             lastBallWidth = ballWidth;
+            lastBallGame = ballGame;
             try
             {
                 parent.ToggleEnemyFloorCollisions(true);
@@ -539,21 +554,36 @@ namespace WoLGaleRider
             GaleRiderPlugin.Log($"Gale Rider: {endReason} after {time:0.00}s, travelled {travelled:0.0} u, hit {hits} time(s), " +
                 $"biggest knockback {biggestKnockback:0.#} (last speed x{currentSpeed:0.00}, level {speedLevel})" +
                 (heldAtPitEdge ? ", held back at a pit's edge" : "") +
-                (GaleRiderPlugin.DrawnEffects ? $"; drawn: ball {lastBallWidth:0.0} u wide, {streaks} streak(s), {puffs} gust puff(s), {FxSprite.Live} fx sprite(s) live" : ""));
+                (GaleRiderPlugin.DrawnEffects ? $"; drawn: ball {lastBallWidth:0.0} u wide ({(lastBallGame ? "the game's WindBall" : "drawn")}), {streaks} streak(s), {puffs} gust puff(s), {FxSprite.Live} fx sprite(s) live" : ""));
         }
 
-        // The ball coming apart where the ride ends: the gather played backwards, sized to it.
+        // The ball coming apart where the ride ends, sized to it: the game's whirlwind lifting
+        // and breaking up with its broken wind ring spreading on the floor (or the drawn gather
+        // played backwards).
         private void Unravel(Vector2 spot)
         {
-            Sprite[] frames = GaleArt.Unravel;
-            FxSprite fx = FxSprite.Spawn(frames, spot + new Vector2(0f, BallLift), "Effect", 0);
+            Sprite[] game = GaleArt.GameUnravel;
+            Sprite[] frames = game ?? GaleArt.Unravel;
+            // The whirl and the drawn gather are both about 3 units wide.
+            float size = Mathf.Clamp(lastBallWidth / 3f, 0.8f, game != null ? 1.6f : 2f);
+            Vector2 at = game != null ? spot + GameSprites.PivotShift(game[0], GaleArt.GameWhirlBase, size) : spot + new Vector2(0f, BallLift);
+            FxSprite fx = FxSprite.Spawn(frames, at, "Effect", 0);
             if (fx == null)
                 return;
-            // The gather sheet is 48 px (3 units) wide.
-            fx.size = Mathf.Clamp(lastBallWidth / 3f, 0.8f, 2f);
+            fx.size = size;
             fx.fps = UnravelFps;
             fx.life = frames.Length / UnravelFps;
             fx.fadeAt = 0.6f;
+            Sprite[] ring = GaleArt.GameRing;
+            if (ring == null)
+                return;
+            FxSprite floorRing = FxSprite.Spawn(ring, spot, "TargetLineGround", 1);
+            if (floorRing == null)
+                return;
+            floorRing.size = Mathf.Clamp(lastBallWidth / GaleArt.GameRingWidth, 0.8f, 2.5f);
+            floorRing.fps = UnravelFps;
+            floorRing.life = ring.Length / UnravelFps;
+            floorRing.fadeAt = 0.7f;
         }
 
         // ---- Speed ----
@@ -682,20 +712,26 @@ namespace WoLGaleRider
             }
         }
 
-        // A drawn wind streak off the back edge of the ball, pointing the way they ride and
-        // drifting back; behind the wizard if it's above their middle, in front if below.
+        // A wind streak off the back edge of the ball, drifting back: the game's wisp (its sheet
+        // has it flying along +x, so it's turned to fly back from the ride, flipped at random) or
+        // the drawn flick pointing the way they ride. Behind the wizard if it's above their
+        // middle, in front if below.
         private void Streak(Vector2 feet)
         {
             float half = windBall != null ? windBall.Width * 0.5f : currentSize;
             Vector2 side = new Vector2(-direction.y, direction.x);
             Vector2 middle = feet + new Vector2(0f, BallLift);
             Vector2 at = middle + side * (Random.Range(-0.85f, 0.85f) * half * 0.6f) - direction * (half * Random.Range(0.3f, 0.7f));
-            FxSprite fx = FxSprite.Spawn(GaleArt.Streak, at, "Actor", 0);
+            Sprite[] game = GaleArt.GameStreak;
+            Sprite[] frames = game ?? GaleArt.Streak;
+            FxSprite fx = FxSprite.Spawn(frames, at, "Actor", 0);
             if (fx == null)
                 return;
-            fx.angle = PixelArt.Angle(direction);
+            fx.angle = PixelArt.Angle(game != null ? -direction : direction);
+            if (game != null)
+                fx.sr.flipY = Random.value < 0.5f;
             fx.fps = StreakFps;
-            fx.life = GaleArt.Streak.Length / StreakFps;
+            fx.life = frames.Length / StreakFps;
             fx.fadeAt = 1f;
             fx.velocity = -direction * (StreakDrift + StreakDriftPerLevel * speedLevel);
             fx.drag = 2f;

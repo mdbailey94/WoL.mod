@@ -40,18 +40,26 @@ namespace WoLSlingshotDash
 
         // ---- The look (only for show) ----
         private const string Name = "Blazing Kick";
-        private const int Tongues = 6;                 // drawn flames ringing your feet while charging
-        private const float TongueRadius = 0.6f;       // how far out they stand...
+        private const int Tongues = 5;                 // flame tongues ringing your feet while charging
+        private const float TongueRadius = 0.65f;      // how far out they stand...
         private const float TongueSquash = 0.45f;      // ...on a ring flattened like the floor
-        private const int TonguesAtTap = 3;            // flames lit at the start of the charge; all at full
-        private const float TongueMinScale = 0.55f, TongueMaxScale = 1.05f;
-        private const float WispInterval = 0.05f;      // dying flames left along the rush
+        private const int TonguesAtTap = 2;            // flames lit at the start of the charge; all at full
+        // The game's Blazing Combo flames are 34 px tall, so they start half size; the drawn ones are 20.
+        private const float GameTongueMin = 0.5f, GameTongueMax = 0.75f;
+        private const float DrawnTongueMin = 0.55f, DrawnTongueMax = 1.05f;
+        private const float WispInterval = 0.04f;      // flames left along the rush
         private const float WispSpread = 0.35f;
+        private const int WispVariants = 4;            // the game's fire particle sheet has 4 kinds of flame
         private const float ScorchInterval = 0.14f;    // the game's scorch marks along the rush
         private const float SmokeInterval = 0.2f;
         private const float EmberRise = 2.2f;          // embers float up this fast (units a second)
         private const int BlastEmbers = 10;            // thrown out by the blast
+        // The game's fire colours (FireProjectiles), to tint its white flame particles and rings.
+        private static readonly Color FireOrange = new Color32(0xf5, 0x90, 0x00, 0xff);
+        private static readonly Color FireYellow = new Color32(0xf9, 0xd2, 0x3c, 0xff);
+        private static readonly Color FlashColour = new Color32(0xf6, 0xed, 0xa4, 0xff);
         private FxHandle[] tongues;
+        private bool tonguesFromGame;
         private float nextWisp, nextScorch, nextSmoke;
         private Vector2 aim;
         private bool fullCue;
@@ -65,7 +73,7 @@ namespace WoLSlingshotDash
             for (int i = 0; i < 1 + Mathf.RoundToInt(charge); i++)
             {
                 Vector2 at = position + new Vector2(Random.Range(-0.6f, 0.6f), Random.Range(-0.2f, 0.2f));
-                Effects.Visual("ember", () => FxSprite.Play(FireArt.Ember, at, new FxOpts
+                Effects.Visual("ember", () => FxSprite.Play(FireArt.Ember.Get(), at, new FxOpts
                 {
                     lift = Random.Range(0.2f, 0.8f),
                     velocity = new Vector2(Random.Range(-0.4f, 0.4f), EmberRise * Random.Range(0.7f, 1.2f)),
@@ -75,8 +83,8 @@ namespace WoLSlingshotDash
             }
         }
 
-        // Flair only: a ring of drawn flames lights up round your feet, more of them and taller
-        // as the charge builds (those on the far side behind the wizard, the rest in front).
+        // Flair only: a ring of the game's flame tongues lights up round your feet, more of them
+        // and taller as the charge builds (those on the far side behind the wizard, the rest in front).
         protected override void OnChargeStarted()
         {
             PixelFx.Setup(parent);
@@ -86,12 +94,14 @@ namespace WoLSlingshotDash
             {
                 if (tongues == null)
                     tongues = new FxHandle[Tongues];
+                FxAnim tongue = FireArt.Tongue.Get();
+                tonguesFromGame = tongue != null && tongue.FromGame;
                 SpriteRenderer body = parent.spriteRenderer;
                 for (int i = 0; i < Tongues; i++)
                 {
                     float a = (i + 0.5f) * Mathf.PI * 2f / Tongues;
                     var offset = new Vector2(Mathf.Cos(a) * TongueRadius, Mathf.Sin(a) * TongueRadius * TongueSquash);
-                    tongues[i] = FxSprite.Play(FireArt.Tongue, parent.transform.position, new FxOpts
+                    tongues[i] = FxSprite.Play(tongue, parent.transform.position, new FxOpts
                     {
                         follow = parent.transform,
                         offset = offset,
@@ -99,12 +109,17 @@ namespace WoLSlingshotDash
                         orderDelta = offset.y > 0f ? -1 : 1,
                         flipX = i % 2 == 1,
                         speed = 0.85f + 0.3f * PixelArt.Hash(i, 3),
-                        scale = i < TonguesAtTap ? TongueMinScale : 0.01f
+                        scale = i < TonguesAtTap ? TongueScale(0f) : 0.01f
                     });
                 }
-                PixelFx.Once("fire charge", $"{Name}: look 'charge' playing (drawn flame ring and embers, game Blitz flames)");
+                PixelFx.Once("fire charge", $"{Name}: look 'charge' playing (" + (tonguesFromGame ? "the game's flame tongues" : "drawn flame ring") +
+                    ", drawn embers, game Blitz flames)");
             });
         }
+
+        private float TongueScale(float charge) => tonguesFromGame
+            ? Mathf.Lerp(GameTongueMin, GameTongueMax, charge)
+            : Mathf.Lerp(DrawnTongueMin, DrawnTongueMax, charge);
 
         protected override void WhileCharging(float holdTime)
         {
@@ -112,7 +127,7 @@ namespace WoLSlingshotDash
                 return;
             float charge = Mathf.Clamp01(holdTime);
             int lit = TonguesAtTap + Mathf.RoundToInt((Tongues - TonguesAtTap) * charge);
-            float scale = Mathf.Lerp(TongueMinScale, TongueMaxScale, charge);
+            float scale = TongueScale(charge);
             for (int i = 0; i < tongues.Length; i++)
                 tongues[i].SetScale(i < lit ? scale * (0.9f + 0.2f * PixelArt.Hash(i, 5)) : 0.01f);
             // Full: the flames flare (the game's ring of fire bursting at your feet).
@@ -136,7 +151,7 @@ namespace WoLSlingshotDash
 
         protected override void OnStateExit() => StopTongues();
 
-        // Flair only: a small blast where you take off, scorching the floor.
+        // Flair only: the game's swirling fireball puff where you take off, scorching the floor.
         private void LaunchLook(Vector2 position, float charge)
         {
             PixelFx.Setup(parent);
@@ -145,32 +160,43 @@ namespace WoLSlingshotDash
             nextWisp = 0f;
             nextScorch = 0f;
             nextSmoke = 0f;
-            Effects.Visual("drawn fire blast", () => FxSprite.Play(FireArt.Blast, position, new FxOpts
+            Effects.Visual("launch flare", () =>
             {
-                lift = 0.35f,
-                layer = FxLayer.Effect,
-                scale = 0.45f + 0.2f * charge,
-                speed = 1.3f
-            }));
+                FxAnim puff = FireArt.Puff.Get();
+                FxSprite.Play(puff, position, new FxOpts
+                {
+                    lift = 0.5f,
+                    layer = FxLayer.Effect,
+                    // The game's puff is 30 px; the drawn stand-in is the 64 px blast, so smaller.
+                    scale = (puff != null && puff.FromGame ? 1f : 0.45f) + 0.2f * charge,
+                    speed = 1.2f
+                });
+            });
             Effects.Game("FlameCircleBurstEmitter", 10 + Mathf.RoundToInt(10 * charge), position, ParticleEffectOverrides.Radius0p75);
             Effects.Game("BurnMarkMedEmitter", 1, position, ParticleEffectOverrides.StartLifeTimeTwo);
-            PixelFx.Once("fire launch", $"{Name}: look 'launch' played (drawn fire blast, game FlameCircleBurstEmitter and BurnMarkMedEmitter)");
+            PixelFx.Once("fire launch", $"{Name}: look 'launch' played (game VacuumFlame puff, FlameCircleBurstEmitter and BurnMarkMedEmitter)");
         }
 
-        // Flair only: dying flames and embers left along the rush, scorch marks and smoke.
+        // Flair only: the game's fire particle flames (tinted orange and yellow) and drawn embers
+        // left along the rush, scorch marks and smoke.
         private void RushLook(Vector2 position)
         {
             if (Time.time >= nextWisp)
             {
                 nextWisp = Time.time + WispInterval;
                 Vector2 at = position + new Vector2(-aim.y, aim.x) * Random.Range(-WispSpread, WispSpread);
-                Effects.Visual("flame wisp", () => FxSprite.Play(FireArt.Wisp, at, new FxOpts
+                bool yellow = Random.value < 0.4f;
+                Effects.Visual("flame wisps", () => FxSprite.Play(FireArt.Wisp.Get(), at, new FxOpts
                 {
+                    variant = Random.Range(0, WispVariants),
                     flipX = Random.value < 0.5f,
-                    scale = Random.Range(0.8f, 1.1f),
+                    lift = Random.Range(0.1f, 0.6f),
+                    velocity = Vector2.up * Random.Range(0.6f, 1.4f) - aim * 0.8f,
+                    colour = yellow ? FireYellow : FireOrange,
+                    shrinkTo = 0.5f,
                     speed = Random.Range(0.9f, 1.15f)
                 }));
-                Effects.Visual("ember", () => FxSprite.Play(FireArt.Ember, at, new FxOpts
+                Effects.Visual("ember", () => FxSprite.Play(FireArt.Ember.Get(), at, new FxOpts
                 {
                     lift = Random.Range(0.3f, 1f),
                     velocity = -aim * Random.Range(1f, 2.5f) + Vector2.up * EmberRise,
@@ -190,21 +216,51 @@ namespace WoLSlingshotDash
             }
         }
 
-        // Flair only: the kick's blast: drawn fireball and scorch ring, the kick's impact,
-        // embers thrown out, and the game's ring of fire, scorch mark and smoke.
+        // Flair only: the kick's blast: the game's explosion (fireball to smoke) with its ring, a
+        // burning fissure on the floor and a star flash at the kick, embers thrown out, and the
+        // game's ring of fire, scorch mark and smoke.
         private void LandLook(Vector2 position, float charge)
         {
             float size = 0.85f + 0.4f * charge;
-            float angle = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
-            Effects.Visual("drawn fire blast", () => FxSprite.Play(FireArt.Blast, position, new FxOpts { lift = 0.4f, layer = FxLayer.Effect, scale = size }));
-            Effects.Visual("scorch ring", () => FxSprite.Play(FireArt.Ring, position, new FxOpts { layer = FxLayer.Ground, scale = size }));
-            Effects.Visual("fire kick impact", () => FxSprite.Play(FireArt.Star, position + aim * 0.6f,
-                new FxOpts { rotation = angle, lift = 0.6f, layer = FxLayer.Effect, scale = 0.8f + 0.3f * charge }));
+            Effects.Visual("explosion", () =>
+            {
+                FxAnim blast = FireArt.Blast.Get();
+                // The game's explosion is 77 px across at its biggest, the drawn one 64.
+                float s = (blast != null && blast.FromGame ? 0.8f : 1f) * size;
+                FxSprite.Play(blast, position, new FxOpts { lift = 0.6f, layer = FxLayer.Effect, scale = s });
+            });
+            Effects.Visual("blast ring", () =>
+            {
+                FxAnim ring = FireArt.Ring.Get();
+                bool game = ring != null && ring.FromGame;
+                // The game's ring is round and 46 px (in the air, over the blast); the drawn one lies on the floor.
+                FxSprite.Play(ring, position, new FxOpts
+                {
+                    lift = game ? 0.6f : 0f,
+                    layer = game ? FxLayer.Effect : FxLayer.Ground,
+                    scale = (game ? 1.6f : 1f) * size,
+                    colour = FireYellow
+                });
+            });
+            Effects.Visual("burning fissure", () => FxSprite.Play(FireArt.Fissure.Get(), position,
+                new FxOpts { layer = FxLayer.Ground, scale = 1.25f }));
+            Effects.Visual("kick flash", () =>
+            {
+                FxAnim flash = FireArt.Flash.Get();
+                FxSprite.Play(flash, position + aim * 0.6f, new FxOpts
+                {
+                    rotation = flash != null && flash.FromGame ? 0f : Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg,
+                    lift = 0.7f,
+                    layer = FxLayer.Effect,
+                    scale = flash != null && flash.FromGame ? 0.45f + 0.15f * charge : 0.8f + 0.3f * charge,
+                    colour = FlashColour
+                });
+            });
             for (int i = 0; i < BlastEmbers; i++)
             {
                 float a = (i + Random.value * 0.5f) * Mathf.PI * 2f / BlastEmbers;
                 var fling = new Vector2(Mathf.Cos(a), Mathf.Sin(a) * 0.6f) * Random.Range(3f, 5.5f) * size;
-                Effects.Visual("ember", () => FxSprite.Play(FireArt.Ember, position, new FxOpts
+                Effects.Visual("ember", () => FxSprite.Play(FireArt.Ember.Get(), position, new FxOpts
                 {
                     lift = 0.5f,
                     velocity = fling + Vector2.up * 1.5f,
@@ -216,7 +272,7 @@ namespace WoLSlingshotDash
             Effects.Game("FlameCircleBurstEmitter", 24 + Mathf.RoundToInt(16 * charge), position, ParticleEffectOverrides.RadiusTwo);
             Effects.Game("BurnMarkLargeEmitter", 1, position, ParticleEffectOverrides.StartLifeTimeTwo);
             Effects.Game("SmokeEmitter", 8, position + Vector2.up, SmokeEmitter.SmokeMedOverride, float.NaN, 0.1f);
-            PixelFx.Once("fire land", $"{Name}: look 'blast' played (drawn fire blast, scorch ring, kick impact and embers, " +
+            PixelFx.Once("fire land", $"{Name}: look 'blast' played (game explosion, blast ring, burning fissure and star flash, drawn embers, " +
                 "game FlameCircleBurstEmitter, BurnMarkLargeEmitter and SmokeEmitter)");
         }
 

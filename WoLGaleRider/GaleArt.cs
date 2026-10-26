@@ -3,30 +3,103 @@ using UnityEngine;
 
 namespace WoLGaleRider
 {
-    // Gale Rider's drawn effects, in a five-colour air palette (deep-teal outline, teal, aqua,
-    // pale aqua, white) at the game's 16 pixels a unit. Each sheet is drawn once, the first time
-    // it's wanted, and logged then:
-    // - the wind ball: three spiral arms and a dashed rim spinning round the wizard (8 frames, in
-    //   four sizes, cut into a back half drawn behind them and a front half in front, plus the
-    //   whole ball for the glow), with a dashed gust ring on the floor under it;
-    // - wind streaks left behind as it rolls (6 frames, hand drawn: a flick that stretches,
-    //   curls, breaks up and fades);
-    // - a gust puff where an enemy is shoved (5 frames: a crescent that swells along the shove
-    //   and breaks into dashes);
-    // - the gather as it forms (6 frames: four wisps spiralling in to a flash), played backwards
-    //   as it unravels when the ride ends.
+    // Gale Rider's look. Where the game's own wind sprites are loaded they're played as they are
+    // (0.2.1), so it matches the game exactly:
+    // - the wind ball: WindSlash/WindBall0-5 (6 frames, 48x48), the game's own ball of wind;
+    // - the gather as it forms: WindEffects_0-5 (the whirlwind forming at the feet), and the
+    //   unravel as the ride ends: WindEffects_8-12 (it lifts and comes apart) with the broken ring
+    //   from the WindParticles sheet (row 5, 6 frames) spreading on the floor;
+    // - a gust where an enemy is shoved: WindSlash/WindArrowBreak0-5 (a gust arc breaking up);
+    // - wind streaks off the back: the WindTrail sheet's first row (8 frames of a wisp).
+    // Where they aren't (a level that hasn't loaded those sheets) the drawn frames below stand in,
+    // in the game's wind colours sampled from those sheets (#cfebeb, #b6d5d5, #8b9d9d, #697a7a),
+    // no outlines, fading by alpha: the ball's spiral streaks (8 frames in four sizes), a streak
+    // flick (6), a gust crescent (5) and the gather (6, backwards for the unravel). The gust ring
+    // on the floor under the ball is always drawn. Each is logged once, saying which it uses.
     public static class GaleArt
     {
-        // Index 0 is clear; the rest run dark to bright, so brighter strokes win where they cross.
+        // Index 0 is clear; the rest run dark to light, so lighter strokes win where they cross.
+        // The four tones of the game's wind sheets (WindSlash, WindEffects, WindTrail).
         private static readonly Color32[] Palette =
         {
             new Color32(0, 0, 0, 0),
-            new Color32(0x1f, 0x5c, 0x70, 0xa0), // 1 outline: deep teal, part see-through (it's wind)
-            new Color32(0x3d, 0x9e, 0xb4, 0xdc), // 2 shade
-            new Color32(0x7e, 0xd6, 0xdc, 0xff), // 3 body
-            new Color32(0xc6, 0xf3, 0xef, 0xff), // 4 light
-            new Color32(0xff, 0xff, 0xff, 0xff), // 5 white highlight
+            new Color32(0x69, 0x7a, 0x7a, 0xff), // 1 deep shade (sparing)
+            new Color32(0x8b, 0x9d, 0x9d, 0xff), // 2 shade
+            new Color32(0xb6, 0xd5, 0xd5, 0xff), // 3 body
+            new Color32(0xcf, 0xeb, 0xeb, 0xff), // 4 light
+            new Color32(0xcf, 0xeb, 0xeb, 0xff), // 5 light (the game's wind has no white)
         };
+
+        // ---- The game's own frames (null when not loaded) ----
+
+        // Content centres of the game's frames, in their rect's pixels from the bottom-left
+        // (measured from the sheets), so they can be placed whatever their pivots are.
+        public static readonly Vector2 GameBallCentre = new Vector2(24f, 24f);      // WindBall: 48x48, ~44 px across
+        public const float GameBallWidth = 44f / PixelArt.Ppu;
+        public static readonly Vector2 GameWhirlBase = new Vector2(61f, 26f);       // WindEffects_*: the whirl's foot
+        public static readonly Vector2 GameGustCentre = new Vector2(23.5f, 15.5f);  // WindArrowBreak: apex up
+        public const float GameRingWidth = 31f / PixelArt.Ppu;                      // WindParticles ring at its widest
+
+        public static Sprite[] GameBall => Game("wind ball", "WindSlash/WindBall0-5", GameSprites.Named("WindSlash", "WindBall", 0, 6));
+        public static Sprite[] GameGather => Game("gather", "WindEffects/WindEffects_0-5", GameSprites.Named("WindEffects", "WindEffects_", 0, 6));
+        public static Sprite[] GameUnravel => Game("unravel", "WindEffects/WindEffects_8-12", GameSprites.Named("WindEffects", "WindEffects_", 8, 5));
+        public static Sprite[] GameGust => Game("gust puff", "WindSlash/WindArrowBreak0-5", GameSprites.Named("WindSlash", "WindArrowBreak", 0, 6));
+        public static Sprite[] GameStreak => Game("wind streak", "WindTrail sheet row 1 (8 cells of 32x32)",
+            GameSprites.Cells("WindTrail", 32, 32, 0, 0, 8, new Vector2(16f, 16f)));
+        public static Sprite[] GameRing => Game("unravel ring", "WindParticles sheet row 5 (6 cells of 48x48)",
+            GameSprites.Cells("WindParticles", 48, 48, 4, 0, 6, new Vector2(24f, 24f)));
+
+        // The lower half of each of the game's ball frames (up to its middle), pivoted to line up
+        // with the whole frame: drawn in front of the wizard so they ride inside the ball.
+        public static Sprite[] GameBallFront(Sprite[] ball)
+        {
+            if (!PixelArt.Alive(ball))
+                return null;
+            if (PixelArt.Alive(ballFrontGame) && ballFrontGame.Length == ball.Length && ballFrontSource == ball[0])
+                return ballFrontGame;
+            var half = new Sprite[ball.Length];
+            try
+            {
+                for (int i = 0; i < ball.Length; i++)
+                {
+                    Rect r = ball[i].textureRect;
+                    float h = Mathf.Round(GameBallCentre.y);
+                    half[i] = Sprite.Create(ball[i].texture, new Rect(r.x, r.y, r.width, h),
+                        new Vector2(ball[i].pivot.x / r.width, ball[i].pivot.y / h), ball[i].pixelsPerUnit, 0, SpriteMeshType.FullRect);
+                    half[i].hideFlags = HideFlags.HideAndDontSave;
+                }
+            }
+            catch (System.Exception e)
+            {
+                // A tightly packed atlas has no rectangle to cut: the drawn ball stands in.
+                GaleRiderPlugin.Log($"Gale Rider: couldn't cut the game's wind ball in half ({e.Message}); using the drawn ball");
+                return null;
+            }
+            ballFrontSource = ball[0];
+            return ballFrontGame = half;
+        }
+
+        private static Sprite[] ballFrontGame;
+        private static Sprite ballFrontSource;
+        private static readonly Dictionary<string, bool> usingGame = new Dictionary<string, bool>();
+
+        // Logs once per visual (and again if that changes) whether it's the game's frames or the
+        // drawn stand-ins.
+        private static Sprite[] Game(string visual, string source, Sprite[] frames)
+        {
+            bool found = PixelArt.Alive(frames);
+            bool was;
+            if (!usingGame.TryGetValue(visual, out was) || was != found)
+            {
+                usingGame[visual] = found;
+                if (found)
+                    GaleRiderPlugin.Log($"Gale Rider: visual '{visual}' uses the game's {source} ({frames.Length} sprites of " +
+                        $"{frames[0].rect.width:0}x{frames[0].rect.height:0}, ppu {frames[0].pixelsPerUnit:0})");
+                else
+                    GaleRiderPlugin.Log($"Gale Rider: visual '{visual}': the game's {source} isn't loaded here, using the drawn frames");
+            }
+            return found ? frames : null;
+        }
 
         // The wind ball's widths in pixels (2.5 to 5.5 units): the nearest is picked for the
         // ball's size and scaled the last bit, so its pixels stay close to the game's.
@@ -44,6 +117,11 @@ namespace WoLGaleRider
         private const float InnerRadius = 0.36f; // the wizard stands in the clear middle
         private const int RimDashes = 12;
         private const float GroundSquash = 0.45f;
+        private const int RingArcs = 3;         // the floor ring's arcs
+        private const float RingArcSpan = 0.62f; // of the gap between arcs, head to tail
+        private const float RingRadius = 0.96f;
+        private const float RingHeadWidth = 1.2f; // pixels, plus RingTailWidth
+        private const float RingTailWidth = 0.9f;
 
         private static Sprite[][] ballBack, ballFront, ballWhole, groundRing;
         private static Sprite[] streak, puff, gather, unravel;
@@ -164,7 +242,6 @@ namespace WoLGaleRider
                         g.Set(x, y, index);
                 }
             }
-            g.Outline(1, 3);
             return g;
         }
 
@@ -203,39 +280,38 @@ namespace WoLGaleRider
             }
         }
 
-        // The gust ring on the floor: a dashed band turning slowly, round a dithered patch of
-        // pressed-down air (a checkerboard of the outline colour, the game's way of shading).
+        // The gust ring on the floor, in the manner of the game's wind rings (WindParticles):
+        // three thin arcs chasing round, each a 2 px light head tapering to a 1 px shaded tail,
+        // with gaps between. One loop of frames turns it a third, so it loops seamlessly.
         private static PixelArt.Grid RingFrame(int w, int h, int f)
         {
             var g = new PixelArt.Grid(w, h);
             float phase = (float)f / BallFrames;
+            float rx = w * 0.5f - 0.5f, ry = h * 0.5f - 0.5f;
             for (int y = 0; y < h; y++)
             {
                 for (int x = 0; x < w; x++)
                 {
-                    float u = (x + 0.5f - w * 0.5f) / (w * 0.5f - 0.5f);
-                    float v = (y + 0.5f - h * 0.5f) / (h * 0.5f - 0.5f);
+                    float px = x + 0.5f - w * 0.5f, py = y + 0.5f - h * 0.5f;
+                    float u = px / rx, v = py / ry;
                     float r = Mathf.Sqrt(u * u + v * v);
-                    if (r > 1f)
+                    if (r > 1f || r < 0.5f)
                         continue;
-                    float turn = Mathf.Atan2(v, u) / (2f * Mathf.PI);
-                    if (r >= 0.82f)
-                    {
-                        float dash = Frac(turn * 10f - phase);
-                        if (dash < 0.18f)
-                            g.Set(x, y, 3);
-                        else if (dash < 0.55f)
-                            g.Set(x, y, 2);
-                    }
-                    // A sparse dither (every other pixel of every other row, staggered) so it
-                    // tints the floor rather than hatching it.
-                    else if (r >= 0.55f && (y & 1) == 0 && ((x + y / 2) & 1) == 0)
-                        g.Set(x, y, 1);
+                    // Distance from the ring in pixels (the ellipse's local radius at this angle).
+                    float local = Mathf.Sqrt(px * px + py * py) / r;
+                    float off = (RingRadius - r) * local;
+                    float s = Frac(phase - Mathf.Atan2(v, u) / (2f * Mathf.PI) * RingArcs);
+                    if (s >= RingArcSpan)
+                        continue;
+                    float t = s / RingArcSpan;
+                    float thickness = RingHeadWidth * (1f - t) + RingTailWidth;
+                    if (off < -0.5f || off > thickness - 0.5f)
+                        continue;
+                    g.Set(x, y, t < 0.2f ? 4 : t < 0.6f ? 3 : 2);
                 }
             }
             return g;
         }
-
         // ---- Wind streak (drawn pointing +x, the way the wizard rides) ----
 
         private static readonly string[][] StreakRows =
@@ -311,7 +387,6 @@ namespace WoLGaleRider
             {
                 frames[f] = new PixelArt.Grid(20, 7);
                 frames[f].Stamp(StreakRows[f], ".odmlw", 0, 0);
-                frames[f].Outline(1, 3);
             }
             return frames;
         }
@@ -374,7 +449,6 @@ namespace WoLGaleRider
                 }
                 else if (f == 1)
                     g.Disc(c - 2f, c, 1.2f, 4);
-                g.Outline(1, 3);
                 frames[f] = g;
             }
             return frames;
@@ -414,7 +488,6 @@ namespace WoLGaleRider
                             g.PlotF(px, py, index);
                     }
                 }
-                g.Outline(1, 3);
                 frames[f] = g;
             }
             // The flash as the ball forms: a white core, a ring and eight short rays.
@@ -432,7 +505,6 @@ namespace WoLGaleRider
                 for (float d = 9f; d <= 13f; d += 0.5f)
                     flash.PlotF(cx + Mathf.Cos(rad) * d, cy + Mathf.Sin(rad) * d * GatherSquash, d < 11f ? 4 : 3);
             }
-            flash.Outline(1, 3);
             frames[GatherRadius.Length] = flash;
             return frames;
         }
@@ -440,48 +512,60 @@ namespace WoLGaleRider
         private static float Frac(float value) => value - Mathf.Floor(value);
     }
 
-    // The wind ball the wizard rides: the drawn ball's back half behind them and front half in
-    // front (so they stand inside it), a faint glow copy behind growing with the speed level,
-    // and the gust ring on the floor, all following the wizard. Sized to the ball's hit radius
-    // and spinning faster the faster they go.
+    // The wind ball the wizard rides, following them. With the game's own ball (WindSlash/
+    // WindBall0-5): the whole ball behind them and its lower half, see-through, in front, so they
+    // ride inside it. With the drawn stand-in: its back half behind and front half in front. Either
+    // way a fainter copy spins behind it from GlowLevel (brighter each level), and the gust ring
+    // turns on the floor. Sized to the ball's hit radius and spinning faster the faster they go.
     public class WindBall
     {
         // Where the ball's middle sits above the wizard's feet (about their waist).
-        private const float Lift = 0.45f;
-        // The drawn ball's width against the hit circle's: a touch inside it, so what it looks
-        // like it touches it does hit.
+        private const float Lift = 0.5f;
+        // The ball's width against the hit circle's: a touch inside it, so what it looks like
+        // it touches it does hit.
         private const float Fill = 0.9f;
         private const float FloorLift = 0.02f;
-        // Frames a second of the spin: BaseFps at level 1, PerLevelFps more each level.
+        private const float FloorAlpha = 0.55f;
+        // Frames a second of the spin: BaseFps at level 1, PerLevelFps more each level (the
+        // game's ball has 6 frames to the drawn one's 8, so it's played at 3/4 of that).
         private const float BaseFps = 12f;
         private const float PerLevelFps = 2.2f;
+        private const float GameFpsScale = 0.75f;
         // The glow: from GlowLevel up, a bigger, fainter copy behind, brighter each level.
         private const int GlowLevel = 3;
         private const float GlowScale = 1.14f;
         private const float GlowAlpha = 0.12f;
         private const float GlowPerLevel = 0.035f;
-        private const int GlowFrameLead = 4;    // half a loop ahead of the core: a blur, not a copy
-        private const float FrontAlpha = 0.9f;  // the front half lets the wizard's legs show through a bit
+        private const int GlowFrameLead = 3;    // half a loop ahead of the core: a blur, not a copy
+        private const float FrontAlpha = 0.9f;  // the drawn front half lets the wizard's legs show through a bit
+        private const float GameFrontAlpha = 0.45f; // the game's ball is solid: its front half is see-through
 
         private FxHandle back, front, glow, floor;
+        private Sprite[] game;
         private int variant = -1;
         private static bool loggedSorting;
 
         public float Width { get; private set; }
+        public bool UsesGameSprites => game != null;
 
         public static WindBall Create(Player player, object owner)
         {
             var ball = new WindBall();
             SpriteRenderer body = player.spriteRenderer;
-            FxSprite backFx = Make(GaleArt.BallBack(0), player, owner, body, -1, Lift);
-            FxSprite frontFx = Make(GaleArt.BallFront(0), player, owner, body, 1, Lift);
-            FxSprite glowFx = Make(GaleArt.BallWhole(0), player, owner, body, -2, Lift);
+            ball.game = GaleArt.GameBall;
+            Sprite[] gameFront = ball.game != null ? GaleArt.GameBallFront(ball.game) : null;
+            if (gameFront == null)
+                ball.game = null;
+            FxSprite backFx = Make(ball.game ?? GaleArt.BallBack(0), player, owner, body, -1);
+            FxSprite frontFx = Make(gameFront ?? GaleArt.BallFront(0), player, owner, body, 1);
+            FxSprite glowFx = Make(ball.game ?? GaleArt.BallWhole(0), player, owner, body, -2);
             FxSprite floorFx = FxSprite.Spawn(GaleArt.GroundRing(0), player.transform.position, "TargetLineGround", 0);
             if (floorFx != null)
             {
                 floorFx.Follow(player.transform, new Vector2(0f, FloorLift));
                 floorFx.loop = true;
                 floorFx.owner = owner;
+                floorFx.alpha = FloorAlpha;
             }
             if (glowFx != null)
             {
@@ -489,7 +573,7 @@ namespace WoLGaleRider
                 glowFx.Skip(GlowFrameLead);
             }
             if (frontFx != null)
-                frontFx.alpha = FrontAlpha;
+                frontFx.alpha = ball.game != null ? GameFrontAlpha : FrontAlpha;
             ball.back = new FxHandle(backFx);
             ball.front = new FxHandle(frontFx);
             ball.glow = new FxHandle(glowFx);
@@ -503,12 +587,12 @@ namespace WoLGaleRider
             return ball;
         }
 
-        private static FxSprite Make(Sprite[] frames, Player player, object owner, SpriteRenderer body, int order, float lift)
+        private static FxSprite Make(Sprite[] frames, Player player, object owner, SpriteRenderer body, int order)
         {
             FxSprite fx = FxSprite.Spawn(frames, player.transform.position, "Actor", 0);
             if (fx == null)
                 return null;
-            fx.Follow(player.transform, new Vector2(0f, lift));
+            fx.Follow(player.transform, new Vector2(0f, Lift));
             fx.loop = true;
             fx.owner = owner;
             fx.sortRef = body;
@@ -520,43 +604,60 @@ namespace WoLGaleRider
         public void Update(float radius, int level, float lookScale)
         {
             Width = 2f * radius * Fill * lookScale;
+            FxSprite b = back.Get, f = front.Get, g = glow.Get, fl = floor.Get;
+            float fps = BaseFps + PerLevelFps * level;
             int best = 0;
             for (int v = 1; v < GaleArt.BallWidths.Length; v++)
             {
                 if (Mathf.Abs(GaleArt.BallWidths[v] / PixelArt.Ppu - Width) < Mathf.Abs(GaleArt.BallWidths[best] / PixelArt.Ppu - Width))
                     best = v;
             }
-            FxSprite b = back.Get, f = front.Get, g = glow.Get, fl = floor.Get;
             if (best != variant)
             {
                 variant = best;
-                b?.SetFrames(GaleArt.BallBack(best));
-                f?.SetFrames(GaleArt.BallFront(best));
-                g?.SetFrames(GaleArt.BallWhole(best));
+                if (game == null)
+                {
+                    b?.SetFrames(GaleArt.BallBack(best));
+                    f?.SetFrames(GaleArt.BallFront(best));
+                    g?.SetFrames(GaleArt.BallWhole(best));
+                }
                 fl?.SetFrames(GaleArt.GroundRing(best));
             }
-            float scale = Width / (GaleArt.BallWidths[best] / PixelArt.Ppu);
-            float fps = BaseFps + PerLevelFps * level;
+            float floorScale = Width / (GaleArt.BallWidths[best] / PixelArt.Ppu);
+            float scale = floorScale;
+            Vector2 middle = new Vector2(0f, Lift);
+            Vector2 shift = Vector2.zero, glowShift = Vector2.zero;
+            if (game != null)
+            {
+                // The game's frames, scaled to the width and moved so their middle is the ball's.
+                scale = Width / GaleArt.GameBallWidth;
+                fps *= GameFpsScale;
+                shift = GameSprites.PivotShift(game[0], GaleArt.GameBallCentre, scale);
+                glowShift = GameSprites.PivotShift(game[0], GaleArt.GameBallCentre, scale * GlowScale);
+            }
             if (b != null)
             {
                 b.size = scale;
                 b.fps = fps;
+                b.followOffset = middle + shift;
             }
             if (f != null)
             {
                 f.size = scale;
                 f.fps = fps;
+                f.followOffset = middle + shift;
             }
             if (fl != null)
             {
                 // The floor ring turns at half the ball's pace.
-                fl.size = scale;
-                fl.fps = fps * 0.5f;
+                fl.size = floorScale;
+                fl.fps = (BaseFps + PerLevelFps * level) * 0.5f;
             }
             if (g != null)
             {
                 g.size = scale * GlowScale;
                 g.fps = fps;
+                g.followOffset = middle + glowShift;
                 g.alpha = level >= GlowLevel ? GlowAlpha + GlowPerLevel * (level - GlowLevel) : 0f;
             }
         }

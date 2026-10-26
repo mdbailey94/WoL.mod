@@ -7,13 +7,13 @@ namespace WoLSlingshotDash
 {
     // Feint Swap's signature (cast from the signature slot with the gauge full, isUltimate):
     // 1. Fan throw: on release, six ice feints fly out at once in a fan over FanSpread degrees
-    //    centred on your aim, as far as the normal throw at that charge (each stopping short of
-    //    walls), each bursting with ice through the enemies on its way (level 3), with a frosty
-    //    flash, the stage dimming a little and the camera pulling back to show the fan.
+    //    centred on your aim, FanDistanceScale of the normal throw's distance at that charge (each
+    //    stopping short of walls), each bursting with ice through the enemies on its way (level 3),
+    //    with a frosty flash, the stage dimming a little and the camera pulling back to show the fan.
     // 2. Wait: they stand the normal 2 s, or until a re-press or a recast (the same rules as the
     //    normal feint: the press that cast it never counts, the button has to come up first).
-    // 3. Chained swaps: you swap onto the feints one after another, SwapInterval apart, sweeping
-    //    across the fan from its left end to its right (left as seen facing along your aim). Each
+    // 3. Chained swaps: you swap onto the feints one after another, SwapInterval apart, in a
+    //    random order that ends on the feint thrown along your aim (SwapOrder). Each
     //    feint you land on is consumed in an icicle spin: a ring of icicles spins out from you and
     //    bursts in a Frost Nova (level 4, a sure freeze), with a hit-stop and a shake that rise
     //    with each swap. The last one is bigger (level 5): a wider ring, a longer hit-stop, a big
@@ -26,7 +26,8 @@ namespace WoLSlingshotDash
     public partial class FeintSwapState
     {
         private const int FanCount = 6;
-        private const float FanSpread = 110f;           // degrees across the fan, centred on the aim
+        private const float FanSpread = 70f;            // degrees across the fan, centred on the aim (0.24.0: 110, too spread out)
+        private const float FanDistanceScale = 0.75f;   // the feints fly this share of the normal throw's distance (0.24.0: all of it)
         private const float SigPathHitInterval = 0.075f; // each feint bursts this often in flight (the normal one every 0.05 s)...
         private const float SigPathHitScale = 1f;       // ...a little smaller than the normal one's (1.1), six at once
         private const float SwapInterval = 0.2f;        // between one swap and the next
@@ -76,7 +77,7 @@ namespace WoLSlingshotDash
                 // From the fan's left end (anticlockwise of the aim) to its right.
                 float angle = FanSpread * 0.5f - FanSpread * i / (FanCount - 1);
                 Vector2 direction = Quaternion.Euler(0f, 0f, angle) * (Vector3)aim;
-                float d = distance;
+                float d = distance * FanDistanceScale;
                 bool clipped = false;
                 // Stop short of walls so you never swap into one.
                 RaycastHit2D hit = Physics2D.Raycast(start, direction, d, ChaosCollisions.layerAllWallAndObst);
@@ -200,15 +201,21 @@ namespace WoLSlingshotDash
             }
             var stats = new ChainStats { startedAt = Time.time };
             Vector2 origin = player.transform.position;
+            List<FanShot> order = SwapOrder(shots);
+            var orderText = new List<string>();
+            foreach (FanShot shot in order)
+                orderText.Add((shot.index + 1).ToString());
             SlingshotDashPlugin.Log($"Feint Swap: signature chain begins ({(forced ? "time's up" : "on your press")}) " +
                 $"{Time.time - feint.thrownAt:0.00} s after the throw: {left} of {FanCount} feints standing, " +
-                $"a swap every {SwapInterval:0.0} s from the fan's left end to its right");
+                $"a swap every {SwapInterval:0.0} s in random order, finishing on the one thrown along your aim " +
+                $"(order {string.Join(", ", orderText.ToArray())}, numbered left to right)");
             if (empowered)
                 SlingshotDashPlugin.Run(LeftBehindSignature(state, origin, power, category, id));
 
             float lastArrival = Time.time;
             bool waited = false;    // the gap before the next swap has been waited out
             bool finaleDone = false;
+            shots = order;
             for (int i = 0; i < shots.Count; i++)
             {
                 FanShot shot = shots[i];
@@ -288,6 +295,28 @@ namespace WoLSlingshotDash
                 if (cine != null)
                     cine.Finish(stats.swaps > 0 ? "chain ended early" : "no feint left to swap to");
             }
+        }
+
+        // The order of the swaps: the feints in a random order, ending on the one thrown along your
+        // aim (the fan has an even count, so that's one of the two either side of it, at random).
+        // If that one is broken before its turn, the last one still standing gets the finish.
+        private static List<FanShot> SwapOrder(List<FanShot> shots)
+        {
+            FanShot last = null;
+            foreach (FanShot shot in shots)
+            {
+                if (last == null || Mathf.Abs(shot.angle) < Mathf.Abs(last.angle) - 0.01f ||
+                    (Mathf.Abs(Mathf.Abs(shot.angle) - Mathf.Abs(last.angle)) <= 0.01f && Random.value < 0.5f))
+                    last = shot;
+            }
+            var order = new List<FanShot>();
+            foreach (FanShot shot in shots)
+            {
+                if (shot != last)
+                    order.Insert(Random.Range(0, order.Count + 1), shot);
+            }
+            order.Add(last);
+            return order;
         }
 
         // A spin bursting SpinTime after you land: the Frost Nova (the spin's or the finish's

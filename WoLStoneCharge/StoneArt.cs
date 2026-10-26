@@ -3,48 +3,114 @@ using UnityEngine;
 
 namespace WoLStoneCharge
 {
-    // Stone Charge's drawn effects, at the game's 16 pixels a unit, in two small palettes: five
-    // stone browns (outline, shade, body, lit face, highlight) and four ember tones for the force
-    // glowing through (deep, orange, gold, white-hot). Each sheet is drawn once, the first time
-    // it's wanted, and logged then:
-    // - stone chunks tumbling round the wizard at high force (4 frames: the rock turned a
-    //   quarter at a time and re-lit from the top-left each time, so it tumbles rather than
-    //   spins), glowing at full force;
-    // - rock shards flung from the crash (4 tumbling frames, two shapes);
-    // - a crack spreading in the floor behind the running wizard (6 frames), glowing at full;
-    // - the crash's crater (7 frames: cracks racing out, a ring of rubble thrown up), glowing
-    //   from three quarters force;
-    // - a pulse ring on the floor at each force step and at the crash (6 frames);
-    // - embers rising off the wizard at full force (6 frames);
-    // - the cracks and rune in the shield itself (ShieldRunes).
+    // Stone Charge's look. Where the game's own earth sprites are loaded they're played as they
+    // are (0.4.1), so it matches the game exactly:
+    // - stone chunks circling the wizard: the four rocks of the RockMed debris sheet, tumbling by
+    //   quarter turns as the game's debris does;
+    // - rock shards flung from the crash: the bigger stones of the Rocks sheet (Rocks_N);
+    // - cracks in the floor behind the running wizard and the crash's crater: the
+    //   FloorCrackEffects sheet (the crack spreading to a hole, as Earth Axe and Boulder Drop
+    //   make);
+    // - a ring of rock spikes erupting round the crash: the EarthWave sheet (8 spikes shooting up
+    //   and crumbling, 8 frames each).
+    // Where they aren't (a level that hasn't loaded those sheets) the drawn frames below stand in,
+    // in the game's colours sampled from its sheets (the rock debris browns and, for the force
+    // glowing through, its fire tones), no outlines, fading by alpha. Embers rising off the
+    // wizard at full force are always drawn (6 frames, fire tones), and so are the cracks and
+    // rune in the shield (ShieldRunes). Each is logged once, saying which it uses.
     public static class StoneArt
     {
-        // Index 0 is clear.
+        // Index 0 is clear. The stone tones are the game's rock debris sheets' (Rocks, RockMed),
+        // the ember tones its fire sheets' (FireProjectiles, MeteorStrike).
         public static readonly Color32[] Palette =
         {
             new Color32(0, 0, 0, 0),
-            new Color32(0x2a, 0x1b, 0x12, 0xff), // 1 outline
-            new Color32(0x5b, 0x3d, 0x29, 0xff), // 2 shade
-            new Color32(0x8b, 0x65, 0x44, 0xff), // 3 body
-            new Color32(0xb9, 0x92, 0x6a, 0xff), // 4 lit face
-            new Color32(0xe3, 0xcd, 0xa3, 0xff), // 5 highlight
-            new Color32(0x9c, 0x4a, 0x1a, 0xff), // 6 deep ember
-            new Color32(0xe8, 0x8a, 0x2a, 0xff), // 7 orange
-            new Color32(0xff, 0xd0, 0x50, 0xff), // 8 gold
-            new Color32(0xff, 0xf3, 0xc4, 0xff), // 9 white-hot
+            new Color32(0x33, 0x27, 0x19, 0xff), // 1 deepest shade (cracks, grooves)
+            new Color32(0x4d, 0x37, 0x20, 0xff), // 2 shade
+            new Color32(0x73, 0x50, 0x2a, 0xff), // 3 body
+            new Color32(0x82, 0x68, 0x3e, 0xff), // 4 lit face
+            new Color32(0x9a, 0x7c, 0x4c, 0xff), // 5 highlight
+            new Color32(0xda, 0x6e, 0x00, 0xff), // 6 deep orange
+            new Color32(0xed, 0x93, 0x0e, 0xff), // 7 orange
+            new Color32(0xf9, 0xd2, 0x3c, 0xff), // 8 yellow
+            new Color32(0xf6, 0xed, 0xa4, 0xff), // 9 pale yellow-white
         };
 
         public const int TumbleFrames = 4;
         private const float FloorSquash = 0.55f;   // floor shapes are seen at the game's 3/4 angle
         private const float CrackSquash = 0.75f;   // cracks less so: flatter, they'd run in level bars
 
+        // ---- The game's own sprites (null when not loaded: the drawn ones stand in) ----
+
+        // Content centres / feet in the game's cells, in cell pixels from the bottom-left
+        // (measured from the sheets).
+        private static readonly Vector2 RockMedCentre = new Vector2(16.5f, 15f);   // RockMed: 32x32 cells, ~10 px rocks
+        private static readonly Vector2 CrackCentre = new Vector2(23.5f, 25.5f);   // FloorCrackEffects: 48x48 cells
+        public const float CrackWidth = 39f / PixelArt.Ppu;                         // its last frame's width, in units
+        private static readonly Vector2 SpikeFoot = new Vector2(17.5f, 11f);       // EarthWave: 32x32 cells, the spike's base
+        public const int SpikeRows = 8;                                             // EarthWave: 8 spikes of 8 frames
+        // The bigger stones on the Rocks sheet (its first two columns).
+        private static readonly int[] ShardRocks = { 0, 1, 4, 5, 8, 9, 12, 13 };
+
+        // One of the four rocks of the game's RockMed debris sheet (a single frame: it tumbles by
+        // turning).
+        public static Sprite[] GameChunk(int i)
+        {
+            Sprite[] rocks = Game("stone chunk", "RockMed sheet (4 rocks in 32x32 cells)", GameSprites.Column("RockMed", 32, 32, 0, 4, RockMedCentre));
+            return rocks != null ? new[] { rocks[i % rocks.Length] } : null;
+        }
+
+        // A stone off the game's Rocks debris sheet (the named Rocks_N sprites).
+        public static Sprite[] GameShard(int i)
+        {
+            Sprite[] rocks = Game("rock shard", "Rocks/Rocks_0-15", GameSprites.Named("Rocks", "Rocks_", 0, 16));
+            return rocks != null ? new[] { rocks[ShardRocks[i % ShardRocks.Length]] } : null;
+        }
+
+        // The game's floor crack (the FloorCrackEffects sheet's first row): its first two frames
+        // for the cracks behind you, all four (to the hole) for the crash.
+        public static Sprite[] GameCrack => Game("floor crack", "FloorCrackEffects sheet row 1, frames 1-2 (48x48)",
+            GameSprites.Cells("FloorCrackEffects", 48, 48, 0, 0, 2, CrackCentre));
+        public static Sprite[] GameCrater => Game("crater", "FloorCrackEffects sheet row 1, frames 1-4 (48x48)",
+            GameSprites.Cells("FloorCrackEffects", 48, 48, 0, 0, 4, CrackCentre));
+
+        // One of the game's eight rock spikes (the EarthWave sheet: a spike shooting up and
+        // crumbling, 8 frames), pivoted at its foot.
+        public static Sprite[] GameSpike(int row)
+        {
+            Sprite[] first = Game("rock spikes", "EarthWave sheet (8 rows of 8 frames, 32x32)",
+                GameSprites.Cells("EarthWave", 32, 32, 0, 0, 8, SpikeFoot));
+            return first == null ? null : GameSprites.Cells("EarthWave", 32, 32, row % SpikeRows, 0, 8, SpikeFoot);
+        }
+
+        private static readonly Dictionary<string, bool> usingGame = new Dictionary<string, bool>();
+
+        // Logs once per visual (and again if that changes) whether it's the game's sprites or the
+        // drawn stand-ins.
+        private static Sprite[] Game(string visual, string source, Sprite[] frames)
+        {
+            bool found = PixelArt.Alive(frames);
+            bool was;
+            if (!usingGame.TryGetValue(visual, out was) || was != found)
+            {
+                usingGame[visual] = found;
+                if (found)
+                    StoneChargeState.Log($"visual '{visual}' uses the game's {source} ({frames.Length} sprites of " +
+                        $"{frames[0].rect.width:0}x{frames[0].rect.height:0}, ppu {frames[0].pixelsPerUnit:0})");
+                else
+                    StoneChargeState.Log($"visual '{visual}': the game's {source} isn't loaded here, using the drawn frames");
+            }
+            return found ? frames : null;
+        }
+
+        // ---- Drawn stand-ins ----
+
         private static Sprite[][] chunks;          // [shape * 2 + (charged ? 1 : 0)]
         private static Sprite[][] shards;
-        private static Sprite[] crack, crackGlow, crater, craterGlow, pulse, pulseGlow, ember;
+        private static Sprite[] crack, crackGlow, crater, craterGlow, ember;
         private static readonly HashSet<string> ready = new HashSet<string>();
 
-        // ---- Hand-drawn shapes ('#' = rock) ----
-
+        // Hand-drawn shapes ('#' = rock).
         private static readonly string[][] ChunkShapes =
         {
             new[]
@@ -88,17 +154,17 @@ namespace WoLStoneCharge
             },
         };
 
+        // An ember: a lick of flame that bends, shrinks and goes out as it rises, in the game's
+        // fire tones (6 deep orange, 7 orange, 8 yellow, 9 pale), like the bits its fire sheds.
         private static readonly string[][] EmberRows =
         {
             new[] { ".....", "..8..", ".898.", "..8..", "....." },
-            new[] { "..7..", ".787.", "78987", ".787.", "..7.." },
-            new[] { ".....", "..7..", ".787.", "..7..", "....." },
-            new[] { ".....", ".....", "..8..", ".....", "....." },
-            new[] { ".....", "..6..", ".676.", "..6..", "....." },
+            new[] { "..8..", ".898.", ".888.", "..7..", "....." },
+            new[] { "..8..", ".87..", ".77..", "..7..", "....." },
+            new[] { ".....", "..7..", ".77..", "..6..", "....." },
+            new[] { ".....", "..6..", ".6...", ".....", "....." },
             new[] { ".....", ".....", "..6..", ".....", "....." },
         };
-
-        // ---- Sheets ----
 
         public static Sprite[] Chunk(int shape, bool charged)
         {
@@ -149,34 +215,28 @@ namespace WoLStoneCharge
             return glow ? craterGlow : crater;
         }
 
-        public static Sprite[] Pulse(bool glow)
-        {
-            if (!PixelArt.Alive(pulse) || !PixelArt.Alive(pulseGlow))
-            {
-                pulse = PulseRing(false);
-                pulseGlow = PulseRing(true);
-                Ready("pulse ring", pulse.Length * 2, pulse);
-            }
-            return glow ? pulseGlow : pulse;
-        }
-
         public static Sprite[] Ember
         {
             get
             {
                 if (!PixelArt.Alive(ember))
                 {
-                    var frames = new PixelArt.Grid[EmberRows.Length];
-                    for (int f = 0; f < frames.Length; f++)
-                    {
-                        frames[f] = new PixelArt.Grid(5, 5);
-                        frames[f].Stamp(EmberRows[f], ".123456789", 0, 0);
-                    }
-                    ember = PixelArt.Sheet(frames, Palette, new Vector2(0.5f, 0.5f));
+                    ember = PixelArt.Sheet(EmberGrids(), Palette, new Vector2(0.5f, 0.5f));
                     Ready("ember", ember.Length, ember);
                 }
                 return ember;
             }
+        }
+
+        private static PixelArt.Grid[] EmberGrids()
+        {
+            var frames = new PixelArt.Grid[EmberRows.Length];
+            for (int f = 0; f < frames.Length; f++)
+            {
+                frames[f] = new PixelArt.Grid(5, 5);
+                frames[f].Stamp(EmberRows[f], ".123456789", 0, 0);
+            }
+            return frames;
         }
 
         private static void Ready(string visual, int count, Sprite[] sample)
@@ -189,10 +249,10 @@ namespace WoLStoneCharge
 
         // ---- Rocks ----
 
-        // Four frames of a rock tumbling: the shape turned a quarter each frame and shaded
-        // afresh with the light from the top-left (top edge highlight, left edge lit, bottom and
-        // right edges in shade, a few pits in the body), then outlined. A charged rock gets an
-        // ember outline and a glowing vein through it.
+        // Four frames of a rock tumbling: the shape turned a quarter each frame and shaded afresh
+        // with the light from the top-left (top edge highlight, left edge lit, bottom and right
+        // edges in shade, a few pits in the body), as the game's debris rocks are, with no
+        // outline. A charged rock has a glowing vein through it.
         private static Sprite[] Tumble(string[] rows, bool charged, int seed) =>
             PixelArt.Sheet(TumbleGrids(rows, charged, seed), Palette, new Vector2(0.5f, 0.5f));
 
@@ -236,7 +296,9 @@ namespace WoLStoneCharge
                         index = 5;
                     else if (!left)
                         index = 4;
-                    else if (!down || !right)
+                    else if (!down)
+                        index = 1;
+                    else if (!right)
                         index = 2;
                     else if (Hash(x, y, seed) % 6 == 0)
                         index = 2;
@@ -248,7 +310,6 @@ namespace WoLStoneCharge
                     g.Set(ox + x, oy + y, index);
                 }
             }
-            g.Outline(charged ? 7 : 1, 1);
             return g;
         }
 
@@ -288,10 +349,10 @@ namespace WoLStoneCharge
         }
 
         // Cracks running out from a centre in rays that wander and fork, revealed tip by tip over
-        // the frames (the last two hold the finished crack). A plain crack is a dark groove with
-        // a lit lower lip and a shaded upper one; a glowing one has a gold-to-orange core (white-
-        // hot near the centre) edged in the outline colour, cooling a shade in the last frame.
-        // The crater adds a ring of rubble chips thrown out over the first frames.
+        // the frames (the last two hold the finished crack), drawn like the game's floor cracks:
+        // thin lines in the deepest shade round a hole, no rims. A glowing one has a yellow-to-
+        // orange core (pale near the centre), cooling a tone in the last frame. The crater adds a
+        // ring of rubble chips thrown out over the first frames.
         private static Sprite[] Cracks(int w, int h, int frameCount, int rays, int seed, bool glow, bool rubble) =>
             PixelArt.Sheet(CrackGrids(w, h, frameCount, rays, seed, glow, rubble), Palette, new Vector2(0.5f, 0.5f));
 
@@ -322,21 +383,6 @@ namespace WoLStoneCharge
                 var g = new PixelArt.Grid(w, h);
                 float shown = Mathf.Min(1f, (f + 1f) / (frameCount - 2f));
                 bool last = f == frameCount - 1;
-                // Lips first, on clear pixels only; the cores then go over them.
-                foreach (CrackPixel p in pixels)
-                {
-                    if (p.Birth > shown)
-                        continue;
-                    if (glow)
-                    {
-                        Lip(g, p.X + 1, p.Y, 1);
-                        Lip(g, p.X - 1, p.Y, 1);
-                        Lip(g, p.X, p.Y + 1, 1);
-                        Lip(g, p.X, p.Y - 1, 1);
-                    }
-                    else
-                        Lip(g, p.X, p.Y - 1, 4);    // a lit lower lip; the groove itself is the shadow
-                }
                 foreach (CrackPixel p in pixels)
                 {
                     if (p.Birth > shown)
@@ -360,25 +406,18 @@ namespace WoLStoneCharge
                 }
                 if (rubble && f >= 1)
                 {
-                    // Chips thrown out to their ring over three frames, each a 2x2 stone with a
-                    // highlight on top, outlined.
-                    var chips = new PixelArt.Grid(w, h);
+                    // Chips thrown out to their ring over three frames, each a 2x2 stone lit on
+                    // top and shaded below.
                     float out01 = Mathf.Min(1f, f / 3f);
                     for (int i = 0; i < chipAngle.Length; i++)
                     {
                         float rad = chipAngle[i] * Mathf.Deg2Rad;
                         float r = reach * chipRadius[i] * (0.45f + 0.55f * out01);
                         int x = Mathf.FloorToInt(cx + Mathf.Cos(rad) * r), y = Mathf.FloorToInt(cy + Mathf.Sin(rad) * r * FloorSquash);
-                        chips.Set(x, y + 1, 5);
-                        chips.Set(x + 1, y + 1, 4);
-                        chips.Set(x, y, 3);
-                        chips.Set(x + 1, y, 2);
-                    }
-                    chips.Outline(1, 2);
-                    for (int i = 0; i < chips.Cells.Length; i++)
-                    {
-                        if (chips.Cells[i] != 0)
-                            g.Cells[i] = chips.Cells[i];
+                        g.Set(x, y + 1, 5);
+                        g.Set(x + 1, y + 1, 4);
+                        g.Set(x, y, 3);
+                        g.Set(x + 1, y, 2);
                     }
                 }
                 frames[f] = g;
@@ -407,58 +446,13 @@ namespace WoLStoneCharge
             }
         }
 
-        private static void Lip(PixelArt.Grid g, int x, int y, int index)
-        {
-            if (g.Get(x, y) == 0)
-                g.Set(x, y, index);
-        }
-
         private static float Range(System.Random rng, float min, float max) => min + (float)rng.NextDouble() * (max - min);
-
-        // ---- Pulse ring ----
-
-        // A broken ring of stone (or of embers) spreading over the floor and thinning to dots.
-        private static Sprite[] PulseRing(bool glow) => PixelArt.Sheet(PulseGrids(glow), Palette, new Vector2(0.5f, 0.5f));
-
-        private static PixelArt.Grid[] PulseGrids(bool glow)
-        {
-            const int w = 48, h = 26, frameCount = 6;
-            var frames = new PixelArt.Grid[frameCount];
-            for (int f = 0; f < frameCount; f++)
-            {
-                var g = new PixelArt.Grid(w, h);
-                float ring = 0.35f + 0.6f * f / (frameCount - 1);
-                float thick = (f < 4 ? 2.2f : 1.2f) / (w * 0.5f);
-                float gap = f < 4 ? 0.72f : 0.45f;
-                for (int y = 0; y < h; y++)
-                {
-                    for (int x = 0; x < w; x++)
-                    {
-                        float u = (x + 0.5f - w * 0.5f) / (w * 0.5f - 1f);
-                        float v = (y + 0.5f - h * 0.5f) / (h * 0.5f - 1f);
-                        float r = Mathf.Sqrt(u * u + v * v);
-                        if (Mathf.Abs(r - ring) > thick)
-                            continue;
-                        float turn = Mathf.Atan2(v, u) / (2f * Mathf.PI) + 0.5f;
-                        if (turn * 14f - Mathf.Floor(turn * 14f) >= gap)
-                            continue;
-                        bool inner = r < ring;
-                        int index = glow ? (inner ? 9 : 7) : (inner ? 5 : 3);
-                        if (f >= 4)
-                            index = glow ? (inner ? 8 : 6) : (inner ? 3 : 2);
-                        g.Set(x, y, index);
-                    }
-                }
-                g.Outline(glow ? 6 : 1, 2);
-                frames[f] = g;
-            }
-            return frames;
-        }
     }
 
     // The stone chunks circling the wizard while the force is high: two at half force, three at
-    // three quarters, four at full (then glowing), on a flat ellipse about their waist, bobbing,
-    // behind them on the far side and in front on the near side. Unloading flings them forward.
+    // three quarters, four at full (then warmed and shedding embers), on a flat ellipse about
+    // their waist, bobbing, tumbling, behind them on the far side and in front on the near side.
+    // Unloading flings them forward.
     public class StoneOrbit
     {
         private const float RadiusX = 1.0f;
@@ -466,9 +460,12 @@ namespace WoLStoneCharge
         private const float Lift = 0.55f;          // above the feet
         private const float Bob = 0.08f;
         private const float BobSpeed = 6f;         // radians a second
-        private const float TumbleFps = 8f;
+        private const float TumbleFps = 8f;        // drawn frames a second, or quarter turns of the game's rock
         private static readonly int[] CountAt = { 0, 0, 2, 3, 4 };            // by force step (25% each)
         private static readonly float[] SpeedAt = { 0f, 0f, 200f, 250f, 320f }; // degrees a second
+        // At full force the game's rocks are warmed towards the fire tones (the drawn ones get a
+        // glowing vein instead).
+        private static readonly Color ChargedTint = new Color(1f, 0.86f, 0.68f, 1f);
 
         private readonly List<FxHandle> chunks = new List<FxHandle>();
         private bool charged;
@@ -476,6 +473,19 @@ namespace WoLStoneCharge
         private float clock;
 
         public int Count => chunks.Count;
+
+        // Where one of the chunks is now (for embers shed off them), or false if there are none.
+        public bool AnyChunk(out Vector2 at)
+        {
+            at = Vector2.zero;
+            if (chunks.Count == 0)
+                return false;
+            FxSprite fx = chunks[Random.Range(0, chunks.Count)].Get;
+            if (fx == null)
+                return false;
+            at = fx.transform.position;
+            return true;
+        }
 
         public void Update(Player player, int step, object owner)
         {
@@ -486,21 +496,38 @@ namespace WoLStoneCharge
             bool glow = step >= 4;
             while (chunks.Count < CountAt[step])
             {
-                FxSprite fx = FxSprite.Spawn(StoneArt.Chunk(chunks.Count, glow), feet + new Vector2(0f, Lift), "Actor", 0);
+                int i = chunks.Count;
+                Sprite[] game = StoneArt.GameChunk(i);
+                FxSprite fx = FxSprite.Spawn(game ?? StoneArt.Chunk(i, glow), feet + new Vector2(0f, Lift), "Actor", 0);
                 if (fx == null)
                     break;
                 fx.loop = true;
                 fx.fps = TumbleFps;
+                if (game != null)
+                {
+                    // One frame: tumble it by quarter turns, each its own way.
+                    fx.spin = (i % 2 == 0 ? 90f : -90f) * TumbleFps;
+                    fx.spinStep = 90f;
+                    fx.angle = 90f * i;
+                }
                 fx.owner = owner;
                 fx.sortRef = player.spriteRenderer;
-                fx.Skip(chunks.Count);
+                fx.Skip(i);
                 chunks.Add(new FxHandle(fx));
             }
             if (glow != charged)
             {
                 charged = glow;
                 for (int i = 0; i < chunks.Count; i++)
-                    chunks[i].Get?.SetFrames(StoneArt.Chunk(i, glow));
+                {
+                    FxSprite fx = chunks[i].Get;
+                    if (fx == null)
+                        continue;
+                    if (fx.frames.Length == 1)
+                        fx.tint = glow ? ChargedTint : Color.white;
+                    else
+                        fx.SetFrames(StoneArt.Chunk(i, glow));
+                }
             }
             turn += SpeedAt[step] * dt;
             for (int i = 0; i < chunks.Count; i++)
@@ -516,7 +543,7 @@ namespace WoLStoneCharge
         }
 
         // The chunks thrown along the rush: each carries on as loose debris, hopping and
-        // tumbling faster, then steps out.
+        // tumbling faster, then fades.
         public void Fling(Vector2 direction)
         {
             Vector2 side = new Vector2(-direction.y, direction.x);
@@ -527,6 +554,9 @@ namespace WoLStoneCharge
                     continue;
                 Vector2 at = fx.transform.position;
                 FxSprite thrown = FxSprite.Spawn(fx.frames, at, "Effect", 0);
+                bool single = fx.frames.Length == 1;
+                Color tint = fx.tint;
+                float angle = fx.transform.localEulerAngles.z;
                 fx.Stop();
                 if (thrown == null)
                     continue;
@@ -538,6 +568,13 @@ namespace WoLStoneCharge
                 thrown.fps = TumbleFps * 2f;
                 thrown.loop = true;
                 thrown.fadeAt = 0.7f;
+                thrown.tint = tint;
+                if (single)
+                {
+                    thrown.angle = angle;
+                    thrown.spin = 90f * TumbleFps * 2f;
+                    thrown.spinStep = 90f;
+                }
             }
             chunks.Clear();
         }

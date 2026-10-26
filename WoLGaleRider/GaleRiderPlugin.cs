@@ -13,7 +13,7 @@ namespace WoLGaleRider
     {
         public const string PluginGuid = "mdbailey94.wol.galerider";
         public const string PluginName = "Gale Rider";
-        public const string PluginVersion = "0.2.0";
+        public const string PluginVersion = "0.2.1";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -123,8 +123,8 @@ namespace WoLGaleRider
             vortexSize = Float("Look", "VortexSize", 1f, 0.3f, 3f, "Size of the swirling wind drawn round you, relative to the ball.");
             dust = Config.Bind("Look", "Dust", true, "Kick up a ring of dust as the ball rolls.");
             drawnEffects = Config.Bind("Look", "DrawnEffects", true,
-                "Draw the mod's own pixel-art wind ball, floor ring, streaks, gust puffs and gather/unravel on top of the " +
-                "game's wind effects (0.2.0). Off = the 0.1.0 look. Cosmetic only.");
+                "Add the wind ball, floor ring, streaks, gust puffs and gather/unravel on top of the game's wind effects (0.2.0; " +
+                "0.2.1 plays the game's own wind sprites for them where loaded). Off = the 0.1.0 look. Cosmetic only.");
 
             const string restart = " Applies after restarting the game.";
             damage = Config.Bind("Balance", "Damage", 4,

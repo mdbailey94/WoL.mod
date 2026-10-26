@@ -2,22 +2,41 @@ using UnityEngine;
 
 namespace WoLTrailblazer
 {
-    // Trailblazer's drawn fire (FireArt), on top of the game's flames and Searing Rush's columns
-    // that FlameTrail already shows (those stay as they are):
-    // - the cast: a ring of flame bursting out over the floor from the stamp, embers flying, and
-    //   the game's own scorch mark under it;
+    // Trailblazer's drawn fire (FireArt, in the game's own fire style), on top of the game's flames
+    // and Searing Rush's columns that FlameTrail already shows (those stay as they are), using the
+    // game's own sprites and effects where they fit:
+    // - the cast: a ring of flame bursting out over the floor from the stamp, the game's flame
+    //   circle burst and embers flying, and the game's own scorch mark under it;
     // - while ablaze: flame tongues licking up round the wizard (two at a walk, up to five and
     //   bigger as the speed level climbs; they lean back as the wizard runs), embers flicking off
     //   behind them (more the faster they go), and the ring of fire drawn on the floor at the
     //   size of its hit circle;
-    // - the trail: each patch gets flame tongues of its own (sized by its level) and leaves a char
-    //   mark that glows, cools and fades; when a patch goes out its flames die down to an ember;
-    // - burning out: a column of fire flares up round the wizard and sinks into smoke, with a burst
-    //   of embers, the game's flame burst and smoke, and a last char mark.
+    // - the trail: each patch gets the game's own flames (its meteor's burning flame, bigger at
+    //   higher levels) and leaves the game's burn mark with a glow in it that cools and fades;
+    //   when a patch goes out its flames burst into sparks as the game's do;
+    // - burning out: a column of fire flares up round the wizard and breaks into flecks, with a
+    //   burst of embers, the game's flame burst, smoke and burn mark.
     // Everything is a pooled sprite (Fx), capped, and put back when the fire's done with it (and
-    // on a level load).
+    // on a level load). A game sprite or effect that isn't loaded is drawn instead (logged once).
     public class BlazeLook
     {
+        // The game's flames: the top row of its MeteorStrike particle sheet, 25x60 tiles (the
+        // flame burning down from a tall tongue to a round one, then bursting into sparks). Each
+        // tier flickers back and forth through a few of them.
+        private const string FlameSheet = "MeteorStrike";
+        private const string GameFlameName = "MeteorStrike flame tiles";
+        private const int FlameTileWidth = 25, FlameTileHeight = 60;
+        private const int FlameRowY = 452;                  // the row's bottom, in the sheet's pixels from the bottom
+        private static readonly Vector2 FlamePivot = new Vector2(0.5f, 2.5f / 60f); // the flame's base
+        private static readonly int[][] FlameTiles = { new[] { 6, 7, 8, 7 }, new[] { 5, 6, 7, 8, 7, 6 }, new[] { 4, 5, 6, 7, 6, 5 } };
+        private static readonly int[] DyingTiles = { 9, 10, 11 };
+        // The game's burn marks for the small, medium and large char marks.
+        private static readonly string[] BurnMarks = { "BurnMarkXSmallEmitter", "BurnMarkSmallEmitter", "BurnMarkMedEmitter" };
+        private const float GlowAfter = 0.5f;        // seconds the glow stays after its patch (the game's burn mark lasts 2 s)
+        private const float GlowFade = 0.4f;
+        private const int IgniteBurstFlames = 16;    // the game's flame circle burst at the cast (as Flame Shield's)
+        private static bool loggedMarks;
+
         // How many of each at once (past that the oldest is reused). The trail can hold up to
         // FlameTrail's 40 patches, each with up to two flames and a char mark.
         private const int BodyFlameCap = 12;
@@ -74,6 +93,7 @@ namespace WoLTrailblazer
         {
             internal FxHandle[] flames;
             internal int tier;
+            internal bool game;   // the game's own flame frames (so they die down as the game's do)
         }
 
         private readonly Player player;
@@ -141,7 +161,9 @@ namespace WoLTrailblazer
             {
                 Fx.Fail("ignition burst", e);
             }
-            // The game's own scorch, as its fire arcana leave one (FlameKnight, FlakField).
+            // The game's own flame burst and scorch, as its fire arcana leave them (Flame Shield's
+            // burst; FlameKnight's and FlakField's burn mark).
+            Fx.Effect("FlameCircleBurstEmitter", IgniteBurstFlames, position, ParticleEffectOverrides.Radius0p75);
             Fx.Effect("BurnMarkMedEmitter", 1, position, ParticleEffectOverrides.StartLifeTimeTwo);
         }
 
@@ -273,26 +295,17 @@ namespace WoLTrailblazer
         // ---- The trail ----
 
         // A patch was dropped: its flames (one over a Searing Rush column, two without) burn as long
-        // as it does, and its char mark glows through its life, then cools and fades.
+        // as it does, the game's burn mark is left under it, and a glow in it cools as it burns out.
         public PatchLook Patch(Vector2 position, int level, float life, bool hasColumn)
         {
             var look = new PatchLook { tier = Tier(level), flames = new FxHandle[hasColumn ? 1 : 2] };
+            Mark(position, look.tier, life * 0.55f, life * 0.45f, life);
             try
             {
-                Sprite[] mark = FireArt.CharMark(look.tier, Random.Range(0, FireArt.CharVariants));
-                float[] times = { life * 0.55f, life * 0.45f, MarkWarm, 60f };
-                FxSprite sprite = Fx.Get("char marks", MarkCap).Timeline(mark, times, life + MarkAfter).Fade(MarkFade).At(position);
-                sprite.Renderer.flipX = Random.value < 0.5f;
-                Fx.OnFloor(sprite.Renderer, MarkSlot, Body);
-                Fx.Ready("char marks", FireArt.CharCount, ppu, Body);
-            }
-            catch (System.Exception e)
-            {
-                Fx.Fail("char marks", e);
-            }
-            try
-            {
-                Sprite[] frames = FireArt.Tongue(look.tier, 0);
+                Sprite[] game = GameFlames(FlameTiles[look.tier]);
+                Fx.Source("trail flames", game, GameFlameName);
+                look.game = game != null;
+                Sprite[] frames = game ?? FireArt.Tongue(look.tier, 0);
                 for (int i = 0; i < look.flames.Length; i++)
                 {
                     Vector2 spot = position + new Vector2(Random.Range(-TrailFlameSpread, TrailFlameSpread), Random.Range(-0.05f, 0.05f));
@@ -303,7 +316,7 @@ namespace WoLTrailblazer
                     Fx.NearBody(flame.Renderer, -1, Body);
                     look.flames[i] = new FxHandle(flame);
                 }
-                Fx.Ready("trail flames", FireArt.Tiers * FireArt.TongueFrames, ppu, Body);
+                Fx.Ready("trail flames", game != null ? game.Length : FireArt.Tiers * FireArt.TongueFrames, ppu, Body);
             }
             catch (System.Exception e)
             {
@@ -312,7 +325,38 @@ namespace WoLTrailblazer
             return look;
         }
 
-        // A patch went out: its flames die down to an ember (quiet: just put away).
+        // A char mark: the game's own burn mark (sized by the tier) with the drawn glow cooling in
+        // it (hot, then cooling, for the times given, then warm a moment), or the drawn soot and
+        // glow together if the game's burn marks can't be had.
+        private void Mark(Vector2 position, int tier, float hot, float cooling, float life)
+        {
+            try
+            {
+                bool game = Fx.Effect(BurnMarks[tier], 1, position, ParticleEffectOverrides.StartLifeTimeTwo);
+                int variant = Random.Range(0, FireArt.CharVariants);
+                Sprite[] mark = game ? FireArt.CharGlow(tier, variant) : FireArt.CharMark(tier, variant);
+                float after = game ? GlowAfter : MarkAfter;
+                float[] times = { hot, cooling, MarkWarm, 60f };
+                FxSprite sprite = Fx.Get("char marks", MarkCap).Timeline(mark, times, life + after).Fade(game ? GlowFade : MarkFade).At(position);
+                sprite.Renderer.flipX = Random.value < 0.5f;
+                Fx.OnFloor(sprite.Renderer, MarkSlot, Body);
+                Fx.Ready("char marks", FireArt.CharCount, ppu, Body);
+                if (!loggedMarks)
+                {
+                    loggedMarks = true;
+                    TrailblazerPlugin.Log(game
+                        ? "Trailblazer: char marks use the game's burn marks (" + string.Join(", ", BurnMarks) + ") with a drawn glow"
+                        : "Trailblazer: the game's burn marks aren't to hand, char marks drawn instead");
+                }
+            }
+            catch (System.Exception e)
+            {
+                Fx.Fail("char marks", e);
+            }
+        }
+
+        // A patch went out: its flames die down (the game's flame bursting into sparks, or a drawn
+        // flame shrinking to an ember); quiet: just put away.
         public void PatchOut(PatchLook look, bool quiet = false)
         {
             if (look == null || look.flames == null)
@@ -324,16 +368,19 @@ namespace WoLTrailblazer
                     continue;
                 Vector2 spot = flame.transform.position;
                 int order = flame.Renderer.sortingOrder, layer = flame.Renderer.sortingLayerID;
+                bool flip = flame.Renderer.flipX;
                 handle.Release();
                 if (quiet)
                     continue;
                 try
                 {
-                    Sprite[] frames = FireArt.Dying(look.tier);
+                    Sprite[] game = look.game ? GameFlames(DyingTiles) : null;
+                    Sprite[] frames = game ?? FireArt.Dying(look.tier);
                     FxSprite dying = Fx.Get("dying flames", DyingCap).Play(frames, FireArt.DyingFrameTime, false, FireArt.DyingFrameTime * frames.Length).At(spot);
+                    dying.Renderer.flipX = flip;
                     dying.Renderer.sortingLayerID = layer;
                     dying.Renderer.sortingOrder = order;
-                    Fx.Ready("dying flames", FireArt.Tiers * frames.Length, ppu, Body);
+                    Fx.Ready("dying flames", game != null ? game.Length : FireArt.Tiers * frames.Length, ppu, Body);
                 }
                 catch (System.Exception e)
                 {
@@ -341,6 +388,16 @@ namespace WoLTrailblazer
                 }
             }
             look.flames = null;
+        }
+
+        // The game's flame frames: tiles of the top row of its MeteorStrike particle sheet (the
+        // flame that burns down and bursts into sparks), or null if that sheet isn't loaded.
+        private Sprite[] GameFlames(int[] tiles)
+        {
+            var rects = new Rect[tiles.Length];
+            for (int i = 0; i < tiles.Length; i++)
+                rects[i] = new Rect(tiles[i] * FlameTileWidth, FlameRowY, FlameTileWidth, FlameTileHeight);
+            return GameSprites.Cut(FlameSheet, rects, FlamePivot, ppu);
         }
 
         // ---- Burning out ----
@@ -359,21 +416,17 @@ namespace WoLTrailblazer
                 FxSprite flare = Fx.Get("flare-up", FlareCap).Timeline(frames, FireArt.FlareTimes, life).At(position);
                 Fx.NearBody(flare.Renderer, 1, Body);
                 EmberBurst(position, BurstEmbers);
-                Sprite[] mark = FireArt.CharMark(Tier(level), Random.Range(0, FireArt.CharVariants));
-                float[] times = { FlareMarkHot, FlareMarkHot, MarkWarm, 60f };
-                FxSprite sprite = Fx.Get("char marks", MarkCap).Timeline(mark, times, FlareMarkHot * 2f + MarkAfter).Fade(MarkFade).At(position);
-                Fx.OnFloor(sprite.Renderer, MarkSlot, Body);
                 Fx.Ready("flare-up", frames.Length, ppu, Body);
             }
             catch (System.Exception e)
             {
                 Fx.Fail("flare-up", e);
             }
+            Mark(position, Tier(level), FlareMarkHot, FlareMarkHot, FlareMarkHot * 2f);
             // The game's flame burst and smoke, as a magma bomb or a doused torch gives off.
             Fx.Effect("FlameCircleBurstEmitter", FlareBurstFlames, position, ParticleEffectOverrides.Radius0p5);
             Fx.Effect("SmokeSmallEmitter", FlareSmoke, position + Vector2.up * FlareSmokeHeight);
         }
-
         // The wizard's own flames and ring go (the trail's look is put out patch by patch).
         public void Off()
         {

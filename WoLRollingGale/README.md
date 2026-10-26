@@ -19,20 +19,22 @@ enemy again, so they get dragged along the whole line.
 
 ## Look
 
-On top of the game's air vortex, wind burst and dust, the line has its own drawn pixel art
-(painted in code at the game's pixel size, in a pale cyan/white Air palette with outlines and
-shading):
+Built from the game's own wind art, on top of its air vortex, wind burst and dust:
 
-- **Cast**: the game's dash air burst and air shockwave at your hands, and a gust crescent (6 frames)
+- **Cast**: the game's dash air burst and air shockwave at your hands, and its large wind slash
   rolling off along your aim.
-- **Travel**: three crescents curling forward from each burst to the next, with the game's wind trail.
-- **Each burst**: an inward spiral on the floor (8 frames: it forms from the rim, its three arms
-  draw in, then it collapses into the eye) with dust, leaves and pebbles spiralling into it and the
-  game's dust suction. Echo pulses get a smaller, quicker spiral.
-- **End**: a wind puff breaking apart over the last burst, with the game's spinning air bursts.
+- **Travel**: three of the game's wind slashes rolling from each burst to the next, with its wind trail.
+- **Each burst**: an inward spiral on the floor (8 frames: it forms from the rim, its three brushed
+  arms draw in, then it collapses into the eye), painted in the game's three wind tones with no
+  outline; the game's air-spin curl winding up at its eye; the game's dust puffs and rocks, leaves
+  and wind wisps spiralling in; and its dust suction. Echo pulses get a smaller, quicker spiral.
+- **End**: the game's wind twirl and a wind puff breaking into curls over the last burst, with its
+  spinning air bursts.
 
-Visual only: hits, timing and pull are unchanged. The log says
-`Rolling Gale: visual '<name>' ready (...)` the first time each one plays, or which one it skipped.
+If any of the game's sprites isn't loaded, a drawn stand-in in the same style plays instead. Visual
+only: hits, timing and pull are unchanged. The log says `Rolling Gale: using the game's ...` (or
+`... isn't loaded, drawing ...`) once per sprite set, and `Rolling Gale: visual '<name>' ready (...)`
+the first time each effect plays, or which one it skipped.
 
 ## Install
 

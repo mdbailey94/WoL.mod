@@ -132,7 +132,8 @@ namespace WoLStoneCharge
         }
 
         // A cached sheet is still good (Unity objects can be destroyed under a C# reference).
-        public static bool Alive(Sprite[] sheet) => sheet != null && sheet.Length > 0 && sheet[0] != null;
+        // (A sprite cut from a game texture also dies with that texture when a level unloads it.)
+        public static bool Alive(Sprite[] sheet) => sheet != null && sheet.Length > 0 && sheet[0] != null && sheet[0].texture != null;
 
         // Degrees to turn a picture drawn pointing +x so it points along direction.
         public static float Angle(Vector2 direction) => Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
@@ -157,8 +158,7 @@ namespace WoLStoneCharge
 
     // A pooled sprite that plays a sheet of frames once (holding the last) or on a loop, while
     // it follows a transform or drifts and slows, turns, grows, hops (an arc up and down) and
-    // steps out (alpha 2/3, 1/3, gone: chunky, like the game's own blinks) near the end of its
-    // life. Its sorting can track a reference renderer (the wizard) every frame. Spawned objects
+    // fades out by alpha near the end of its life, as the game's own effects do. Its sorting can track a reference renderer (the wizard) every frame. Spawned objects
     // are plain scene objects, so a level load clears them with the scene; the pool skips any
     // that went that way.
     public class FxSprite : MonoBehaviour
@@ -179,11 +179,13 @@ namespace WoLStoneCharge
         public float drag;              // fraction of the velocity lost per second
         public float angle;             // degrees
         public float spin;              // degrees a second
+        public float spinStep;          // > 0: the turn snaps to steps of this many degrees (tumbling debris, pixels kept square)
+        public float delay;             // seconds before it shows and starts playing
         public float size = 1f;
         public float growTo = 1f;       // size multiplier reached at the end of its life
         public float hop;               // peak height of an arc over hopTime (flung debris)
         public float hopTime;
-        public float fadeAt = 0.7f;     // fraction of its life after which it steps out
+        public float fadeAt = 0.7f;     // fraction of its life after which it fades out
         public float alpha = 1f;
         public Color tint = Color.white;
         public Transform follow;
@@ -244,7 +246,7 @@ namespace WoLStoneCharge
             life = 0f;
             velocity = Vector2.zero;
             drag = 0f;
-            angle = spin = 0f;
+            angle = spin = spinStep = delay = 0f;
             size = growTo = 1f;
             hop = hopTime = 0f;
             fadeAt = 0.7f;
@@ -263,7 +265,7 @@ namespace WoLStoneCharge
             transform.localScale = Vector3.one;
             sr.sprite = frames[0];
             sr.color = Color.white;
-            sr.flipX = false;
+            sr.flipX = sr.flipY = false;
             sr.enabled = true;
         }
 
@@ -329,14 +331,25 @@ namespace WoLStoneCharge
                 if (drag > 0f)
                     velocity *= Mathf.Max(0f, 1f - drag * dt);
             }
-            float height = 0f;
-            if (hop > 0f && hopTime > 0f && age < hopTime)
+            if (age < delay)
             {
-                float t = age / hopTime;
+                sr.enabled = false;
+                transform.position = new Vector3(ground.x, ground.y, 0f);
+                return;
+            }
+            sr.enabled = true;
+            float played = age - delay;
+            float height = 0f;
+            if (hop > 0f && hopTime > 0f && played < hopTime)
+            {
+                float t = played / hopTime;
                 height = 4f * hop * t * (1f - t);
             }
             transform.position = new Vector3(ground.x, ground.y + height, 0f);
-            transform.localEulerAngles = new Vector3(0f, 0f, angle + spin * age);
+            float turn = spin * played;
+            if (spinStep > 0f)
+                turn = Mathf.Floor(turn / spinStep) * spinStep;
+            transform.localEulerAngles = new Vector3(0f, 0f, angle + turn);
             float lived = life > 0f ? Mathf.Clamp01(age / life) : 0f;
             float scale = size * Mathf.Lerp(1f, growTo, lived);
             transform.localScale = new Vector3(scale, scale, 1f);
@@ -348,7 +361,7 @@ namespace WoLStoneCharge
 
             float a = alpha;
             if (life > 0f && lived > fadeAt && fadeAt < 1f)
-                a *= Mathf.Ceil((1f - lived) / (1f - fadeAt) * 3f) / 3f;
+                a *= Mathf.Clamp01((1f - lived) / (1f - fadeAt));
             Color c = tint;
             c.a *= a;
             sr.color = c;

@@ -1,15 +1,20 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace WoLBrambleRing
 {
-    // The mod's own drawn effects: small pixel-art animations painted in code (PixelCanvas), cut
-    // into frames once (PixelArt) and played on pooled sprite objects (PixelFx). Used where the
-    // game has no fitting effect (sprouts, creeping roots, thorns, vine coils, withered leaves...);
-    // the game's own pooled emitters (leaves, dust, vine arcs) still do the rest.
+    // The mod's own effect animations, played on pooled sprite objects (PixelFx). Wherever the game
+    // has a fitting sheet, the frames are cut straight from the game's own loaded texture
+    // (PixelArt.FromSheet: its sprouting vines, ground roots, rock debris, smoke), so they are the
+    // game's art; the rest are painted in code in the game's effect style (PixelCanvas: the
+    // colours sampled from the game's plant and earth sheets, no outlines, brush-like shapes, alpha
+    // fades). A sheet that isn't loaded falls back to a painted version (logged once). The game's
+    // own pooled emitters (leaves, dust, vine arcs) still do the rest.
 
-    // One drawn animation: its frames, speed and (optionally) a looping middle section. Without a
-    // loop it plays once; with one it plays the intro, loops until stopped, then plays the outro.
+    // One animation: its frames, speed and (optionally) a looping middle section. Without a loop it
+    // plays once; with one it plays the intro, loops until stopped, then plays the outro (or, with
+    // no outro frames, fades out and shrinks).
     internal sealed class PixelAnim
     {
         public readonly string Name;      // the visual's name in the log
@@ -17,9 +22,13 @@ namespace WoLBrambleRing
         public readonly float Fps;
         public readonly int LoopStart;    // -1: no loop, it plays once
         public readonly int LoopEnd;
-        public readonly int Width, Height, Colours;
+        public readonly int Width, Height;
+        public readonly string Source;    // where its frames come from, for the log
+        public readonly bool Fallback;    // painted in place of a game sheet that wasn't loaded
+        public readonly string Scene;     // the level it was made in (a fallback is retried in the next)
 
-        public PixelAnim(string name, Sprite[] frames, float fps, int loopStart, int loopEnd, int width, int height, int colours)
+        public PixelAnim(string name, Sprite[] frames, float fps, int loopStart, int loopEnd, int width, int height,
+            string source, bool fallback = false)
         {
             Name = name;
             Frames = frames;
@@ -28,18 +37,19 @@ namespace WoLBrambleRing
             LoopEnd = loopEnd;
             Width = width;
             Height = height;
-            Colours = colours;
+            Source = source;
+            Fallback = fallback;
+            Scene = PixelArt.SceneName;
         }
 
         public bool HasLoop => LoopStart >= 0;
-        public float OnceTime => Frames.Length / Fps;
-        public bool Valid => Frames != null && Frames.Length > 0 && Frames[0] != null;
+        public bool HasOutro => HasLoop && LoopEnd < Frames.Length - 1;
+        public bool Valid => Frames != null && Frames.Length > 0 && Frames[0] != null && Frames[0].texture != null;
     }
 
     // A small grid of palette indices (0 = clear) to paint one frame on, y up from the bottom row.
     internal sealed class PixelCanvas
     {
-
         public readonly int W, H;
         private readonly byte[] px;
         private readonly byte[] scratch;
@@ -117,6 +127,24 @@ namespace WoLBrambleRing
         public void Line(float x0, float y0, float x1, float y1, int c) =>
             Line(Mathf.RoundToInt(x0), Mathf.RoundToInt(y0), Mathf.RoundToInt(x1), Mathf.RoundToInt(y1), c);
 
+        // A brush stroke: a tapering streak from (x0, y0) to (x1, y1), width pixels wide at its
+        // root narrowing to one at its tip (the shape the game's water and vine effects are made of).
+        public void Stroke(float x0, float y0, float x1, float y1, float width, int c)
+        {
+            float len = Mathf.Max(Mathf.Abs(x1 - x0), Mathf.Abs(y1 - y0));
+            int steps = Mathf.Max(1, Mathf.RoundToInt(len * 2f));
+            for (int i = 0; i <= steps; i++)
+            {
+                float t = (float)i / steps;
+                float x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t;
+                float r = Mathf.Max(0.5f, width * 0.5f * (1f - t));
+                if (r <= 0.6f)
+                    Set(x, y, c);
+                else
+                    Ellipse(x + 0.5f, y + 0.5f, r, r, c);
+            }
+        }
+
         // Hand-drawn rows (top row first); each character's position in key is its palette index,
         // '.' or a space is left clear.
         public void Rows(string[] rows, string key, int ox = 0, int oy = 0)
@@ -132,31 +160,6 @@ namespace WoLBrambleRing
                         Set(ox + x, y, c);
                 }
             }
-        }
-
-        // Every clear pixel touching a painted one (not already this colour) becomes c: the dark
-        // outline the game's sprites have.
-        public void Outline(int c)
-        {
-            System.Array.Copy(px, scratch, px.Length);
-            for (int y = 0; y < H; y++)
-            {
-                for (int x = 0; x < W; x++)
-                {
-                    if (scratch[y * W + x] != 0)
-                        continue;
-                    if (Painted(x - 1, y, c) || Painted(x + 1, y, c) || Painted(x, y - 1, c) || Painted(x, y + 1, c))
-                        px[y * W + x] = (byte)c;
-                }
-            }
-        }
-
-        private bool Painted(int x, int y, int outline)
-        {
-            if (x < 0 || y < 0 || x >= W || y >= H)
-                return false;
-            byte v = scratch[y * W + x];
-            return v != 0 && v != outline;
         }
 
         // Pixels of colour from with nothing painted above them become to (light from the top).
@@ -180,33 +183,21 @@ namespace WoLBrambleRing
             }
         }
 
-        public void Recolor(int from, int to)
+        // Breaks it into specks: each pixel survives with chance keep (a fixed hash of its spot, so
+        // rising amounts crumble steadily), the way the game's splashes scatter apart at the end.
+        public void Scatter(float keep)
         {
-            for (int i = 0; i < px.Length; i++)
-            {
-                if (px[i] == from)
-                    px[i] = (byte)to;
-            }
-        }
-
-        // Breaks it up pixel by pixel: amount 0 keeps all, 1 clears all. Each pixel has a fixed
-        // scattered threshold (a hash of its spot), so frames of rising amount crumble away
-        // steadily, in chunky pixels and without a regular checkerboard.
-        public void Dissolve(float amount)
-        {
-            if (amount <= 0f)
-                return;
             for (int y = 0; y < H; y++)
             {
                 for (int x = 0; x < W; x++)
                 {
-                    if (Threshold(x, y) < amount * 16f)
+                    if (Hash(x, y) >= keep * 16f)
                         px[y * W + x] = 0;
                 }
             }
         }
 
-        private static int Threshold(int x, int y)
+        private static int Hash(int x, int y)
         {
             unchecked
             {
@@ -243,17 +234,52 @@ namespace WoLBrambleRing
         }
     }
 
-    // Builds and caches the drawn animations.
+    // Builds and caches the animations: cut from the game's sheets, or painted.
     internal static class PixelArt
     {
         // The game's sprites are 16 pixels to a unit; the wizard's sprite is read to be sure.
         private const float FallbackPixelsPerUnit = 16f;
+        private const string LogPrefix = "Bramble Ring: ";
         private static float pixelsPerUnit;
         private static readonly Dictionary<string, PixelAnim> cache = new Dictionary<string, PixelAnim>();
+        private static readonly Dictionary<string, Texture2D> textures = new Dictionary<string, Texture2D>();
+        private static readonly HashSet<string> missingLogged = new HashSet<string>();
+        private static string scannedScene;
+        private static Material material;
+        private static bool materialTried;
 
         public delegate void Painter(PixelCanvas canvas, int frame);
 
         public static float PixelsPerUnit => pixelsPerUnit > 0f ? pixelsPerUnit : FallbackPixelsPerUnit;
+
+        public static string SceneName
+        {
+            get
+            {
+                try
+                {
+                    return SceneManager.GetActiveScene().name;
+                }
+                catch
+                {
+                    return string.Empty;
+                }
+            }
+        }
+
+        // The material the game's own effect sprites are drawn with, if one has been found (else
+        // Unity's default sprite material, which is what they use too).
+        public static Material Material => material;
+
+        // Takes the material from one of the game's effect sprites, once.
+        public static void UseMaterialOf(SpriteRenderer gameSprite, string from)
+        {
+            if (materialTried || gameSprite == null || gameSprite.sharedMaterial == null)
+                return;
+            materialTried = true;
+            material = gameSprite.sharedMaterial;
+            BrambleRingPlugin.Log($"{LogPrefix}effects drawn with the game's sprite material '{material.name}' (from {from})");
+        }
 
         // Matches the drawn pixels to the game's (the wizard's sprite), once.
         public static void MatchPixelSize(GameObject wizard)
@@ -275,9 +301,99 @@ namespace WoLBrambleRing
                 pixelsPerUnit = FallbackPixelsPerUnit;
         }
 
-        // The animation called key, painted frame by frame the first time it's asked for. name is
-        // the visual it belongs to (for the log); loopStart -1 plays it once.
-        public static PixelAnim Get(string key, string name, int w, int h, int frames, float fps, int loopStart, int loopEnd,
+        // The game's loaded texture called name, or null. All loaded textures are listed once per
+        // level (the lookup is slow) and remembered.
+        private static Texture2D FindTexture(string name)
+        {
+            Texture2D texture;
+            if (textures.TryGetValue(name, out texture) && texture != null)
+                return texture;
+            string scene = SceneName;
+            if (scannedScene == scene)
+                return null;
+            scannedScene = scene;
+            textures.Clear();
+            foreach (Texture2D t in Resources.FindObjectsOfTypeAll<Texture2D>())
+            {
+                if (t != null && !string.IsNullOrEmpty(t.name) && !textures.ContainsKey(t.name))
+                    textures[t.name] = t;
+            }
+            return textures.TryGetValue(name, out texture) ? texture : null;
+        }
+
+        // Frames cut from one of the game's own sheets (cells of a regular grid, numbered left to
+        // right from the top row), or, if that sheet isn't loaded, the painted fallback.
+        public static PixelAnim FromSheet(string key, string name, string sheet, int cellW, int cellH, int[] cells, float fps,
+            int loopStart, int loopEnd, Vector2 pivot, System.Func<PixelAnim> fallback)
+        {
+            return FromSheet(key, name, sheet, texture =>
+            {
+                int columns = Mathf.Max(1, texture.width / cellW);
+                var rects = new Rect[cells.Length];
+                for (int i = 0; i < cells.Length; i++)
+                {
+                    int col = cells[i] % columns, row = cells[i] / columns;
+                    rects[i] = new Rect(col * cellW, texture.height - (row + 1) * cellH, cellW, cellH);
+                }
+                return rects;
+            }, fps, loopStart, loopEnd, pivot, fallback);
+        }
+
+        // Frames cut from one of the game's own sheets at the given rects (in the texture's own
+        // coordinates, y up from its bottom, as its sprites are), or the painted fallback.
+        public static PixelAnim FromSheet(string key, string name, string sheet, Rect[] rects, float fps,
+            int loopStart, int loopEnd, Vector2 pivot, System.Func<PixelAnim> fallback) =>
+            FromSheet(key, name, sheet, texture => rects, fps, loopStart, loopEnd, pivot, fallback);
+
+        private static PixelAnim FromSheet(string key, string name, string sheet, System.Func<Texture2D, Rect[]> cut, float fps,
+            int loopStart, int loopEnd, Vector2 pivot, System.Func<PixelAnim> fallback)
+        {
+            PixelAnim anim;
+            if (cache.TryGetValue(key, out anim) && anim.Valid && !(anim.Fallback && anim.Scene != SceneName))
+                return anim;
+            Texture2D texture = null;
+            Rect[] rects = null;
+            try
+            {
+                texture = FindTexture(sheet);
+                if (texture != null)
+                {
+                    rects = cut(texture);
+                    foreach (Rect rect in rects)
+                        if (rect.xMin < 0f || rect.yMin < 0f || rect.xMax > texture.width || rect.yMax > texture.height)
+                            rects = null;
+                }
+            }
+            catch (System.Exception e)
+            {
+                BrambleRingPlugin.Log($"{LogPrefix}couldn't look up the game's sheets: {e.Message}");
+            }
+            if (texture != null && rects != null && rects.Length > 0)
+            {
+                var sprites = new Sprite[rects.Length];
+                for (int i = 0; i < rects.Length; i++)
+                {
+                    sprites[i] = Sprite.Create(texture, rects[i], pivot, PixelsPerUnit, 0, SpriteMeshType.FullRect);
+                    sprites[i].hideFlags = HideFlags.HideAndDontSave;
+                }
+                anim = new PixelAnim(name, sprites, fps, loopStart, loopEnd, (int)rects[0].width, (int)rects[0].height,
+                    $"the game's '{sheet}' sheet");
+            }
+            else
+            {
+                if (missingLogged.Add(sheet))
+                    BrambleRingPlugin.Log($"{LogPrefix}the game's '{sheet}' sheet isn't loaded here, '{name}' uses its painted stand-in");
+                PixelAnim painted = fallback();
+                anim = new PixelAnim(name, painted.Frames, painted.Fps, painted.LoopStart, painted.LoopEnd, painted.Width, painted.Height,
+                    "painted stand-in", true);
+            }
+            cache[key] = anim;
+            return anim;
+        }
+
+        // An animation painted in code frame by frame the first time it's asked for. name is the
+        // visual it belongs to (for the log); loopStart -1 plays it once.
+        public static PixelAnim Paint(string key, string name, int w, int h, int frames, float fps, int loopStart, int loopEnd,
             Vector2 pivot, Color32[] palette, Painter paint)
         {
             PixelAnim anim;
@@ -293,14 +409,10 @@ namespace WoLBrambleRing
             };
             var pixels = new Color32[w * frames * h];
             var canvas = new PixelCanvas(w, h);
-            var used = new HashSet<int>();
             for (int f = 0; f < frames; f++)
             {
                 canvas.Clear();
                 paint(canvas, f);
-                for (int y = 0; y < h; y++)
-                    for (int x = 0; x < w; x++)
-                        used.Add(canvas.Get(x, y));
                 canvas.CopyTo(pixels, f * w, w * frames, palette);
             }
             texture.SetPixels32(pixels);
@@ -311,14 +423,13 @@ namespace WoLBrambleRing
                 sprites[f] = Sprite.Create(texture, new Rect(f * w, 0, w, h), pivot, PixelsPerUnit, 0, SpriteMeshType.FullRect);
                 sprites[f].hideFlags = HideFlags.HideAndDontSave;
             }
-            used.Remove(0);
-            anim = new PixelAnim(name, sprites, fps, loopStart, loopEnd, w, h, used.Count);
+            anim = new PixelAnim(name, sprites, fps, loopStart, loopEnd, w, h, $"painted, {palette.Length - 1} colours");
             cache[key] = anim;
             return anim;
         }
     }
 
-    // Where a drawn effect sorts: on the floor under everyone (the layer the game's own floor
+    // Where an effect sorts: on the floor under everyone (the layer the game's own floor
     // whirlpool uses, AquaVortex), among the characters by height on screen (the game's Actor
     // layer, sorted as SortGenericLayer does), or above everything (the game's Effect layer).
     internal enum FxLayer { Floor, Actor, Effect }
@@ -351,16 +462,17 @@ namespace WoLBrambleRing
         }
     }
 
-    // One drawn effect playing: a pooled sprite object that runs its animation and moves by itself
-    // (drift, an arc with gravity, following something), then goes back to the pool. Every one ends
-    // on its own: a looping effect has a time limit, a follower stops when what it follows goes,
-    // and a level load takes the objects with it (the pool skips them).
+    // One effect playing: a pooled sprite object that runs its animation and moves by itself
+    // (drift, an arc with gravity, a spin, following something), then goes back to the pool.
+    // Every one ends on its own: a looping effect has a time limit, a follower stops when what it
+    // follows goes, and a level load takes the objects with it (the pool skips them).
     internal sealed class PixelFx : MonoBehaviour
     {
         private const int MaxLive = 260;          // effects playing at once; more are skipped
         private const int MaxPooled = 260;        // idle objects kept for reuse
         private const float DefaultLoopTime = 2f; // a looping effect stops after this unless told otherwise
-        private const int FadeSteps = 3;          // fades go down in this many steps, not smoothly
+        private const float StopFadeTime = 0.25f; // stopped with no outro frames: fades out over this
+        private const float StopShrink = 0.35f;   // and shrinks by this much as it fades
         private const string FloorLayer = "TargetLineGround";
         private const string ActorLayer = "Actor";
         private const string EffectLayer = "Effect";
@@ -370,6 +482,7 @@ namespace WoLBrambleRing
 
         private static readonly Stack<PixelFx> pool = new Stack<PixelFx>();
         private static readonly HashSet<string> played = new HashSet<string>();
+        private static Material defaultMaterial;
         private static int live;
         private static int nextGeneration;
         private static bool loggedCap;
@@ -384,6 +497,7 @@ namespace WoLBrambleRing
         private float delay;
         private float stopAt;
         private bool stopping;
+        private float fadeClock = -1f;  // fading out after a stop with no outro frames
         private bool paused;
         private int frame;
         private Vector2 ground;
@@ -392,9 +506,13 @@ namespace WoLBrambleRing
         private float drag;
         private float lift;
         private float gravity;
+        private float spin;
+        private float angle;
+        private float scale;
         private bool landed;
         private System.Action<Vector2> onLand;
         private bool recycleOnLand;
+        private bool outroOnLand;
         private float landLinger;
         private Transform follow;
         private Vector2 followOffset;
@@ -418,7 +536,7 @@ namespace WoLBrambleRing
                 if (!loggedCap)
                 {
                     loggedCap = true;
-                    BrambleRingState.Log($"{MaxLive} drawn effects already playing, skipping extras (logged once)");
+                    BrambleRingPlugin.Log($"Bramble Ring: {MaxLive} drawn effects already playing, skipping extras (logged once)");
                 }
                 return null;
             }
@@ -430,11 +548,13 @@ namespace WoLBrambleRing
                 var go = new GameObject("BrambleRingFx");
                 fx = go.AddComponent<PixelFx>();
                 fx.sr = go.AddComponent<SpriteRenderer>();
+                if (defaultMaterial == null)
+                    defaultMaterial = fx.sr.sharedMaterial;
             }
             fx.Begin(anim, at, layer, bias);
             if (played.Add(anim.Name))
-                BrambleRingState.Log($"visual '{anim.Name}' ready ({anim.Frames.Length} frames of {anim.Width}x{anim.Height} px, " +
-                    $"{anim.Colours} colours, ppu {PixelArt.PixelsPerUnit:0}, layer {fx.sr.sortingLayerName})");
+                BrambleRingPlugin.Log($"Bramble Ring: visual '{anim.Name}' ready ({anim.Frames.Length} frames of {anim.Width}x{anim.Height} px from " +
+                    $"{anim.Source}, ppu {PixelArt.PixelsPerUnit:0}, layer {fx.sr.sortingLayerName})");
             return fx;
         }
 
@@ -446,10 +566,12 @@ namespace WoLBrambleRing
             sortWith = null;
             clock = age = delay = 0f;
             stopAt = anim.HasLoop ? DefaultLoopTime : -1f;
-            stopping = paused = landed = following = recycleOnLand = false;
+            stopping = paused = landed = following = recycleOnLand = outroOnLand = false;
+            fadeClock = -1f;
             frame = 0;
             ground = at;
-            height = lift = gravity = drag = landLinger = 0f;
+            height = lift = gravity = drag = landLinger = spin = angle = 0f;
+            scale = 1f;
             velocity = Vector2.zero;
             onLand = null;
             follow = null;
@@ -462,6 +584,8 @@ namespace WoLBrambleRing
             live++;
             transform.rotation = Quaternion.identity;
             transform.localScale = Vector3.one;
+            Material game = PixelArt.Material;
+            sr.sharedMaterial = game != null ? game : defaultMaterial;
             sr.flipX = sr.flipY = false;
             sr.color = tint;
             sr.sprite = anim.Frames[0];
@@ -481,14 +605,17 @@ namespace WoLBrambleRing
         public PixelFx Delay(float seconds) { delay = seconds; sr.enabled = seconds <= 0f; return this; }
         public PixelFx Move(Vector2 perSecond, float slowing = 0f) { velocity = perSecond; drag = slowing; return this; }
         // Up off the ground (drawn higher, still sorted by its ground spot); with gravity it falls
-        // back and lands: then landed(spot) is called and it goes (or lingers that long and fades).
-        public PixelFx Arc(float startHeight, float upSpeed, float fall, System.Action<Vector2> landed = null, float linger = -1f)
+        // back and lands: then landed(spot) is called and it goes, or plays its outro (outro), or
+        // lies there that long (linger) and fades.
+        public PixelFx Arc(float startHeight, float upSpeed, float fall, System.Action<Vector2> landed = null, float linger = -1f,
+            bool outro = false)
         {
             height = startHeight;
             lift = upSpeed;
             gravity = fall;
             onLand = landed;
-            recycleOnLand = linger < 0f;
+            outroOnLand = outro;
+            recycleOnLand = !outro && linger < 0f;
             landLinger = Mathf.Max(0f, linger);
             return this;
         }
@@ -502,23 +629,32 @@ namespace WoLBrambleRing
         }
         // Sorts just in front of (bias > 0) or behind (bias < 0) another sprite.
         public PixelFx SortWith(SpriteRenderer target, int sortBias) { sortWith = target; bias = sortBias; Place(); return this; }
-        public PixelFx Rotate(float degrees) { transform.rotation = Quaternion.Euler(0f, 0f, degrees); return this; }
+        public PixelFx Rotate(float degrees) { angle = degrees; transform.rotation = Quaternion.Euler(0f, 0f, angle); return this; }
+        // Turns this many degrees a second (tumbling debris).
+        public PixelFx Spin(float degreesPerSecond) { spin = degreesPerSecond; return this; }
+        public PixelFx Scale(float size) { scale = size; transform.localScale = new Vector3(size, size, 1f); return this; }
         public PixelFx Flip(bool x, bool y = false) { sr.flipX = x; sr.flipY = y; return this; }
         public PixelFx Sway(float amount, float speed) { swayAmount = amount; swaySpeed = speed; swayPhase = Random.value * 6.3f; return this; }
-        // Fades out (in steps) over its last this many seconds.
+        // Fades out over its last this many seconds.
         public PixelFx FadeOut(float seconds) { fadeTime = seconds; return this; }
         public PixelFx Tint(Color color) { tint = color; sr.color = color; return this; }
 
-        // Ends a looping effect (its outro plays); anything else just goes.
+        // Ends a looping effect: its outro plays, or with none it fades out and shrinks; anything
+        // else just goes.
         public void Stop()
         {
-            if (!InUse || stopping)
+            if (!InUse || stopping || fadeClock >= 0f)
                 return;
-            if (anim.HasLoop && anim.LoopEnd < anim.Frames.Length - 1 && delay <= 0f)
+            if (delay > 0f)
+                Recycle();
+            else if (anim.HasOutro)
             {
                 stopping = true;
+                paused = false;
                 clock = 0f;
             }
+            else if (anim.HasLoop || paused)
+                fadeClock = 0f;
             else
                 Recycle();
         }
@@ -561,6 +697,11 @@ namespace WoLBrambleRing
                 if (drag > 0f)
                     velocity *= Mathf.Max(0f, 1f - drag * dt);
             }
+            if (spin != 0f && !landed)
+            {
+                angle += spin * dt;
+                transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Round(angle / 15f) * 15f);
+            }
             if (!landed)
             {
                 lift += gravity * dt;
@@ -582,11 +723,23 @@ namespace WoLBrambleRing
                         Recycle();
                         return;
                     }
-                    paused = true;
-                    stopping = false;
-                    stopAt = age + landLinger;
-                    if (fadeTime <= 0f)
-                        fadeTime = landLinger;
+                    if (outroOnLand)
+                    {
+                        if (anim.HasOutro)
+                        {
+                            stopping = true;
+                            clock = 0f;
+                        }
+                        else
+                            fadeClock = 0f;
+                    }
+                    else
+                    {
+                        paused = true;
+                        stopAt = age + landLinger;
+                        if (fadeTime <= 0f)
+                            fadeTime = landLinger;
+                    }
                 }
             }
 
@@ -598,6 +751,21 @@ namespace WoLBrambleRing
         // Steps the frames; false once it's finished (and recycled).
         private bool Animate(float dt)
         {
+            if (fadeClock >= 0f)
+            {
+                // Stopped with no outro: fade out and shrink on the frame it stopped at.
+                fadeClock += dt;
+                float t = fadeClock / StopFadeTime;
+                if (t >= 1f)
+                {
+                    Recycle();
+                    return false;
+                }
+                float s = scale * (1f - StopShrink * t);
+                transform.localScale = new Vector3(s, s, 1f);
+                sr.color = new Color(tint.r, tint.g, tint.b, tint.a * (1f - t));
+                return true;
+            }
             if (!paused)
                 clock += dt;
             int step = (int)(clock * anim.Fps);
@@ -614,18 +782,13 @@ namespace WoLBrambleRing
             }
             else if (!anim.HasLoop)
             {
-                if (step >= count)
+                if (step >= count || (stopAt >= 0f && age >= stopAt))
                 {
                     Recycle();
                     return false;
                 }
                 frame = step;
                 remaining = (count - clock * anim.Fps) / anim.Fps;
-                if (stopAt >= 0f && age >= stopAt)
-                {
-                    Recycle();
-                    return false;
-                }
             }
             else if (!stopping)
             {
@@ -653,7 +816,6 @@ namespace WoLBrambleRing
             if (fadeTime > 0f)
             {
                 float a = Mathf.Clamp01(remaining / fadeTime);
-                a = Mathf.Ceil(a * FadeSteps) / FadeSteps;
                 sr.color = new Color(tint.r, tint.g, tint.b, tint.a * a);
             }
             return true;

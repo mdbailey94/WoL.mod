@@ -7,19 +7,23 @@ namespace WoLBrambleRing
     // (the signature keeps its own cinematic eruption and doesn't use this). The aim is a living
     // plant growing round you, not a ring of rock: it only draws, nothing here touches the
     // thicket's hits, snare, timing or reach.
-    //   Cast:   roots creep out over the floor from your feet to the first row (drawn).
-    //   Knit:   under every vine the soil bulges and bursts open, clods tumble out (drawn) with a
-    //           little dust and the game's vine arcs (Churning Earth's); thorny shoots push up and
-    //           unfurl between the vines of each row and sway while it stands, and roots creep
-    //           across the floor from row to row (drawn).
-    //   Prick:  hooked thorns stab in at the enemy from round it and pull back, with a red-white
-    //           spark (drawn) and the game's cut grass flying.
-    //   Snare:  three thorny vines spiral up round a snared enemy's legs and squeeze (drawn, half
-    //           behind and half in front of it), until it's free or gone.
-    //   Wither: everything browns, droops and crumbles, withered leaves flutter down (drawn, and
-    //           the game's falling leaves) and puffs of dry dust rise (drawn).
-    // Each drawn visual is logged once the first time it plays ("visual '...' ready"), and every
-    // thicket logs what it drew ("look: ...") with its end line.
+    //   Cast:   dark roots creep out over the floor from your feet to the first row (the game's
+    //           vine-trap ground roots, Plants sheet).
+    //   Knit:   under every vine the earth heaves and opens (painted), clods of earth tumble out
+    //           and crumble (the game's Rocks frames) with a little dust and the game's vine arcs
+    //           (Churning Earth's); thorny tendrils arch up out of the ground between the vines of
+    //           each row and stand while it stands (the game's VineArc frames), and roots creep
+    //           across the floor from row to row.
+    //   Prick:  pale thorns stab in at the enemy from round it and pull back, with a little spark
+    //           (painted) and the game's cut grass flying.
+    //   Snare:  two thorny olive vines spiral up round a snared enemy's legs and squeeze (painted,
+    //           half behind and half in front of it), until it's free or gone.
+    //   Wither: the tendrils sink back into the ground, roots and earth fade, coils brown and slide
+    //           off, withered leaves flutter down (painted, and the game's falling leaves) and puffs
+    //           of dry dust rise (the game's Smoke frames tinted earth).
+    // Painted ones are in the game's plant-and-earth style (ThicketArt.cs). Each visual is logged
+    // once the first time it plays ("visual '...' ready", with where its frames come from), and
+    // every thicket logs what it drew ("look: ...") with its end line.
     internal sealed class ThicketLook
     {
         // Everything standing ends by itself this long after the thicket should have withered
@@ -36,13 +40,13 @@ namespace WoLBrambleRing
         // off straight out, so they creep rather than spoke.
         private const float RootInset = 0.2f;
         private const float RootLean = 18f;
-        // Per vine: clods thrown up (lift, sideways speed, gravity, how long they lie), the game's
+        // Per vine: clods thrown up (lift, sideways speed, gravity, tumbling speed), the game's
         // dust (count, scale) and vine arcs.
         private const int ClodsPerVine = 3;
         private const float ClodMinLift = 3f, ClodMaxLift = 5f;
         private const float ClodMinSpeed = 0.8f, ClodMaxSpeed = 2.2f;
         private const float ClodGravity = -22f;
-        private const float ClodLinger = 0.35f;
+        private const float ClodSpin = 540f;
         private const int VineDust = 8;
         private const float VineDustScale = 0.2f;
         private const int VineArcs = 2;
@@ -95,6 +99,15 @@ namespace WoLBrambleRing
             this.center = center;
             endsAt = Time.time + duration + StandSafety;
             PixelArt.MatchPixelSize(wizard != null ? wizard.gameObject : null);
+            // Drawn with the material the game's own vine trap sprites use.
+            try
+            {
+                if (VineTrap.Prefab != null)
+                    PixelArt.UseMaterialOf(VineTrap.Prefab.GetComponentInChildren<SpriteRenderer>(true), "the game's vine trap");
+            }
+            catch
+            {
+            }
         }
 
         private float Remaining => Mathf.Max(0.1f, endsAt - Time.time);
@@ -123,8 +136,10 @@ namespace WoLBrambleRing
             for (int i = 0; i < ClodsPerVine; i++)
             {
                 Vector2 dir = Random.insideUnitCircle.normalized;
-                if (PixelFx.Spawn(ThicketArt.Clod, at, FxLayer.Actor)?.Move(dir * Random.Range(ClodMinSpeed, ClodMaxSpeed))
-                    .Arc(0.2f, Random.Range(ClodMinLift, ClodMaxLift), ClodGravity, null, ClodLinger).Offset(Random.value) != null)
+                // It tumbles through the air on its first frame and crumbles where it lands.
+                if (PixelFx.Spawn(ThicketArt.Clod(Random.Range(0, ThicketArt.ClodVariants)), at, FxLayer.Actor)?
+                    .Move(dir * Random.Range(ClodMinSpeed, ClodMaxSpeed)).Spin(Random.value < 0.5f ? ClodSpin : -ClodSpin)
+                    .Arc(0.2f, Random.Range(ClodMinLift, ClodMaxLift), ClodGravity, null, -1f, true) != null)
                     clods++;
             }
             BrambleRingState.Effect("vine dust", () => PoolManager.GetPoolItem<DustEmitter>().EmitCircle(VineDust, VineDustScale, -1f, -1f, at));
@@ -144,7 +159,7 @@ namespace WoLBrambleRing
                 Vector2 mid = (a + b) * 0.5f;
                 Vector2 outward = (mid - center).sqrMagnitude > 0.0001f ? (mid - center).normalized : Vector2.up;
                 Vector2 spot = mid + outward * Random.Range(-SproutJitter, SproutJitter);
-                if (PixelFx.Spawn(ThicketArt.Sprout, spot, FxLayer.Actor, SproutSortBias)?.Loop(Remaining)
+                if (PixelFx.Spawn(ThicketArt.Sprout(Random.Range(0, ThicketArt.SproutVariants)), spot, FxLayer.Actor, SproutSortBias)?.Loop(Remaining)
                     .Delay(Random.Range(0f, 0.15f)).Offset(Random.Range(0f, 0.2f)).Flip(Random.value < 0.5f) is PixelFx sprout)
                 {
                     standing.Add(sprout.Ref);
@@ -284,6 +299,8 @@ namespace WoLBrambleRing
                 coil.back.Stop();
             }
             coils.Clear();
+            PixelAnim dust = ThicketArt.DustPuff;
+            Color dustTint = dust != null && !dust.Fallback ? ThicketArt.DustTint : Color.white;
             for (int i = 0; i < vines.Count && i < MaxWitherVines; i++)
             {
                 Vector2 at = vines[i];
@@ -298,7 +315,7 @@ namespace WoLBrambleRing
                 }
                 BrambleRingState.Effect("wither leaves", () => PoolManager.GetPoolItem<LeafEmitter>("FallingLeafEmitter").EmitSingle(GameLeavesPerVine,
                     at + Vector2.up, ParticleEffectOverrides.Radius0p5, null, 0f, null, LeafEmitter.LeafColor.YellowGreen));
-                if (i % DustPuffEvery == 0 && PixelFx.Spawn(ThicketArt.DustPuff, at, FxLayer.Effect, 2)?
+                if (i % DustPuffEvery == 0 && PixelFx.Spawn(dust, at, FxLayer.Effect, 2)?.Tint(dustTint)
                     .Arc(0.2f, 0.4f, 0f).Delay(Random.Range(0.1f, WitherSpread + 0.1f)).Flip(Random.value < 0.5f) != null)
                     puffs++;
             }

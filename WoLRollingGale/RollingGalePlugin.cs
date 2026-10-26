@@ -13,7 +13,7 @@ namespace WoLRollingGale
     {
         public const string PluginGuid = "mdbailey94.wol.rollinggale";
         public const string PluginName = "Rolling Gale";
-        public const string PluginVersion = "0.4.0";
+        public const string PluginVersion = "0.4.1";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;

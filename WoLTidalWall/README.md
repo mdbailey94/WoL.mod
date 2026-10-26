@@ -48,6 +48,12 @@ throws up a crown of water at each burst, with mist hanging over it, foam washin
 and droplets raining down. Each drawn visual logs `Tidal Wall: visual '...' ready (...)` the first
 time it plays, and each wave logs `Tidal Wall: look: ...` with what it drew.
 
+0.4.1 restyles it to match the game's own water art: the splash crowns, droplets, bubbles and mist
+are now the game's own sprite frames (WaterHitSmall, WaterHitEffect, WaterParticles, BubblePop,
+Smoke), and the rest (crest, puddles, churning foam, ripple, crash foam) is repainted in colours
+sampled from the game's water sheets, with no outlines, fading by alpha. If one of those game sheets
+isn't loaded, a painted stand-in is used and the log says so once.
+
 ## Signature
 
 Put Tidal Wall in the **signature slot** (the spellbook in your house lists it under Signature

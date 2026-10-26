@@ -2,32 +2,41 @@ using UnityEngine;
 
 namespace WoLSlingshotDash
 {
-    // Element palettes for the drawn effects, in the slots of Px: outline, dark, mid, light,
-    // highlight, then two accents. Picked to sit with the game's own element colours.
+    // Element palettes for the drawn effects, in the slots of Px: outline (only lightning's soft
+    // glow uses it), dark, mid, light, highlight, then two accents. Every colour is sampled from
+    // the game's own sheets for that element (the mod's art dump), so the drawn stand-ins and the
+    // game's frames look like one set.
     internal static class Palettes
     {
-        // Air: the game's pale aqua-white wind.
-        public static readonly Color32[] Air = Make(0x1f4652, 0x3e8a92, 0x7fcdc4, 0xc6f2e6, 0xffffff, 0xa6e3d6, 0xe8fbf6);
-        // Fire: deep red to white-hot yellow; the accents are smoke.
-        public static readonly Color32[] Fire = Make(0x4e140e, 0xa82c16, 0xe8601c, 0xffaa30, 0xfff0a0, 0x3a2a28, 0x6a5450);
-        // Earth: packed dirt to sunlit sandstone; the accents are leaf greens.
-        public static readonly Color32[] Earth = Make(0x2a1a10, 0x5a3a22, 0x8a6038, 0xbb935c, 0xe6cf9a, 0x4f8a32, 0x8cc450);
-        // Lightning: white-hot core, the game's yellow, and a violet glow and outline.
-        public static readonly Color32[] Storm = Make(0x2e1a5c, 0x6a46d0, 0xf2c232, 0xfff07a, 0xffffff, 0xa98cff, 0xe0d4ff);
+        // Air: WindEffects / WindTrail, three pale tones (grey-teal, cyan, near-white cyan).
+        public static readonly Color32[] Air = Make(0x8b9d9d, 0x8b9d9d, 0xb6d5d5, 0xcfebeb, 0xcfebeb, 0xb6d5d5, 0xcfebeb);
+        // Fire: FireProjectiles (deep orange to a pale yellow core); the accents are NewExplosion's smoke.
+        public static readonly Color32[] Fire = Make(0x904512, 0xda6e00, 0xf59000, 0xf9d23c, 0xf6eda4, 0x4d4543, 0x6d6c6c);
+        // Earth: Rocks / EarthWave browns; the accents are leaf greens from EarthBoss.
+        public static readonly Color32[] Earth = Make(0x332719, 0x4d3720, 0x73502a, 0x82683e, 0x9c8159, 0x425c34, 0x5f7d45);
+        // Lightning: LightningEffect / LightningStart: white core, pale and full yellow, and the
+        // soft yellow glow round its bolts (the outline and dark slots, part see-through).
+        public static readonly Color32[] Storm = Make(0x28f4e82c, 0x82f4e82c, 0xfaf152, 0xfffb89, 0xffffff, 0xfaf152, 0xfffb89);
 
-        private static Color32[] Make(params int[] rgb)
+        // Colours as 0xRRGGBB (opaque) or 0xAARRGGBB with a non-zero alpha byte.
+        private static Color32[] Make(params uint[] argb)
         {
             var palette = new Color32[Px.Count];
-            for (int i = 0; i < rgb.Length && i + 1 < palette.Length; i++)
-                palette[i + 1] = new Color32((byte)(rgb[i] >> 16), (byte)(rgb[i] >> 8), (byte)rgb[i], 255);
+            for (int i = 0; i < argb.Length && i + 1 < palette.Length; i++)
+            {
+                uint a = (argb[i] >> 24) & 0xff;
+                palette[i + 1] = new Color32((byte)(argb[i] >> 16), (byte)(argb[i] >> 8), (byte)argb[i], (byte)(a == 0 ? 255 : a));
+            }
             return palette;
         }
     }
 
-    // The drawings. Each takes the canvas, the frame number and the frame count, and draws that
-    // one frame: shapes in palette slots (bright cores, mid bodies, dark edges), then the outline,
-    // then a dithered dissolve on the last frames. Everything is deterministic, so a frame looks
-    // the same every time it's built.
+    // The drawings, in the game's effect style: flat colours from the element's palette, no dark
+    // outlines (only lightning gets a soft glow), brushy tapering shapes; they fade out by alpha as
+    // they play (FxAnim). Each takes the canvas, the frame number and the frame count, and draws
+    // that one frame. Everything is deterministic, so a frame looks the same every time it's
+    // built. These stand in wherever the game's own frames (GameArt.cs) aren't loaded, and draw
+    // what the game has no art for (embers).
     internal static class PixelArt
     {
         private const float Tau = Mathf.PI * 2f;
@@ -85,7 +94,6 @@ namespace WoLSlingshotDash
                     c.Set(Mathf.FloorToInt(cx + Mathf.Cos(a) * rx * 0.85f), Mathf.FloorToInt(cy + Mathf.Sin(a) * ry * 0.85f), Px.High);
                 }
             }
-            c.Outline();
             Halve(c, half);
         }
 
@@ -133,7 +141,6 @@ namespace WoLSlingshotDash
                     c.Set(22, y, Px.Dark);
                     break;
             }
-            c.Outline();
         }
 
         private static void Curl(PixelCanvas c, int x, int y, byte head, byte body)
@@ -170,9 +177,6 @@ namespace WoLSlingshotDash
                 float puff = 4f + f * 2f;
                 c.Band(ox + 1f, oy, puff, puff * 0.9f, 0.55f, f == 0 ? Px.Light : Px.Mid);
             }
-            c.Outline();
-            if (f >= 4)
-                c.Dissolve((f - 3) * 0.35f);
         }
 
         // The vacuum: six spiral arms of wind closing in (flattened, on the floor), a core
@@ -228,9 +232,6 @@ namespace WoLSlingshotDash
                 }
                 c.Band(cx, cy, r1 * 0.7f, r1 * 0.7f * 0.8f, 0.85f, first ? Px.Mid : Px.Dark);
             }
-            c.Outline();
-            if (f == 7)
-                c.Dissolve(0.5f);
         }
 
         // ---- Shared ----
@@ -269,9 +270,6 @@ namespace WoLSlingshotDash
                         c.Band(cx, cy, 4.5f, 4.5f, 0.6f, Px.Mid);
                     break;
             }
-            c.Outline();
-            if (f == 4)
-                c.Dissolve(0.25f);
         }
 
         // A shockwave flat on the floor: a thick bright ellipse that spreads, thins, darkens,
@@ -299,9 +297,6 @@ namespace WoLSlingshotDash
                     c.Paint(x, y, col);
                 }
             }
-            c.Outline();
-            if (f >= 4)
-                c.Dissolve((f - 3) * 0.3f);
         }
 
         // ---- Fire ----
@@ -348,7 +343,6 @@ namespace WoLSlingshotDash
             // The drop floats clear of the tip (a gap of clear pixels), room allowing.
             if (droplet && tipH + 3.5f <= c.H - 1.5f)
                 c.Ellipse(cx + 1.6f * Mathf.Sin(phase + 3.2f), tipH + 2.4f, 0.9f, 1.1f, Shift(Px.Light, shift));
-            c.Outline();
         }
 
         private static byte Shift(byte col, int shift) => (byte)Mathf.Max(Px.Dark, col - shift);
@@ -368,8 +362,6 @@ namespace WoLSlingshotDash
             float k = (float)f / (n - 1);
             int shift = f >= 4 ? 2 : f >= 2 ? 1 : 0;
             Flame(c, f * 1.3f, Mathf.Lerp(17f, 6f, k), Mathf.Lerp(4.2f, 2f, k), shift, f == 1);
-            if (f >= 4)
-                c.Dissolve((f - 3) * 0.3f);
         }
 
         // A spark of fire: a bright cross that cools to a red dot.
@@ -394,9 +386,8 @@ namespace WoLSlingshotDash
                     break;
                 default:
                     c.Set(x, y, Px.Dark);
-                    return;
+                    break;
             }
-            c.Outline(Px.Dark);
         }
 
         // Smoke curling inside a fire blast's ring: dark below, lighter on top.
@@ -481,25 +472,17 @@ namespace WoLSlingshotDash
                         c.Set(Mathf.FloorToInt(x1), Mathf.FloorToInt(y1), Px.High);
                 }
             }
-            c.Outline();
-            if (f == 5)
-                c.Dissolve(0.35f);
-            else if (f >= 6)
-                c.Dissolve(0.7f);
         }
 
         // ---- Earth ----
 
-        // A puff of dust: three lumps, lit from above, swelling and dissolving.
+        // A puff of dust: three lumps, lit from above, swelling as it fades.
         public static void DustPuff(PixelCanvas c, int f, int n)
         {
             float g = 2.2f + f * 0.6f;
             DustLump(c, 5f, 3.6f + f * 0.3f, g);
             DustLump(c, 10.5f, 4f + f * 0.35f, g * 0.9f);
             DustLump(c, 7.6f, 5.5f + f * 0.4f, g * 0.85f);
-            c.Outline(Px.Dark);
-            if (f >= 3)
-                c.Dissolve((f - 2) * 0.33f);
         }
 
         private static void DustLump(PixelCanvas c, float bx, float by, float r)
@@ -545,7 +528,6 @@ namespace WoLSlingshotDash
             // A glint on the lit face.
             Vector2 glint = centre + RockLight * 1.6f;
             c.Set(Mathf.FloorToInt(glint.x), Mathf.FloorToInt(glint.y), Px.High);
-            c.Outline();
         }
 
         private static readonly float[] ShardAngles = { -46f, -30f, -14f, 0f, 14f, 30f, 46f, 160f, -160f };
@@ -560,7 +542,6 @@ namespace WoLSlingshotDash
             if (f == 0)
             {
                 c.Astroid(ox + 2f, oy, 10f, 7f, Px.High, Px.Light, 0.7f);
-                c.Outline();
                 return;
             }
             if (f <= 5)
@@ -587,9 +568,6 @@ namespace WoLSlingshotDash
                 if (f <= 2)
                     c.Set(Mathf.FloorToInt(tip.x), Mathf.FloorToInt(tip.y), Px.High);
             }
-            c.Outline();
-            if (f >= 5)
-                c.Dissolve((f - 4) * 0.35f);
         }
 
         // ---- Lightning ----
@@ -610,7 +588,6 @@ namespace WoLSlingshotDash
                         c.Set(x, y + i, col);
                         c.Set(x, y - i, col);
                     }
-                    c.Outline();
                     break;
                 case 1:
                     c.Set(x, y, Px.High);
@@ -628,7 +605,6 @@ namespace WoLSlingshotDash
                         c.Set(x, y + i, Px.Mid);
                         c.Set(x, y - i, Px.Mid);
                     }
-                    c.Outline();
                     break;
                 case 2:
                     c.Set(x, y, Px.Mid);
@@ -644,35 +620,6 @@ namespace WoLSlingshotDash
                     c.Set(x - 2, y + 3, Px.Dark);
                     break;
             }
-        }
-
-        // An electric ring round your feet: a jagged, broken ellipse of arcs redrawn every frame
-        // (so it flickers), sparks jumping off it, glowing violet.
-        public static void StaticRing(PixelCanvas c, int f, int n, int half)
-        {
-            float cx = c.W / 2f, cy = c.H / 2f, rx = c.W / 2f - 5f, ry = c.H / 2f - 3.5f;
-            const int points = 18;
-            Vector2 prev = Vector2.zero;
-            for (int k = 0; k <= points; k++)
-            {
-                int kk = k % points;
-                float a = kk * Tau / points + f * 0.21f;
-                float r = 1f + (Hash(f, kk) - 0.5f) * 0.22f;
-                var p = new Vector2(cx + Mathf.Cos(a) * rx * r, cy + Mathf.Sin(a) * ry * r);
-                if (k > 0 && Hash(f, kk, 7) > 0.28f)
-                    c.Line(prev, p, 0.5f, Hash(f, kk, 3) > 0.5f ? Px.High : Px.Light);
-                prev = p;
-            }
-            for (int s = 0; s < 3; s++)
-            {
-                float a = Hash(f, s, 11) * Tau;
-                var outward = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
-                var start = new Vector2(cx + outward.x * rx, cy + outward.y * ry);
-                Vector2 end = start + new Vector2(outward.x, outward.y * 0.6f) * (2f + 2f * Hash(f, s, 13));
-                c.Line(start, end, 0.5f, Px.Mid);
-            }
-            c.Outline(Px.Dark);
-            Halve(c, half);
         }
 
         // A bolt along the leap: a jagged white line with branches, glowing yellow then violet,
@@ -705,20 +652,18 @@ namespace WoLSlingshotDash
             }
             if (f == 0)
             {
-                c.Outline(Px.Light);
                 c.Outline(Px.Dark);
+                c.Outline(Px.Outline);
             }
             else if (f == 1)
             {
-                c.Outline(Px.Mid);
+                c.Outline(Px.Dark);
                 c.Outline(Px.Outline);
             }
             else
             {
                 c.Outline(f == 2 ? Px.Dark : Px.Outline);
             }
-            if (f >= 4)
-                c.Dissolve(0.45f);
         }
 
         // The landing: a white flash with four long jagged rays, then eight, a ring spreading,
@@ -731,8 +676,8 @@ namespace WoLSlingshotDash
                 case 0:
                     c.Ellipse(cx, cy, 4.5f, 4.5f, Px.High);
                     JaggedRays(c, cx, cy, 4, 4f, 19f, f, Px.High, 0f);
-                    c.Outline(Px.Light);
                     c.Outline(Px.Dark);
+                    c.Outline(Px.Outline);
                     break;
                 case 1:
                     c.Ellipse(cx, cy, 7f, 7f, Px.Light);
@@ -749,7 +694,6 @@ namespace WoLSlingshotDash
                 case 3:
                     BrokenRing(c, cx, cy, 15f, 12.5f, f, Px.Light);
                     JaggedRays(c, cx, cy, 8, 17f, 22f, f, Px.Dark, 0.39f);
-                    c.Outline();
                     break;
                 case 4:
                     BrokenRing(c, cx, cy, 18f, 15f, f, Px.Mid);
@@ -758,12 +702,9 @@ namespace WoLSlingshotDash
                         float a = Hash(f, s, 17) * Tau;
                         c.Set(Mathf.FloorToInt(cx + Mathf.Cos(a) * 21f), Mathf.FloorToInt(cy + Mathf.Sin(a) * 18f), Px.Light);
                     }
-                    c.Outline();
                     break;
                 default:
                     BrokenRing(c, cx, cy, 21f, 17.5f, f, Px.Dark);
-                    c.Outline();
-                    c.Dissolve(f == 5 ? 0.4f : 0.75f);
                     break;
             }
         }
@@ -799,88 +740,5 @@ namespace WoLSlingshotDash
                 c.Set(Mathf.FloorToInt(cx + Mathf.Cos(a) * rx), Mathf.FloorToInt(cy + Mathf.Sin(a) * ry), col);
             }
         }
-    }
-
-    // Each dash's drawn animations, built the first time each one plays (the log line
-    // "<dash>: visual '<name>' ready (...)" says so) and kept for the session.
-    internal static class AirArt
-    {
-        private const string Owner = "Vacuum Fist";
-        private static readonly Vector2 Centre = new Vector2(0.5f, 0.5f);
-        private static FxAnim ringBack, ringFront, streak, cone, implode, star, ring;
-
-        public static FxAnim RingBack => ringBack ?? (ringBack = FxAnim.Build(Owner, "wind ring (far half)", 48, 24, 8, 0.045f, true,
-            Centre, Palettes.Air, (c, f, n) => PixelArt.WindRing(c, f, n, 1)));
-        public static FxAnim RingFront => ringFront ?? (ringFront = FxAnim.Build(Owner, "wind ring (near half)", 48, 24, 8, 0.045f, true,
-            Centre, Palettes.Air, (c, f, n) => PixelArt.WindRing(c, f, n, 2)));
-        public static FxAnim Streak => streak ?? (streak = FxAnim.Build(Owner, "gust streak", 28, 9, 5, 0.04f, false,
-            Centre, Palettes.Air, PixelArt.GustStreak));
-        public static FxAnim Cone => cone ?? (cone = FxAnim.Build(Owner, "launch gust", 40, 32, 6, 0.045f, false,
-            new Vector2(0.1f, 0.5f), Palettes.Air, PixelArt.GustCone));
-        public static FxAnim Implode => implode ?? (implode = FxAnim.Build(Owner, "vacuum implosion", 48, 48, 8, 0.05f, false,
-            Centre, Palettes.Air, PixelArt.Implode));
-        public static FxAnim Star => star ?? (star = FxAnim.Build(Owner, "punch impact", 32, 32, 5, 0.04f, false,
-            Centre, Palettes.Air, PixelArt.ImpactStar));
-        public static FxAnim Ring => ring ?? (ring = FxAnim.Build(Owner, "vacuum ring", 64, 32, 6, 0.05f, false,
-            Centre, Palettes.Air, PixelArt.GroundRing));
-    }
-
-    internal static class FireArt
-    {
-        private const string Owner = "Blazing Kick";
-        private static readonly Vector2 Centre = new Vector2(0.5f, 0.5f);
-        private static readonly Vector2 Foot = new Vector2(0.5f, 0.05f);
-        private static FxAnim tongue, wisp, ember, blast, star, ring;
-
-        public static FxAnim Tongue => tongue ?? (tongue = FxAnim.Build(Owner, "flame tongue", 12, 22, 6, 0.06f, true,
-            Foot, Palettes.Fire, PixelArt.FlameTongue));
-        public static FxAnim Wisp => wisp ?? (wisp = FxAnim.Build(Owner, "flame wisp", 12, 22, 6, 0.055f, false,
-            Foot, Palettes.Fire, PixelArt.FlameWisp));
-        public static FxAnim Ember => ember ?? (ember = FxAnim.Build(Owner, "ember", 5, 5, 4, 0.07f, false,
-            Centre, Palettes.Fire, PixelArt.Ember));
-        public static FxAnim Blast => blast ?? (blast = FxAnim.Build(Owner, "fire blast", 64, 48, 7, 0.05f, false,
-            Centre, Palettes.Fire, PixelArt.FireBlast));
-        public static FxAnim Star => star ?? (star = FxAnim.Build(Owner, "kick impact", 32, 32, 5, 0.04f, false,
-            Centre, Palettes.Fire, PixelArt.ImpactStar));
-        public static FxAnim Ring => ring ?? (ring = FxAnim.Build(Owner, "scorch ring", 64, 32, 6, 0.05f, false,
-            Centre, Palettes.Fire, PixelArt.GroundRing));
-    }
-
-    internal static class EarthArt
-    {
-        private const string Owner = "Vine Slingshot";
-        private static readonly Vector2 Centre = new Vector2(0.5f, 0.5f);
-        private static FxAnim dust, rock, impact, star, ring;
-
-        public static FxAnim Dust => dust ?? (dust = FxAnim.Build(Owner, "dust puff", 16, 12, 5, 0.06f, false,
-            new Vector2(0.5f, 0.15f), Palettes.Earth, PixelArt.DustPuff));
-        public static FxAnim Rock => rock ?? (rock = FxAnim.Build(Owner, "tumbling rock", 9, 9, 4, 0.07f, true,
-            Centre, Palettes.Earth, PixelArt.RockChunk));
-        public static FxAnim Impact => impact ?? (impact = FxAnim.Build(Owner, "rock burst", 64, 40, 7, 0.05f, false,
-            new Vector2(12f / 64f, 0.5f), Palettes.Earth, PixelArt.EarthImpact));
-        public static FxAnim Star => star ?? (star = FxAnim.Build(Owner, "kick impact", 32, 32, 5, 0.04f, false,
-            Centre, Palettes.Earth, PixelArt.ImpactStar));
-        public static FxAnim Ring => ring ?? (ring = FxAnim.Build(Owner, "ground shockwave", 64, 32, 6, 0.05f, false,
-            Centre, Palettes.Earth, PixelArt.GroundRing));
-    }
-
-    internal static class StormArt
-    {
-        private const string Owner = "Charged Leap";
-        private static readonly Vector2 Centre = new Vector2(0.5f, 0.5f);
-        private static FxAnim ringBack, ringFront, zap, bolt, burst, ring;
-
-        public static FxAnim RingBack => ringBack ?? (ringBack = FxAnim.Build(Owner, "static ring (far half)", 48, 24, 6, 0.04f, true,
-            Centre, Palettes.Storm, (c, f, n) => PixelArt.StaticRing(c, f, n, 1)));
-        public static FxAnim RingFront => ringFront ?? (ringFront = FxAnim.Build(Owner, "static ring (near half)", 48, 24, 6, 0.04f, true,
-            Centre, Palettes.Storm, (c, f, n) => PixelArt.StaticRing(c, f, n, 2)));
-        public static FxAnim Zap => zap ?? (zap = FxAnim.Build(Owner, "spark", 9, 9, 4, 0.04f, false,
-            Centre, Palettes.Storm, PixelArt.Zap));
-        public static FxAnim Bolt => bolt ?? (bolt = FxAnim.Build(Owner, "bolt", 64, 16, 5, 0.045f, false,
-            new Vector2(0f, 0.5f), Palettes.Storm, PixelArt.Bolt));
-        public static FxAnim Burst => burst ?? (burst = FxAnim.Build(Owner, "thunder burst", 48, 48, 7, 0.045f, false,
-            Centre, Palettes.Storm, PixelArt.ThunderBurst));
-        public static FxAnim Ring => ring ?? (ring = FxAnim.Build(Owner, "shock ring", 64, 32, 6, 0.05f, false,
-            Centre, Palettes.Storm, PixelArt.GroundRing));
     }
 }

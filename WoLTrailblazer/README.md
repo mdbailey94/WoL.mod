@@ -36,30 +36,37 @@ A new **Fire standard arcana**, added with [LegendAPI](https://github.com/yekoc/
 
 ## Look
 
-Since **0.8.0** drawn pixel-art fire is layered on top of the game's flames and Searing Rush's
-columns (which look as before):
+Since **0.8.0** more fire is layered on top of the game's flames and Searing Rush's columns (which
+look as before). Since **0.8.1** it's in the game's own fire style (flat cream, yellow, amber and
+orange sampled from the game's fire sheets, ragged licking edges, no outlines) and uses the game's
+own sprites and effects where they fit:
 
-- **The cast**: a ring of flame bursts out over the floor from the stamp, embers fly, and the
-  game's own scorch mark is left under it.
+- **The cast**: a ring of flame bursts out over the floor from the stamp with the game's flame
+  circle burst and embers flying, and the game's own scorch mark is left under it.
 - **While ablaze**: flame tongues lick up round the wizard: two at a walk, up to five and bigger as
   the speed level climbs, leaning back as you run. Embers flick off behind you, more the faster you
   go, and the ring of fire is drawn on the floor at the size of its hit circle.
-- **The trail**: each patch gets flickering flame tongues of its own (sized by its level) and
-  leaves a char mark that glows, cools to red and fades. When a patch goes out its flames die down
-  to an ember and a wisp of smoke.
-- **Burning out**: a column of fire flares up round the wizard and sinks into a puff of smoke, with
-  a burst of embers, the game's flame burst and smoke, and a last char mark.
+- **The trail**: each patch burns with the game's own flames (its meteor's flame, from the
+  MeteorStrike sheet, taller at higher levels) and leaves the game's burn mark with a glow in it
+  that cools from cream to orange and fades. When a patch goes out its flames burst into sparks
+  as the game's do.
+- **Burning out**: a column of fire flares up round the wizard and breaks into flecks, with a burst
+  of embers, the game's flame burst, smoke and burn mark.
 
-They're drawn in code at the game's pixel size, in a six-colour fire palette, and pooled (capped,
-the oldest reused; put away when the fire's done or the level changes). `Drawn` in `[Look]` turns
-them off (from the next cast). Purely visual: the hits, sizes and timings are as before.
+The drawn parts are made in code at the game's pixel size and everything is pooled (capped, the
+oldest reused; put away when the fire's done or the level changes). Where the game's flames or burn
+marks aren't loaded, drawn stand-ins in the same style are used. `Drawn` in `[Look]` turns it all
+off (from the next cast). Purely visual: the hits, sizes and timings are as before.
 
 They log one line each the first time they play, for example `Trailblazer: visual 'body flames'
 ready (54 sprites, ppu 16)` (also `ignition burst`, `ring of fire`, `embers`, `char marks`,
 `trail flames`, `dying flames` and `flare-up`), and once which sorting layers they draw on:
 `Trailblazer: drawn effects sort on 'Shadow' (#n) (floor marks) and 'TargetLineGround' (#n) ...`. If
 one can't be made it says `Trailblazer: visual '...' skipped: ...` once and the fire goes on
-without it.
+without it. Which of the game's sprites are used is logged once:
+`Trailblazer: visual 'trail flames' uses the game's sprites MeteorStrike flame tiles` (or `...: the
+game's ... isn't loaded here, drawing it instead`) and `Trailblazer: char marks use the game's burn
+marks (...) with a drawn glow`.
 
 ## Log
 

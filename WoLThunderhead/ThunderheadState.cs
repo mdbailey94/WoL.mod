@@ -65,6 +65,15 @@ namespace WoLThunderhead
         private const float RingBurstSize = 1.2f;
         private const float RingShake = 0.8f;
 
+        // Standard and enhanced: the first strike of each volley seeks an enemy within the strike
+        // circle (one aimed at least so far this cast), the rest land spread as before. Random
+        // spots alone often missed the enemies right below (0.9.1). An aimed bolt still follows
+        // its enemy this far from where its glyph was drawn, so a small step doesn't dodge it,
+        // but walking off does.
+        private const int AimedPerVolley = 1;
+        private const float AimReachPastRadius = 0.5f;  // enemies this far past the circle's edge can be aimed at
+        private const float AimFollow = 1.2f;
+
         // Timings and sizes come from the config (ThunderheadPlugin), read as each cast starts.
         private float WindupTime, RiseTime, CrashTime, RecoverTime, Height, HoverSpeedPercent, HoldTime;
         private int VolleySize;
@@ -93,6 +102,9 @@ namespace WoLThunderhead
         // can show where they'll land.
         private ThunderVisuals visuals;
         private readonly List<Vector2> plannedOffsets = new List<Vector2>();
+        private readonly List<Enemy> plannedTargets = new List<Enemy>();
+        private readonly Dictionary<int, int> timesAimed = new Dictionary<int, int>();
+        private int aimedStrikes;
         private readonly List<Vector2> struckSpots = new List<Vector2>();
         private int plannedVolley = -1;
         private Vector2 airVelocity;
@@ -173,6 +185,9 @@ namespace WoLThunderhead
             visuals = null;
             plannedVolley = -1;
             plannedOffsets.Clear();
+            plannedTargets.Clear();
+            timesAimed.Clear();
+            aimedStrikes = 0;
             WindupTime = ThunderheadPlugin.WindupTime;
             RiseTime = ThunderheadPlugin.RiseTime;
             CrashTime = ThunderheadPlugin.CrashTime * (signature ? SignatureDiveSpeed : 1f);
@@ -453,10 +468,80 @@ namespace WoLThunderhead
         private void PlanVolley(float from, float until, Vector2 ground)
         {
             plannedOffsets.Clear();
+            plannedTargets.Clear();
             plannedVolley = volleyCount;
             for (int i = 0; i < VolleySize; i++)
-                plannedOffsets.Add(StrikeOffset(i));
+            {
+                Vector2 offset;
+                Enemy target;
+                if (!AimedStrike(i, ground, out offset, out target))
+                    offset = StrikeOffset(i);
+                plannedOffsets.Add(offset);
+                plannedTargets.Add(target);
+            }
             visuals?.Telegraph(plannedOffsets, from, until, ground);
+        }
+
+        // For the first AimedPerVolley strikes of a standard or enhanced volley: the offset (in
+        // StrikeOffset's space, y unsquashed) of an enemy within the strike circle, preferring the
+        // one aimed at least so far this cast. False when there's none.
+        private bool AimedStrike(int i, Vector2 ground, out Vector2 offset, out Enemy target)
+        {
+            offset = Vector2.zero;
+            target = null;
+            if (signature || i >= AimedPerVolley)
+                return false;
+            float reach = RadiusNow + AimReachPastRadius;
+            int fewest = int.MaxValue;
+            int ties = 0;
+            try
+            {
+                var seen = new HashSet<int>();
+                foreach (Collider2D col in Physics2D.OverlapCircleAll(ground, reach))
+                {
+                    Enemy enemy = col != null ? col.GetComponentInParent<Enemy>() : null;
+                    if (!Alive(enemy) || !seen.Add(enemy.GetInstanceID()))
+                        continue;
+                    Vector2 d = (Vector2)enemy.transform.position - ground;
+                    Vector2 o = new Vector2(d.x, d.y / 0.7f);
+                    if (o.magnitude > reach)
+                        continue;
+                    int aimed;
+                    timesAimed.TryGetValue(enemy.GetInstanceID(), out aimed);
+                    // The least-aimed enemy, a random one of those tied.
+                    if (aimed < fewest)
+                    {
+                        fewest = aimed;
+                        ties = 1;
+                        target = enemy;
+                        offset = o;
+                    }
+                    else if (aimed == fewest && Random.Range(0, ++ties) == 0)
+                    {
+                        target = enemy;
+                        offset = o;
+                    }
+                }
+            }
+            catch (System.Exception e)
+            {
+                if (failedEffects.Add("aim"))
+                    ThunderheadPlugin.Log($"Thunderhead: couldn't look for enemies to aim at: {e.Message}");
+                return false;
+            }
+            if (target == null)
+                return false;
+            int count;
+            timesAimed.TryGetValue(target.GetInstanceID(), out count);
+            timesAimed[target.GetInstanceID()] = count + 1;
+            return true;
+        }
+
+        private static bool Alive(Enemy enemy)
+        {
+            if (enemy == null || !enemy.gameObject.activeInHierarchy || enemy.health == null || enemy.health.CurrentHealthValue <= 0)
+                return false;
+            return GameController.allies == null || !GameController.allies.Contains(enemy.gameObject);
         }
 
         // The signature launches on a bolt from the sky: a flash, a thunderclap, sparks and a
@@ -556,7 +641,7 @@ namespace WoLThunderhead
             }
             float moved = Vector2.Distance(takeOffSpot, parent.transform.position);
             ThunderheadPlugin.Log($"Thunderhead: {(signature ? "signature storm " : "")}{(landed ? "landed" : "cut short in the air")} {moved:0.0} u from take-off, " +
-                $"{strikesFired} strikes in {volleyCount} volleys hit {strikeHits} time(s), slam hit {slamHits} time(s)" +
+                $"{strikesFired} strikes in {volleyCount} volleys ({aimedStrikes} aimed at enemies) hit {strikeHits} time(s), slam hit {slamHits} time(s)" +
                 (signature ? $", ring of {ringFiredCount} bolts hit {ringHits} time(s)" : "") +
                 (heldAtPitEdge ? ", held back at a pit's edge" : ""));
         }
@@ -592,8 +677,23 @@ namespace WoLThunderhead
             struckSpots.Clear();
             for (int i = 0; i < size; i++)
             {
-                Vector2 offset = planned ? plannedOffsets[i] : StrikeOffset(i);
+                Vector2 offset;
+                Enemy target = null;
+                if (planned)
+                {
+                    offset = plannedOffsets[i];
+                    target = i < plannedTargets.Count ? plannedTargets[i] : null;
+                }
+                else if (!AimedStrike(i, ground, out offset, out target))
+                    offset = StrikeOffset(i);
                 Vector2 spot = ground + new Vector2(offset.x, offset.y * 0.7f);
+                // An aimed bolt follows its enemy a little from where the glyph was drawn.
+                if (target != null)
+                {
+                    aimedStrikes++;
+                    if (Alive(target) && Vector2.Distance(target.transform.position, spot) <= AimFollow)
+                        spot = target.transform.position;
+                }
                 struckSpots.Add(spot);
                 // A signature cast's hits are marked as the game marks its own (isUltimate), so
                 // they don't refill the gauge they just spent.

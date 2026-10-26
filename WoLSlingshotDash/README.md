@@ -33,12 +33,12 @@ in what the launch does.
 - Everything scales with charge.
 - **Enhanced**: gusts are left all along your path, each blowing twice (3 damage a gust, pushing
   enemies away from the line).
-- **Look** (0.25.0): a drawn ring of wind crescents spins round your feet while you charge (its
-  far side behind you, its near side in front), growing with the charge and snapping tight at
-  full. The launch bursts a fan of speed lines out behind you with the game's air shockwaves, and
-  you rush in the wizard's own dash streaks, leaving curling gust streaks and pale afterimages.
-  The punch lands in a drawn implosion (wind spiralling in to a pop), a ring on the floor closing
-  in (again with each vacuum pulse), an impact star and the game's air vortex.
+- **Look** (0.25.2, in the game's own wind art): the game's whirlwind forms round your feet and
+  spins while you charge (its far side behind you, its near side in front), growing with the
+  charge; at the launch it's left behind, rising and breaking up, with the game's dash air burst,
+  wind twirl and air shockwaves. You rush in the wizard's own dash streaks, leaving the game's
+  wind-trail wisps and pale afterimages, and the punch lands in its air vortex with a wind slash,
+  a shockwave ring closing in on the floor (again with each vacuum pulse).
 
 ### Blazing Kick (Fire)
 
@@ -53,12 +53,12 @@ in what the launch does.
   everyone nearby away.
 - Everything scales with charge.
 - **Enhanced**: every hit, trail and blast alike, **sets the enemy on fire**.
-- **Look** (0.25.0): while you charge, a ring of drawn flames lights up round your feet, more and
-  taller as it builds, with embers drifting up, flaring with the game's ring of fire at full. You
-  take off in a small blast, leave guttering flames, embers, scorch marks and smoke along the
-  rush, and the kick lands in a drawn fireball that bursts into a ring of fire with smoke rising
-  inside, a scorch ring on the floor, an impact star and a spray of embers, with the game's fire
-  ring, large scorch mark and smoke.
+- **Look** (0.25.2, in the game's own fire art): while you charge, a ring of its Blazing Combo
+  flame tongues lights up round your feet, more and taller as it builds, with embers drifting up,
+  flaring with its ring of fire at full. You take off in its swirling fireball puff, leave its
+  fire particle flames, embers, scorch marks and smoke along the rush, and the kick lands in its
+  explosion (fireball to smoke) with an expanding ring, a burning fissure on the floor, a star
+  flash and a spray of embers, with its fire ring, large scorch mark and smoke.
 
 ### Feint Swap (Water) - a standard arcana
 
@@ -89,15 +89,16 @@ Not a dash any more: it goes in a normal arcana slot, and your dash stays your d
 
 **Signature** (0.24.0; put Feint Swap in the signature slot and cast it with the gauge full):
 
-- **Fan throw**: hold and release as usual, and **six feints** fly out at once in a **fan 110
-  degrees wide** centred on your aim, as far as the normal throw at that charge (each stopping
-  short of walls), each bursting through the enemies on its way (3 damage a burst, and the six
+- **Fan throw**: hold and release as usual, and **six feints** fly out at once in a **fan 70
+  degrees wide** centred on your aim, three quarters as far as the normal throw at that charge
+  (each stopping short of walls; 0.25.1 drew them in from 110 degrees at the full distance), each bursting through the enemies on its way (3 damage a burst, and the six
   can't stack on one enemy: one burst every 0.15 s at most). A frosty flash, the room dims a
   little and the camera pulls back to show the fan.
 - **Wait**: they stand for 2 seconds, or until you press again / cast again (same rules as the
   normal feint: the press that threw them never counts).
-- **Chained swaps**: you swap onto them **one after another, 0.2 s apart**, sweeping across the
-  fan from its **left end to its right** (left as seen facing along your aim). Each one you land
+- **Chained swaps**: you swap onto them **one after another, 0.2 s apart**, in a **random
+  order** that always **ends on the feint thrown along your aim** (one of the two either side of
+  it, since there are six; if it's broken first, the last one standing). Each one you land
   on goes off in an **icicle spin**: a ring of 8 icicles (the game's ice shard sprite) spins out
   from you and bursts into the game's icicle shards with a Frost Nova (17 damage, a sure freeze,
   radius 1.75), with a 2-frame hit-stop and a shake that grows with each swap. The **last one**
@@ -137,12 +138,12 @@ the shop offers the new one.)
 - **Enhanced**: when the vines take hold, more vines **spread to up to 5 enemies** within 4 tiles,
   coiling round them and rooting them (2 damage every 0.5 s) while you hold and for **3 seconds
   after the kick**, anchored where the kick landed.
-- **Look** (0.25.0): the punch into the ground sends a drawn shockwave across the floor and
-  throws up tumbling rocks and dust; the game's thorns burst where the vines grab an enemy. While
-  you hold, stones keep hopping up out of the floor. The pull kicks up dust puffs and rocks
-  behind you, and the kick bursts into a cone of drawn rock shards along it, a floor shockwave,
-  an impact star and rocks thrown on ahead, with the game's floor crater; the target skids away
-  in puffs of dust.
+- **Look** (0.25.2, in the game's own earth art): the punch into the ground sends its meteor
+  dust ring across the floor and throws up its rock debris and dust puffs; its thorns burst where
+  the vines grab an enemy. While you hold, stones keep hopping up out of the floor. The pull
+  kicks up dust and rocks behind you, and the kick bursts the game's earth spikes out of the floor
+  one after another along it, with its dust ring, a sandy star flash, rocks thrown on ahead and
+  its floor crater; the target skids away in puffs of dust.
 
 ### Charged Leap (Lightning)
 
@@ -158,12 +159,13 @@ the shop offers the new one.)
   hitting harder than before (×1.5), while you **dash after them** and land with a small
   **lightning burst**.
 - **Enhanced**: the landing burst is half as big again.
-- **Look** (0.25.0): a drawn ring of static crackles round your feet while you charge, with sparks
-  snapping round you and the game's lightning aura at full. The leap fires a drawn bolt along your
-  aim with the game's lightning start, and you go in the wizard's dash streaks, leaving yellow and
-  violet afterimages and sparks. The landing is a drawn thunder burst with a shock ring on the
-  floor and a bolt struck back along the whole leap, with the game's lightning hits and a scorch
-  mark (all bigger with the enhanced burst).
+- **Look** (0.25.2, in the game's own lightning art): the game's crackles snap on and off in a
+  widening ring round your feet while you charge, with its mini zaps and its lightning aura at
+  full. The leap fires its bolt along your aim with its lightning start, and you go in the
+  wizard's dash streaks, leaving yellow afterimages and zaps. The landing calls its full lightning
+  strike down from the sky with its strike sparks and a yellow shock ring on the floor, and a bolt
+  struck back along the whole leap, with its lightning hits and a scorch mark (bigger with the
+  enhanced burst).
 
 ### Flair
 
@@ -173,12 +175,15 @@ Blazing Kick's fiery blasts and the kick it swings into at the end of its rush, 
 shimmering trail and glints at both ends, and Charged Leap's lightning flash and crackling sparks.
 Most come with a small camera shake.
 
-The four dashes' **Look** effects (above) mix the game's own effects with pixel art the mod draws
-in code (`PixelArt.cs`): 4 to 8 frame animations in a 5 to 7 colour palette per element, at the
-game's 16 pixels per unit, sorted with the wizard, on the effects layer or flat on the floor. They
+The four dashes' **Look** effects (above) are the game's own effect art: its particle effects,
+and frames cut at runtime from its own wind, fire, earth and lightning sheets (`GameArt.cs`,
+`DashArt.cs`), tinted, sorted with the wizard, on the effects layer or flat on the floor, and
+fading out as the game's do. Where a sheet isn't loaded in a level, the mod's own drawing in the
+same style stands in (`PixelArt.cs`: colours sampled from the game's sheets, no outlines). They
 are pooled (at most 160 on screen), stop when the dash ends and are cleared on a level load. The
-log says `<arcana>: visual '<name>' ready (...)` the first time each one plays, and
-`<arcana>: look '<moment>' played (...)` the first time each moment of a dash shows.
+log says `<arcana>: visual '<name>' ready (the game's ...)` (or `(drawn by the mod ...)`) the
+first time each one plays, and `<arcana>: look '<moment>' played (...)` the first time each
+moment of a dash shows.
 
 ### Balance
 
@@ -254,9 +259,10 @@ Anything not in the config file lives in the code:
   constants at the top or numbers in the calls. Feint Swap is `FeintSwapState.cs`, its signature
   `FeintSwapSignature.cs` (fan, timings, spin sizes), `IcicleSpin.cs` (the icicle rings) and
   `FeintCinematic.cs` (flash, light, camera pull-back, hit-stops).
-- **The dashes' drawn effects**: the drawings and palettes in `PixelArt.cs`, the sprites that play
-  them (pool, sorting, afterimages) in `PixelFx.cs`, and when and where each plays in the arcana's
-  state file (the "look" constants and the `...Look` methods).
+- **The dashes' looks**: which of the game's sprites each uses in `DashArt.cs` (found at runtime
+  by `GameArt.cs`), the stand-in drawings and palettes in `PixelArt.cs`, the sprites that play
+  them (pool, sorting, fades, afterimages) in `PixelFx.cs`, and when and where each plays in the
+  arcana's state file (the "look" constants and the `...Look` methods).
 
 To build your change, push it to a branch and open a pull request: GitHub Actions builds every
 mod and, once merged, publishes the zips on the

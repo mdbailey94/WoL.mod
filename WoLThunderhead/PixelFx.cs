@@ -6,7 +6,8 @@ namespace WoLThunderhead
 {
     // The toolkit behind the drawn effects (ThunderArt, ThunderVisuals):
     // - PixelCanvas: a small canvas to draw pixel-art frames on in code, turned into point-filtered
-    //   sprites at the game's pixel size;
+    //   sprites at the game's pixel size (with the soft alpha glow the game's lightning has);
+    // - GameSprites: the game's own effect sprites, found by name or cut from a loaded sheet;
     // - Fx: a pool of sprite objects the effects borrow and give back (capped per effect and in all,
     //   the oldest reused past the cap, everything put away on a level load), the sorting layers
     //   they draw on, and the log lines (each visual once when it first plays, each failure once);
@@ -130,6 +131,45 @@ namespace WoLThunderhead
                 pixels[i] = color;
         }
 
+        // A soft glow round everything drawn so far, the way the game's lightning glows: one ring of
+        // `near` touching the drawing, then `far` thinning out (its alpha falling with distance) to
+        // `reach` pixels away. Fills only empty pixels.
+        public void Glow(Color32 near, Color32 far, float reach)
+        {
+            var core = new bool[pixels.Length];
+            for (int i = 0; i < pixels.Length; i++)
+                core[i] = pixels[i].a > 0;
+            int span = Mathf.CeilToInt(reach);
+            for (int y = 0; y < Height; y++)
+            {
+                for (int x = 0; x < Width; x++)
+                {
+                    if (core[y * Width + x])
+                        continue;
+                    float nearest = float.MaxValue;
+                    for (int dy = -span; dy <= span; dy++)
+                    {
+                        for (int dx = -span; dx <= span; dx++)
+                        {
+                            int nx = x + dx, ny = y + dy;
+                            if (!Inside(nx, ny) || !core[ny * Width + nx])
+                                continue;
+                            float d = Mathf.Sqrt(dx * dx + dy * dy);
+                            if (d < nearest)
+                                nearest = d;
+                        }
+                    }
+                    if (nearest <= 1.5f)
+                        pixels[y * Width + x] = near;
+                    else if (nearest <= reach)
+                    {
+                        float fade = 1f - (nearest - 1.5f) / Mathf.Max(reach - 1.5f, 0.01f);
+                        pixels[y * Width + x] = new Color32(far.r, far.g, far.b, (byte)Mathf.Max(1, Mathf.RoundToInt(far.a * (0.35f + 0.65f * fade))));
+                    }
+                }
+            }
+        }
+
         public Sprite ToSprite(float ppu, Vector2 pivot)
         {
             var texture = new Texture2D(Width, Height, TextureFormat.RGBA32, false)
@@ -160,7 +200,104 @@ namespace WoLThunderhead
 
         public static float Frac(float value) => value - Mathf.Floor(value);
 
-        public static bool Alive(Sprite[] frames) => frames != null && frames.Length > 0 && frames[0] != null;
+        // Still usable (a sprite cut from a game texture dies with that texture).
+        public static bool Alive(Sprite[] frames) => frames != null && frames.Length > 0 && frames[0] != null && frames[0].texture != null;
+    }
+
+    // The game's own effect sprites, found among what's loaded: by name (the sprite sheets' named
+    // frames) or cut from a texture by rectangle (particle sheets, whose frames have no names).
+    // Looked up once and kept; when something isn't loaded (an atlas only some scenes or arcana
+    // load), the effects draw their own frames instead and it's looked for again later.
+    internal static class GameSprites
+    {
+        private const float RescanGap = 20f;   // seconds before looking again for something missing
+
+        private static Dictionary<string, Sprite> byName;
+        private static readonly Dictionary<string, Texture2D> textures = new Dictionary<string, Texture2D>();
+        private static readonly Dictionary<string, Sprite[]> sets = new Dictionary<string, Sprite[]>();
+        private static readonly Dictionary<string, float> missingSince = new Dictionary<string, float>();
+        private static float scannedAt = -1000f;
+
+        // prefix0 .. prefix(count-1), or null if any is missing.
+        public static Sprite[] Named(string prefix, int count)
+        {
+            string key = "name:" + prefix + count;
+            Sprite[] frames;
+            if (sets.TryGetValue(key, out frames) && PixelCanvas.Alive(frames))
+                return frames;
+            if (StillMissing(key))
+                return null;
+            if (byName == null || Time.realtimeSinceStartup - scannedAt > RescanGap)
+                Scan();
+            frames = new Sprite[count];
+            for (int i = 0; i < count; i++)
+            {
+                Sprite sprite;
+                if (!byName.TryGetValue(prefix + i, out sprite) || sprite == null || sprite.texture == null)
+                    return Missing(key);
+                frames[i] = sprite;
+            }
+            sets[key] = frames;
+            return frames;
+        }
+
+        // Frames cut from a loaded texture: rectangles in its pixels (from the bottom left, as
+        // Unity counts), all with the same pivot.
+        public static Sprite[] Cut(string texture, Rect[] rects, Vector2 pivot, float ppu)
+        {
+            string key = "cut:" + texture + rects.Length + rects[0].x + "," + rects[0].y;
+            Sprite[] frames;
+            if (sets.TryGetValue(key, out frames) && PixelCanvas.Alive(frames))
+                return frames;
+            if (StillMissing(key))
+                return null;
+            Texture2D source;
+            if (!textures.TryGetValue(texture, out source) || source == null)
+            {
+                source = null;
+                foreach (Texture2D t in Resources.FindObjectsOfTypeAll<Texture2D>())
+                {
+                    if (t != null && t.name == texture)
+                    {
+                        source = t;
+                        break;
+                    }
+                }
+                textures[texture] = source;
+            }
+            if (source == null)
+                return Missing(key);
+            frames = new Sprite[rects.Length];
+            for (int i = 0; i < rects.Length; i++)
+            {
+                if (rects[i].xMax > source.width || rects[i].yMax > source.height)
+                    return Missing(key);
+                frames[i] = Sprite.Create(source, rects[i], pivot, ppu);
+            }
+            sets[key] = frames;
+            return frames;
+        }
+
+        private static void Scan()
+        {
+            scannedAt = Time.realtimeSinceStartup;
+            byName = new Dictionary<string, Sprite>();
+            foreach (Sprite sprite in Resources.FindObjectsOfTypeAll<Sprite>())
+                if (sprite != null && !byName.ContainsKey(sprite.name))
+                    byName[sprite.name] = sprite;
+        }
+
+        private static bool StillMissing(string key)
+        {
+            float since;
+            return missingSince.TryGetValue(key, out since) && Time.realtimeSinceStartup - since < RescanGap;
+        }
+
+        private static Sprite[] Missing(string key)
+        {
+            missingSince[key] = Time.realtimeSinceStartup;
+            return null;
+        }
     }
 
     internal static class Fx
@@ -326,15 +463,18 @@ namespace WoLThunderhead
 
         // ---- The game's own pooled particle effects ----
 
-        public static void Effect(string pool, int count, Vector2 position, ParticleSystemOverride overrides = null)
+        // False if it couldn't be had (logged once).
+        public static bool Effect(string pool, int count, Vector2 position, ParticleSystemOverride overrides = null)
         {
             try
             {
                 PoolManager.GetPoolItem<ParticleEffect>(pool).Emit(count, (Vector3?)(Vector3)position, overrides);
+                return true;
             }
             catch (System.Exception e)
             {
                 Fail(pool, e);
+                return false;
             }
         }
 
@@ -352,6 +492,17 @@ namespace WoLThunderhead
             ThunderheadPlugin.Log($"{Prefix}: drawn effects sort on {Describe(FloorLayer)} (floor marks) and {Describe(GroundLayer)} " +
                 $"(ground glyphs), the wizard on '{(body != null ? SafeName(body.sortingLayerID) : "?")}' " +
                 $"(#{(body != null ? SafeValue(body.sortingLayerID) : 0)})");
+        }
+
+        // Where a visual's frames come from (the game's own sprites, or drawn), once each way.
+        public static void Source(string visual, Sprite[] game, string gameName)
+        {
+            string key = "source " + visual + (game != null ? " game" : " drawn");
+            if (!logged.Add(key))
+                return;
+            ThunderheadPlugin.Log(game != null
+                ? $"{Prefix}: visual '{visual}' uses the game's sprites {gameName}"
+                : $"{Prefix}: visual '{visual}': the game's {gameName} isn't loaded here, drawing it instead");
         }
 
         public static void Fail(string what, System.Exception e)

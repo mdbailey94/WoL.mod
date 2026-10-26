@@ -65,35 +65,42 @@ list). If you'd rather earn it the vanilla way, finding its Signature drop in a 
 
 ## Look
 
-Since **0.9.0** the standard and enhanced leap have their own drawn pixel-art effects on top of the
-game's bolts, sparks and dust (the signature storm keeps its cinematic look, unchanged):
+Since **0.9.0** the standard and enhanced leap have their own effects on top of the game's bolts,
+sparks and dust (the signature storm keeps its cinematic look, unchanged). Since **0.9.2** they're
+in the game's own lightning style (thin white lines in a soft pale-yellow glow, no outlines, the
+colours sampled from the game's Lightning sheet) and use the game's own sprites where they fit:
 
 - **Take-off**: a ring of lightning bursts out over the ground from your feet.
-- **In the air**: jagged arcs crackle round the wizard (more of them when enhanced), and lightning
-  crawls through the storm cloud and forks down out of it with each flicker and each volley.
-- **Strike glyphs**: a dashed ring the size of each strike's hit circle appears on the ground
-  wherever the next volley's bolts will land, an inner ring closing in as it charges from blue to
-  white and flashing just before they strike (the same spots the bolts then hit; enhanced, they
-  follow you as you steer).
-- **Scorch marks**: each strike leaves a white starburst, a ring of cyan, then a soot mark whose
-  cracks glow and cool before it fades.
-- **Landing ring**: in the last moments up there a charged ring the size of the slam comes up under
-  you, chevrons pointing in, flickering as you dive.
-- **The slam**: a shockwave of lightning races out to the slam's edge and leaves a cracked crater
-  that glows, cools and fades.
+- **In the air**: the game's little lightning bolts (`MiniLightning`) crackle round the wizard (more
+  of them when enhanced), and lightning crawls through the storm cloud and forks down out of it
+  with each flicker and each volley.
+- **Strike glyphs**: a lightning circle the size of each strike's hit circle, like the game's own,
+  appears on the ground wherever the next volley's bolts will land: its arcs close up, a ring of
+  sparks closes in and it brightens from yellow to white, flashing just before they strike (the
+  spots the bolts then hit; enhanced, they follow you as you steer).
+- **Strikes**: the game's lightning core bursts (`LightningCoreLarge`) and leaves the game's burn
+  mark, with cracks glowing white over it as they cool and fade.
+- **Landing ring**: in the last moments up there a charged lightning circle the size of the slam
+  comes up under you, crackling, and flickers white as you dive.
+- **The slam**: a shockwave of lightning races out to the slam's edge, breaking into dashes, over
+  the game's bigger burn mark with its cracks glowing.
 
-They're drawn in code at the game's pixel size, with a lightning palette, and pooled (capped, put
-away when the cast ends or the level changes). `Drawn` in `[Look]` turns them off. Purely visual:
-damage, hit areas, timings and strike spots are as before.
+The drawn parts are made in code at the game's pixel size and everything is pooled (capped, put
+away when the cast ends or the level changes). Where one of the game's sprites isn't loaded, a
+drawn stand-in in the same style is used. `Drawn` in `[Look]` turns them all off. Purely visual:
+damage, hit areas and timings are unchanged.
 
 ## Log
 
 The drawn effects log one line each the first time they play, for example
-`Thunderhead: visual 'strike glyph' ready (7 sprites, ppu 16)` (also `strike scorch`,
+`Thunderhead: visual 'strike glyph' ready (7 sprites, ppu 16)` (also `strike flash`, `strike scorch`,
 `wizard arcs`, `cloud lightning`, `landing ring`, `take-off shockwave`, `slam shockwave` and
 `slam crater`), and once which sorting layers they draw on: `Thunderhead: drawn effects sort on
 'Shadow' (#n) (floor marks) and 'TargetLineGround' (#n) (ground glyphs), the wizard on ...`. If one
 can't be made it says `Thunderhead: visual '...' skipped: ...` once and the cast goes on without it.
+Which of the game's sprites are used is logged once: `Thunderhead: visual 'wizard arcs' uses the game's
+sprites MiniLightning0-5` (and `'strike flash' ... LightningCoreLarge0-5`), or `...: the game's ... isn't
+loaded here, drawing it instead`.
 
 The bolts are the game's own lightning from the sky (just its animation; the hits come from the
 game's lightning bursts). The log (`BepInEx\LogOutput.log`) says:
@@ -130,7 +137,7 @@ you start the game with the mod), or in-game with a config manager mod if you ha
 | Lightning | `Radius` / `EnhancedRadius` | 2.2 / 2.8 | How far from you the strikes land |
 | Lightning | `VolleyInterval` / `EnhancedVolleyInterval` | 0.4 / 0.25 | Seconds between volleys (lower = more often) |
 | Lightning | `VolleySize` / `EnhancedVolleySize` | 2 / 3 | Strikes per volley |
-| Lightning | `EvenSpread` | true | Spread the strikes evenly over the area (off: random spots) |
+| Lightning | `EvenSpread` | true | Spread the strikes evenly over the area (off: random spots). Either way, on a standard or enhanced cast the first strike of each volley seeks an enemy within reach (the one aimed at least so far), and follows it up to 1.2 units from its glyph (0.9.1: random spots alone often missed the enemies right below) |
 | Lightning | `StrikeSize` | 1 | Each strike's hit area |
 | Lightning | `SlamSize` / `EnhancedSlamSize` | 2.4 / 3 | The landing slam's hit area |
 | Signature | `AirTimeMultiplier` | 1.6 | The storm lasts this many times the enhanced air time |

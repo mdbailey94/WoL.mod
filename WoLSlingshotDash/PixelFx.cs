@@ -25,16 +25,12 @@ namespace WoLSlingshotDash
     }
 
     // One frame being drawn: palette indices on a small grid (y up, as in a texture), with the
-    // shapes the art needs and the finishing passes (outline, dithered dissolve).
+    // shapes the art needs and a glow pass (a ring of a soft colour round the strokes).
     internal sealed class PixelCanvas
     {
         public readonly int W, H;
         private readonly byte[] px;
         private byte[] scratch;
-
-        // Ordered 4x4 dither, so dissolving frames break up in the chunky checker the game's
-        // own effects use rather than fading smoothly.
-        private static readonly int[] Bayer = { 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5 };
 
         public PixelCanvas(int w, int h)
         {
@@ -195,21 +191,6 @@ namespace WoLSlingshotDash
             }
         }
 
-        // Knocks out `amount` (0..1) of the pixels in an ordered dither.
-        public void Dissolve(float amount)
-        {
-            if (amount <= 0f)
-                return;
-            for (int y = 0; y < H; y++)
-            {
-                for (int x = 0; x < W; x++)
-                {
-                    if ((Bayer[(x & 3) + ((y & 3) << 2)] + 0.5f) / 16f < amount)
-                        px[y * W + x] = Px.Clear;
-                }
-            }
-        }
-
         // Keep only the rows from `y` up (the far side of a ring), or below `y` (the near side).
         public void KeepAbove(int y)
         {
@@ -239,30 +220,55 @@ namespace WoLSlingshotDash
         }
     }
 
-    // A drawn animation: its frames side by side in one point-filtered texture, one sprite each,
-    // at the wizard's pixels per unit so a drawn pixel is a game pixel.
+    // An animation for the FxSprites: the game's own frames (GameArt.cs) or the mod's drawn ones
+    // (their frames side by side in one point-filtered texture, one sprite each, at the wizard's
+    // pixels per unit so a drawn pixel is a game pixel). Some of the game's sheets hold several
+    // variants (one per row); a sprite plays one of them.
     internal sealed class FxAnim
     {
-        private const int Padding = 1; // clear pixels between frames, so none bleeds into the next
+        private const int Padding = 1;             // clear pixels between drawn frames, so none bleeds into the next
+        private const float DrawnFadeFrom = 0.55f; // drawn effects fade out over their last 45%, as the game's do
 
         public readonly string Name;
-        public readonly Sprite[] Frames;
+        public readonly Sprite[][] Sets;
         public readonly float FrameTime;
         public readonly bool Loop;
+        public readonly int LoopStart;   // a loop goes back to this frame (frames before it play once, as an intro)
+        public readonly float FadeFrom;  // fades out by alpha from this share of its life (1 = no fade)
+        public readonly bool White;      // a white sheet the game tints (FxOpts.colour applies)
+        public readonly bool FromGame;
+        public readonly float BaseAngle; // the way its art points (degrees): turn it by aim - BaseAngle
 
-        private FxAnim(string name, Sprite[] frames, float frameTime, bool loop)
+        internal FxAnim(string name, Sprite[][] sets, float frameTime, bool loop, int loopStart, float fadeFrom,
+            bool white, bool fromGame, float baseAngle)
         {
             Name = name;
-            Frames = frames;
+            Sets = sets;
             FrameTime = frameTime;
             Loop = loop;
+            LoopStart = Mathf.Clamp(loopStart, 0, sets[0].Length - 1);
+            FadeFrom = fadeFrom;
+            White = white;
+            FromGame = fromGame;
+            BaseAngle = baseAngle;
         }
 
+        public Sprite[] Frames => Sets[0];
         public float Length => Frames.Length * FrameTime;
+
+        // Still usable (the texture behind the game's frames could go away with a level).
+        public bool Valid
+        {
+            get
+            {
+                Sprite first = Sets[0][0];
+                return first != null && first.texture != null;
+            }
+        }
 
         // Draws every frame with `draw(canvas, frame, frameCount)` and logs once that it's ready.
         public static FxAnim Build(string owner, string name, int w, int h, int frames, float frameTime, bool loop,
-            Vector2 pivot, Color32[] palette, Action<PixelCanvas, int, int> draw)
+            Vector2 pivot, Color32[] palette, Action<PixelCanvas, int, int> draw, float baseAngle = 0f)
         {
             float ppu = PixelFx.PixelsPerUnit;
             int stride = w + Padding * 2, atlasWidth = stride * frames;
@@ -292,12 +298,12 @@ namespace WoLSlingshotDash
             int colours = 0;
             for (int i = 1; i < used.Length; i++)
                 colours += used[i] ? 1 : 0;
-            SlingshotDashPlugin.Log($"{owner}: visual '{name}' ready ({frames} frames, {w}x{h} px, {colours} colours, ppu {ppu:0.#})");
-            return new FxAnim(name, sprites, frameTime, loop);
+            SlingshotDashPlugin.Log($"{owner}: visual '{name}' ready (drawn by the mod: {frames} frames, {w}x{h} px, {colours} colours, ppu {ppu:0.#})");
+            return new FxAnim(name, new[] { sprites }, frameTime, loop, 0, loop ? 1f : DrawnFadeFrom, false, false, baseAngle);
         }
     }
 
-    // Where a drawn sprite sorts: among the actors (by height on screen, like the wizard), on the
+    // Where a sprite sorts: among the actors (by height on screen, like the wizard), on the
     // effects layer above them, or flat on the ground under them.
     internal enum FxLayer
     {
@@ -306,7 +312,7 @@ namespace WoLSlingshotDash
         Ground
     }
 
-    // How a drawn sprite moves and sorts (all optional; a struct, so spawning allocates nothing).
+    // How a sprite moves, looks and sorts (all optional; a struct, so spawning allocates nothing).
     internal struct FxOpts
     {
         public float rotation;          // degrees
@@ -314,6 +320,8 @@ namespace WoLSlingshotDash
         public Vector2 velocity;        // drift along the ground, units a second
         public float drag;              // share of that drift lost each second
         public float scale;             // 0 = 1
+        public float stretch;           // extra scale along the way the art points (FxAnim.BaseAngle), e.g. a bolt to length (0 = none)
+        public float shrinkTo;         // shrinks to this share of its size as it fades (0 = keeps its size)
         public float lift;              // drawn this far above its ground point (sorting stays at the ground point)
         public float hop;               // upward speed of a hopping sprite (pebbles), units a second
         public float gravity;           // pulls a hopping sprite back down
@@ -324,15 +332,20 @@ namespace WoLSlingshotDash
         public SpriteRenderer orderFrom; // sorts just behind/in front of this (e.g. the wizard) instead
         public int orderDelta;
         public bool snapshotOrder;      // take orderFrom's order once, at the start
-        public float loopFor;           // a looping animation ends after this long (0 = when stopped)
+        public float loopFor;           // a looping animation (or a held frame) ends after this long (0 = when stopped)
+        public int still;               // hold frame `still - 1` for loopFor seconds instead of animating (0 = animate)
+        public int variant;             // which of the animation's variants (rows of a game sheet) to play
         public bool flipX;
         public bool reverse;            // play the frames backwards (a ring closing in)
         public float speed;             // frame rate multiplier (0 = 1)
-        public Color tint;              // alpha 0 = no tint
+        public float delay;             // stays hidden this long before it starts (one after another along a line)
+        public float fadeFrom;          // overrides the animation's fade start (0 = its own)
+        public Color colour;            // tints a white game sheet (alpha 0 = none), as the game's particles are
+        public Color tint;              // tints anything (alpha 0 = none)
     }
 
-    // A drawn sprite in flight, so the state that started it can stop or resize it. Safe to use
-    // after it has ended (and its sprite went on to play something else).
+    // A sprite in flight, so the state that started it can stop or resize it. Safe to use after
+    // it has ended (and its sprite went on to play something else).
     internal struct FxHandle
     {
         private readonly FxSprite sprite;
@@ -359,10 +372,10 @@ namespace WoLSlingshotDash
         }
     }
 
-    // A pooled sprite playing one drawn animation (or holding one picture, for afterimages).
-    // Runs on game time, so the game's hit-stops and pause freeze it with everything else. All
-    // of them are put away when a level loads; looping ones are stopped by the state that
-    // started them when it ends (and end by themselves when what they follow is gone).
+    // A pooled sprite playing one animation (or holding one picture, for afterimages). Runs on
+    // game time, so the game's hit-stops and pause freeze it with everything else. All of them are
+    // put away when a level loads; looping ones are stopped by the state that started them when it
+    // ends (and end by themselves when what they follow is gone).
     internal sealed class FxSprite : MonoBehaviour
     {
         private const int MaxLive = 160; // never more on screen at once, whatever is asked for
@@ -380,13 +393,14 @@ namespace WoLSlingshotDash
         private SpriteRenderer sr;
         private Material defaultMaterial;
         private FxAnim anim;
+        private Sprite[] frames;
         private float stillLife;
-        private float stillAlpha;
         private FxOpts o;
         private bool following;
         private float age;      // frame clock (scaled by speed)
         private float elapsed;  // game time since it started
-        private float height, upSpeed, angle;
+        private float height, upSpeed, angle, fade = 1f;
+        private Color baseColour = Color.white;
         private Vector3 baseScale = Vector3.one;
         private Vector2 ground;
         private bool sorted;
@@ -399,12 +413,18 @@ namespace WoLSlingshotDash
             if (s == null)
                 return default(FxHandle);
             s.anim = anim;
-            s.Begin(position, opts, Vector3.one);
-            s.sr.sprite = anim.Frames[opts.reverse ? anim.Frames.Length - 1 : 0];
+            s.frames = anim.Sets[Mathf.Abs(opts.variant) % anim.Sets.Length];
+            Color colour = Color.white;
+            if (anim.White && opts.colour.a > 0f)
+                colour = opts.colour;
+            if (opts.tint.a > 0f)
+                colour *= opts.tint;
+            s.Begin(position, opts, Vector3.one, colour);
+            s.sr.sprite = s.frames[opts.still > 0 ? Mathf.Min(opts.still, s.frames.Length) - 1 : opts.reverse ? s.frames.Length - 1 : 0];
             return new FxHandle(s);
         }
 
-        // One picture held for `life` seconds, fading out in three steps (afterimages).
+        // One picture held for `life` seconds, fading out (afterimages).
         public static FxHandle Still(Sprite sprite, Material material, Vector2 position, Vector3 scale, float life, FxOpts opts)
         {
             if (sprite == null)
@@ -413,9 +433,9 @@ namespace WoLSlingshotDash
             if (s == null)
                 return default(FxHandle);
             s.anim = null;
+            s.frames = null;
             s.stillLife = Mathf.Max(0.02f, life);
-            s.stillAlpha = opts.tint.a > 0f ? opts.tint.a : 1f;
-            s.Begin(position, opts, scale);
+            s.Begin(position, opts, scale, opts.tint.a > 0f ? opts.tint : Color.white);
             s.sr.sprite = sprite;
             if (material != null)
                 s.sr.sharedMaterial = material;
@@ -441,7 +461,7 @@ namespace WoLSlingshotDash
                 if (!loggedCap)
                 {
                     loggedCap = true;
-                    SlingshotDashPlugin.Log($"Slingshot visuals: {MaxLive} drawn sprites on screen, skipping more until some finish");
+                    SlingshotDashPlugin.Log($"Slingshot visuals: {MaxLive} sprites on screen, skipping more until some finish");
                 }
                 return null;
             }
@@ -462,21 +482,25 @@ namespace WoLSlingshotDash
             return s;
         }
 
-        private void Begin(Vector2 position, FxOpts opts, Vector3 pictureScale)
+        private void Begin(Vector2 position, FxOpts opts, Vector3 pictureScale, Color colour)
         {
             o = opts;
             following = opts.follow != null;
             ground = following ? (Vector2)opts.follow.position + opts.offset : position;
             age = 0f;
-            elapsed = 0f;
+            // A delayed sprite counts up from below zero, hidden until then.
+            elapsed = -Mathf.Max(0f, opts.delay);
+            sr.enabled = opts.delay <= 0f;
             height = 0f;
             upSpeed = opts.hop;
             angle = opts.rotation;
             scale = opts.scale > 0f ? opts.scale : 1f;
+            fade = 1f;
             baseScale = pictureScale;
+            baseColour = colour;
             sorted = false;
             sr.flipX = opts.flipX;
-            sr.color = opts.tint.a > 0f ? opts.tint : Color.white;
+            sr.color = colour;
             gameObject.SetActive(true);
             Place();
         }
@@ -487,21 +511,45 @@ namespace WoLSlingshotDash
                 return;
             float dt = Time.deltaTime;
             elapsed += dt;
+            if (elapsed < 0f)
+                return;
+            if (!sr.enabled)
+                sr.enabled = true;
             age += dt * (o.speed > 0f ? o.speed : 1f);
+            float life; // 0..1 through its life, for the fade (0 while it loops until stopped)
+            float fadeFrom = 1f;
             if (anim != null)
             {
-                int n = anim.Frames.Length;
-                int f = (int)(age / anim.FrameTime);
-                if (f >= n)
+                int n = frames.Length;
+                int f;
+                if (o.still > 0)
                 {
-                    if (!anim.Loop || (o.loopFor > 0f && elapsed >= o.loopFor))
+                    if (elapsed >= o.loopFor)
                     {
                         Release();
                         return;
                     }
-                    f %= n;
+                    f = Mathf.Min(o.still, n) - 1;
+                    life = o.loopFor > 0f ? elapsed / o.loopFor : 0f;
                 }
-                sr.sprite = anim.Frames[o.reverse ? n - 1 - f : f];
+                else
+                {
+                    f = (int)(age / anim.FrameTime);
+                    if (f >= n)
+                    {
+                        if (!anim.Loop || (o.loopFor > 0f && elapsed >= o.loopFor))
+                        {
+                            Release();
+                            return;
+                        }
+                        f = anim.LoopStart + (f - anim.LoopStart) % (n - anim.LoopStart);
+                    }
+                    if (o.reverse)
+                        f = n - 1 - f;
+                    life = !anim.Loop ? age / anim.Length : o.loopFor > 0f ? elapsed / o.loopFor : 0f;
+                }
+                sr.sprite = frames[f];
+                fadeFrom = o.fadeFrom > 0f ? o.fadeFrom : anim.FadeFrom;
             }
             else
             {
@@ -510,12 +558,14 @@ namespace WoLSlingshotDash
                     Release();
                     return;
                 }
-                // Stepped, like the game's own flickers, rather than a smooth fade.
-                float step = Mathf.Ceil((1f - elapsed / stillLife) * 3f) / 3f;
-                Color c = sr.color;
-                c.a = stillAlpha * step;
-                sr.color = c;
+                life = elapsed / stillLife;
+                fadeFrom = o.fadeFrom > 0f ? o.fadeFrom : 0.01f;
             }
+            // Fading out by alpha (and shrinking, if asked) over the end of its life.
+            fade = fadeFrom < 1f && life > fadeFrom ? Mathf.Clamp01(1f - (life - fadeFrom) / (1f - fadeFrom)) : 1f;
+            Color c = baseColour;
+            c.a *= fade;
+            sr.color = c;
 
             if (following)
             {
@@ -548,9 +598,19 @@ namespace WoLSlingshotDash
 
         private void Place()
         {
+            float size = scale * (o.shrinkTo > 0f ? Mathf.Lerp(o.shrinkTo, 1f, fade) : 1f);
+            float sx = size, sy = size;
+            if (o.stretch > 0f)
+            {
+                // Art pointing up its sprite stretches in y, art pointing along it in x.
+                if (anim != null && Mathf.Approximately(anim.BaseAngle, 90f))
+                    sy *= o.stretch;
+                else
+                    sx *= o.stretch;
+            }
             transform.position = new Vector3(ground.x, ground.y + o.lift + height, 0f);
             transform.rotation = Quaternion.Euler(0f, 0f, angle);
-            transform.localScale = new Vector3(baseScale.x * scale, baseScale.y * scale, 1f);
+            transform.localScale = new Vector3(baseScale.x * sx, baseScale.y * sy, 1f);
             if (sorted && o.snapshotOrder)
                 return;
             sorted = true;
@@ -583,6 +643,7 @@ namespace WoLSlingshotDash
             }
             o = default(FxOpts);
             anim = null;
+            frames = null;
             following = false;
             if (sr != null)
             {
@@ -590,6 +651,7 @@ namespace WoLSlingshotDash
                 sr.sharedMaterial = defaultMaterial;
                 sr.color = Color.white;
                 sr.flipX = false;
+                sr.enabled = true;
             }
             gameObject.SetActive(false);
             free.Push(this);

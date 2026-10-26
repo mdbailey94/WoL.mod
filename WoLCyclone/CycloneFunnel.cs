@@ -3,14 +3,17 @@ using UnityEngine;
 
 namespace WoLCyclone
 {
-    // Cyclone's drawn twister: a funnel of overlapping, see-through spinning bands (each a 6-frame
-    // pixel-art loop with ragged, dithered edges and streaks trailing off its sides) that flares and
-    // darkens through three shades as it grows, swaying like a snaking tornado, with wisps of wind
-    // peeling off its sides;
-    // dust, leaves and pebbles orbiting it at a radius that grows with it (behind the funnel on the
-    // far side of their orbit, in front on the near side); and a ring of dust whirling round its
-    // base. When it ends it either collapses (let go, dash, or the cast ending) or blows apart in a
-    // gust ring with wind streaks and the debris flung outward (the burst).
+    // Cyclone's twister, in the game's own wind style: a funnel of stacked spinning bands, each
+    // drawn like the game's spinning gust ring (WindParticles2: brushed strokes going round, light
+    // on the near rim, the dark inner wall showing across the mouth, tails flicking off; its three
+    // flat wind tones, no outline), 6-frame loops at native pixel size, that flare and darken
+    // through three shades as it grows, swaying like a snaking tornado, with the game's wind wisps
+    // peeling off its sides; dust puffs, rocks and leaves orbiting it at a radius that grows with it
+    // (behind the funnel on the far side of their orbit, in front on the near side); and a ring of
+    // dust whirling round its base. When it ends it either collapses (let go, dash, or the cast
+    // ending) or blows apart in the game's spinning gust ring with its wind slashes racing out and
+    // the debris flung outward (the burst). Drawn stand-ins in the same style replace any of the
+    // game's sprites that aren't loaded.
     //
     // Visual only. One object per cast, destroyed when its ending has played (or with the level).
     internal class CycloneFunnel : MonoBehaviour
@@ -27,21 +30,25 @@ namespace WoLCyclone
         private const int MaxBands = 7;
         private const int MaxBandPx = 96;            // wider bands are drawn at this and scaled up
         private const int BandFrames = 6;
+        private const float BandFlatten = 0.42f;     // band height / width (a ring seen at the game's angle)
         private const float BandOverlap = 0.6f;      // each band reaches this far (of the spacing) up behind the next
-        private const int MaxBandHeightPx = 24;
-        private const int BandVariants = 3;          // differently streaked bands, so neighbours don't match
-        private const float BandSidePad = 0.2f;      // room either side (of the band width) for streaks trailing off
-        // Wisps peeling off its sides
-        private const float WispIntervalSlow = 0.35f; // seconds between wisps, small to full
-        private const float WispIntervalFast = 0.12f;
-        private const float WispLife = 0.4f;
-        private const int WispWidth = 12, WispHeight = 8, WispFrames = 5;
+        private const int MaxBandHeightPx = 28;
+        private const int BandVariants = 3;          // differently stroked bands, so neighbours don't match
+        private const float BandInner = 0.52f;       // the ring's hole, and its three lanes of strokes
+        private const float BandLane1 = 0.66f;
+        private const float BandLane2 = 0.81f;
+        private const float BandOuter = 0.95f;
         private const float BandFpsSlow = 10f;       // spin, small to full (the bottom spins faster)
         private const float BandFpsFast = 22f;
         private const float SwayAmplitude = 0.18f;   // units at the top
         private const float SwayRate = 2.2f;         // radians a second
         private const float GaleAt = 0.4f;           // progress where it darkens to the second shade...
         private const float StormAt = 0.75f;         // ...and to storm grey
+        // Wisps peeling off its sides
+        private const float WispIntervalSlow = 0.35f; // seconds between wisps, small to full
+        private const float WispIntervalFast = 0.12f;
+        private const float WispLife = 0.4f;
+        private const int WispWidth = 12, WispHeight = 8, WispFrames = 5;
         // Debris orbiting it
         private const int MinDebris = 2;
         private const int MaxDebris = 12;
@@ -62,64 +69,45 @@ namespace WoLCyclone
         private const float CollapseTime = 0.4f;
         private const float BlowTime = 0.3f;
         private const float BlowWiden = 1.8f;
-        // The burst's gust ring and streaks
+        // The burst's gust ring and slashes
         private const int GustFrames = 8;
         private const float GustLife = 0.4f;
+        private const float GustRingPx = 86f;        // across the ring in the game's AirSpinnerBurst frames
         private const float GustFlatten = 0.6f;
         private const int GustMinPx = 32, GustMaxPx = 128, GustStepPx = 8;
         private const int GustStreaks = 10;
         private const float StreakLife = 0.35f;
         private const float StreakSpeed = 2.6f;      // times the burst radius, a second
 
-        // Funnel shades: breezy cyan, grey gale, storm slate (index 1 outline, then dark to light).
+        // Funnel shades, from the game's wind tones (index 1 deepest, then dark to light): the
+        // game's own, then greyed and darkened in two steps for the gale and the storm.
         private static readonly Color32[][] Shades =
         {
             PixelFx.Air,
             new[]
             {
                 new Color32(0, 0, 0, 0),
-                new Color32(0x3a, 0x54, 0x70, 0xd0),
-                new Color32(0x6a, 0x8a, 0xa6, 0xe6),
-                new Color32(0x98, 0xbc, 0xcc, 0xf2),
-                new Color32(0xcf, 0xe3, 0xe8, 0xff),
-                new Color32(0xf2, 0xfa, 0xfa, 0xff),
+                new Color32(0x5c, 0x6b, 0x6e, 0xff),
+                new Color32(0x7a, 0x8a, 0x8e, 0xff),
+                new Color32(0x9f, 0xb8, 0xbb, 0xff),
+                new Color32(0xbd, 0xd5, 0xd6, 0xff),
+                new Color32(0xbd, 0xd5, 0xd6, 0xff),
             },
             new[]
             {
                 new Color32(0, 0, 0, 0),
-                new Color32(0x2b, 0x34, 0x47, 0xd8),
-                new Color32(0x4f, 0x5f, 0x75, 0xee),
-                new Color32(0x7c, 0x8e, 0xa3, 0xf6),
-                new Color32(0xae, 0xbd, 0xcb, 0xff),
-                new Color32(0xdb, 0xe4, 0xec, 0xff),
+                new Color32(0x4b, 0x56, 0x59, 0xff),
+                new Color32(0x66, 0x73, 0x78, 0xff),
+                new Color32(0x87, 0x98, 0xa0, 0xff),
+                new Color32(0xa8, 0xba, 0xbf, 0xff),
+                new Color32(0xa8, 0xba, 0xbf, 0xff),
             },
         };
 
-        // The bands are see-through: their faint edge at about 45%, shade about 65%, highlights solid.
-        private static readonly byte[] BandAlpha = { 0, 0x70, 0xa8, 0xd0, 0xe8, 0xff };
-        private static readonly Color32[][] BandShades = { Soften(Shades[0]), Soften(Shades[1]), Soften(Shades[2]) };
-        // Wisps: the Air palette, fainter still.
-        private static readonly Color32[] WispPalette =
-        {
-            new Color32(0, 0, 0, 0),
-            new Color32(0x74, 0xa9, 0xc9, 0x50),
-            new Color32(0x74, 0xa9, 0xc9, 0x90),
-            new Color32(0xa9, 0xdc, 0xea, 0xb8),
-            new Color32(0xdd, 0xf6, 0xf7, 0xd8),
-            new Color32(0xff, 0xff, 0xff, 0xf0),
-        };
-        private static Sprite[] wispArt;
-
-        private static Color32[] Soften(Color32[] palette)
-        {
-            var soft = new Color32[palette.Length];
-            for (int i = 0; i < palette.Length; i++)
-                soft[i] = new Color32(palette[i].r, palette[i].g, palette[i].b, BandAlpha[i]);
-            return soft;
-        }
         private static readonly Dictionary<int, Sprite[]> bandCache = new Dictionary<int, Sprite[]>();
         private static readonly Dictionary<int, Sprite[]> ringCache = new Dictionary<int, Sprite[]>();
         private static readonly Dictionary<int, Sprite[]> gustCache = new Dictionary<int, Sprite[]>();
+        private static Sprite[] wispArt;
         private static bool broken, loggedError;
 
         private class Band
@@ -132,6 +120,7 @@ namespace WoLCyclone
         {
             public SpriteRenderer sr;
             public Sprite[] frames;
+            public Color tint;
             public float angle, speed, height, reach, phase;
         }
 
@@ -161,7 +150,7 @@ namespace WoLCyclone
                 funnel.ring = funnel.Child("DustRing", PixelFx.GroundLayer);
                 funnel.center = position;
                 funnel.Draw(0f, 1f, 1f, 1f);
-                PixelFx.Effect("funnel", () => $"{MinBands}-{MaxBands} bands x {BandFrames} frames in {Shades.Length} shades, ppu {PixelFx.Ppu}");
+                PixelFx.Effect("funnel", () => $"{MinBands}-{MaxBands} gust-ring bands x {BandFrames} frames in {Shades.Length} shades of the game's wind tones, ppu {PixelFx.Ppu}");
                 PixelFx.Effect("dust ring", () => $"{RingFrames} frames, {funnel.ring.sprite.rect.width} px wide to start, ppu {PixelFx.Ppu}");
                 return funnel;
             }
@@ -215,6 +204,7 @@ namespace WoLCyclone
                     FxSprite fx = FxSprite.Spawn(o.frames, at, blow ? 0.5f : 0.4f, DebrisFps);
                     if (fx == null)
                         continue;
+                    fx.Tint(o.tint);
                     if (blow)
                         fx.Drift(away * Random.Range(7f, 11f) + Vector2.up * 1.5f, 2.5f).Fade(0f, 0.15f).SortWithActors();
                     else
@@ -228,29 +218,44 @@ namespace WoLCyclone
             PixelFx.Effect("gust ring", () =>
             {
                 float wantPx = burstRadius * 2f * PixelFx.Ppu;
+                Sprite[] game = GameArt.GustRing();
+                if (game != null)
+                {
+                    FxSprite spinner = FxSprite.Spawn(game, middle, GustLife);
+                    if (spinner == null)
+                        return null;
+                    float size = wantPx / GustRingPx;
+                    spinner.Scale(size * 0.9f, size).Fade(0f, 0.12f).Sort(PixelFx.EffectLayer, 0);
+                    return "game's AirSpinnerBurst, 8 frames";
+                }
                 Sprite[] frames = Gust(wantPx, out int px);
                 FxSprite fx = FxSprite.Spawn(frames, middle, GustLife);
                 if (fx == null)
                     return null;
                 float scale = wantPx / px;
                 fx.Scale(scale, scale).Fade(0f, 0.12f).Sort(PixelFx.EffectLayer, 0);
-                return $"{frames.Length} frames, {px} px, ppu {PixelFx.Ppu}";
+                return $"drawn gust ring, {frames.Length} frames, {px} px, ppu {PixelFx.Ppu}";
             });
             PixelFx.Effect("gust streaks", () =>
             {
+                Sprite[] slash = PixelFx.GameSlash("Med");
                 int made = 0;
                 for (int i = 0; i < GustStreaks; i++)
                 {
                     float a = (i + Random.value * 0.5f) / GustStreaks * Mathf.PI * 2f;
                     var dir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
                     var flat = new Vector2(dir.x, dir.y * GustFlatten);
-                    FxSprite fx = FxSprite.Spawn(PixelFx.Crescent(dir), middle + flat * burstRadius * 0.35f, StreakLife);
+                    FxSprite fx = FxSprite.Spawn(slash ?? PixelFx.Crescent(dir), middle + flat * burstRadius * 0.35f, StreakLife);
                     if (fx == null)
                         break;
+                    if (slash != null)
+                        fx.Rotate(PixelFx.SlashAngle(dir));
                     fx.Drift(flat * burstRadius * StreakSpeed, 2.5f).Fade(0f, 0.1f).Sort(PixelFx.EffectLayer, 1);
                     made++;
                 }
-                return made > 0 ? $"{made} crescents x {PixelFx.CrescentFrames} frames, ppu {PixelFx.Ppu}" : null;
+                if (made == 0)
+                    return null;
+                return slash != null ? $"{made} x game's WindSlashMed0-6" : $"{made} drawn crescents x {PixelFx.CrescentFrames} frames, ppu {PixelFx.Ppu}";
             });
         }
 
@@ -308,10 +313,11 @@ namespace WoLCyclone
             int count = MinBands + Mathf.RoundToInt((MaxBands - MinBands) * p);
             int shade = p < GaleAt ? 0 : p < StormAt ? 1 : 2;
             int order = PixelFx.SortOrder(center.y);
-            var color = new Color(1f, 1f, 1f, PixelFx.Steps(alpha));
+            float fade = PixelFx.Steps(alpha);
+            var color = new Color(1f, 1f, 1f, fade);
 
             // Bands, bottom up, each tall enough to overlap well into the one above, whose bottom
-            // tucks behind it (lower bands draw in front), so the funnel reads as one body.
+            // tucks behind it (lower bands draw in front), so the funnel reads as one coil.
             float step = count > 1 ? height / (count - 1) : height;
             int minHeight = Mathf.RoundToInt(step * ppu * (1f + BandOverlap));
             for (int i = 0; i < bands.Count; i++)
@@ -324,8 +330,8 @@ namespace WoLCyclone
                 }
                 float t = count > 1 ? (float)i / (count - 1) : 0f;
                 float width = WidthAt(t, bottom, top);
-                int px = Mathf.Clamp(Mathf.RoundToInt(width * ppu * 0.5f) * 2, 4, MaxBandPx);
-                int tall = Mathf.Clamp(Mathf.Max(Mathf.RoundToInt(px * 0.3f), minHeight), 4, Mathf.Min(MaxBandHeightPx, px + 4));
+                int px = Mathf.Clamp(Mathf.RoundToInt(width * ppu * 0.5f) * 2, 6, MaxBandPx);
+                int tall = Mathf.Clamp(Mathf.Max(Mathf.RoundToInt(px * BandFlatten), minHeight), 5, Mathf.Min(MaxBandHeightPx, px));
                 Sprite[] frames = BandArt(px, tall, shade, i == count - 1, i % BandVariants);
                 float fps = Mathf.Lerp(BandFpsSlow, BandFpsFast, p) * (1f + 0.4f * (1f - t));
                 band.sr.sprite = frames[Frame(time, fps, band.phase, BandFrames)];
@@ -364,7 +370,7 @@ namespace WoLCyclone
                 // Behind the funnel on the far side of the orbit, in front on the near side.
                 o.sr.sortingOrder = sin > 0f ? order : order + MaxBands + 2;
                 o.sr.sprite = o.frames[Frame(time, DebrisFps, o.phase, o.frames.Length)];
-                o.sr.color = color;
+                o.sr.color = new Color(o.tint.r, o.tint.g, o.tint.b, o.tint.a * fade);
             }
 
             // The dust ring round its base.
@@ -382,11 +388,12 @@ namespace WoLCyclone
 
         private void AddOrbiter()
         {
-            Sprite[] frames = PixelFx.RandomDebris();
+            Sprite[] frames = PixelFx.RandomDebris(out Color tint);
             var o = new Orbiter
             {
                 sr = Child("Debris" + orbiters.Count, PixelFx.ActorLayer),
                 frames = frames,
+                tint = tint,
                 angle = Random.value * Mathf.PI * 2f,
                 speed = Random.Range(0.8f, 1.3f),
                 height = Random.Range(0.05f, 0.95f),
@@ -394,90 +401,79 @@ namespace WoLCyclone
                 phase = Random.value * 4f
             };
             o.sr.sprite = frames[0];
+            o.sr.color = tint;
             o.sr.enabled = true;
             orbiters.Add(o);
-            PixelFx.Effect("orbiting debris", () => $"dust, leaves and pebbles, 4 frames each, up to {MaxDebris}, ppu {PixelFx.Ppu}");
+            PixelFx.Effect("orbiting debris", () => $"dust puffs, rocks and leaves (game's Dust and Rocks when loaded), up to {MaxDebris}, ppu {PixelFx.Ppu}");
         }
 
-        // One band of the funnel, `width` x `height` px (plus room either side): a see-through ring
-        // of wind seen from the side. Its rim is ragged and dithered and shifts every frame; streaks
-        // wrap round it (bunching up at its edges, as on a cylinder) and race left to right, each
-        // row slanted and offset differently with streak lengths that change frame to frame, over a
-        // finer second set; some rows trail streaks off its sides. Lit on the left, shaded on the
-        // right and underneath. The top band is open, showing the dim inside of the funnel with its
-        // far wall turning the other way; the others' far sides are mostly clear, so the band behind shows.
+        // One band of the funnel, `width` x `height` px (plus room round it for the tails), drawn
+        // like the game's spinning gust ring: strokes of uneven length going round in three lanes,
+        // spinning a step each frame; light on the near rim and the left, the body tone elsewhere,
+        // shaded on the right; across the mouth the dark inner wall shows (and, on the open top
+        // band, between the far strokes too); two or three tapered tails flick off tangentially.
         private static Sprite[] BandArt(int width, int height, int shade, bool top, int variant)
         {
             int key = (((width * 32 + height) * 8 + shade * 2 + (top ? 1 : 0)) * BandVariants) + variant;
             if (bandCache.TryGetValue(key, out Sprite[] cached) && PixelFx.Alive(cached))
                 return cached;
-            int pad = Mathf.Max(3, Mathf.RoundToInt(width * BandSidePad));
-            int w = width + pad * 2, h = height;
-            float half = width * 0.5f;
-            float stripes = Mathf.Max(2, Mathf.RoundToInt(width / 8f));
-            float turn = Mathf.PI * 2f / BandFrames;
-            Sprite[] frames = PixelFx.Strip("band" + key, w, h, BandFrames, BandShades[shade], (f, x, y) =>
+            int pad = Mathf.Max(2, width / 6);
+            int w = width + pad * 2, h = height + 2;
+            float halfW = width * 0.5f, halfH = height * 0.5f;
+            Sprite[] frames = PixelFx.Strip("band" + key, w, h, BandFrames, Shades[shade], (f, x, y) =>
             {
-                float u = (x + 0.5f - w * 0.5f) / half;
-                float v = (y + 0.5f - h * 0.5f) / (h * 0.5f);
-                float theta = Mathf.Atan2(v, u);
-                float edge = 0.9f + 0.07f * Mathf.Sin(theta * 5f + f * turn + variant * 2.1f)
-                    + 0.05f * Mathf.Sin(theta * 9f - f * turn * 2f + variant * 4.3f);
+                float u = (x + 0.5f - w * 0.5f) / halfW;
+                float v = (y + 0.5f - h * 0.5f) / halfH;
                 float r = Mathf.Sqrt(u * u + v * v);
-                if (r > edge)
-                    return SideStreak(f, x, y, u, v, edge, half, pad, variant);
-                if (r > edge - 0.1f && !top && v > 0.3f)
-                    return 0;  // no rim along the top edge, where it would draw a seam over the band behind
-                if (r > edge - 0.1f)
-                    return (x + y + f) % 2 == 0 ? 0 : u < -0.5f ? 4 : 2;  // dithered rim
-                float around = Mathf.Asin(Mathf.Clamp(u, -1f, 1f)) / (Mathf.PI * 0.5f);
-                float row = Hash(y * 13 + variant * 71);
-                float s = PixelFx.Frac(around * stripes * 0.5f + v * (0.3f + 0.15f * row) + row * 0.25f - (float)f / BandFrames);
-                float length = 0.18f + 0.27f * Hash(y * 7 + f * 31 + variant * 13);
-                float fine = PixelFx.Frac(around * stripes * 0.85f - v * 0.15f + variant * 0.33f - 2f * f / BandFrames);
-                if (top)
-                {
-                    float iu = u / 0.74f, iv = (v - 0.3f) / 0.52f;
-                    if (iu * iu + iv * iv < 1f)
-                        return PixelFx.Frac(-around * stripes * 0.5f + v * 0.5f + row * 0.5f - (float)f / BandFrames) < 0.15f ? 2 : 1;
-                }
-                else if (v > 0.6f)
-                {
-                    return s < length * 0.5f ? 3 : 0;  // the far side: clear but for a few streaks, so the band behind shows
-                }
-                if (u < -0.8f)
-                    return s < 0.5f ? 5 : 4;
-                if (u > 0.8f || v < -0.65f)
-                    return s < length ? 3 : 2;
-                if (s < length * 0.45f)
-                    return 5;
-                if (s < length)
-                    return 4;
-                return fine < 0.1f ? 4 : 3;
-            }, new Vector2(0.5f, 0.5f), 0);
+                float a = Mathf.Atan2(v, u) / (Mathf.PI * 2f);
+                return BandPixel(u, v, r, a, f, variant, top);
+            }, new Vector2(0.5f, 0.5f));
             bandCache[key] = frames;
             return frames;
         }
 
-        // A streak trailing off a band's side on some rows, its length changing frame to frame,
-        // thinning to a dither at the tip.
-        private static int SideStreak(int f, int x, int y, float u, float v, float edge, float half, int pad, int variant)
+        private static int BandPixel(float u, float v, float r, float a, int f, int variant, bool top)
         {
-            if (Mathf.Abs(v) > 0.7f || Mathf.Abs(u) < 0.5f)
+            if (r > BandOuter)
+            {
+                // Tails: tapered strokes leaving the rim, curving outward as they go.
+                for (int k = 0; k < 3; k++)
+                {
+                    float start = PixelFx.Frac(k / 3f + variant * 0.17f + (float)f / BandFrames);
+                    float along = PixelFx.Frac(a - start);
+                    if (along > 0.14f)
+                        continue;
+                    float t = along / 0.14f;
+                    if (Mathf.Abs(r - (BandOuter + 0.22f * t)) < 0.07f * (1f - t) + 0.015f)
+                        return t < 0.45f ? 4 : 3;
+                }
                 return 0;
-            int side = u > 0f ? 1 : 0;
-            if (Hash(y * 5 + side * 17 + variant * 29) > 0.45f)
+            }
+            if (r < BandInner)
                 return 0;
-            float rimU = Mathf.Sqrt(Mathf.Max(0f, edge * edge - v * v));
-            float beyond = (Mathf.Abs(u) - rimU) * half;
-            float length = pad * (0.3f + 0.7f * Hash(y * 3 + f * 11 + side * 5 + variant * 7));
-            if (beyond > length || (beyond > length * 0.6f && (x + f) % 2 == 0))
-                return 0;
-            return beyond < length * 0.4f ? 3 : 2;
+            int lane = r < BandLane1 ? 0 : r < BandLane2 ? 1 : 2;
+            int strokes = 3 + lane + (variant % 2);
+            float pos = a * strokes + lane * 0.37f + variant * 0.21f - (float)f / BandFrames;
+            int id = ((Mathf.FloorToInt(pos) % strokes) + strokes) % strokes;
+            bool stroke = PixelFx.Frac(pos) < 0.5f + 0.35f * Hash(lane * 97 + id * 13 + variant * 7);
+            if (v > 0.05f)
+            {
+                // The far side: the inner wall in shade, strokes passing over the rest.
+                if (lane == 0)
+                    return 2;
+                if (!stroke)
+                    return top ? 2 : 0;
+                return u < -0.3f ? 4 : 3;
+            }
+            if (!stroke)
+                return lane == 2 ? 0 : 2;
+            if (u > 0.45f && lane >= 1)
+                return 3;
+            return lane == 2 || u < 0f ? 4 : 3;
         }
 
-        // A wisp curling off the funnel's side (drawn peeling to the right; flipped for the left):
-        // it stretches out, hooks upward, then thins from the tail and breaks up.
+        // Drawn stand-in for the game's wind wisps: a curl peeling off to the right (flipped for
+        // the left), stretching out, hooking upward, then thinning from the tail.
         private static Sprite[] WispArt()
         {
             if (PixelFx.Alive(wispArt))
@@ -491,19 +487,19 @@ namespace WoLCyclone
                 for (int i = 0; i <= samples; i++)
                 {
                     float s = (float)i / samples;
-                    if ((f >= 3 && s < (f - 2) * 0.3f) || (f == 4 && i % 3 == 0))
+                    if (f >= 3 && s < (f - 2) * 0.3f)
                         continue;
                     int px = (int)(s * length[f]);
                     int py = (int)(1.5f + curl[f] * s * s * s);
                     if (px >= WispWidth || py >= WispHeight)
                         continue;
-                    int c = s > 0.8f ? 5 : s > 0.5f ? 4 : s > 0.25f ? 3 : 2;
+                    int c = s > 0.6f ? 4 : s > 0.25f ? 3 : 2;
                     grid[f, px, py] = Mathf.Max(grid[f, px, py], c);
                     if (s < 0.35f && f < 3 && py > 0)
                         grid[f, px, py - 1] = Mathf.Max(grid[f, px, py - 1], 2);
                 }
             }
-            wispArt = PixelFx.Strip("wisp", WispWidth, WispHeight, WispFrames, WispPalette, (f, x, y) =>
+            wispArt = PixelFx.Strip("wisp", WispWidth, WispHeight, WispFrames, PixelFx.Air, (f, x, y) =>
                 x >= 0 && y >= 0 && x < WispWidth && y < WispHeight ? grid[f, x, y] : 0, new Vector2(0f, 0.25f));
             return wispArt;
         }
@@ -515,15 +511,18 @@ namespace WoLCyclone
             {
                 float t = Random.Range(0.2f, 1f);
                 float side = Random.value < 0.5f ? -1f : 1f;
-                var at = center + new Vector2(side * WidthAt(t, bottom, top) * 0.42f + SwayAt(t, time), t * height + 0.2f);
-                FxSprite fx = FxSprite.Spawn(WispArt(), at, WispLife);
+                Sprite[] game = GameArt.WindWisps();
+                // The game's wisps are centred in their tiles, so start them a little further out.
+                float reach = WidthAt(t, bottom, top) * 0.42f + (game != null ? 0.5f : 0f);
+                var at = center + new Vector2(side * reach + SwayAt(t, time), t * height + 0.2f);
+                FxSprite fx = FxSprite.Spawn(game ?? WispArt(), at, WispLife);
                 if (fx == null)
                     return null;
                 fx.Drift(new Vector2(side * 1.6f, 0.5f), 1.5f).Flip(side < 0f).Fade(0f, 0.12f)
                     .Sort(PixelFx.ActorLayer, order + MaxBands + 1);
                 if (progress >= StormAt)
-                    fx.Tint(new Color(0.75f, 0.8f, 0.88f, 1f));
-                return $"{WispFrames} frames, {WispWidth}x{WispHeight} px, ppu {PixelFx.Ppu}";
+                    fx.Tint(new Color(0.8f, 0.85f, 0.88f, 1f));
+                return game != null ? "game's MiscParticleEffects wind wisps, 5 frames" : $"drawn wisp, {WispFrames} frames, {WispWidth}x{WispHeight} px, ppu {PixelFx.Ppu}";
             });
         }
 
@@ -533,8 +532,8 @@ namespace WoLCyclone
             n = (n << 13) ^ n;
             return ((n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) / 2147483648f;
         }
-        // The dust ring: an ellipse of puffs churning round the base, lighter where they billow,
-        // with flecks of wind white.
+
+        // The dust ring: an ellipse of puffs churning round the base, lighter where they billow.
         private static Sprite[] RingArt(int width)
         {
             if (ringCache.TryGetValue(width, out Sprite[] cached) && PixelFx.Alive(cached))
@@ -553,8 +552,6 @@ namespace WoLCyclone
                 float puff = 1f - Mathf.Abs(along - 0.5f) * 2f;
                 if (Mathf.Abs(q - 0.5f) > 0.2f + 0.32f * puff)
                     return 0;
-                if ((x * 7 + y * 13 + f * 5) % 23 == 0)
-                    return 5;
                 if (v < 0f && q > 0.75f)
                     return 2;
                 return puff > 0.72f ? 4 : puff > 0.4f ? 3 : 2;
@@ -563,8 +560,8 @@ namespace WoLCyclone
             return frames;
         }
 
-        // The burst: a ring of wind racing outward, thinning and breaking into arcs, with wisps
-        // trailing inside it; bright on its leading edge.
+        // Drawn stand-in for the game's gust ring: a ring of wind racing outward, thinning and
+        // breaking into arcs, with wisps trailing inside it; light on its leading edge.
         private static Sprite[] Gust(float wantPx, out int px)
         {
             px = Mathf.Clamp(Mathf.RoundToInt(wantPx / GustStepPx) * GustStepPx, GustMinPx, GustMaxPx);
@@ -590,7 +587,7 @@ namespace WoLCyclone
                 if (PixelFx.Frac(turn * 12f + f * 0.05f) < gaps[f])
                     return 0;
                 float d = (r - inner) / thick[f];
-                return d > 0.66f ? 5 : d > 0.33f ? 4 : 3;
+                return d > 0.66f ? 4 : d > 0.33f ? 3 : 2;
             }, new Vector2(0.5f, 0.5f));
             gustCache[px] = frames;
             return frames;
