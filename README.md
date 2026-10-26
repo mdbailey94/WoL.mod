@@ -23,6 +23,7 @@ BepInEx 5 mods for Wizard of Legend.
 | [WoLUnlockModContent](WoLUnlockModContent/) | Working | Mods-menu toggle that unlocks all mod-added arcana and relics for easy testing (reversible). Needs LegendAPI. |
 | [WoLCustomPaintings](WoLCustomPaintings/) | Untested | Puts your own pictures on some of the breakable paintings in the Chaos Trials, framed and pixelated to fit. |
 | [WoLPotionPrice](WoLPotionPrice/) | Working (buying untested) | Health potions cost more each time you buy one in a run (+25% of the base price each, adjustable); the price tag now updates. |
+| [WoLChaosDepths](WoLChaosDepths/) | Experimental | M0 technical test for the Chaos Depths RPG plan: a persistent character with its own save, experience and levels, and random items from a data file. |
 | [WoLModMenu](WoLModMenu/) | Working | A MODS panel on the title screen to switch the mods above on and off instantly (Select / M). |
 
 ## Install (no build needed)
