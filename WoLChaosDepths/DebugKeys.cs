@@ -11,6 +11,7 @@ namespace WoLChaosDepths
     //   F6  kill every enemy in the room       F7  clear the floor: skip to the exit room, summon
     //                                              the mini-boss, kill it, take the exit portal
     //   F8  god mode on/off                     F9  gold
+    //   F11 log every relic's ID and name ([Debug] AutoDiveRelics gives relics at F10's start)
     //   F10 auto-dive: clear floor after floor (as F7) until the run leaves the trials (e.g. the dive
     //       director sends you back to the Hub), logging each step. Start it on a trial floor.
     public static class DebugKeys
@@ -50,6 +51,8 @@ namespace WoLChaosDepths
                 GodMode();
             if (Input.GetKeyDown(KeyCode.F9))
                 Money();
+            if (Input.GetKeyDown(KeyCode.F11))
+                LogRelics();
             if (Input.GetKeyDown(KeyCode.F10))
             {
                 if (running)
@@ -747,6 +750,7 @@ namespace WoLChaosDepths
                 yield break;
             }
             GodModeOn();
+            GiveRelics();
             int step = 0;
             while (step < MaxSteps)
             {
@@ -798,6 +802,70 @@ namespace WoLChaosDepths
             if (step >= MaxSteps)
                 ChaosDepthsPlugin.Log($"Auto-dive stopped after {MaxSteps} steps, still in {Where()}");
             running = false;
+        }
+
+        // Every relic the game knows: ID, display name and class, to pick AutoDiveRelics from.
+        public static void LogRelics()
+        {
+            try
+            {
+                if (LootManager.completeItemDict == null || LootManager.completeItemDict.Count == 0)
+                {
+                    ChaosDepthsPlugin.Log("Debug: the relic list isn't loaded yet; press F11 again in a run");
+                    return;
+                }
+                var lines = new List<string>();
+                foreach (KeyValuePair<string, Item> pair in LootManager.completeItemDict)
+                {
+                    string name;
+                    try
+                    {
+                        name = TextManager.GetItemName(pair.Key);
+                    }
+                    catch
+                    {
+                        name = "?";
+                    }
+                    lines.Add($"{pair.Key} = {name} ({(pair.Value != null ? pair.Value.GetType().Name : "?")})");
+                }
+                lines.Sort();
+                ChaosDepthsPlugin.Log($"Debug: {lines.Count} relics:\n  " + string.Join("\n  ", lines.ToArray()));
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"Debug relic list: {e.Message}");
+            }
+        }
+
+        // Gives the first player the relics named in [Debug] AutoDiveRelics, once each.
+        private static void GiveRelics()
+        {
+            string list = ChaosDepthsPlugin.AutoDiveRelics;
+            if (string.IsNullOrEmpty(list))
+                return;
+            Player player = FirstPlayer();
+            if (player == null || player.inventory == null)
+                return;
+            foreach (string raw in list.Split(','))
+            {
+                string id = raw.Trim();
+                if (id.Length == 0)
+                    continue;
+                try
+                {
+                    if (player.inventory.ContainsItem(id))
+                    {
+                        ChaosDepthsPlugin.Log($"Auto-dive: already holding relic '{id}'");
+                        continue;
+                    }
+                    bool added = player.inventory.AddItem(id, true, true);
+                    ChaosDepthsPlugin.Log($"Auto-dive: relic '{id}' {(added ? "given" : "could not be given (unknown ID? press F11 for the list)")}");
+                }
+                catch (Exception e)
+                {
+                    ChaosDepthsPlugin.LogError($"Auto-dive relic '{id}': {e.Message}");
+                }
+            }
         }
 
         private static void GodModeOn()

@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.3.11";
+        public const string PluginVersion = "0.3.12";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -31,6 +31,8 @@ namespace WoLChaosDepths
         private static ConfigEntry<string> panelKey, panelButton;
         private static ConfigEntry<bool> diveEnabled, debugEnabled;
         public static bool DebugEnabled => debugEnabled?.Value ?? false;
+        private static ConfigEntry<string> autoDiveRelics;
+        public static string AutoDiveRelics => autoDiveRelics?.Value ?? "";
         private static ConfigEntry<string> diveRealm;
         private static ConfigEntry<int> floorsPerRealm, realmsPerDive;
 
@@ -95,7 +97,9 @@ namespace WoLChaosDepths
                 new ConfigDescription("Realm bosses to beat before the dive ends and you return to the Hub. 0 = the whole run as the game plays it.",
                     new AcceptableValueRange<int>(0, 6)));
             debugEnabled = Config.Bind("Debug", "Enabled", false,
-                "Test keys: F6 kill all enemies, F7 skip floor, F8 god mode, F9 gold, F10 auto-dive (kill and skip floor after floor until the run ends).");
+                "Test keys: F6 kill all enemies, F7 skip floor, F8 god mode, F9 gold, F10 auto-dive (kill and skip floor after floor until the run ends), F11 log every relic's ID and name.");
+            autoDiveRelics = Config.Bind("Debug", "AutoDiveRelics", "",
+                "Relic IDs (comma separated) given to the first player when the auto-dive (F10) starts, e.g. one that speeds up getting to the exit room. Press F11 in a run to log every relic's ID and name.");
             try
             {
                 DiveDirector.Install(new Harmony(PluginGuid));
