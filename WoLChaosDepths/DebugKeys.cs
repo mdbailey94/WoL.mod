@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace WoLChaosDepths
@@ -109,6 +110,59 @@ namespace WoLChaosDepths
             }
         }
 
+        // If the arena's boss has been dead for 10 s and its exit still hasn't come, run the
+        // arena's own exit routine.
+        private static void ArenaExitIfBossDead(ref float deadFor, float step)
+        {
+            try
+            {
+                BossRoomEventHandler room = UnityEngine.Object.FindObjectOfType<BossRoomEventHandler>();
+                if (room == null || room.boss == null || room.boss.health == null || room.boss.health.CurrentHealthValue > 0)
+                {
+                    deadFor = 0f;
+                    return;
+                }
+                deadFor += step;
+                if (deadFor < 10f || room.exitSpawned)
+                    return;
+                deadFor = -1000f; // once
+                ChaosDepthsPlugin.Log("Debug: the boss has been dead 10 s with no exit; running the arena's exit routine");
+                room.StartCoroutine(room.ActivateExitPortal());
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"Debug arena exit: {e.Message}");
+            }
+        }
+
+        // A boss at zero health that hasn't entered its dead state (its hurt window or intro held
+        // it) is moved there, as its own death would.
+        private static void ForceDeadState(Boss boss)
+        {
+            try
+            {
+                FSM fsm = boss.fsm;
+                if (fsm == null || fsm.states == null)
+                    return;
+                if (fsm.currentState is Entity.DeadState)
+                    return;
+                foreach (KeyValuePair<string, IState> pair in fsm.states)
+                {
+                    if (pair.Value is Entity.DeadState)
+                    {
+                        ChaosDepthsPlugin.Log($"Debug: {boss.GetType().Name} at 0 health in state '{fsm.currentStateName}'; moving it to '{pair.Key}'");
+                        fsm.ChangeState(pair.Key, false);
+                        return;
+                    }
+                }
+                ChaosDepthsPlugin.Log($"Debug: {boss.GetType().Name} at 0 health but has no dead state (states: {string.Join(", ", new List<string>(fsm.states.Keys).ToArray())})");
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"Debug boss death: {e.Message}");
+            }
+        }
+
         // Boss arenas: the boss only appears once a wizard walks in past the trigger. Fires the
         // arena's trigger with the wizard's collider and moves the wizard inside. Returns true if
         // an arena handler was found.
@@ -163,6 +217,13 @@ namespace WoLChaosDepths
                 var boss = entity as Boss;
                 if (boss != null)
                 {
+                    // Out of health: leave its gates alone and make sure it runs its death, so the
+                    // arena plays the outro and spawns its exit.
+                    if (entity.health.CurrentHealthValue <= 0)
+                    {
+                        ForceDeadState(boss);
+                        return 0;
+                    }
                     // Bosses ignore damage until their intro is over, and again between hurt windows.
                     if (boss.transitionToIntro)
                         boss.ExitIntro();
@@ -178,6 +239,8 @@ namespace WoLChaosDepths
                         bossHitsIgnored++;
                     else
                         bossHitsIgnored = 0;
+                    if (after <= 0)
+                        ForceDeadState(boss);
                     return 1;
                 }
             }
@@ -286,6 +349,7 @@ namespace WoLChaosDepths
             }
             float waited = 0f;
             int kills = 0, hits = 0;
+            float bossDeadFor = 0f;
             ExitPortal exit = null;
             while (loads == load && waited < maxSeconds)
             {
@@ -294,6 +358,8 @@ namespace WoLChaosDepths
                     break;
                 hits += KillAll(true);
                 kills++;
+                if (arena && FindExitPortal() == null)
+                    ArenaExitIfBossDead(ref bossDeadFor, 0.5f);
                 if (kills % 10 == 0 && FindExitPortal() == null)
                 {
                     if (arena)

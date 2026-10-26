@@ -225,9 +225,12 @@ namespace WoLChaosDepths
             ItemData item = Selected;
             if (item == null)
                 return;
-            int slot = SlotOf(item);
-            if (slot >= 0 && save.equipped[slot] == item.id)
-                save.equipped[slot] = "";
+            if (IsEquipped(item))
+            {
+                ChaosDepthsPlugin.Log($"Salvage refused: {item.rarity} {item.name} is equipped");
+                ChaosDepthsPlugin.Notice("Unequip it before salvaging");
+                return;
+            }
             int rarity = Mathf.Clamp(LootTable.RarityIndex(item.rarity), 0, DustByRarity.Length - 1);
             save.dust += DustByRarity[rarity];
             save.inventory.Remove(item);
@@ -325,13 +328,14 @@ namespace WoLChaosDepths
                 ItemData chosen = Selected;
                 if (chosen != null)
                 {
-                    Label(new Rect(x, detailY, barW, lineH), $"{chosen.rarity} {chosen.name} (item level {chosen.itemLevel}): {LootTable.Describe(chosen)}", Rarity(chosen, font));
+                    GUIStyle chosenStyle = Rarity(chosen, font);
+                    Label(new Rect(x, detailY, barW, lineH), Fit($"{chosen.rarity} {chosen.name} (item level {chosen.itemLevel}): {LootTable.Describe(chosen)}", chosenStyle, barW), chosenStyle);
                     int slot = SlotOf(chosen);
                     ItemData worn = slot >= 0 ? StatMods.FindItem(save, save.equipped[slot]) : null;
                     string compare = worn == null ? "Slot empty"
                         : worn == chosen ? "Equipped"
                         : $"Equipped {worn.rarity} {worn.name}: {LootTable.Describe(worn)}";
-                    Label(new Rect(x, detailY + lineH, barW, lineH), compare, dim);
+                    Label(new Rect(x, detailY + lineH, barW, lineH), Fit(compare, dim, barW), dim);
                     if (confirmHeldSince >= 0f && !confirmConsumed)
                     {
                         float held = Mathf.Clamp01((Time.unscaledTime - confirmHeldSince) / SalvageHold);
@@ -353,6 +357,23 @@ namespace WoLChaosDepths
         }
 
         // A label with a one-pixel dark shadow, so the game's thin font reads on the panel.
+        // Shortens text to fit the width, ending in "...".
+        private static string Fit(string text, GUIStyle style, float width)
+        {
+            if (string.IsNullOrEmpty(text) || style.CalcSize(new GUIContent(text)).x <= width)
+                return text;
+            int lo = 0, hi = text.Length;
+            while (lo < hi)
+            {
+                int mid = (lo + hi + 1) / 2;
+                if (style.CalcSize(new GUIContent(text.Substring(0, mid) + "...")).x <= width)
+                    lo = mid;
+                else
+                    hi = mid - 1;
+            }
+            return text.Substring(0, lo).TrimEnd(' ', ',', ':') + "...";
+        }
+
         private static void Label(Rect rect, string text, GUIStyle style)
         {
             Color color = style.normal.textColor;

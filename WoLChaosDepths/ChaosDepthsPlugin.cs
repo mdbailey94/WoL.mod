@@ -20,9 +20,8 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.3.7";
+        public const string PluginVersion = "0.3.8";
 
-        private const float KillDedupeSeconds = 2f;
 
         private static BepInEx.Logging.ManualLogSource log;
         private static ConfigEntry<bool> modEnabled;
@@ -179,17 +178,31 @@ namespace WoLChaosDepths
         // The player who asked for the inventory this frame: the keyboard key (first player), or
         // the controller button on a pad a player holds. Not while the game's own pause menu is
         // up, or mid-dash or attack (idle and running only, like the shops).
+        private float keyOpenUntil;
+
         private Player OpenRequested(Player[] players)
         {
             try
             {
                 if (TimeScaleController.paused)
                     return null;
+                // A key press mid-dash or mid-attack waits up to 0.75 s for the wizard to be free.
                 if (OpenKeyPressed())
+                    keyOpenUntil = Time.unscaledTime + 0.75f;
+                if (keyOpenUntil > 0f)
                 {
                     foreach (Player player in players)
                         if (player != null && CanOpen(player))
+                        {
+                            keyOpenUntil = 0f;
                             return player;
+                        }
+                    if (Time.unscaledTime > keyOpenUntil)
+                    {
+                        keyOpenUntil = 0f;
+                        Player first = players.Length > 0 ? players[0] : null;
+                        Log($"Inventory: not opened, the wizard was busy ({(first != null && first.fsm != null ? first.fsm.currentStateName : "?")})");
+                    }
                     return null;
                 }
                 if (!ReInput.isReady)
@@ -323,9 +336,9 @@ namespace WoLChaosDepths
             {
                 if (entity == null || !InTrials())
                     return;
+                // Credited once per enemy per scene: bosses can announce their death more than once.
                 int id = entity.GetInstanceID();
-                float last;
-                if (lastKillTime.TryGetValue(id, out last) && Time.time - last < KillDedupeSeconds)
+                if (lastKillTime.ContainsKey(id))
                     return;
                 lastKillTime[id] = Time.time;
                 Player player;
@@ -444,7 +457,7 @@ namespace WoLChaosDepths
             return string.Join("; ", parts.ToArray());
         }
 
-        private static void Notice(string message, float seconds)
+        public static void Notice(string message, float seconds = 2.5f)
         {
             try
             {
