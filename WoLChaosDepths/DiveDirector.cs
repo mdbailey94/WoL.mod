@@ -153,7 +153,11 @@ namespace WoLChaosDepths
             int counter = Mathf.Max(0, floors - 1);
             int before = GameController.stagesPerTier;
             if (before == counter)
+            {
+                if (when == "run start")
+                    ChaosDepthsPlugin.Log($"Dive (run start): floors per realm {floors}: the game's counter is already {counter}");
                 return;
+            }
             GameController.stagesPerTier = counter;
             ChaosDepthsPlugin.Log($"Dive ({when}): floors per realm {floors} (the game's counter {before} -> {counter})");
         }

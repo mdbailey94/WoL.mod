@@ -106,43 +106,121 @@ namespace WoLChaosDepths
                 ForceExit();
         }
 
-        // Makes the floor's exit portal load its level: the loader whose destination is a trial
-        // scene, by forceTriggerExit, then LoadNextLevel, then the game's LoadLevel itself.
+        // Makes the floor's exit load its level. First the floor's own exit portal (a NextLevelLoader
+        // whose destination is a trial scene), inactive ones included, since the exit may sit
+        // switched off until the last room is cleared: forceTriggerExit, then LoadNextLevel. With
+        // none to be found, the next scene is worked out the way the game would (the same realm
+        // scene for another floor, the realm's boss scene after the last floor, the next realm after
+        // a boss) and loaded through the game's own SetLevelInfo and LoadLevel. Returns the
+        // destination, or null.
         private static string ForceExit()
         {
             try
             {
-                NextLevelLoader[] loaders = UnityEngine.Object.FindObjectsOfType<NextLevelLoader>();
                 var names = new System.Collections.Generic.List<string>();
-                NextLevelLoader exit = null;
-                foreach (NextLevelLoader loader in loaders)
+                NextLevelLoader exit = null, fallback = null;
+                foreach (NextLevelLoader loader in Resources.FindObjectsOfTypeAll<NextLevelLoader>())
                 {
-                    names.Add($"{loader.name} -> '{loader.nextLevelName}'");
-                    if (exit == null && !string.IsNullOrEmpty(loader.nextLevelName) && IsTrialScene(loader.nextLevelName))
-                        exit = loader;
-                }
-                if (exit == null)
-                {
-                    foreach (NextLevelLoader loader in loaders)
-                        if (!string.IsNullOrEmpty(loader.nextLevelName))
-                        {
+                    if (loader == null || loader.gameObject == null || !loader.gameObject.scene.IsValid())
+                        continue; // a prefab, not something in this scene
+                    bool active = loader.gameObject.activeInHierarchy;
+                    names.Add($"{loader.name}{(active ? "" : " (inactive)")} -> '{loader.nextLevelName}'");
+                    if (string.IsNullOrEmpty(loader.nextLevelName))
+                        continue;
+                    if (IsTrialScene(loader.nextLevelName))
+                    {
+                        if (exit == null || (!exit.gameObject.activeInHierarchy && active))
                             exit = loader;
-                            break;
-                        }
+                    }
+                    else if (fallback == null)
+                        fallback = loader;
                 }
                 ChaosDepthsPlugin.Log($"Debug: exit portals here: {(names.Count == 0 ? "none" : string.Join("; ", names.ToArray()))}");
                 if (exit == null)
-                    return null;
-                exit.forceTriggerExit = true;
-                exit.LoadNextLevel();
-                ChaosDepthsPlugin.Log($"Debug: forced the exit portal '{exit.name}' to load '{exit.nextLevelName}'");
-                return exit.nextLevelName;
+                    exit = fallback;
+                if (exit != null)
+                {
+                    if (!exit.gameObject.activeSelf)
+                        exit.gameObject.SetActive(true);
+                    exit.forceTriggerExit = true;
+                    exit.LoadNextLevel();
+                    ChaosDepthsPlugin.Log($"Debug: forced the exit portal '{exit.name}' to load '{exit.nextLevelName}'");
+                    return exit.nextLevelName;
+                }
+                return ComputedSkip();
             }
             catch (Exception e)
             {
                 ChaosDepthsPlugin.LogError($"Debug force exit: {e.Message}");
                 return null;
             }
+        }
+
+        // No exit portal: the next scene by the game's own counters.
+        private static string ComputedSkip()
+        {
+            string current = GameController.CurrentSceneName ?? "";
+            string next = null;
+            string why;
+            if (NextLevelLoader.InBossScene(current))
+            {
+                System.Collections.Generic.List<string> order = GameController.levelNameList;
+                int nextTier = GameController.tierCount + 1;
+                if (order != null && nextTier < order.Count)
+                {
+                    next = order[nextTier];
+                    why = $"after the boss, realm {nextTier + 1} of {order.Count}";
+                }
+                else
+                {
+                    next = "Hub";
+                    why = "after the last boss";
+                }
+            }
+            else
+            {
+                string tierScene = NextLevelLoader.GetCurrentTierScene(-1);
+                if (string.IsNullOrEmpty(tierScene))
+                    tierScene = current;
+                if (GameController.stageCount <= GameController.stagesPerTier)
+                {
+                    next = tierScene;
+                    why = $"floor {GameController.stageCount + 1} of this realm (counter {GameController.stagesPerTier})";
+                }
+                else
+                {
+                    string boss;
+                    if (GameController.bossLevelNameDict != null && GameController.bossLevelNameDict.TryGetValue(tierScene, out boss))
+                    {
+                        next = boss;
+                        why = "the realm's boss after its last floor";
+                    }
+                    else
+                    {
+                        next = tierScene;
+                        why = "no boss scene known for this realm, another floor";
+                    }
+                }
+            }
+            ChaosDepthsPlugin.Log($"Debug: no exit portal; loading '{next}' ({why}) through the game's SetLevelInfo and LoadLevel");
+            try
+            {
+                NextLevelLoader.SetLevelInfo(next);
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"Debug SetLevelInfo: {e.Message}");
+            }
+            try
+            {
+                GameController.LoadLevel(next);
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"Debug LoadLevel: {e.Message}");
+                return null;
+            }
+            return next;
         }
 
         private static bool IsTrialScene(string scene)
