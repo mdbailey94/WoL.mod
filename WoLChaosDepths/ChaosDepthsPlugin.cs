@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.3.0";
+        public const string PluginVersion = "0.3.1";
 
         private const float KillDedupeSeconds = 2f;
 
@@ -30,7 +30,8 @@ namespace WoLChaosDepths
         private static ConfigEntry<int> levelCap, bossDropRarity;
         private static ConfigEntry<bool> autoEquip, logKills;
         private static ConfigEntry<string> panelKey, panelButton;
-        private static ConfigEntry<bool> diveEnabled;
+        private static ConfigEntry<bool> diveEnabled, debugEnabled;
+        public static bool DebugEnabled => debugEnabled?.Value ?? false;
         private static ConfigEntry<string> diveRealm;
         private static ConfigEntry<int> floorsPerRealm, realmsPerDive;
 
@@ -94,6 +95,8 @@ namespace WoLChaosDepths
             realmsPerDive = Config.Bind("Dive", "RealmsPerDive", 0,
                 new ConfigDescription("Realm bosses to beat before the dive ends and you return to the Hub. 0 = the whole run as the game plays it.",
                     new AcceptableValueRange<int>(0, 6)));
+            debugEnabled = Config.Bind("Debug", "Enabled", false,
+                "Test keys: F6 kill all enemies, F7 skip floor, F8 god mode, F9 gold, F10 auto-dive (kill and skip floor after floor until the run ends).");
             try
             {
                 DiveDirector.Install(new Harmony(PluginGuid));
@@ -130,6 +133,7 @@ namespace WoLChaosDepths
         {
             if (!modEnabled.Value)
                 return;
+            DebugKeys.Update(this);
             if (panel.Open)
             {
                 panel.Update();

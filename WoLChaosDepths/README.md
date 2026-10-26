@@ -50,8 +50,11 @@ from 0.1.0 starts a fresh character.
 - Open the inventory with R3 (or I), move, equip something, salvage something, close: the game
   should pause while it's open and carry on after. The log shows `Inventory opened`, `Equipped`,
   `Salvaged` lines.
-- Dive test: set `Realm = Fire`, `FloorsPerRealm = 2`, `RealmsPerDive = 1`, start a run from the
-  Hub. Expected: the first floor is a Fire floor (log `Dive: first realm X -> Fire`), the boss
+- Dive test, hands-off: set `[Debug] Enabled = true`, `Realm = Fire`, `FloorsPerRealm = 2`,
+  `RealmsPerDive = 1`; walk into the trials portal; on the first floor press **F10**. The
+  auto-dive turns god mode on, kills the room, skips to the next floor, and repeats until the run
+  leaves the trials, logging `Auto-dive step N` lines. Other keys: F6 kill all, F7 skip floor,
+  F8 god mode, F9 gold. Expected: the first floor is a Fire floor (log `Dive: first realm X -> Fire`), the boss
   comes after 2 floors, and leaving the boss arena shows `Dive complete!` and lands you in the
   Hub. The `Dive: '...' -> '...'` log lines show the counters at each load; send them if any step
   doesn't match.
