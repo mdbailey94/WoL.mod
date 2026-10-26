@@ -16,11 +16,29 @@ namespace WoLChaosDepths
     {
         private const int MaxSteps = 40;
         private static bool running;
+        private static bool hooked;
+        // Counts scene loads: two floors of one realm share a scene and a display name, so names
+        // can't tell them apart.
+        private static int loads;
+
+        private static void Hook()
+        {
+            if (hooked)
+                return;
+            hooked = true;
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += (scene, mode) => loads++;
+        }
+
+        private static string Where()
+        {
+            return $"{DiveDirector.CurrentScene()} ({GameController.CurrentSceneName}, load {loads})";
+        }
 
         public static void Update(MonoBehaviour host)
         {
             if (!ChaosDepthsPlugin.DebugEnabled)
                 return;
+            Hook();
             if (Input.GetKeyDown(KeyCode.F6))
                 KillAll();
             if (Input.GetKeyDown(KeyCode.F7))
@@ -163,7 +181,7 @@ namespace WoLChaosDepths
         // portal spawns (up to maxSeconds), then take it. Yields; the caller checks the scene.
         private static IEnumerator ClearFloor(float maxSeconds)
         {
-            string scene = GameController.CurrentSceneName;
+            int load = loads;
             KillAll();
             yield return new WaitForSecondsRealtime(1f);
             try
@@ -176,7 +194,7 @@ namespace WoLChaosDepths
                 ChaosDepthsPlugin.LogError($"Debug skip: {e.Message}");
             }
             yield return new WaitForSecondsRealtime(1.5f);
-            if (GameController.CurrentSceneName != scene)
+            if (loads != load)
                 yield break;
             bool activated = false;
             if (FindExitPortal() == null)
@@ -184,7 +202,7 @@ namespace WoLChaosDepths
             float waited = 0f;
             int kills = 0;
             ExitPortal exit = null;
-            while (GameController.CurrentSceneName == scene && waited < maxSeconds)
+            while (loads == load && waited < maxSeconds)
             {
                 exit = FindExitPortal();
                 if (exit != null)
@@ -196,7 +214,7 @@ namespace WoLChaosDepths
                 yield return new WaitForSecondsRealtime(0.5f);
                 waited += 0.5f;
             }
-            if (GameController.CurrentSceneName != scene)
+            if (loads != load)
                 yield break;
             if (exit != null)
             {
@@ -220,12 +238,59 @@ namespace WoLChaosDepths
                 {
                     ChaosDepthsPlugin.LogError($"Debug exit portal: {e.Message}");
                 }
+                // The exit shows the "STAGE CLEARED" summary and waits for Continue.
+                float summaryWait = 0f;
+                while (loads == load && summaryWait < 8f)
+                {
+                    yield return new WaitForSecondsRealtime(0.5f);
+                    summaryWait += 0.5f;
+                    if (Continue())
+                        break;
+                }
                 yield return new WaitForSecondsRealtime(3f);
             }
             else
                 ChaosDepthsPlugin.Log($"Debug: no exit portal appeared in {maxSeconds:0} s ({kills} kill sweep(s)); forcing the exit");
-            if (GameController.CurrentSceneName == scene)
+            if (loads == load)
+            {
                 ForceExit();
+                float summaryWait = 0f;
+                while (loads == load && summaryWait < 8f)
+                {
+                    yield return new WaitForSecondsRealtime(0.5f);
+                    summaryWait += 0.5f;
+                    if (Continue())
+                        break;
+                }
+            }
+        }
+
+        // Presses Continue on the stage-cleared summary, if it is up: loads its next level the
+        // way the button does. Returns true if it did.
+        private static bool Continue()
+        {
+            try
+            {
+                LevelSummary summary = LevelSummary.instance;
+                if (summary == null || !summary.activated || string.IsNullOrEmpty(summary.nextLevelName))
+                    return false;
+                string next = summary.nextLevelName;
+                ChaosDepthsPlugin.Log($"Debug: Continue on the stage summary -> '{next}'");
+                try
+                {
+                    summary.Deactivate();
+                }
+                catch
+                {
+                }
+                GameController.LoadLevel(next);
+                return true;
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"Debug continue: {e.Message}");
+                return false;
+            }
         }
 
         // The developer menu's skip only teleports the wizard to the floor's exit room (the first
@@ -293,7 +358,7 @@ namespace WoLChaosDepths
         // No exit portal: the next scene by the game's own counters.
         private static string ComputedSkip()
         {
-            string current = GameController.CurrentSceneName ?? "";
+            string current = DiveDirector.CurrentScene();
             string next = null;
             string why;
             if (NextLevelLoader.InBossScene(current))
@@ -441,8 +506,7 @@ namespace WoLChaosDepths
         private static IEnumerator AutoDive()
         {
             running = true;
-            string startScene = GameController.CurrentSceneName;
-            ChaosDepthsPlugin.Log($"Auto-dive: starting in '{startScene}'");
+            ChaosDepthsPlugin.Log($"Auto-dive: starting in {Where()}");
             if (!InTrials())
             {
                 ChaosDepthsPlugin.Log("Auto-dive: enter the trials portal first, then press F10 on the first floor");
@@ -454,20 +518,21 @@ namespace WoLChaosDepths
             while (step < MaxSteps)
             {
                 step++;
-                string scene = GameController.CurrentSceneName;
-                ChaosDepthsPlugin.Log($"Auto-dive step {step}: in '{scene}' (stage {GameController.stageCount}, tier {GameController.tierCount})");
+                int load = loads;
+                string scene = Where();
+                ChaosDepthsPlugin.Log($"Auto-dive step {step}: in {scene} (stage {GameController.stageCount}, tier {GameController.tierCount})");
                 yield return ClearFloor(45f);
                 string forced = null;
-                if (GameController.CurrentSceneName == scene)
+                if (loads == load)
                     forced = GameController.queuedLevelName;
                 // Wait for the scene to change (up to 20 s); as a last resort load it directly.
                 float waited = 0f;
-                while (GameController.CurrentSceneName == scene && waited < 20f)
+                while (loads == load && waited < 20f)
                 {
                     yield return new WaitForSecondsRealtime(0.5f);
                     waited += 0.5f;
                 }
-                if (GameController.CurrentSceneName == scene && !string.IsNullOrEmpty(forced))
+                if (loads == load && !string.IsNullOrEmpty(forced))
                 {
                     ChaosDepthsPlugin.Log($"Auto-dive: the portal didn't load '{forced}'; loading it directly");
                     try
@@ -479,26 +544,26 @@ namespace WoLChaosDepths
                         ChaosDepthsPlugin.LogError($"Auto-dive load: {e.Message}");
                     }
                     waited = 0f;
-                    while (GameController.CurrentSceneName == scene && waited < 20f)
+                    while (loads == load && waited < 20f)
                     {
                         yield return new WaitForSecondsRealtime(0.5f);
                         waited += 0.5f;
                     }
                 }
-                if (GameController.CurrentSceneName == scene)
+                if (loads == load)
                 {
-                    ChaosDepthsPlugin.Log($"Auto-dive: the scene didn't change after a skip in '{scene}'; stopping");
+                    ChaosDepthsPlugin.Log($"Auto-dive: the scene didn't change after a skip in {scene}; stopping");
                     break;
                 }
                 yield return new WaitForSecondsRealtime(3f);
                 if (!InTrials())
                 {
-                    ChaosDepthsPlugin.Log($"Auto-dive finished: left the trials for '{GameController.CurrentSceneName}' after {step} floor(s)");
+                    ChaosDepthsPlugin.Log($"Auto-dive finished: left the trials for {Where()} after {step} floor(s)");
                     break;
                 }
             }
             if (step >= MaxSteps)
-                ChaosDepthsPlugin.Log($"Auto-dive stopped after {MaxSteps} steps, still in '{GameController.CurrentSceneName}'");
+                ChaosDepthsPlugin.Log($"Auto-dive stopped after {MaxSteps} steps, still in {Where()}");
             running = false;
         }
 

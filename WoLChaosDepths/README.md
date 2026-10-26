@@ -50,6 +50,9 @@ from 0.1.0 starts a fresh character.
 - Open the inventory with R3 (or I), move, equip something, salvage something, close: the game
   should pause while it's open and carry on after. The log shows `Inventory opened`, `Equipped`,
   `Salvaged` lines.
+- Debug keys (with `[Debug] Enabled`): F6 kill the room, F7 clear the floor (skip to the exit
+  room, skull altar, kill the mini-boss, exit pad, Continue), F8 god mode (a toggle: press once),
+  F9 gold, F10 auto-dive.
 - Dive test, hands-off: set `[Debug] Enabled = true`, `Realm = Fire`, `FloorsPerRealm = 1`
   (the game's own is 2, so 1 shows the setting working and is quicker), `RealmsPerDive = 1`; walk into the trials portal; on the first floor press **F10**. The
   auto-dive turns god mode on, kills the room, skips to the next floor, and repeats until the run

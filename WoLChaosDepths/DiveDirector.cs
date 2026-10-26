@@ -55,12 +55,14 @@ namespace WoLChaosDepths
         {
             if (!ChaosDepthsPlugin.DiveEnabled)
                 return null;
-            string current = GameController.CurrentSceneName ?? "";
-            bool here = IsTrial(current);
+            // The active scene's own name ('Fire', 'FireBossLevel'), not the display name the
+            // GameController reports ('Burning Furnaces'), which the trial checks don't know.
+            string current = CurrentScene();
+            bool here = IsTrial(current) || (inRun && GameController.stageCount > 0);
             bool there = IsTrial(destination);
             ChaosDepthsPlugin.Log($"Dive: loading '{destination}' from '{current}' (trial here {here}, there {there})");
 
-            if (!here && there)
+            if (!here && there && !NextLevelLoader.InBossScene(destination))
             {
                 // Starting a run from the Hub: pick the realm and the floor count.
                 bossesCleared = 0;
@@ -191,6 +193,21 @@ namespace WoLChaosDepths
             {
                 ChaosDepthsPlugin.LogError($"dive level load: {e.Message}");
             }
+        }
+
+        // The loaded scene's name, as the trial checks know it.
+        public static string CurrentScene()
+        {
+            try
+            {
+                string name = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+                if (!string.IsNullOrEmpty(name))
+                    return name;
+            }
+            catch
+            {
+            }
+            return GameController.currentLevelName ?? GameController.CurrentSceneName ?? "";
         }
 
         private static bool IsTrial(string scene)
