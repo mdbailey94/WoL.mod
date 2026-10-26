@@ -266,20 +266,48 @@ namespace WoLChaosDepths
         // The floor's exit portal only appears after the exit room's mini-boss is beaten, and the
         // mini-boss only appears once a wizard steps onto the skull altar (MiniBossActivationCircle).
         // Returns true if the altar was activated now.
+        // This floor's skull altar. The game's static "current" altar can be a stale one from the
+        // previous floor, and FindObjectsOfTypeAll also returns prefabs, so candidates must be
+        // live objects of the loaded scene: active ones first, then the nearest to the exit room
+        // (or the wizard). The choice is logged.
+        private static MiniBossActivationCircle PickAltar()
+        {
+            UnityEngine.SceneManagement.Scene scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+            ExitRoomEventHandler room = UnityEngine.Object.FindObjectOfType<ExitRoomEventHandler>();
+            Player wizard = FirstPlayer();
+            Vector3? anchor = room != null ? room.transform.position : (wizard != null ? wizard.transform.position : (Vector3?)null);
+            MiniBossActivationCircle best = null;
+            float bestScore = float.MaxValue;
+            var seen = new List<string>();
+            foreach (MiniBossActivationCircle any in Resources.FindObjectsOfTypeAll<MiniBossActivationCircle>())
+            {
+                if (any == null || any.gameObject == null || !any.gameObject.scene.IsValid())
+                    continue;
+                bool here = any.gameObject.scene == scene || any.gameObject.scene.name == "DontDestroyOnLoad";
+                bool active = any.gameObject.activeInHierarchy;
+                float dist = anchor.HasValue ? Vector2.Distance(any.transform.position, anchor.Value) : 0f;
+                seen.Add($"{any.name} (active {active}, scene '{any.gameObject.scene.name}', {dist:0} from {(room != null ? "the exit room" : "the wizard")})");
+                if (!here)
+                    continue;
+                float score = dist + (active ? 0f : 10000f);
+                if (score < bestScore)
+                {
+                    bestScore = score;
+                    best = any;
+                }
+            }
+            if (seen.Count > 1 || best == null)
+                ChaosDepthsPlugin.Log($"Debug: skull altars found: {(seen.Count == 0 ? "none" : string.Join("; ", seen.ToArray()))}");
+            if (best != null)
+                ChaosDepthsPlugin.Log($"Debug: using skull altar '{best.name}' (active {best.gameObject.activeInHierarchy})");
+            return best;
+        }
+
         private static bool ActivateAltar()
         {
             try
             {
-                MiniBossActivationCircle circle = MiniBossActivationCircle.currentMiniBossActivationCircle;
-                if (circle == null)
-                    circle = UnityEngine.Object.FindObjectOfType<MiniBossActivationCircle>();
-                if (circle == null)
-                    foreach (MiniBossActivationCircle any in Resources.FindObjectsOfTypeAll<MiniBossActivationCircle>())
-                        if (any != null && any.gameObject.scene.IsValid())
-                        {
-                            circle = any;
-                            break;
-                        }
+                MiniBossActivationCircle circle = PickAltar();
                 // The developer skip sometimes leaves the wizard on the start pad: put the wizard
                 // on the circle, so the mini-boss and its exit spawn where the sweeps reach.
                 Player wizard = FirstPlayer();
