@@ -83,7 +83,7 @@ namespace WoLChaosDepths
                 return result;
             }
 
-            if (here && NextLevelLoader.InBossScene(current) && there && bossSceneCounted != current)
+            if (here && NextLevelLoader.InBossScene(current) && there && bossSceneCounted != current && !BossStillAlive(current))
             {
                 // Leaving a boss arena for the next realm: maybe the dive is over instead.
                 bossSceneCounted = current;
@@ -151,7 +151,11 @@ namespace WoLChaosDepths
         {
             int floors = ChaosDepthsPlugin.FloorsPerRealm;
             if (floors <= 0)
+            {
+                if (when == "run start")
+                    ChaosDepthsPlugin.Log($"Dive (run start): floors per realm left to the game (its counter is {GameController.stagesPerTier}; set [Dive] FloorsPerRealm to change it)");
                 return;
+            }
             int counter = Mathf.Max(0, floors - 1);
             int before = GameController.stagesPerTier;
             if (before == counter)
@@ -192,6 +196,25 @@ namespace WoLChaosDepths
             catch (Exception e)
             {
                 ChaosDepthsPlugin.LogError($"dive level load: {e.Message}");
+            }
+        }
+
+        // True when the arena's boss has not been defeated (a forced or debug exit, not a win).
+        public static bool BossStillAlive(string scene)
+        {
+            try
+            {
+                BossRoomEventHandler room = UnityEngine.Object.FindObjectOfType<BossRoomEventHandler>();
+                if (room == null)
+                    return false;
+                if (room.bossDefeated)
+                    return false;
+                ChaosDepthsPlugin.Log($"Dive: leaving '{scene}' without beating its boss (spawned {room.bossSpawned}); not counted");
+                return true;
+            }
+            catch
+            {
+                return false;
             }
         }
 

@@ -70,6 +70,11 @@ namespace WoLChaosDepths
 
         public static void KillAll()
         {
+            KillAll(false);
+        }
+
+        public static int KillAll(bool quiet)
+        {
             try
             {
                 // First a huge hit from the player on everyone the game lists as an enemy or boss,
@@ -92,11 +97,50 @@ namespace WoLChaosDepths
                 DebugMenu menu = Menu();
                 if (menu != null)
                     menu.WrathOfTheDeveloper();
-                ChaosDepthsPlugin.Log($"Debug: hit {hit} enemies as the player" + (menu != null ? ", then wrath of the developer" : ""));
+                if (!quiet || hit > 0)
+                    ChaosDepthsPlugin.Log($"Debug: hit {hit} enemies as the player" + (menu != null ? ", then wrath of the developer" : ""));
+                return hit;
             }
             catch (Exception e)
             {
                 ChaosDepthsPlugin.LogError($"Debug kill all: {e.Message}");
+                return 0;
+            }
+        }
+
+        // Boss arenas: the boss only appears once a wizard walks in past the trigger. Fires the
+        // arena's trigger with the wizard's collider and moves the wizard inside. Returns true if
+        // an arena handler was found.
+        private static bool EnterArena()
+        {
+            try
+            {
+                BossRoomEventHandler room = UnityEngine.Object.FindObjectOfType<BossRoomEventHandler>();
+                if (room == null)
+                    return false;
+                if (room.bossSpawned)
+                {
+                    ChaosDepthsPlugin.Log($"Debug: the arena's boss is already here (defeated {room.bossDefeated})");
+                    return true;
+                }
+                Player player = FirstPlayer();
+                if (player != null)
+                {
+                    Vector3 inside = room.triggeredPosition;
+                    if (inside == Vector3.zero)
+                        inside = room.bossSpawnPosition + new Vector3(0f, -4f, 0f);
+                    player.transform.position = inside;
+                    Collider2D col = player.GetComponent<Collider2D>();
+                    if (col != null)
+                        room.OnTriggerEnter2D(col);
+                }
+                ChaosDepthsPlugin.Log($"Debug: walked into the boss arena (boss spawned {room.bossSpawned})");
+                return true;
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"Debug arena: {e.Message}");
+                return false;
             }
         }
 
@@ -196,29 +240,40 @@ namespace WoLChaosDepths
             yield return new WaitForSecondsRealtime(1.5f);
             if (loads != load)
                 yield break;
+            bool arena = false;
             bool activated = false;
             if (FindExitPortal() == null)
-                activated = ActivateAltar();
+            {
+                arena = EnterArena();
+                if (!arena)
+                    activated = ActivateAltar();
+            }
             float waited = 0f;
-            int kills = 0;
+            int kills = 0, hits = 0;
             ExitPortal exit = null;
             while (loads == load && waited < maxSeconds)
             {
                 exit = FindExitPortal();
                 if (exit != null)
                     break;
-                KillAll();
+                hits += KillAll(true);
                 kills++;
-                if (!activated && kills % 6 == 0 && FindExitPortal() == null)
-                    activated = ActivateAltar(); // the altar may only exist once the room is reached
+                if (kills % 10 == 0 && FindExitPortal() == null)
+                {
+                    if (arena)
+                        EnterArena(); // the intro may not have taken the first time
+                    else if (!activated)
+                        activated = ActivateAltar(); // the altar may only exist once the room is reached
+                }
                 yield return new WaitForSecondsRealtime(0.5f);
                 waited += 0.5f;
             }
+            ChaosDepthsPlugin.Log($"Debug: {kills} kill sweep(s) hit {hits} enemies in {waited:0.0} s");
             if (loads != load)
                 yield break;
             if (exit != null)
             {
-                ChaosDepthsPlugin.Log($"Debug: exit portal '{exit.name}' appeared after {waited:0.0} s and {kills} kill sweep(s)");
+                ChaosDepthsPlugin.Log($"Debug: exit portal '{exit.name}' appeared");
                 yield return new WaitForSecondsRealtime(1f);
                 try
                 {
@@ -250,7 +305,7 @@ namespace WoLChaosDepths
                 yield return new WaitForSecondsRealtime(3f);
             }
             else
-                ChaosDepthsPlugin.Log($"Debug: no exit portal appeared in {maxSeconds:0} s ({kills} kill sweep(s)); forcing the exit");
+                ChaosDepthsPlugin.Log($"Debug: no exit portal appeared in {maxSeconds:0} s; forcing the exit");
             if (loads == load)
             {
                 ForceExit();
@@ -521,7 +576,7 @@ namespace WoLChaosDepths
                 int load = loads;
                 string scene = Where();
                 ChaosDepthsPlugin.Log($"Auto-dive step {step}: in {scene} (stage {GameController.stageCount}, tier {GameController.tierCount})");
-                yield return ClearFloor(45f);
+                yield return ClearFloor(90f);
                 string forced = null;
                 if (loads == load)
                     forced = GameController.queuedLevelName;
