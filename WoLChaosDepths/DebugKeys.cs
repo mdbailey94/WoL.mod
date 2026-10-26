@@ -20,6 +20,7 @@ namespace WoLChaosDepths
         // Counts scene loads: two floors of one realm share a scene and a display name, so names
         // can't tell them apart.
         private static int loads;
+        private static int bossHitsIgnored;
 
         private static void Hook()
         {
@@ -118,11 +119,13 @@ namespace WoLChaosDepths
                 BossRoomEventHandler room = UnityEngine.Object.FindObjectOfType<BossRoomEventHandler>();
                 if (room == null)
                     return false;
-                if (room.bossSpawned)
+                if (room.bossSpawned || room.boss != null)
                 {
-                    ChaosDepthsPlugin.Log($"Debug: the arena's boss is already here (defeated {room.bossDefeated})");
+                    string hp = room.boss != null && room.boss.health != null ? room.boss.health.CurrentHealthValue.ToString() : "?";
+                    ChaosDepthsPlugin.Log($"Debug: the arena's boss is here: health {hp}, defeated flag {room.bossDefeated}, hits ignored {bossHitsIgnored}");
                     return true;
                 }
+                bossHitsIgnored = 0;
                 Player player = FirstPlayer();
                 if (player != null)
                 {
@@ -157,6 +160,26 @@ namespace WoLChaosDepths
                 var mini = entity as MiniBoss;
                 if (mini != null)
                     mini.AllowHurtState(true, true, true);
+                var boss = entity as Boss;
+                if (boss != null)
+                {
+                    // Bosses ignore damage until their intro is over, and again between hurt windows.
+                    if (boss.transitionToIntro)
+                        boss.ExitIntro();
+                    boss.SetInvulnerable(false);
+                    boss.AllowHurtState(true);
+                    int before = entity.health.CurrentHealthValue;
+                    if (before > 1 && bossHitsIgnored >= 4)
+                        entity.health.CurrentHealthValue = 1; // the hits aren't landing: leave one point for a credited kill
+                    var probe = new AttackInfo { damage = 999999, entity = player, skillCategory = player != null ? player.skillCategory : "" };
+                    entity.health.TakeDamage(probe, player);
+                    int after = entity.health.CurrentHealthValue;
+                    if (after >= before && before > 0)
+                        bossHitsIgnored++;
+                    else
+                        bossHitsIgnored = 0;
+                    return 1;
+                }
             }
             catch
             {
@@ -228,14 +251,27 @@ namespace WoLChaosDepths
             int load = loads;
             KillAll();
             yield return new WaitForSecondsRealtime(1f);
+            bool bossScene = false;
             try
             {
-                Menu()?.SkipStage();
-                ChaosDepthsPlugin.Log("Debug: skip stage (developer menu: teleports to the exit room)");
+                bossScene = NextLevelLoader.InBossScene("");
             }
-            catch (Exception e)
+            catch
             {
-                ChaosDepthsPlugin.LogError($"Debug skip: {e.Message}");
+            }
+            if (bossScene)
+                ChaosDepthsPlugin.Log("Debug: boss arena, no developer skip (it marks the boss defeated without a fight)");
+            else
+            {
+                try
+                {
+                    Menu()?.SkipStage();
+                    ChaosDepthsPlugin.Log("Debug: skip stage (developer menu: teleports to the exit room)");
+                }
+                catch (Exception e)
+                {
+                    ChaosDepthsPlugin.LogError($"Debug skip: {e.Message}");
+                }
             }
             yield return new WaitForSecondsRealtime(1.5f);
             if (loads != load)

@@ -207,9 +207,24 @@ namespace WoLChaosDepths
                 BossRoomEventHandler room = UnityEngine.Object.FindObjectOfType<BossRoomEventHandler>();
                 if (room == null)
                     return false;
-                if (room.bossDefeated)
+                // The handler's defeated flag can read true while the boss stands at full health
+                // (the developer skip sets it), so ask the boss itself.
+                bool alive = false;
+                if (room.boss != null && room.boss.health != null && room.boss.gameObject.activeInHierarchy)
+                    alive = room.boss.health.CurrentHealthValue > 0;
+                else if (GameController.bosses != null)
+                    foreach (GameObject go in GameController.bosses)
+                    {
+                        Entity e = go != null && go.activeInHierarchy ? go.GetComponent<Entity>() : null;
+                        if (e != null && e.health != null && e.health.CurrentHealthValue > 0)
+                            alive = true;
+                    }
+                if (!alive && (room.bossDefeated || room.bossSpawned))
                     return false;
-                ChaosDepthsPlugin.Log($"Dive: leaving '{scene}' without beating its boss (spawned {room.bossSpawned}); not counted");
+                if (!alive && !room.bossSpawned)
+                    ChaosDepthsPlugin.Log($"Dive: leaving '{scene}' before its boss ever appeared; not counted");
+                else
+                    ChaosDepthsPlugin.Log($"Dive: leaving '{scene}' with its boss alive (health {room.boss?.health?.CurrentHealthValue}); not counted");
                 return true;
             }
             catch
