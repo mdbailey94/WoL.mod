@@ -24,6 +24,14 @@ namespace WoLChaosDepths
         private static bool inRun;
         private static bool loggedNames;
         private static string bossSceneCounted;
+        // Set when the dive ends: the game calls LoadLevel more than once per transition, so
+        // every call is sent to the Hub until the Hub has actually loaded.
+        private static bool returningToHub;
+
+        public static bool IsFinalBoss(string scene)
+        {
+            return !string.IsNullOrEmpty(scene) && scene.IndexOf("FinalBoss", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
 
         public static void Install(Harmony harmony)
         {
@@ -62,6 +70,21 @@ namespace WoLChaosDepths
             bool there = IsTrial(destination);
             ChaosDepthsPlugin.Log($"Dive: loading '{destination}' from '{current}' (trial here {here}, there {there})");
 
+            if (returningToHub)
+            {
+                if (destination != HubScene)
+                    ChaosDepthsPlugin.Log($"Dive: still returning to the Hub: {destination} -> {HubScene}");
+                return HubScene;
+            }
+
+            // Nothing comes after the final boss: a dive that reaches it ends in the Hub.
+            if (here && IsFinalBoss(current) && destination != HubScene && !IsFinalBoss(destination))
+            {
+                ChaosDepthsPlugin.Log($"Dive complete after the final boss: {destination} -> {HubScene}");
+                EndDive();
+                return HubScene;
+            }
+
             if (!here && there && !NextLevelLoader.InBossScene(destination))
             {
                 // Starting a run from the Hub: pick the realm and the floor count.
@@ -93,14 +116,7 @@ namespace WoLChaosDepths
                 if (limit > 0 && bossesCleared >= limit)
                 {
                     ChaosDepthsPlugin.Log($"Dive complete: {destination} -> {HubScene}");
-                    inRun = false;
-                    try
-                    {
-                        GameUI.BroadcastNoticeMessage("Dive complete!", 3f);
-                    }
-                    catch
-                    {
-                    }
+                    EndDive();
                     return HubScene;
                 }
             }
@@ -169,10 +185,25 @@ namespace WoLChaosDepths
         }
 
         // Every level load: keep the floor count, and log what the game thinks the run is.
+        private static void EndDive()
+        {
+            inRun = false;
+            returningToHub = true;
+            try
+            {
+                GameUI.BroadcastNoticeMessage("Dive complete!", 3f);
+            }
+            catch
+            {
+            }
+        }
+
         private static void OnLevelLoad(string next, string previous)
         {
             try
             {
+                if (returningToHub && !IsTrial(next))
+                    returningToHub = false;
                 if (!ChaosDepthsPlugin.DiveEnabled)
                     return;
                 if (inRun && IsTrial(next))

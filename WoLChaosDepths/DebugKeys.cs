@@ -22,6 +22,7 @@ namespace WoLChaosDepths
         // can't tell them apart.
         private static int loads;
         private static int bossHitsIgnored;
+        private static KeyValuePair<int, float> bossZeroSince = new KeyValuePair<int, float>(0, 0f);
 
         private static void Hook()
         {
@@ -145,6 +146,16 @@ namespace WoLChaosDepths
                 if (fsm == null || fsm.states == null)
                     return;
                 if (fsm.currentState is Entity.DeadState)
+                    return;
+                string current = fsm.currentStateName ?? "";
+                // The arena runs its own outro once the boss is down; pushing 'Dead' into it
+                // fights that. Only a boss still in its intro or fight 3 s after dying is pushed.
+                if (current.IndexOf("Outro", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return;
+                int id = boss.GetInstanceID();
+                if (bossZeroSince.Key != id)
+                    bossZeroSince = new KeyValuePair<int, float>(id, Time.unscaledTime);
+                if (Time.unscaledTime - bossZeroSince.Value < 3f)
                     return;
                 foreach (KeyValuePair<string, IState> pair in fsm.states)
                 {
@@ -518,14 +529,27 @@ namespace WoLChaosDepths
             string current = DiveDirector.CurrentScene();
             string next = null;
             string why;
-            if (NextLevelLoader.InBossScene(current))
+            if (DiveDirector.IsFinalBoss(current))
+            {
+                next = "Hub";
+                why = "nothing comes after the final boss";
+            }
+            else if (NextLevelLoader.InBossScene(current))
             {
                 System.Collections.Generic.List<string> order = GameController.levelNameList;
                 int nextTier = GameController.tierCount + 1;
-                if (order != null && nextTier < order.Count)
+                int realms = order != null ? order.Count : 0;
+                if (GameController.maxBaseTierCount > 0)
+                    realms = Mathf.Min(realms, GameController.maxBaseTierCount);
+                if (order != null && nextTier >= realms)
+                {
+                    next = "FinalBossLevel";
+                    why = $"after the last realm's boss ({realms} realms a run)";
+                }
+                else if (order != null && nextTier < order.Count)
                 {
                     next = order[nextTier];
-                    why = $"after the boss, realm {nextTier + 1} of {order.Count}";
+                    why = $"after the boss, realm {nextTier + 1} of {realms}";
                 }
                 else
                 {
@@ -678,7 +702,7 @@ namespace WoLChaosDepths
                 int load = loads;
                 string scene = Where();
                 ChaosDepthsPlugin.Log($"Auto-dive step {step}: in {scene} (stage {GameController.stageCount}, tier {GameController.tierCount})");
-                yield return ClearFloor(90f);
+                yield return ClearFloor(DiveDirector.IsFinalBoss(DiveDirector.CurrentScene()) ? 40f : 90f);
                 string forced = null;
                 if (loads == load)
                     forced = GameController.queuedLevelName;
