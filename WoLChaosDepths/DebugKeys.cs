@@ -7,9 +7,10 @@ namespace WoLChaosDepths
     // Test keys, off by default ([Debug] Enabled). They drive the game's own developer menu
     // (hidden in release builds, but its methods still work), with a plain fallback when that
     // object isn't there:
-    //   F6  kill every enemy in the room       F7  skip to the next floor
+    //   F6  kill every enemy in the room       F7  clear the floor: skip to the exit room, summon
+    //                                              the mini-boss, kill it, take the exit portal
     //   F8  god mode on/off                     F9  gold
-    //   F10 auto-dive: kill, skip, kill, skip... until the run leaves the trials (e.g. the dive
+    //   F10 auto-dive: clear floor after floor (as F7) until the run leaves the trials (e.g. the dive
     //       director sends you back to the Hub), logging each step. Start it on a trial floor.
     public static class DebugKeys
     {
@@ -53,24 +54,23 @@ namespace WoLChaosDepths
         {
             try
             {
-                // First a huge hit from the player on everyone the game lists as an enemy, so the
-                // kills are credited (experience, loot); then the developer menu for anything left.
+                // First a huge hit from the player on everyone the game lists as an enemy or boss,
+                // and on every Enemy component in the scene (the floor's mini-boss among them), so
+                // the kills are credited (experience, loot); then the developer menu for anything
+                // left. Invulnerability is lifted first, since mini-bosses sit behind it between
+                // their hurt windows.
                 Player player = FirstPlayer();
+                var seen = new System.Collections.Generic.HashSet<int>();
                 int hit = 0;
                 if (GameController.enemies != null)
-                {
                     foreach (GameObject go in new System.Collections.Generic.List<GameObject>(GameController.enemies))
-                    {
-                        if (go == null || !go.activeInHierarchy)
-                            continue;
-                        Entity entity = go.GetComponent<Entity>();
-                        if (entity == null || entity.health == null)
-                            continue;
-                        var info = new AttackInfo { damage = 999999, entity = player, skillCategory = player != null ? player.skillCategory : "" };
-                        entity.health.TakeDamage(info, player);
-                        hit++;
-                    }
-                }
+                        hit += Hit(go, player, seen);
+                if (GameController.bosses != null)
+                    foreach (GameObject go in new System.Collections.Generic.List<GameObject>(GameController.bosses))
+                        hit += Hit(go, player, seen);
+                foreach (Enemy enemy in UnityEngine.Object.FindObjectsOfType<Enemy>())
+                    if (enemy != null)
+                        hit += Hit(enemy.gameObject, player, seen);
                 DebugMenu menu = Menu();
                 if (menu != null)
                     menu.WrathOfTheDeveloper();
@@ -82,16 +82,90 @@ namespace WoLChaosDepths
             }
         }
 
-        // The developer menu's skip only teleports the wizard to the floor's exit room (the first
-        // test showed), so F7 goes straight for the exit portal.
-        public static void SkipStage(MonoBehaviour host)
+        private static int Hit(GameObject go, Player player, System.Collections.Generic.HashSet<int> seen)
         {
-            host.StartCoroutine(SkipAndForce());
+            if (go == null || !go.activeInHierarchy || !seen.Add(go.GetInstanceID()))
+                return 0;
+            Entity entity = go.GetComponent<Entity>();
+            if (entity == null || entity.health == null || entity is Player)
+                return 0;
+            try
+            {
+                entity.health.invulnerable = false;
+                var mini = entity as MiniBoss;
+                if (mini != null)
+                    mini.AllowHurtState(true, true, true);
+            }
+            catch
+            {
+            }
+            var info = new AttackInfo { damage = 999999, entity = player, skillCategory = player != null ? player.skillCategory : "" };
+            entity.health.TakeDamage(info, player);
+            return 1;
         }
 
-        private static IEnumerator SkipAndForce()
+        // The floor's exit portal only appears after the exit room's mini-boss is beaten, and the
+        // mini-boss only appears once a wizard steps onto the skull altar (MiniBossActivationCircle).
+        // Returns true if the altar was activated now.
+        private static bool ActivateAltar()
+        {
+            try
+            {
+                MiniBossActivationCircle circle = MiniBossActivationCircle.currentMiniBossActivationCircle;
+                if (circle == null)
+                    circle = UnityEngine.Object.FindObjectOfType<MiniBossActivationCircle>();
+                if (circle == null)
+                {
+                    ExitRoomEventHandler room = UnityEngine.Object.FindObjectOfType<ExitRoomEventHandler>();
+                    if (room == null)
+                    {
+                        ChaosDepthsPlugin.Log("Debug: no skull altar or exit room handler in this scene");
+                        return false;
+                    }
+                    room.Activate();
+                    ChaosDepthsPlugin.Log("Debug: activated the exit room directly (no skull altar)");
+                    return true;
+                }
+                if (circle.miniBossActivated)
+                {
+                    ChaosDepthsPlugin.Log("Debug: the skull altar is already active");
+                    return false;
+                }
+                if (circle.player == null)
+                    circle.player = FirstPlayer();
+                circle.Activate();
+                ChaosDepthsPlugin.Log($"Debug: stepped on the skull altar; mini-boss activated = {circle.miniBossActivated}");
+                return true;
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"Debug altar: {e.Message}");
+                return false;
+            }
+        }
+
+        // The exit portal the game spawns once the floor (or the boss) is beaten, or null.
+        private static ExitPortal FindExitPortal()
+        {
+            try
+            {
+                foreach (ExitPortal portal in UnityEngine.Object.FindObjectsOfType<ExitPortal>())
+                    if (portal != null && portal.gameObject.activeInHierarchy && !(portal is EndingAltar))
+                        return portal;
+            }
+            catch
+            {
+            }
+            return null;
+        }
+
+        // Skip to the exit room, summon the mini-boss, kill everything that appears until the exit
+        // portal spawns (up to maxSeconds), then take it. Yields; the caller checks the scene.
+        private static IEnumerator ClearFloor(float maxSeconds)
         {
             string scene = GameController.CurrentSceneName;
+            KillAll();
+            yield return new WaitForSecondsRealtime(1f);
             try
             {
                 Menu()?.SkipStage();
@@ -102,8 +176,68 @@ namespace WoLChaosDepths
                 ChaosDepthsPlugin.LogError($"Debug skip: {e.Message}");
             }
             yield return new WaitForSecondsRealtime(1.5f);
+            if (GameController.CurrentSceneName != scene)
+                yield break;
+            bool activated = false;
+            if (FindExitPortal() == null)
+                activated = ActivateAltar();
+            float waited = 0f;
+            int kills = 0;
+            ExitPortal exit = null;
+            while (GameController.CurrentSceneName == scene && waited < maxSeconds)
+            {
+                exit = FindExitPortal();
+                if (exit != null)
+                    break;
+                KillAll();
+                kills++;
+                if (!activated && kills % 6 == 0 && FindExitPortal() == null)
+                    activated = ActivateAltar(); // the altar may only exist once the room is reached
+                yield return new WaitForSecondsRealtime(0.5f);
+                waited += 0.5f;
+            }
+            if (GameController.CurrentSceneName != scene)
+                yield break;
+            if (exit != null)
+            {
+                ChaosDepthsPlugin.Log($"Debug: exit portal '{exit.name}' appeared after {waited:0.0} s and {kills} kill sweep(s)");
+                yield return new WaitForSecondsRealtime(1f);
+                try
+                {
+                    if (exit.nextLevelLoader != null)
+                    {
+                        exit.nextLevelLoader.forceTriggerExit = true;
+                        ChaosDepthsPlugin.Log($"Debug: taking the exit portal to '{exit.nextLevelLoader.nextLevelName}'");
+                        exit.nextLevelLoader.LoadNextLevel();
+                    }
+                    else
+                    {
+                        ChaosDepthsPlugin.Log("Debug: taking the exit portal (no loader on it; ExitPortal.LoadNextLevel)");
+                        exit.LoadNextLevel();
+                    }
+                }
+                catch (Exception e)
+                {
+                    ChaosDepthsPlugin.LogError($"Debug exit portal: {e.Message}");
+                }
+                yield return new WaitForSecondsRealtime(3f);
+            }
+            else
+                ChaosDepthsPlugin.Log($"Debug: no exit portal appeared in {maxSeconds:0} s ({kills} kill sweep(s)); forcing the exit");
             if (GameController.CurrentSceneName == scene)
                 ForceExit();
+        }
+
+        // The developer menu's skip only teleports the wizard to the floor's exit room (the first
+        // test showed), so F7 goes straight for the exit portal.
+        public static void SkipStage(MonoBehaviour host)
+        {
+            host.StartCoroutine(SkipAndForce());
+        }
+
+        private static IEnumerator SkipAndForce()
+        {
+            yield return ClearFloor(30f);
         }
 
         // Makes the floor's exit load its level. First the floor's own exit portal (a NextLevelLoader
@@ -322,21 +456,10 @@ namespace WoLChaosDepths
                 step++;
                 string scene = GameController.CurrentSceneName;
                 ChaosDepthsPlugin.Log($"Auto-dive step {step}: in '{scene}' (stage {GameController.stageCount}, tier {GameController.tierCount})");
-                KillAll();
-                yield return new WaitForSecondsRealtime(1.5f);
-                KillAll();
-                yield return new WaitForSecondsRealtime(1f);
-                try
-                {
-                    Menu()?.SkipStage();
-                }
-                catch
-                {
-                }
-                yield return new WaitForSecondsRealtime(1.5f);
+                yield return ClearFloor(45f);
                 string forced = null;
                 if (GameController.CurrentSceneName == scene)
-                    forced = ForceExit();
+                    forced = GameController.queuedLevelName;
                 // Wait for the scene to change (up to 20 s); as a last resort load it directly.
                 float waited = 0f;
                 while (GameController.CurrentSceneName == scene && waited < 20f)

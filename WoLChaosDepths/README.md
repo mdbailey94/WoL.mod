@@ -55,7 +55,8 @@ from 0.1.0 starts a fresh character.
   auto-dive turns god mode on, kills the room, skips to the next floor, and repeats until the run
   leaves the trials, logging `Auto-dive step N` lines. Other keys: F6 kill all, F7 skip floor,
   F8 god mode, F9 gold. Expected: the first floor is a Fire floor (log `Dive: first realm X -> Fire`), the boss
-  comes after 1 floor, and leaving the boss arena shows `Dive complete!` and lands you in the
+  comes after 1 floor (each floor: skip to the exit room, step on the skull altar, kill the
+  mini-boss, take the exit portal that appears), and leaving the boss arena shows `Dive complete!` and lands you in the
   Hub after 2 floors. The `Dive: '...' -> '...'` log lines show the counters at each load; send them if any step
   doesn't match.
 
