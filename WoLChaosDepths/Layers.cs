@@ -32,7 +32,6 @@ namespace WoLChaosDepths
         private static bool riftOpen;
         private static float riftEndsAt;
         private static int riftDepth;
-        private static bool riftDecidedForThisFloor;
 
         public static void Bind(ConfigFile config)
         {
@@ -108,7 +107,6 @@ namespace WoLChaosDepths
             layerBosses.Clear();
             layerEntities.Clear();
             riftOpen = false;
-            riftDecidedForThisFloor = true;
             if (bossArena || riftChance.Value <= 0f || UnityEngine.Random.value >= riftChance.Value)
                 return;
             Open(depth, "opened");
