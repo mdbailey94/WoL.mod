@@ -33,6 +33,7 @@ namespace WoLChaosDepths
         public string slot;
         public string rarity;
         public int itemLevel;
+        public string unique = "";
         public List<AffixData> affixes = new List<AffixData>();
 
         public ItemData Find(string key)

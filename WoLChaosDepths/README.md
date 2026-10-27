@@ -86,3 +86,18 @@ To start over, delete the `characterN.json` files while the game is closed.
   (`[Debug] ShowcaseEnemy`, default Knight) to check the tints, size and speed.
 - Log lines: `Elites: chance ...` once per floor, `Elite: Swift Archer (health ...)`, and
   `... (Swift elite) slain by player 1`.
+
+## Unique legendaries (0.5.0, milestone M3)
+
+Half of all Legendary drops (`[Uniques] UniqueChance`) are uniques: a named item with its usual
+affixes plus a power that works while it is equipped.
+
+| Unique | Slot | Power |
+|---|---|---|
+| Stormlinked Signet | Ring | Each hit arcs 35% of its damage to the nearest enemy within 6 units (a cyan line) |
+| Cinderheart | Amulet | Enemies you kill burst for 40% of their max health on enemies within 3.5 units (an orange ring) |
+| Bloodwell Charm | Charm | Each kill restores 2% of your max health |
+
+Powers don't trigger each other, and their damage counts as yours (experience and drops).
+The panel shows the power first in the item's description. With `[Debug] Enabled`, F4 puts one
+of each unique in your inventory.

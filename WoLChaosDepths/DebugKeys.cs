@@ -12,6 +12,7 @@ namespace WoLChaosDepths
     //                                              the mini-boss, kill it, take the exit portal
     //   F8  god mode on/off                     F9  gold
     //   F5  spawn a Swift, an Armored and a Giant elite beside the wizard ([Debug] ShowcaseEnemy)
+    //   F4  put one of each unique legendary in the first player's inventory
     //   F11 log every relic's ID and name ([Debug] AutoDiveRelics gives relics at F10's start)
     //   F10 auto-dive: clear floor after floor (as F7) until the run leaves the trials (e.g. the dive
     //       director sends you back to the Hub), logging each step. Start it on a trial floor.
@@ -59,6 +60,8 @@ namespace WoLChaosDepths
                 else
                     ChaosDepthsPlugin.Log("Debug: F5 spawns elites in the trials only");
             }
+            if (Input.GetKeyDown(KeyCode.F4))
+                GiveUniques();
             if (Input.GetKeyDown(KeyCode.F11))
                 LogRelics();
             if (Input.GetKeyDown(KeyCode.F10))
@@ -810,6 +813,25 @@ namespace WoLChaosDepths
             if (step >= MaxSteps)
                 ChaosDepthsPlugin.Log($"Auto-dive stopped after {MaxSteps} steps, still in {Where()}");
             running = false;
+        }
+
+        // One of each unique legendary, to test the powers without waiting for drops.
+        private static void GiveUniques()
+        {
+            Player player = FirstPlayer();
+            ChaosDepthsPlugin plugin = ChaosDepthsPlugin.Instance;
+            if (player == null || plugin == null)
+                return;
+            CharacterSave save = plugin.SaveOf(player);
+            foreach (Uniques.Def def in Uniques.Defs)
+            {
+                ItemData item = LootTable.Roll(save.level, LootTable.RarityIndex("Legendary"));
+                Uniques.MakeUnique(item, def);
+                save.inventory.Add(item);
+                ChaosDepthsPlugin.Log($"Debug: gave {item.rarity} {item.name} ({LootTable.Describe(item)})");
+            }
+            plugin.SaveCharacter(player, save);
+            ChaosDepthsPlugin.Notice("Unique legendaries added: equip them with I", 3f);
         }
 
         // Every relic the game knows: ID, display name and class, to pick AutoDiveRelics from.

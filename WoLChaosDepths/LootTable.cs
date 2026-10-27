@@ -162,6 +162,8 @@ namespace WoLChaosDepths
                 }
             }
             item.name = strongest != null ? $"{slot} of {strongest.suffix}" : slot;
+            if (rarityIndex == data.rarities.Count - 1)
+                Uniques.MaybeMakeUnique(item);
             return item;
         }
 
@@ -214,7 +216,9 @@ namespace WoLChaosDepths
                     : affix.value.ToString("0.##");
                 parts[i] = def != null ? string.Format(def.label, value) : $"{affix.key} {value}";
             }
-            return string.Join(", ", parts);
+            string power = Uniques.PowerText(item);
+            string affixes = string.Join(", ", parts);
+            return power != null ? power + (affixes.Length > 0 ? "; " + affixes : "") : affixes;
         }
 
         // A rough strength, to compare two items for the same slot.
@@ -227,6 +231,8 @@ namespace WoLChaosDepths
                 float top = def != null ? Mathf.Abs(def.max + def.perLevel * (item.itemLevel - 1)) : 1f;
                 score += top > 0f ? Mathf.Abs(affix.value) / top : 0f;
             }
+            if (!string.IsNullOrEmpty(item.unique))
+                score += 1.5f; // a power is worth more than an affix
             return score;
         }
     }

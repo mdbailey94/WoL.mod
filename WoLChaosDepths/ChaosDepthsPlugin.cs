@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.4.2";
+        public const string PluginVersion = "0.5.0";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -91,6 +91,7 @@ namespace WoLChaosDepths
                 Logger.LogWarning($"Unknown key '{panelKey.Value}', using I");
                 openKey = KeyCode.I;
             }
+            Instance = this;
             panel = new InventoryPanel(OnInventoryChanged);
             diveEnabled = Config.Bind("Dive", "Enabled", true,
                 "Shape the run as a dive (the settings below) and log what the game does with it.");
@@ -103,8 +104,9 @@ namespace WoLChaosDepths
                 new ConfigDescription("Realm bosses to beat before the dive ends and you return to the Hub. 0 = the whole run as the game plays it.",
                     new AcceptableValueRange<int>(0, 6)));
             Elites.Bind(Config);
+            Uniques.Bind(Config);
             debugEnabled = Config.Bind("Debug", "Enabled", false,
-                "Test keys: F6 kill all enemies, F7 skip floor, F8 god mode, F9 gold, F10 auto-dive (kill and skip floor after floor until the run ends), F5 spawn one elite of each affix, F11 log every relic's ID and name.");
+                "Test keys: F6 kill all enemies, F7 skip floor, F8 god mode, F9 gold, F10 auto-dive (kill and skip floor after floor until the run ends), F5 spawn one elite of each affix, F4 give one of each unique legendary, F11 log every relic's ID and name.");
             showcaseEnemy = Config.Bind("Debug", "ShowcaseEnemy", "Knight",
                 "F5 spawns one elite of each affix of this enemy beside the wizard (in the trials).");
             autoDiveRelics = Config.Bind("Debug", "AutoDiveRelics", "",
@@ -291,6 +293,12 @@ namespace WoLChaosDepths
             return false;
         }
 
+        public static ChaosDepthsPlugin Instance { get; private set; }
+
+        public CharacterSave SaveOf(Player player) => CharacterOf(player);
+
+        public void SaveCharacter(Player player, CharacterSave save) => SaveStore.Save(player.playerID, save);
+
         private CharacterSave CharacterOf(Player player)
         {
             CharacterSave save;
@@ -325,6 +333,8 @@ namespace WoLChaosDepths
                 Health health = hurt.health;
                 if (health != null && deathHooked.Add(health.GetInstanceID()))
                     health.deathEventHandlers += OnEnemyDeath;
+                if (InTrials())
+                    Uniques.OnPlayerHit(player, CharacterOf(player), attack, hurt);
             }
             catch (Exception e)
             {
@@ -375,6 +385,7 @@ namespace WoLChaosDepths
                 if (logKills.Value || kind.Length > 0)
                     Log($"{entity.GetType().Name}{kind} slain by player {player.playerID + 1}: +{xp} xp");
                 AddXp(player, save, xp);
+                Uniques.OnPlayerKill(player, save, entity);
                 if (boss)
                     Drop(player, save, bossDropRarity.Value);
                 else if (floorBoss)
