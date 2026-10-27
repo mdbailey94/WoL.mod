@@ -171,7 +171,9 @@ namespace WoLChaosDepths
         // points on a Legendary). Pivot centre.
         private static Sprite Charmstone(Color c, int tier, int frame, float ppu)
         {
-            Color setting = new Color32(0xf0, 0xd0, 0x70, 0xff);
+            // The setting is a darker gold at rest so four Legendary stones don't read as a
+            // cloud of white sparks (the 0.9.7 check); it only goes white on a glint.
+            Color setting = new Color32(0xc8, 0xa0, 0x40, 0xff);
             Color light = Color.Lerp(c, Color.white, 0.6f), dark = Color.Lerp(c, Color.black, 0.45f);
             int r = tier == 0 ? 1 : 2;
             int outer = tier >= 3 ? r + 1 : r;
@@ -185,9 +187,9 @@ namespace WoLChaosDepths
                     return (dx == 0 || dy == 0) ? (frame == 1 ? Color.white : setting) : Color.clear;
                 if (d == r)
                 {
-                    // Rare and up: a white spark on the top point.
+                    // Rare and up: the top point is lit (white only while glinting).
                     if (tier >= 2 && dx == 0 && y > outer)
-                        return Color.white;
+                        return frame == 1 ? Color.white : light;
                     return dark;                                  // the rim
                 }
                 bool facet = tier >= 1 && d >= 1 && x < outer && y >= outer;
