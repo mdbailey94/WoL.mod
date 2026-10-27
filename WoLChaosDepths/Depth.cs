@@ -108,8 +108,11 @@ namespace WoLChaosDepths
             float health = healthPerDepth.Value * Below;
             if (health > 0f)
             {
-                ScaleList(GameController.enemies, health);
-                ScaleList(GameController.bosses, health);
+                // Every Enemy in the scene: realm bosses and the altar's floor boss aren't
+                // always in the game's enemy lists (the 0.6.0 test saw their health unscaled).
+                foreach (Enemy enemy in UnityEngine.Object.FindObjectsOfType<Enemy>())
+                    if (enemy != null)
+                        Scale(enemy, health);
             }
             if (playerScaleDepth != Current)
             {
@@ -127,19 +130,13 @@ namespace WoLChaosDepths
                 }
         }
 
-        private static void ScaleList(List<GameObject> list, float health)
+        private static void Scale(Entity e, float health)
         {
-            if (list == null)
+            if (e == null || e.health == null || e.health.healthStat == null || e.health.CurrentHealthValue <= 0 || !scaled.Add(e.GetInstanceID()))
                 return;
-            foreach (GameObject go in new List<GameObject>(list))
-            {
-                if (go == null)
-                    continue;
-                Entity e = go.GetComponent<Entity>();
-                if (e == null || e is Player || e.health == null || e.health.healthStat == null || !scaled.Add(e.GetInstanceID()))
-                    continue;
-                e.health.healthStat.AddMod(new NumVarStatMod(Prefix + "Health", health, 10, VarStatModType.Multiplicative, true));
-            }
+            e.health.healthStat.AddMod(new NumVarStatMod(Prefix + "Health", health, 10, VarStatModType.Multiplicative, true));
+            if (e is Boss || e is MiniBoss)
+                ChaosDepthsPlugin.Log($"Depth: {e.GetType().Name} health +{health:P0} -> {e.health.CurrentHealthValue}");
         }
 
         private static void ResetPlayers()

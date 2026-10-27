@@ -88,6 +88,13 @@ namespace WoLChaosDepths
             if (!here && there && !NextLevelLoader.InBossScene(destination))
             {
                 // Starting a run from the Hub: pick the realm and the floor count.
+                // A dive that ended early (RealmsPerDive) leaves the game's realm counter where
+                // it was, so the next run would start mid-order: begin again at the first realm.
+                if (GameController.tierCount != 0)
+                {
+                    ChaosDepthsPlugin.Log($"Dive: the game's realm counter was {GameController.tierCount} from the last dive; reset to 0");
+                    GameController.tierCount = 0;
+                }
                 bossesCleared = 0;
                 bossKilledIn.Clear();
                 bossSceneCounted = null;
