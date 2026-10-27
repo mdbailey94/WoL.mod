@@ -54,6 +54,11 @@ Smoke), and the rest (crest, puddles, churning foam, ripple, crash foam) is repa
 sampled from the game's water sheets, with no outlines, fading by alpha. If one of those game sheets
 isn't loaded, a painted stand-in is used and the log says so once.
 
+0.4.2 redraws the crest: bigger (32x20 instead of 24x14) and wide enough that neighbouring
+columns' crests overlap into one line of water, all moving in step rather than staggered, and
+turned to the roll direction (snapped to 15 degrees) so a wave rolling up, down or diagonally
+keeps its crest aligned with the way it's going.
+
 ## Signature
 
 Put Tidal Wall in the **signature slot** (the spellbook in your house lists it under Signature

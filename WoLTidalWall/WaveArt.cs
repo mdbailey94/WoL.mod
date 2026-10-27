@@ -76,51 +76,57 @@ namespace WoLTidalWall
 
         // ---- Painted in the game's style ----
 
-        // Foam crest: the jagged top of the water riding each column, shards of water leaning
-        // forward and tipped with white, spray flicking off; six looping frames, then five of it
-        // breaking into specks. 24x14.
-        public static PixelAnim Crest => PixelArt.Paint("crest", "foam crest", 24, 14, 11, 12f, 0, 5,
+        // Foam crest: the jagged top of the water riding the wall, shards of water leaning forward
+        // and tipped with white, spray flicking off; six looping frames, then five of it breaking
+        // into specks. 32x20, wide enough that neighbouring columns' crests overlap into one line
+        // (the owner found the 24x14 crests small and not flowing together).
+        public const int CrestWidth = 32, CrestHeight = 20;
+        public static PixelAnim Crest => PixelArt.Paint("crest", "foam crest", CrestWidth, CrestHeight, 11, 12f, 0, 5,
             new Vector2(0.5f, 0.2f), Water, (c, f) =>
             {
+                const int W = CrestWidth;
+                const float K = 1.4f;   // the old 24x14 drawing, scaled up
                 bool outro = f >= 6;
                 float q = outro ? (f - 5) / 5f : 0f;
                 float p = (outro ? 5 : f) / 6f;
-                for (int x = 0; x < 24; x++)
+                for (int x = 0; x < W; x++)
                 {
-                    float wave = Mathf.Sin(x / 24f * TwoPi * 2f - p * TwoPi);
-                    int top = Mathf.RoundToInt((4f + 1.5f * wave) * (1f - q * 0.7f));
+                    // Two humps across the width, rolling forward one hump a loop.
+                    float wave = Mathf.Sin(x / (float)W * TwoPi * 2f - p * TwoPi);
+                    int top = Mathf.RoundToInt((4f + 1.5f * wave) * K * (1f - q * 0.7f));
                     // Vertical shards of the four tones, the way the game's splashes are drawn.
                     int shard = (x * 7 + 3) % 5;
                     for (int y = 0; y <= top; y++)
                     {
                         int colour = y >= top - 1 ? Pale : shard == 0 ? Dark : shard == 1 || shard == 3 ? Deep : Mid;
-                        if (y == 0 && shard != 0)
+                        if (y <= 1 && shard != 0)
                             colour = Deep;
                         c.Set(x, y, colour);
                     }
                 }
                 // Tongues of water leaning forward off the humps, tipped with white.
-                for (int k = 0; k < 4; k++)
+                for (int k = 0; k < 5; k++)
                 {
-                    float at = (k * 6f + 2f + p * 12f) % 24f;
-                    float lean = 1.5f + (k % 2);
-                    float h = (k % 2 == 0 ? 5.5f : 4f) * (1f - q * 0.7f);
-                    float baseY = 4f * (1f - q * 0.7f);
+                    float at = (k * 6.4f + 2f + p * 16f) % W;
+                    float lean = (1.5f + (k % 2)) * K;
+                    float h = (k % 2 == 0 ? 5.5f : 4f) * K * (1f - q * 0.7f);
+                    float baseY = 4f * K * (1f - q * 0.7f);
                     if (!outro)
                     {
-                        c.Stroke(at, baseY, at + lean, baseY + h, 3f, Pale);
-                        c.Stroke(at - 1f, baseY, at + lean - 1f, baseY + h - 1.5f, 2f, Mid);
+                        c.Stroke(at, baseY, at + lean, baseY + h, 3.5f, Pale);
+                        c.Stroke(at - 1f, baseY, at + lean - 1f, baseY + h - 2f, 2.5f, Mid);
                         c.Set(at + lean, baseY + h + 1f, White);
+                        c.Set(at + lean + 1f, baseY + h, White);
                     }
                 }
                 // Spray: loose specks above (the game's splashes end the same way).
-                for (int k = 0; k < 3; k++)
+                for (int k = 0; k < 4; k++)
                 {
-                    float at = (k * 8f + 5f + p * 12f) % 24f;
-                    float up = outro ? 6f + q * 4f : 9f + (f + k) % 3;
+                    float at = (k * 8f + 5f + p * 16f) % W;
+                    float up = outro ? 8f + q * 5f : 13f + (f + k) % 3;
                     c.Set(at, up, k == 1 ? White : Pale);
                     if (outro)
-                        c.Set(at + 2f + q * 3f, up - 2f, Pale);
+                        c.Set(at + 2f + q * 4f, up - 2f, Pale);
                 }
                 if (outro)
                     c.Scatter(1f - q * 0.8f);

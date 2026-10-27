@@ -29,7 +29,8 @@ namespace WoLTidalWall
         private const float CrestFallbackHeight = 1.6f;
         private const float CrestMinHeight = 0.6f, CrestMaxHeight = 4f;
         private const float CrestSink = 0.2f;
-        private const float CrestStagger = 0.07f;
+        private const float CrestStagger = 0f;          // in step: the crests read as one line of water
+        private const float CrestOverlap = 1.2f;        // each crest this much wider than its column's spacing, so they join
         private const int CrestSortBias = 1;
         private const float CrestSafety = 1f;           // crests end by themselves this long after the wave should have crashed
         // Rise: one surge per column as it rises (WaveFront's RiseDelay and RiseInterval).
@@ -90,6 +91,11 @@ namespace WoLTidalWall
         private float trailDistance;
         private int sprays;
         private float crestHeight = -1f;
+        private float crestAngle;
+
+        // Crests wide enough to overlap their neighbours into one line (and taller with the
+        // signature's columns).
+        private float CrestScale => Mathf.Max(1f, s.Spacing * CrestOverlap / (WaveArt.CrestWidth / PixelArt.PixelsPerUnit)) * s.ColumnScale;
         private bool measured;
         // For the log.
         private int surges, crestCount, droplets, plumes, puddles, bubbles, crowns, mists;
@@ -98,8 +104,13 @@ namespace WoLTidalWall
         {
             s = settings;
             side = Globals.GetPerpendicular(s.Direction);
-            // The crest is drawn rolling to the right; mirrored when the wave rolls left.
+            // The crest is drawn rolling to the right: mirrored when the wave rolls left, and
+            // turned to the roll direction (snapped to 15 degrees by PixelFx), so a wave rolling
+            // up or down, or diagonally, keeps its crest aligned with the way it's going.
             flip = s.Direction.x < -0.1f;
+            crestAngle = flip
+                ? -Mathf.Atan2(s.Direction.y, -s.Direction.x) * Mathf.Rad2Deg
+                : Mathf.Atan2(s.Direction.y, s.Direction.x) * Mathf.Rad2Deg;
             PixelArt.MatchPixelSize(s.Caster);
             // Drawn with the material the game's own water wall sprites use.
             try
@@ -142,7 +153,7 @@ namespace WoLTidalWall
                     PixelFx fx = PixelFx.Spawn(WaveArt.Crest, column.position, body != null ? FxLayer.Actor : FxLayer.Effect, CrestSortBias);
                     if (fx == null)
                         continue;
-                    fx.Follow(column, new Vector2(0f, top - CrestSink)).Loop(life).Offset(i * CrestStagger).Flip(flip);
+                    fx.Follow(column, new Vector2(0f, top - CrestSink)).Loop(life).Offset(i * CrestStagger).Flip(flip).Rotate(crestAngle).Scale(CrestScale);
                     if (body != null)
                         fx.SortWith(body, CrestSortBias);
                     crests.Add(fx.Ref);
@@ -158,7 +169,7 @@ namespace WoLTidalWall
                     PixelFx fx = PixelFx.Spawn(WaveArt.Crest, (Vector2)wave.position + offset, FxLayer.Effect, CrestSortBias);
                     if (fx == null)
                         continue;
-                    fx.Follow(wave, offset).Loop(life).Offset(i * CrestStagger).Flip(flip);
+                    fx.Follow(wave, offset).Loop(life).Offset(i * CrestStagger).Flip(flip).Rotate(crestAngle).Scale(CrestScale);
                     crests.Add(fx.Ref);
                 }
                 crestHeight = CrestFallbackHeight;
