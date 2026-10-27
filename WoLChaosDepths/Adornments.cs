@@ -282,8 +282,12 @@ namespace WoLChaosDepths
             // The charm's stones floating round the wizard (one per rarity tier above Common).
             private readonly List<SpriteRenderer> orbs = new List<SpriteRenderer>();
             private float orbitPhase, nextTrail;
+            // The hand's last spot as an offset from the pivot (so it moves with the wizard), and
+            // how many frames in a row a jump was refused.
             private Vector2 lastHand;
             private bool handTracked;
+            private int handRefused;
+            private float lastHandSide;
             private float ppu = 16f, nextSpark, stillFor;
             private readonly float[] nextTwinkle = new float[3], twinkleStart = { -10f, -10f, -10f };
             private Vector3 lastPos;
@@ -426,7 +430,9 @@ namespace WoLChaosDepths
 
                 // Measure where the gear goes while the wizard stands still (same spot, same
                 // picture size for 0.3 s), then keep those offsets from the pivot through the
-                // run, dash and cast frames. A run frame only gives a guess until then.
+                // run, dash and cast frames. A run frame only gives a guess until then. Measured
+                // again every time he stands still, so a held cast pose (Thunderhead's landing)
+                // that got measured is put right by the next real stand.
                 Vector3 pivot = body.transform.position;
                 Bounds bb = body.bounds;
                 bool still = (feet - lastPos).sqrMagnitude < 1e-8f
@@ -434,7 +440,7 @@ namespace WoLChaosDepths
                 stillFor = still ? stillFor + Time.deltaTime : 0f;
                 lastSize = bb.size;
                 Anchors a = anchors[key];
-                if (a == null || (!a.settled && stillFor >= 0.3f))
+                if (a == null || stillFor >= 0.3f)
                     anchors[key] = a = Measure(bb, pivot, up, down, side, fwd, stillFor >= 0.3f);
 
                 // Follow the run's bob (the top of the picture), at most 2 px either way.
@@ -560,12 +566,22 @@ namespace WoLChaosDepths
                         return false;
                     // A pixel inside the outline, so the band sits on the hand, not beside it.
                     pick.x -= side * 1.5f / ppu;
-                    pick = new Vector2(Mathf.Round(pick.x * ppu) / ppu, Mathf.Round(pick.y * ppu) / ppu);
-                    // Reject a jump (the outline caught a sleeve or a spell), keeping the last spot.
-                    if (handTracked && Vector2.Distance(pick, lastHand) > 0.45f)
-                        pick = lastHand;
-                    lastHand = pick;
-                    world = pick;
+                    // Compared as offsets from the pivot: a world spot went stale as soon as the
+                    // wizard moved (a leap like Thunderhead's then locked the ring off the body).
+                    Vector2 pivot = body.transform.position;
+                    Vector2 offset = new Vector2(Mathf.Round((pick.x - pivot.x) * ppu) / ppu, Mathf.Round((pick.y - pivot.y) * ppu) / ppu);
+                    // Refuse a jump (the outline caught a sleeve or a spell) for a few frames,
+                    // then take the new spot: a long run of jumps means the hand really moved.
+                    if (handTracked && side == lastHandSide && Vector2.Distance(offset, lastHand) > 0.45f && handRefused < 6)
+                    {
+                        handRefused++;
+                        offset = lastHand;
+                    }
+                    else
+                        handRefused = 0;
+                    lastHand = offset;
+                    lastHandSide = side;
+                    world = pivot + offset;
                     return true;
                 }
                 catch
