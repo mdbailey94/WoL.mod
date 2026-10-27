@@ -150,10 +150,24 @@ namespace WoLChaosDepths
             if (stat.GetModIndex(Prefix + "Health") >= 0)
                 return;
             float before = stat.ModifiedValue;
-            stat.AddMod(new NumVarStatMod(Prefix + "Health", health, 10, VarStatModType.Multiplicative, true));
+            // Bosses set their health with an Override mod, which ignores multipliers (the 0.6.2
+            // test: 1500 -> 1500). Then ours is an Override one priority higher, at the boss's
+            // own override value times the depth bonus.
+            var top = stat.HasOverrideMod ? stat.topPriorityOverride as NumVarStatMod : null;
+            string how;
+            if (top != null)
+            {
+                stat.AddMod(new NumVarStatMod(Prefix + "Health", top.modValue * (1f + health), top.priority + 1, VarStatModType.Override, true));
+                how = $"override '{top.ID}' {top.modValue:0} x{1f + health:0.##}";
+            }
+            else
+            {
+                stat.AddMod(new NumVarStatMod(Prefix + "Health", health, 10, VarStatModType.Multiplicative, true));
+                how = "multiplier";
+            }
             bool again = !scaled.Add(e.GetInstanceID());
-            if (e is Boss || e is MiniBoss)
-                ChaosDepthsPlugin.Log($"Depth: {e.GetType().Name} max health {before:0} -> {stat.ModifiedValue:0} (+{health:P0}){(again ? ", re-applied after the game reset it" : "")}");
+            if (e is Boss || e is MiniBoss || Mathf.Approximately(before, stat.ModifiedValue))
+                ChaosDepthsPlugin.Log($"Depth: {e.GetType().Name} max health {before:0} -> {stat.ModifiedValue:0} (+{health:P0}, {how}){(again ? ", re-applied after the game reset it" : "")}");
         }
 
         private static void ResetPlayers()
