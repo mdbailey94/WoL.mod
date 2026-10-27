@@ -99,51 +99,54 @@ namespace WoLChaosDepths
             return s;
         }
 
-        // A pendant: a 1-px chain 2 px long, then a 3x3 diamond gem. 3 wide, 5 tall, pivot top.
+        // A pendant: a 1-px chain 3 px long, then a 5x5 diamond gem with a facet and a dark rim.
+        // 5 wide, 8 tall, pivot top.
         private static Sprite Pendant(Color c, float ppu)
         {
             Color chain = new Color32(0xc8, 0xb0, 0x60, 0xff);
             Color light = Color.Lerp(c, Color.white, 0.6f), dark = Color.Lerp(c, Color.black, 0.45f);
-            return Make("pendant" + ColorUtility.ToHtmlStringRGB(c), 3, 5, (x, y) =>
+            return Make("pendant" + ColorUtility.ToHtmlStringRGB(c), 5, 8, (x, y) =>
             {
-                if (y >= 3)
-                    return x == 1 ? chain : Color.clear;           // the chain, top two rows
-                int dx = Mathf.Abs(x - 1), dy = Mathf.Abs(y - 1);  // the gem, bottom three rows
-                if (dx + dy > 1)
+                if (y >= 5)
+                    return x == 2 ? chain : Color.clear;           // the chain, top three rows
+                int dx = Mathf.Abs(x - 2), dy = Mathf.Abs(y - 2);  // the gem, bottom five rows
+                if (dx + dy > 2)
                     return Color.clear;
-                return dx + dy == 0 ? light : (y == 0 ? dark : c);
+                if (dx + dy == 2)
+                    return dark;                                   // the rim
+                return x == 1 && y == 3 ? light : c;               // one facet catching the light
             }, new Vector2(0.5f, 1f), ppu);
         }
 
-        // A ring: a 2x2 band on the hand in the item's colour; when it glints, one pixel goes
-        // bright (frame 1) or two do (frame 2). Never bigger than the band.
+        // A ring: a 3x2 band on the hand (dark lower edge); when it glints, a single pixel goes
+        // bright. Never bigger than the band.
         private static Sprite Glint(Color c, int frame, float ppu)
         {
-            Color light = Color.Lerp(c, Color.white, 0.75f), dark = Color.Lerp(c, Color.black, 0.35f);
-            return Make("ring" + frame + ColorUtility.ToHtmlStringRGB(c), 2, 2, (x, y) =>
+            Color light = Color.Lerp(c, Color.white, 0.8f), dark = Color.Lerp(c, Color.black, 0.35f);
+            return Make("ring" + frame + ColorUtility.ToHtmlStringRGB(c), 3, 2, (x, y) =>
             {
-                bool topLeft = x == 0 && y == 1, bottomRight = x == 1 && y == 0;
-                if (frame >= 1 && topLeft)
-                    return light;
-                if (frame == 2 && bottomRight)
+                if (frame == 1 && x == 1 && y == 1)
                     return light;
                 return y == 0 ? dark : c;
             }, new Vector2(0.5f, 0.5f), ppu);
         }
 
-        // A belt charm: a 1-px cord, a 2x2 body, a 1-px tassel. 2 wide, 4 tall, pivot top.
+        // A belt charm: a 1-px cord, a 3x3 body with a dark bottom row and a light corner, a
+        // 1-px tassel. 3 wide, 6 tall, pivot top.
         private static Sprite Tassel(Color c, float ppu)
         {
             Color cord = new Color32(0x6a, 0x4e, 0x32, 0xff);
             Color dark = Color.Lerp(c, Color.black, 0.4f), light = Color.Lerp(c, Color.white, 0.4f);
-            return Make("tassel" + ColorUtility.ToHtmlStringRGB(c), 2, 4, (x, y) =>
+            return Make("tassel" + ColorUtility.ToHtmlStringRGB(c), 3, 6, (x, y) =>
             {
-                if (y == 3)
-                    return x == 0 ? cord : Color.clear;
+                if (y == 5)
+                    return x == 1 ? cord : Color.clear;
                 if (y == 0)
-                    return x == 0 ? dark : Color.clear;
-                return y == 2 && x == 0 ? light : (y == 1 ? dark : c);
-            }, new Vector2(0.25f, 1f), ppu);
+                    return x == 1 ? dark : Color.clear;
+                if (y == 1)
+                    return dark;
+                return y == 3 && x == 0 ? light : c;
+            }, new Vector2(0.5f, 1f), ppu);
         }
 
         // A 1-px mote that drifts up a few pixels and fades over half a second.
@@ -325,15 +328,14 @@ namespace WoLChaosDepths
                 {
                     glint.transform.position = new Vector3(hand.x, hand.y, feet.z);
                     Sort(glint, body, up ? back : front);
-                    // A glint every 2-4 s: one pixel, two, one, over a quarter second.
+                    // A glint every 2-4 s: one pixel bright for 0.15 s.
                     float t = Time.time;
                     if (t >= nextTwinkle)
                     {
                         twinkleStart = t;
                         nextTwinkle = t + UnityEngine.Random.Range(2f, 4f);
                     }
-                    float age = t - twinkleStart;
-                    int frame = age < 0.08f ? 1 : age < 0.18f ? 2 : age < 0.26f ? 1 : 0;
+                    int frame = t - twinkleStart < 0.15f ? 1 : 0;
                     glint.sprite = Glint(ColourOf(ring), frame, ppu);
                 }
                 if (tassel != null)
@@ -349,7 +351,7 @@ namespace WoLChaosDepths
                 // A worn unique sheds a single pixel-sized mote now and then, drifting up and fading.
                 if (uniqueSparks.Value && Time.time >= nextSpark && Time.timeScale > 0f)
                 {
-                    nextSpark = Time.time + UnityEngine.Random.Range(0.9f, 1.6f);
+                    nextSpark = Time.time + UnityEngine.Random.Range(1.5f, 2.5f);
                     var parts = new List<KeyValuePair<SpriteRenderer, ItemData>>();
                     if (IsUnique(amulet) && pendant != null && pendant.enabled) parts.Add(new KeyValuePair<SpriteRenderer, ItemData>(pendant, amulet));
                     if (IsUnique(ring) && glint != null && glint.enabled) parts.Add(new KeyValuePair<SpriteRenderer, ItemData>(glint, ring));

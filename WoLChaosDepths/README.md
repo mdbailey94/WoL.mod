@@ -147,7 +147,7 @@ for leftovers.
 ## Equipped items on the wizard (0.9.0, milestone M5)
 
 What you wear shows on the wizard, drawn in the game's pixel style: the amulet as a pendant on
-a short chain at the chest, the ring as a 2-pixel band on the leading hand that glints every few
+a short chain at the chest, the ring as a small band on the leading hand whose single-pixel glint shows every few
 seconds, the charm as a small tassel hanging from the belt on the trailing side. Each is in
 its item's rarity colour; a unique is in its power's colour (storm cyan, ember orange, blood
 red) and sheds a single-pixel mote now and then. They are placed on the wizard's picture as drawn each frame, so they move with the
