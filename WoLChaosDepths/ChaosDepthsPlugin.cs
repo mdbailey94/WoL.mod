@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.6.5";
+        public const string PluginVersion = "0.7.0";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -106,8 +106,9 @@ namespace WoLChaosDepths
             Elites.Bind(Config);
             Uniques.Bind(Config);
             Depth.Bind(Config);
+            Layers.Bind(Config);
             debugEnabled = Config.Bind("Debug", "Enabled", false,
-                "Test keys: F6 kill all enemies, F7 skip floor, F8 god mode, F9 gold, F10 auto-dive (kill and skip floor after floor until the run ends), F5 spawn one elite of each affix, F4 give one of each unique legendary, F11 log every relic's ID and name.");
+                "Test keys: F6 kill all enemies, F7 skip floor, F8 god mode, F9 gold, F10 auto-dive (kill and skip floor after floor until the run ends), F5 spawn one elite of each affix, F3 open a rift on this floor, F4 give one of each unique legendary, F11 log every relic's ID and name.");
             showcaseEnemy = Config.Bind("Debug", "ShowcaseEnemy", "Knight",
                 "F5 spawns one elite of each affix of this enemy beside the wizard (in the trials).");
             autoDiveRelics = Config.Bind("Debug", "AutoDiveRelics", "",
@@ -173,6 +174,7 @@ namespace WoLChaosDepths
             {
                 Elites.Tick();
                 Depth.Tick();
+                Layers.Tick();
             }
             foreach (Player player in players)
             {
@@ -184,8 +186,12 @@ namespace WoLChaosDepths
 
         private void OnGUI()
         {
-            if (modEnabled.Value && panel != null && panel.Open)
+            if (!modEnabled.Value)
+                return;
+            if (panel != null && panel.Open)
                 panel.Draw();
+            else if (InTrials())
+                Layers.Draw();
         }
 
         private void OnInventoryChanged(Player player, CharacterSave save)
@@ -315,6 +321,31 @@ namespace WoLChaosDepths
             return null;
         }
 
+        public IEnumerable<Player> ActivePlayers()
+        {
+            var list = new List<Player>();
+            Player[] players = GameController.activePlayers;
+            if (players != null)
+                foreach (Player p in players)
+                    if (p != null)
+                        list.Add(p);
+            return list;
+        }
+
+        // A rift cleared in time: a bonus item for this player.
+        public void RiftReward(Player player, int minRarity)
+        {
+            try
+            {
+                CharacterSave save = CharacterOf(player);
+                Drop(player, save, minRarity);
+            }
+            catch (Exception e)
+            {
+                LogError($"rift reward: {e.Message}");
+            }
+        }
+
         public IEnumerable<CharacterSave> AllSaves()
         {
             var list = new List<CharacterSave>();
@@ -410,15 +441,17 @@ namespace WoLChaosDepths
                 if (boss)
                     DiveDirector.BossKilled(entity);
                 float maxHealth = entity.health != null && entity.health.healthStat != null ? entity.health.healthStat.ModifiedValue : 10f;
-                float mult = boss ? bossXpMultiplier.Value : floorBoss ? floorBossXpMultiplier.Value : elite != null ? Elites.XpMultiplier : 1f;
+                float mult = (boss ? bossXpMultiplier.Value : floorBoss ? floorBossXpMultiplier.Value : elite != null ? Elites.XpMultiplier : 1f) * Layers.XpMultiplier(entity);
                 int xp = Mathf.Max(1, Mathf.RoundToInt(maxHealth * xpPerHealth.Value * mult * Depth.XpMultiplier * Depth.MissingHealthFactor(entity)));
                 save.kills++;
-                string kind = boss ? " (boss)" : floorBoss ? " (floor boss)" : elite != null ? $" ({elite} elite)" : "";
+                string kind = Layers.IsLayerBoss(entity) ? " (layer boss)" : boss ? " (boss)" : floorBoss ? " (floor boss)" : elite != null ? $" ({elite} elite)" : "";
                 if (logKills.Value || kind.Length > 0)
                     Log($"{entity.GetType().Name}{kind} slain by player {player.playerID + 1}: +{xp} xp");
                 AddXp(player, save, xp);
                 Uniques.OnPlayerKill(player, save, entity);
-                if (boss)
+                if (Layers.IsLayerBoss(entity))
+                    Drop(player, save, LootTable.RarityIndex("Legendary"));
+                else if (boss)
                     Drop(player, save, bossDropRarity.Value);
                 else if (floorBoss)
                     Drop(player, save, floorBossDropRarity.Value);
@@ -491,7 +524,7 @@ namespace WoLChaosDepths
 
         private void Drop(Player player, CharacterSave save, int minRarity)
         {
-            ItemData item = LootTable.Roll(save.level + Elites.AscensionLevel() + Depth.ItemLevelBonus, minRarity, Elites.RarityBoost() + Depth.RarityBoost);
+            ItemData item = LootTable.Roll(save.level + Elites.AscensionLevel() + Depth.ItemLevelBonus, minRarity, Elites.RarityBoost() + Depth.RarityBoost + Layers.RarityBonus);
             save.inventory.Add(item);
             save.itemsFound++;
             string text = $"{item.rarity} {item.name} ({LootTable.Describe(item)})";

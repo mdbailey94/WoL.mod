@@ -12,6 +12,7 @@ namespace WoLChaosDepths
     //                                              the mini-boss, kill it, take the exit portal
     //   F8  god mode on/off                     F9  gold
     //   F5  spawn a Swift, an Armored and a Giant elite beside the wizard ([Debug] ShowcaseEnemy)
+    //   F3  open a rift on this floor
     //   F4  put one of each unique legendary in the first player's inventory
     //   F11 log every relic's ID and name ([Debug] AutoDiveRelics gives relics at F10's start)
     //   F10 auto-dive: clear floor after floor (as F7) until the run leaves the trials (e.g. the dive
@@ -59,6 +60,13 @@ namespace WoLChaosDepths
                     Elites.SpawnShowcase(FirstPlayer(), ChaosDepthsPlugin.ShowcaseEnemy);
                 else
                     ChaosDepthsPlugin.Log("Debug: F5 spawns elites in the trials only");
+            }
+            if (Input.GetKeyDown(KeyCode.F3))
+            {
+                if (InTrials())
+                    Layers.ForceOpen(Depth.Current);
+                else
+                    ChaosDepthsPlugin.Log("Debug: F3 opens a rift in the trials only");
             }
             if (Input.GetKeyDown(KeyCode.F4))
                 GiveUniques();

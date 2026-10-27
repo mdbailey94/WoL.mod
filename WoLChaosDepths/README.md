@@ -119,3 +119,16 @@ Each character remembers the deepest depth it has reached: its waypoint (a notic
 "Waypoint: depth N"). In the Hub, open the inventory panel and press left or right (or the
 stick) to pick where the next dive starts, from 1 up to the waypoint. In a run the panel shows
 the current depth. Log lines start with `Depth:`.
+
+## Layer bosses and rifts (0.7.0, milestone M4)
+
+- **Layer bosses.** Every 5 depths (`[Layers] LayerEvery`), the realm boss met at that depth is
+  a layer boss: +50% health on top of depth, a pink tint, double experience, and a Legendary
+  drop for each player who hurt it. Notice: "Layer N boss: <name>".
+- **Rifts.** A trial floor (never a boss arena) has a 1 in 4 chance (`[Rifts] Chance`) to open
+  as a rift for 3 minutes (`Seconds`): +25 points of elite chance and +50% Magic-and-better
+  weight while it is open, with a timer at the top of the screen. Leave the floor through its
+  exit before the rift collapses and each player gets a bonus item of Rare or better
+  (`RewardMinRarity`). With `[Debug] Enabled`, F3 opens a rift on the current floor.
+- Log lines: `Layer boss at depth N: ...`, `Rift opened at depth N: ...`, `Rift at depth N:
+  cleared with S s to spare` or `collapsed`.

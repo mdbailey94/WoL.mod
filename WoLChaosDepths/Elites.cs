@@ -110,7 +110,7 @@ namespace WoLChaosDepths
 
         public static float RarityBoost() => rarityBoostPerAscension.Value * AscensionLevel();
 
-        public static float Chance() => Mathf.Clamp01(chance.Value + chancePerAscension.Value * AscensionLevel());
+        public static float Chance() => Mathf.Clamp01(chance.Value + chancePerAscension.Value * AscensionLevel() + Layers.EliteChanceBonus);
 
         // Twice a second from the plugin, in the trials: roll new enemies, keep elite tints on.
         public static void Tick()

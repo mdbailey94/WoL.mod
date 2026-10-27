@@ -218,11 +218,21 @@ namespace WoLChaosDepths
                 if (plugin != null)
                 {
                     if (!IsTrial(previous) && IsTrial(next))
+                    {
                         Depth.StartDive(plugin.FirstSave());
+                        Layers.OnFloor(Depth.Current, NextLevelLoader.InBossScene(next));
+                    }
                     else if (IsTrial(previous) && IsTrial(next))
+                    {
+                        Layers.OnLeaveFloor(plugin.ActivePlayers(), plugin.RiftReward);
                         Depth.NextFloor(plugin.AllSaves());
+                        Layers.OnFloor(Depth.Current, NextLevelLoader.InBossScene(next));
+                    }
                     else if (IsTrial(previous) && !IsTrial(next))
+                    {
+                        Layers.OnLeaveFloor(plugin.ActivePlayers(), plugin.RiftReward);
                         Depth.EndDive(plugin.AllSaves());
+                    }
                 }
                 if (!ChaosDepthsPlugin.DiveEnabled)
                     return;

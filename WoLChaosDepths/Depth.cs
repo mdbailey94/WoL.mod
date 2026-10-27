@@ -210,6 +210,7 @@ namespace WoLChaosDepths
             {
                 if (enabled.Value && diving && Below > 0)
                     Scale(boss, healthPerDepth.Value * Below);
+                Layers.OnBossSpawn(boss, Current);
             }
             catch (Exception e)
             {
