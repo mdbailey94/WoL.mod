@@ -26,6 +26,23 @@ namespace WoLChaosDepths
         private static readonly HashSet<int> scaled = new HashSet<int>();
         private static readonly Dictionary<int, float> overrideOriginal = new Dictionary<int, float>();
         private static readonly Dictionary<int, float> overrideScaled = new Dictionary<int, float>();
+        // Extra health factors from other systems (a layer boss's +50%), multiplied into the
+        // same formula so a re-apply never compounds them.
+        private static readonly Dictionary<int, float> extraFactor = new Dictionary<int, float>();
+
+        public static void SetExtraHealthFactor(Entity e, float factor)
+        {
+            if (e == null)
+                return;
+            extraFactor[e.GetInstanceID()] = Mathf.Max(0.01f, factor);
+            Scale(e, enabled.Value && diving ? healthPerDepth.Value * Below : 0f);
+        }
+
+        private static float Extra(Entity e)
+        {
+            float f;
+            return extraFactor.TryGetValue(e.GetInstanceID(), out f) ? f : 1f;
+        }
         private static readonly HashSet<int> playersScaled = new HashSet<int>();
         private static int playerScaleDepth = -1;
 
@@ -78,6 +95,7 @@ namespace WoLChaosDepths
             floorsDown = 0;
             startDepth = save != null ? Mathf.Clamp(save.depthChosen, 1, Mathf.Max(1, save.depthReached)) : 1;
             scaled.Clear();
+            extraFactor.Clear();
             ResetPlayers();
             if (enabled.Value)
                 ChaosDepthsPlugin.Log($"Depth: dive starts at depth {startDepth}");
@@ -90,6 +108,7 @@ namespace WoLChaosDepths
                 return;
             floorsDown++;
             scaled.Clear();
+            extraFactor.Clear();
             Reached(saves);
             if (enabled.Value)
                 ChaosDepthsPlugin.Log($"Depth: now {Current} (enemy health +{healthPerDepth.Value * Below:P0}, damage taken +{damagePerDepth.Value * Below:P0}, " +
@@ -160,6 +179,10 @@ namespace WoLChaosDepths
             if (e == null || e.health == null || e.health.healthStat == null || e.health.CurrentHealthValue <= 0)
                 return;
             NumVarStat stat = e.health.healthStat;
+            float extra = Extra(e);
+            float factor = (1f + health) * extra; // the whole bonus: depth, then anything extra
+            if (Mathf.Approximately(factor, 1f))
+                return;
             // Done already: the multiplier is on, or (for an override) the check below finds the
             // override still at its scaled value.
             if (!stat.HasOverrideMod && stat.GetModIndex(Prefix + "Health") >= 0)
@@ -169,7 +192,8 @@ namespace WoLChaosDepths
             // multipliers, and a second override one priority higher didn't win either (the
             // 0.6.3 test). So the boss's own override is scaled in place: removed, its value
             // multiplied, and added back so the stat recalculates. Its original value is kept
-            // per boss so the bonus never compounds.
+            // per boss so the bonus never compounds; a value that is neither the original nor
+            // our last scaled one means the game set a new base.
             var top = stat.HasOverrideMod ? stat.topPriorityOverride as NumVarStatMod : null;
             string how;
             if (top != null)
@@ -178,7 +202,7 @@ namespace WoLChaosDepths
                 float original, scaledValue;
                 if (!overrideOriginal.TryGetValue(id, out original) || !overrideScaled.TryGetValue(id, out scaledValue) || !Mathf.Approximately(top.modValue, scaledValue))
                     original = top.modValue; // first time, or the game set a new value
-                float target = original * (1f + health);
+                float target = original * factor;
                 if (Mathf.Approximately(top.modValue, target))
                     return;
                 stat.RemoveMod(top.ID);
@@ -187,8 +211,8 @@ namespace WoLChaosDepths
                 stat.AddMod(top);
                 overrideOriginal[id] = original;
                 overrideScaled[id] = target;
-                how = $"override '{top.ID}' {original:0} x{1f + health:0.##} in place";
-                // A marker so the tick knows this one is done (and XP doesn't add the bonus again).
+                how = $"override '{top.ID}' {original:0} x{factor:0.##} in place" + (extra > 1f ? $" (depth x{1f + health:0.##}, layer x{extra:0.##})" : "");
+                // A marker so XP doesn't add the bonus again.
                 if (stat.GetModIndex(Prefix + "Health") < 0)
                     stat.AddMod(new NumVarStatMod(Prefix + "Health", 0f, 10, VarStatModType.Additive, false));
             }
@@ -196,12 +220,12 @@ namespace WoLChaosDepths
             {
                 if (stat.GetModIndex(Prefix + "Health") >= 0)
                     return;
-                stat.AddMod(new NumVarStatMod(Prefix + "Health", health, 10, VarStatModType.Multiplicative, true));
+                stat.AddMod(new NumVarStatMod(Prefix + "Health", factor - 1f, 10, VarStatModType.Multiplicative, true));
                 how = "multiplier";
             }
             bool again = !scaled.Add(e.GetInstanceID());
             if (e is Boss || e is MiniBoss || Mathf.Approximately(before, stat.ModifiedValue))
-                ChaosDepthsPlugin.Log($"Depth: {e.GetType().Name} max health {before:0} -> {stat.ModifiedValue:0}, health now {e.health.CurrentHealthValue} (+{health:P0}, {how}){(again ? ", re-applied after the game reset it" : "")}");
+                ChaosDepthsPlugin.Log($"Depth: {e.GetType().Name} max health {before:0} -> {stat.ModifiedValue:0}, health now {e.health.CurrentHealthValue} (+{factor - 1f:P0}, {how}){(again ? ", re-applied after the game reset it" : "")}");
         }
 
         private static void OnBossSpawn(Entity boss)

@@ -69,19 +69,11 @@ namespace WoLChaosDepths
                 if (!layerBosses.Add(id))
                     return;
                 layerEntities[id] = e;
+                float before = e.health.healthStat.ModifiedValue;
+                // Depth owns the boss's health formula (its override is scaled in place and
+                // re-applied when the game resets it); the layer bonus is one more factor in it.
+                Depth.SetExtraHealthFactor(e, 1f + layerHealth.Value);
                 NumVarStat stat = e.health.healthStat;
-                float before = stat.ModifiedValue;
-                var top = stat.HasOverrideMod ? stat.topPriorityOverride as NumVarStatMod : null;
-                if (top != null)
-                {
-                    // The boss's override, after Depth has scaled it: scale it again, once.
-                    stat.RemoveMod(top.ID);
-                    top.modValue *= 1f + layerHealth.Value;
-                    top.fillToNewMax = true;
-                    stat.AddMod(top);
-                }
-                else
-                    stat.AddMod(new NumVarStatMod(Prefix + "Health", layerHealth.Value, 10, VarStatModType.Multiplicative, true));
                 if (e.spriteRenderer != null)
                     e.spriteRenderer.color = LayerTint;
                 string name = e.GetType().Name;
@@ -191,7 +183,7 @@ namespace WoLChaosDepths
                 float w = 40 * u, h = 8 * u;
                 var box = new Rect((Screen.width - w) / 2f, 3 * u, w, h);
                 PixelUI.Fill(box, new Color(0f, 0f, 0f, 0.55f));
-                PixelUI.Fill(new Rect(box.x, box.yMax - u, w * Mathf.Clamp01(left / Mathf.Max(1f, riftSeconds.Value)), u), PixelUI.Accent);
+                PixelUI.Fill(new Rect(box.x, box.yMax - u, w * Mathf.Clamp01(left / Mathf.Max(1f, riftSeconds.Value)), u), left < 30f ? PixelUI.Accent : PixelUI.Dim);
                 GUI.Label(box, text, style);
             }
             catch

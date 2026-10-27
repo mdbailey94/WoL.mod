@@ -121,7 +121,7 @@ namespace WoLChaosDepths
             if (!announced)
             {
                 announced = true;
-                ChaosDepthsPlugin.Log($"Elites: chance {odds:P0} per enemy, Ascension {AscensionLevel()}, rarity boost +{RarityBoost():P0}");
+                ChaosDepthsPlugin.Log($"Elites: chance {odds:P0} per enemy, Ascension {AscensionLevel()}, rarity boost +{RarityBoost() + Depth.RarityBoost + Layers.RarityBonus:P0} (Ascension +{RarityBoost():P0}, depth +{Depth.RarityBoost:P0}, rift +{Layers.RarityBonus:P0})");
             }
             foreach (GameObject go in new List<GameObject>(GameController.enemies))
             {
