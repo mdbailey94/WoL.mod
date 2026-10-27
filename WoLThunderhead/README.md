@@ -79,11 +79,12 @@ colours sampled from the game's Lightning sheet) and use the game's own sprites 
   sparks closes in and it brightens from yellow to white, flashing just before they strike (the
   spots the bolts then hit; enhanced, they follow you as you steer).
 - **Strikes**: the game's lightning core bursts (`LightningCoreLarge`) and leaves the game's burn
-  mark, with cracks glowing white over it as they cool and fade.
+  mark, with cracks of lightning crackling white over it, flickering between shapes as they cool
+  to yellow and blink out (nothing is left standing on the floor).
 - **Landing ring**: in the last moments up there a charged lightning circle the size of the slam
   comes up under you, crackling, and flickers white as you dive.
 - **The slam**: a shockwave of lightning races out to the slam's edge, breaking into dashes, over
-  the game's bigger burn mark with its cracks glowing.
+  the game's bigger burn mark with its cracks crackling the same way.
 
 The drawn parts are made in code at the game's pixel size and everything is pooled (capped, put
 away when the cast ends or the level changes). Where one of the game's sprites isn't loaded, a

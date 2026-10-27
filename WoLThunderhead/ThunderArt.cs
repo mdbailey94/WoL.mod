@@ -7,7 +7,8 @@ namespace WoLThunderhead
     // in the style of the game's own lightning (its Lightning sheet): thin white bolts and rings
     // with no outline, wrapped in a soft pale-yellow glow that thins out over a few pixels, and
     // fading by alpha. The colours are sampled from that sheet: white cores, a pale and a stronger
-    // yellow for cooling lines, the glow (252,245,168 at alpha 89) and its yellow haze
+    // yellow for cooling lines (which crackle between jagged shapes and blink out, never standing
+    // still), the glow (252,245,168 at alpha 89) and its yellow haze
     // (245,231,44 at low alpha). The soot under the strikes is the game's own burn mark (see
     // ThunderVisuals); these frames are the glowing cracks over it.
     internal static class ThunderArt
@@ -34,8 +35,11 @@ namespace WoLThunderhead
         private const int GlyphArcs = 6;
         private const float GlyphArcTurn = 0.03f;         // how far the arcs turn each frame (of an arc)
 
-        // ---- Strike cracks: glowing over the game's burn mark, then cooling ----
-        public static readonly float[] CrackTimes = { 0.1f, 0.2f, 0.35f, 60f };
+        // ---- Strike cracks: lightning crackling over the game's burn mark, then gone ----
+        // Eleven frames: the cracks flicker between three jagged shapes as they cool from white
+        // to yellow, blink out twice as faint yellow, and end (no line is left standing).
+        public static readonly float[] CrackTimes = { 0.05f, 0.05f, 0.06f, 0.04f, 0.07f, 0.08f, 0.08f, 0.06f, 0.08f, 0.08f, 0.1f };
+        public static float CrackLife => Sum(CrackTimes);
         private const int CrackVariants = 3;
         private const float CrackShare = 0.6f;            // the cracks' reach, of the strike's radius
 
@@ -59,7 +63,16 @@ namespace WoLThunderhead
         private static readonly float[] WaveKept = { 1f, 1f, 1f, 0.6f, 0.35f, 0.15f }; // the share of the ring left as it breaks into dashes
 
         // ---- Crater cracks: the slam's, over the game's bigger burn mark ----
-        public static readonly float[] CraterTimes = { 0.15f, 0.3f, 0.5f, 60f };
+        public static readonly float[] CraterTimes = { 0.07f, 0.07f, 0.08f, 0.06f, 0.1f, 0.11f, 0.11f, 0.08f, 0.11f, 0.11f, 0.14f };
+        public static float CraterLife => Sum(CraterTimes);
+
+        private static float Sum(float[] times)
+        {
+            float total = 0f;
+            foreach (float t in times)
+                total += t;
+            return total;
+        }
 
         // ---- Lightning inside the storm cloud ----
         public const float CloudBoltFrameTime = 0.035f;
@@ -186,28 +199,49 @@ namespace WoLThunderhead
             variants = new Sprite[CrackVariants][];
             for (int v = 0; v < CrackVariants; v++)
             {
-                var rng = new System.Random(1000 + v * 77 + rs);
-                variants[v] = Cooling(n, Paths(n, rs * 0.95f, 5, 1, rng), CrackTimes.Length);
+                variants[v] = Crackling(n, 1000 + v * 77 + rs, rs * 0.95f, 5, 1);
             }
             cracks[strikeRadius] = variants;
             return variants;
         }
 
-        // The same cracks hot to cold: white and glowing, pale with a glow, yellow, then a faint
-        // yellow (the sprite fades out from there).
-        private static Sprite[] Cooling(int n, List<List<Pixel>> paths, int count)
+        // Cracks that crackle like the game's lightning: three jagged shapes of the same cracks,
+        // flickering from one to another as they cool from white (glowing) through pale to yellow,
+        // then blinking out as faint yellow. The frames match CrackTimes/CraterTimes; the last is
+        // empty, so nothing stays on the floor.
+        private static Sprite[] Crackling(int n, int seed, float length, int count, int jag)
         {
-            var frames = new Sprite[count];
-            Color32[] colors = { White, Pale, Yellow, Faint };
-            float[] glow = { GlowReach, SmallGlow, 0f, 0f };
-            for (int heat = 0; heat < count; heat++)
-            {
-                var c = new PixelCanvas(n, n);
-                foreach (List<Pixel> path in paths)
-                    c.Draw(path, colors[heat]);
-                frames[heat] = Done(c, glow[heat]);
-            }
+            var shapes = new List<List<Pixel>>[3];
+            for (int k = 0; k < shapes.Length; k++)
+                shapes[k] = Paths(n, length, count, jag, new System.Random(seed + k * 31));
+            var frames = new Sprite[11];
+            frames[0] = Shape(n, shapes[0], White, GlowReach, false);
+            frames[1] = Shape(n, shapes[1], White, GlowReach, false);
+            frames[2] = Shape(n, shapes[0], Pale, SmallGlow, false);
+            frames[3] = Shape(n, shapes[2], White, GlowReach, false);   // a re-flash
+            frames[4] = Shape(n, shapes[1], Pale, SmallGlow, false);
+            frames[5] = Shape(n, shapes[0], Yellow, 0f, false);
+            frames[6] = Shape(n, shapes[2], Yellow, 0f, true);         // broken into dashes
+            frames[7] = Done(new PixelCanvas(n, n), 0f);               // out
+            frames[8] = Shape(n, shapes[1], Faint, 0f, false);
+            frames[9] = Done(new PixelCanvas(n, n), 0f);               // out
+            frames[10] = Shape(n, shapes[0], Faint, 0f, true);
             return frames;
+        }
+
+        private static Sprite Shape(int n, List<List<Pixel>> paths, Color32 color, float glow, bool dashed)
+        {
+            var c = new PixelCanvas(n, n);
+            foreach (List<Pixel> path in paths)
+            {
+                if (!dashed)
+                    c.Draw(path, color);
+                else
+                    for (int i = 0; i < path.Count; i++)
+                        if ((i / 3) % 2 == 0)
+                            c.Set(path[i].X, path[i].Y, color);
+            }
+            return Done(c, glow);
         }
 
         // Jagged paths out from the centre, each kept as its pixels in order.
@@ -464,8 +498,7 @@ namespace WoLThunderhead
             if (craters.TryGetValue(r, out frames) && PixelCanvas.Alive(frames))
                 return frames;
             int n = 2 * Mathf.CeilToInt(r * 1.4f) + 9;
-            var rng = new System.Random(1300 + r);
-            frames = Cooling(n, Paths(n, r * 1.35f, 8, 2, rng), CraterTimes.Length);
+            frames = Crackling(n, 1300 + r, r * 1.35f, 8, 2);
             craters[r] = frames;
             return frames;
         }

@@ -49,10 +49,12 @@ namespace WoLThunderhead
         private const float GlyphFadeIn = 0.06f;     // seconds the glyphs come in at half strength
         private const float GlyphFlashLead = 0.08f;  // they flicker with the flash frame this long before the strike
         private const float FlickerTime = 0.03f;     // seconds per flicker
-        private const float ScorchLife = 1.4f;       // the glowing cracks (the burn mark under them is the game's)
-        private const float ScorchFade = 0.6f;
-        private const float CraterLife = 2.4f;
-        private const float CraterFade = 0.8f;
+        // The crackling cracks (the burn mark under them is the game's) last as long as their
+        // frames, then are gone; the fade only covers the last frame.
+        private static float ScorchLife => ThunderArt.CrackLife;
+        private const float ScorchFade = 0.1f;
+        private static float CraterLife => ThunderArt.CraterLife;
+        private const float CraterFade = 0.14f;
         private const float CraterShare = 0.5f;      // the crater's radius, of the slam's
         private const float LandingRingLead = 0.35f; // seconds before the dive the landing ring comes up
         private const float RingFlashFrom = 0.85f;   // through the dive it flickers from here
