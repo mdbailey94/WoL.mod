@@ -99,15 +99,15 @@ namespace WoLChaosDepths
             return s;
         }
 
-        // A pendant: a 1-px chain 3 px long, then a 3x3 diamond gem. 3 wide, 6 tall, pivot top.
+        // A pendant: a 1-px chain 2 px long, then a 3x3 diamond gem. 3 wide, 5 tall, pivot top.
         private static Sprite Pendant(Color c, float ppu)
         {
             Color chain = new Color32(0xc8, 0xb0, 0x60, 0xff);
             Color light = Color.Lerp(c, Color.white, 0.6f), dark = Color.Lerp(c, Color.black, 0.45f);
-            return Make("pendant" + ColorUtility.ToHtmlStringRGB(c), 3, 6, (x, y) =>
+            return Make("pendant" + ColorUtility.ToHtmlStringRGB(c), 3, 5, (x, y) =>
             {
                 if (y >= 3)
-                    return x == 1 ? chain : Color.clear;           // the chain, top three rows
+                    return x == 1 ? chain : Color.clear;           // the chain, top two rows
                 int dx = Mathf.Abs(x - 1), dy = Mathf.Abs(y - 1);  // the gem, bottom three rows
                 if (dx + dy > 1)
                     return Color.clear;
@@ -115,38 +115,82 @@ namespace WoLChaosDepths
             }, new Vector2(0.5f, 1f), ppu);
         }
 
-        // A ring glint: frame 0 a dot, 1 a small plus, 2 a 5-px cross with a bright heart. 5x5.
+        // A ring: a 2x2 band on the hand in the item's colour; when it glints, one pixel goes
+        // bright (frame 1) or two do (frame 2). Never bigger than the band.
         private static Sprite Glint(Color c, int frame, float ppu)
         {
-            Color light = Color.Lerp(c, Color.white, 0.7f);
-            return Make("glint" + frame + ColorUtility.ToHtmlStringRGB(c), 5, 5, (x, y) =>
+            Color light = Color.Lerp(c, Color.white, 0.75f), dark = Color.Lerp(c, Color.black, 0.35f);
+            return Make("ring" + frame + ColorUtility.ToHtmlStringRGB(c), 2, 2, (x, y) =>
             {
-                int dx = Mathf.Abs(x - 2), dy = Mathf.Abs(y - 2);
-                if (dx + dy == 0)
-                    return frame == 0 ? c : light;
-                if (frame >= 1 && dx + dy == 1)
-                    return frame == 1 ? light : c;
-                if (frame == 2 && dx + dy == 2 && (dx == 0 || dy == 0))
-                    return new Color(light.r, light.g, light.b, 0.7f);
-                return Color.clear;
+                bool topLeft = x == 0 && y == 1, bottomRight = x == 1 && y == 0;
+                if (frame >= 1 && topLeft)
+                    return light;
+                if (frame == 2 && bottomRight)
+                    return light;
+                return y == 0 ? dark : c;
             }, new Vector2(0.5f, 0.5f), ppu);
         }
 
-        // A belt charm: a 1-px cord, a 3x3 body with a darker bottom row, a 1-px tassel. 3x6, pivot top.
+        // A belt charm: a 1-px cord, a 2x2 body, a 1-px tassel. 2 wide, 4 tall, pivot top.
         private static Sprite Tassel(Color c, float ppu)
         {
             Color cord = new Color32(0x6a, 0x4e, 0x32, 0xff);
             Color dark = Color.Lerp(c, Color.black, 0.4f), light = Color.Lerp(c, Color.white, 0.4f);
-            return Make("tassel" + ColorUtility.ToHtmlStringRGB(c), 3, 6, (x, y) =>
+            return Make("tassel" + ColorUtility.ToHtmlStringRGB(c), 2, 4, (x, y) =>
             {
-                if (y == 5)
-                    return x == 1 ? cord : Color.clear;
-                if (y >= 2)
-                    return y == 4 && x == 0 ? light : (y == 2 ? dark : c);
-                if (y == 1)
-                    return x == 1 ? dark : Color.clear;
-                return x == 1 ? cord : Color.clear;
-            }, new Vector2(0.5f, 1f), ppu);
+                if (y == 3)
+                    return x == 0 ? cord : Color.clear;
+                if (y == 0)
+                    return x == 0 ? dark : Color.clear;
+                return y == 2 && x == 0 ? light : (y == 1 ? dark : c);
+            }, new Vector2(0.25f, 1f), ppu);
+        }
+
+        // A 1-px mote that drifts up a few pixels and fades over half a second.
+        private class Mote : MonoBehaviour
+        {
+            private SpriteRenderer r;
+            private float born;
+            private Vector3 start, drift;
+
+            public static void Shed(SpriteRenderer from, Color c, SpriteRenderer body, float ppu)
+            {
+                try
+                {
+                    var go = new GameObject("mote");
+                    var m = go.AddComponent<Mote>();
+                    m.r = go.AddComponent<SpriteRenderer>();
+                    m.r.sprite = Make("mote", 1, 1, (x, y) => Color.white, new Vector2(0.5f, 0.5f), ppu);
+                    m.r.material = Mat();
+                    m.r.color = Color.Lerp(c, Color.white, 0.5f);
+                    m.r.sortingLayerID = from.sortingLayerID;
+                    m.r.sortingOrder = from.sortingOrder + 1;
+                    m.born = Time.time;
+                    m.start = from.transform.position + (Vector3)(UnityEngine.Random.insideUnitCircle * (1.5f / ppu));
+                    m.drift = new Vector3(UnityEngine.Random.Range(-0.6f, 0.6f), UnityEngine.Random.Range(2f, 3.5f), 0f) / ppu;
+                    go.transform.position = m.start;
+                }
+                catch
+                {
+                }
+            }
+
+            private void Update()
+            {
+                float t = (Time.time - born) / 0.5f;
+                if (t >= 1f)
+                {
+                    Destroy(gameObject);
+                    return;
+                }
+                // Snapped to the pixel grid so it reads as part of the picture.
+                Vector3 p = start + drift * t;
+                float ppu = r.sprite.pixelsPerUnit;
+                transform.position = new Vector3(Mathf.Round(p.x * ppu) / ppu, Mathf.Round(p.y * ppu) / ppu, p.z);
+                Color c = r.color;
+                c.a = 1f - t * t;
+                r.color = c;
+            }
         }
 
         // ---- Per-player component ----
@@ -259,65 +303,61 @@ namespace WoLChaosDepths
                 float side = right ? 1f : -1f;
                 int front = body.sortingOrder + 1, back = body.sortingOrder - 1;
 
-                // The wizard's own picture bobs as they run; follow its vertical offset.
-                float bodyLift = body.transform.position.y - feet.y;
+                // Places on the wizard's picture as drawn this frame (its bounds move with the
+                // animation: running, dashing, casting), so the gear moves with the model.
+                Bounds bb = body.bounds;
+                float w = Mathf.Max(0.3f, bb.size.x), h = Mathf.Max(0.6f, bb.size.y);
+                Vector2 chest = new Vector2(bb.center.x + (up ? 0f : side * w * 0.06f), bb.min.y + h * 0.56f);
+                Vector2 hand = new Vector2(bb.center.x + side * w * 0.42f, bb.min.y + h * 0.36f);
+                if (facing == FacingDirection.Down)
+                    hand.x = bb.center.x + w * 0.36f;
+                Vector2 belt = new Vector2(bb.center.x - side * w * 0.3f, bb.min.y + h * 0.4f);
+                if (up || facing == FacingDirection.Down)
+                    belt.x = bb.center.x + (facing == FacingDirection.Down ? -1f : 1f) * w * 0.26f;
 
                 if (pendant != null)
                 {
-                    Vector2 at = Chest + new Vector2(up ? 0f : side * 0.05f, bodyLift);
-                    pendant.transform.position = feet + (Vector3)at;
+                    pendant.transform.position = new Vector3(chest.x, chest.y, feet.z);
                     Sort(pendant, body, up ? back : front);
                     pendant.enabled = !up;
                 }
                 if (glint != null)
                 {
-                    Vector2 at = new Vector2(Hand.x * side, Hand.y + bodyLift);
-                    if (facing == FacingDirection.Down)
-                        at.x = Hand.x * 0.85f;
-                    glint.transform.position = feet + (Vector3)at;
+                    glint.transform.position = new Vector3(hand.x, hand.y, feet.z);
                     Sort(glint, body, up ? back : front);
-                    // A twinkle every 1.5-3 s: dot, plus, cross, plus, dot over 0.3 s.
+                    // A glint every 2-4 s: one pixel, two, one, over a quarter second.
                     float t = Time.time;
                     if (t >= nextTwinkle)
                     {
                         twinkleStart = t;
-                        nextTwinkle = t + UnityEngine.Random.Range(1.5f, 3f);
+                        nextTwinkle = t + UnityEngine.Random.Range(2f, 4f);
                     }
                     float age = t - twinkleStart;
-                    int frame = age < 0.06f ? 1 : age < 0.18f ? 2 : age < 0.24f ? 1 : 0;
+                    int frame = age < 0.08f ? 1 : age < 0.18f ? 2 : age < 0.26f ? 1 : 0;
                     glint.sprite = Glint(ColourOf(ring), frame, ppu);
                 }
                 if (tassel != null)
                 {
                     // Trails the movement a little, so it swings.
                     Vector3 moved = feet - lastPos;
-                    swing = Mathf.Lerp(swing, Mathf.Clamp(-moved.x * 6f, -0.08f, 0.08f), 0.2f);
-                    Vector2 at = new Vector2(-Belt.x * side + swing, Belt.y + bodyLift);
-                    if (up || facing == FacingDirection.Down)
-                        at.x = (facing == FacingDirection.Down ? -1f : 1f) * Belt.x * 0.8f + swing;
-                    tassel.transform.position = feet + (Vector3)at;
+                    swing = Mathf.Lerp(swing, Mathf.Clamp(-moved.x * 4f, -0.05f, 0.05f), 0.2f);
+                    tassel.transform.position = new Vector3(belt.x + swing, belt.y, feet.z);
                     Sort(tassel, body, up ? front : back); // on the far side of the body
                 }
                 lastPos = feet;
 
-                // Sparks off worn uniques, in the game's own style.
+                // A worn unique sheds a single pixel-sized mote now and then, drifting up and fading.
                 if (uniqueSparks.Value && Time.time >= nextSpark && Time.timeScale > 0f)
                 {
-                    nextSpark = Time.time + 0.8f;
-                    SpriteRenderer part = IsUnique(amulet) ? pendant : IsUnique(ring) ? glint : IsUnique(charm) ? tassel : null;
-                    if (IsUnique(amulet) && IsUnique(ring) && UnityEngine.Random.value < 0.5f)
-                        part = glint;
-                    if (part != null && part.enabled)
+                    nextSpark = Time.time + UnityEngine.Random.Range(0.9f, 1.6f);
+                    var parts = new List<KeyValuePair<SpriteRenderer, ItemData>>();
+                    if (IsUnique(amulet) && pendant != null && pendant.enabled) parts.Add(new KeyValuePair<SpriteRenderer, ItemData>(pendant, amulet));
+                    if (IsUnique(ring) && glint != null && glint.enabled) parts.Add(new KeyValuePair<SpriteRenderer, ItemData>(glint, ring));
+                    if (IsUnique(charm) && tassel != null && tassel.enabled) parts.Add(new KeyValuePair<SpriteRenderer, ItemData>(tassel, charm));
+                    if (parts.Count > 0)
                     {
-                        try
-                        {
-                            Vector2 spot = (Vector2)part.transform.position + UnityEngine.Random.insideUnitCircle * 0.08f;
-                            PoolManager.GetPoolItem<HitSparkEmitter>().EmitSingle(HitSparkType.Small, spot, spot, null, null, 0f);
-                        }
-                        catch
-                        {
-                            nextSpark = Time.time + 30f; // the game's spark pool isn't available here
-                        }
+                        var pick = parts[UnityEngine.Random.Range(0, parts.Count)];
+                        Mote.Shed(pick.Key, ColourOf(pick.Value), body, ppu);
                     }
                 }
             }

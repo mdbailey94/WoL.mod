@@ -147,8 +147,8 @@ for leftovers.
 ## Equipped items on the wizard (0.9.0, milestone M5)
 
 What you wear shows on the wizard, drawn in the game's pixel style: the amulet as a pendant on
-a short chain at the chest, the ring as a glint on the leading hand that twinkles every few
+a short chain at the chest, the ring as a 2-pixel band on the leading hand that glints every few
 seconds, the charm as a small tassel hanging from the belt on the trailing side. Each is in
 its item's rarity colour; a unique is in its power's colour (storm cyan, ember orange, blood
-red) and gives off the game's own small sparks. They follow the wizard's facing and sit behind
-the body when facing up. `[Look] ShowEquipped` and `UniqueSparks` switch them off.
+red) and sheds a single-pixel mote now and then. They are placed on the wizard's picture as drawn each frame, so they move with the
+animation, follow the facing, and sit behind the body when facing up. `[Look] ShowEquipped` and `UniqueSparks` switch them off.
