@@ -32,7 +32,7 @@ namespace WoLChaosDepths
                 "Items drop on the floor where the enemy died and are picked up by walking over them (off: straight into the inventory).");
             collectLeftovers = config.Bind("Loot", "CollectLeftovers", true,
                 "Items still on the floor when you leave it go to their owner's inventory anyway.");
-            pickupRadius = config.Bind("Loot", "PickupRadius", 0.9f, "How close a wizard must come to pick an item up, in game units.");
+            pickupRadius = config.Bind("Loot", "PickupRadius", 1.3f, "How close a wizard must come to pick an item up, in game units.");
             nameRadius = config.Bind("Loot", "NameRadius", 3.5f, "From how far an item's name shows above it, in game units.");
         }
 
@@ -145,33 +145,53 @@ namespace WoLChaosDepths
 
         // A 9x9 gem (diamond) or, for a unique, a 4-point star, in the rarity colour with a
         // lighter facet and a darker rim.
+        // A gem (diamond) or, for a unique, a 4-point star, in the rarity colour with a lighter
+        // facet and a darker rim. Legendaries get a white outline so they read against lava.
         private static Sprite Gem(ItemData item, float ppu)
         {
             string key = (string.IsNullOrEmpty(item.unique) ? "gem" : "star") + item.rarity + ppu;
             Sprite sprite;
             if (gems.TryGetValue(key, out sprite))
                 return sprite;
-            const int S = 9;
+            bool outline = item.rarity == "Legendary";
+            const int S = 11; // the 9x9 shape centred, with a 1-px border for the outline
             Color c = Colour(item);
             Color light = Color.Lerp(c, Color.white, 0.55f);
             Color dark = Color.Lerp(c, Color.black, 0.45f);
-            var px = new Color32[S * S];
             bool star = !string.IsNullOrEmpty(item.unique);
+            var px = new Color32[S * S];
+            Func<int, int, bool> inside = (x, y) =>
+            {
+                int dx = Mathf.Abs(x - 5), dy = Mathf.Abs(y - 5);
+                return star ? (dx == 0 || dy == 0 || (dx <= 1 && dy <= 1)) && dx + dy <= 4 : dx + dy <= 4;
+            };
             for (int y = 0; y < S; y++)
                 for (int x = 0; x < S; x++)
                 {
-                    int dx = Mathf.Abs(x - 4), dy = Mathf.Abs(y - 4);
-                    bool inside = star ? (dx == 0 || dy == 0 || (dx <= 1 && dy <= 1)) && dx + dy <= 4 : dx + dy <= 4;
-                    bool rim = star ? (dx + dy == 4 || (dx == 1 && dy == 1)) : dx + dy == 4;
+                    int dx = Mathf.Abs(x - 5), dy = Mathf.Abs(y - 5);
                     Color col = Color.clear;
-                    if (inside)
-                        col = rim ? dark : (x <= 3 && y >= 5 ? light : c);
+                    if (inside(x, y))
+                    {
+                        bool rim = star ? (dx + dy == 4 || (dx == 1 && dy == 1)) : dx + dy == 4;
+                        col = rim ? dark : (x <= 4 && y >= 6 ? light : c);
+                    }
+                    else if (outline)
+                    {
+                        // Touching the shape: the outline.
+                        for (int oy = -1; oy <= 1 && col == Color.clear; oy++)
+                            for (int ox = -1; ox <= 1; ox++)
+                                if ((ox != 0 || oy != 0) && x + ox >= 0 && x + ox < S && y + oy >= 0 && y + oy < S && inside(x + ox, y + oy))
+                                {
+                                    col = Color.white;
+                                    break;
+                                }
+                    }
                     px[y * S + x] = col;
                 }
             var tex = new Texture2D(S, S, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
             tex.SetPixels32(px);
             tex.Apply();
-            sprite = Sprite.Create(tex, new Rect(0, 0, S, S), new Vector2(0.5f, 0f), ppu);
+            sprite = Sprite.Create(tex, new Rect(0, 0, S, S), new Vector2(0.5f, 1f / S), ppu);
             gems[key] = sprite;
             return sprite;
         }
@@ -269,8 +289,11 @@ namespace WoLChaosDepths
                 if (halo != null)
                 {
                     Color c = halo.color;
-                    c.a = 0.45f + 0.25f * Mathf.Sin(t * 2.2f + phase);
+                    bool legendary = item.rarity == "Legendary";
+                    c.a = legendary ? 0.6f + 0.35f * Mathf.Sin(t * 4f + phase) : 0.45f + 0.25f * Mathf.Sin(t * 2.2f + phase);
                     halo.color = c;
+                    if (legendary)
+                        halo.transform.localScale = Vector3.one * (1.35f + 0.25f * Mathf.Sin(t * 4f + phase));
                 }
                 if (t < 0.4f)
                     return; // can't be grabbed mid-hop
