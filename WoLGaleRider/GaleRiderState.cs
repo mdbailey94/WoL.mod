@@ -82,6 +82,9 @@ namespace WoLGaleRider
         private static bool loggedSpeed, loggedLevels;
         // The drawn look.
         private WindBall windBall;
+        private Rider rider;
+        private FacingDirection ridingFacing = FacingDirection.Neutral;
+        private const float SeatSink = 0.3f;   // how far the wizard's feet sink into the top of the ball
         private float nextStreak, nextWake, nextTrail, lastPuff;
         private int streaks, puffs;
         private float lastBallWidth;
@@ -232,8 +235,24 @@ namespace WoLGaleRider
                 parent.movement.moveVector = direction;
             if (parent.rigidbody2D != null)
                 parent.rigidbody2D.velocity = velocity;
-            // Run animation, turning with the ball (the game's Charge does the same).
-            parent.PlayAnimOnFaceDirChange("Run", parent.transform.position + (Vector3)direction);
+            if (rider != null)
+            {
+                // Sitting on top: the jump pose (legs tucked), turned with the ball; lifted by
+                // the ball's height less a little sink into it.
+                FacingDirection facing = Mathf.Abs(direction.x) >= Mathf.Abs(direction.y)
+                    ? (direction.x >= 0f ? FacingDirection.Right : FacingDirection.Left)
+                    : (direction.y >= 0f ? FacingDirection.Up : FacingDirection.Down);
+                if (facing != ridingFacing)
+                {
+                    ridingFacing = facing;
+                    parent.facingDirection = facing;
+                    parent.anim?.PlayDirectional(parent.JumpAnimStr, -1, 0.3f);
+                }
+                rider.height = Mathf.Max(0f, (windBall != null ? windBall.Width : 0f) - SeatSink);
+            }
+            else
+                // Run animation, turning with the ball (the game's Charge does the same).
+                parent.PlayAnimOnFaceDirChange("Run", parent.transform.position + (Vector3)direction);
 
             Vector2 spot = parent.transform.position;
             float step = Vector2.Distance(spot, lastSpot);
@@ -350,7 +369,16 @@ namespace WoLGaleRider
             }
             if (GaleRiderPlugin.DrawnEffects)
             {
-                Effect("wind ball", () => windBall = WindBall.Create(parent, this));
+                Effect("wind ball", () =>
+                {
+                    windBall = WindBall.Create(parent, this);
+                    if (windBall != null && GaleRiderPlugin.RideOnTop)
+                    {
+                        windBall.OnTop = true;
+                        rider = Rider.On(parent);
+                        ridingFacing = FacingDirection.Neutral;
+                    }
+                });
                 // The game's own air kick-off, as Rushing Typhoon starts its rush: a spinning
                 // burst at the feet, a shockwave and a wind trail out the way they set off.
                 Vector2 dir = direction;
@@ -498,6 +526,18 @@ namespace WoLGaleRider
         private void Dismount()
         {
             StopRide();
+            // The wizard comes back down off the ball.
+            if (rider != null)
+            {
+                try
+                {
+                    rider.Off();
+                }
+                catch
+                {
+                }
+                rider = null;
+            }
             // The drawn ball and anything else riding on the wizard go with it.
             float ballWidth = windBall != null ? windBall.Width : 0f;
             bool ballGame = windBall != null && windBall.UsesGameSprites;

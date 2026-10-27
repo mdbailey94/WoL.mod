@@ -547,6 +547,9 @@ namespace WoLGaleRider
 
         public float Width { get; private set; }
         public bool UsesGameSprites => game != null;
+        // Riding on top: the ball sits on the ground (its bottom at the feet) under the lifted
+        // wizard, instead of round their waist.
+        public bool OnTop;
 
         public static WindBall Create(Player player, object owner)
         {
@@ -625,7 +628,7 @@ namespace WoLGaleRider
             }
             float floorScale = Width / (GaleArt.BallWidths[best] / PixelArt.Ppu);
             float scale = floorScale;
-            Vector2 middle = new Vector2(0f, Lift);
+            Vector2 middle = new Vector2(0f, OnTop ? Width * 0.5f + FloorLift : Lift);
             Vector2 shift = Vector2.zero, glowShift = Vector2.zero;
             if (game != null)
             {
