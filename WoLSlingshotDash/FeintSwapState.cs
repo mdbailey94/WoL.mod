@@ -336,14 +336,12 @@ namespace WoLSlingshotDash
             catch
             {
             }
-            Effects.Splash(here, 0.8f, 2);
+            // No water splash or glints round it while it waits (the owner found them odd): it
+            // just stands there until its fuse runs out.
             float fuse = 0f;
             while (fuse < LeftBehindFuse && !Broken(left))
             {
                 fuse += Time.deltaTime;
-                // A quickening glint as it's about to go.
-                if (Random.value < 0.05f + 0.25f * (fuse / LeftBehindFuse))
-                    Effects.Shimmer(here + Random.insideUnitCircle * 0.4f, 1);
                 yield return null;
             }
             if (Broken(left))
