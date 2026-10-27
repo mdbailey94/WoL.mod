@@ -356,14 +356,12 @@ namespace WoLChaosDepths
                         // Two lines per slot at most, so three uniques (long descriptions) still
                         // fit above the detail lines; a unique shows its power, the rest is in
                         // the detail line when it's selected.
+                        // One line per slot (a unique shows its power), shortened to the column,
+                        // so the Totals fit below with three items worn; the full text is in the
+                        // detail line when the item is selected.
                         string power = Uniques.PowerText(item);
-                        var lines = new List<string>(Wrap(power ?? LootTable.Describe(item), 26));
-                        for (int l = 0; l < lines.Count && l < 2; l++)
-                        {
-                            string line = l == 1 && lines.Count > 2 ? lines[l].TrimEnd(' ', ',', ';') + "..." : lines[l];
-                            Label(new Rect(x + 2 * u, y, leftW, lineH), line, dim);
-                            y += lineH;
-                        }
+                        Label(new Rect(x + 2 * u, y, leftW, lineH), Fit(power ?? LootTable.Describe(item), dim, leftW - 2 * u), dim);
+                        y += lineH;
                     }
                     y += u;
                 }
@@ -377,11 +375,14 @@ namespace WoLChaosDepths
                     y += 2 * u;
                     Label(new Rect(x, y, leftW, lineH), "Totals", dim);
                     y += lineH;
-                    foreach (string line in totals)
+                    // As many lines as fit; the last one carries the rest, shortened.
+                    int room = Mathf.Max(1, Mathf.FloorToInt((totalsBottom - y) / lineH));
+                    for (int i = 0; i < totals.Count && i < room; i++)
                     {
-                        if (y + lineH > totalsBottom)
-                            break;
-                        Label(new Rect(x + 2 * u, y, leftW, lineH), line, text);
+                        string line = totals[i];
+                        if (i == room - 1 && totals.Count > room)
+                            line = string.Join(", ", totals.GetRange(i, totals.Count - i).ToArray());
+                        Label(new Rect(x + 2 * u, y, leftW, lineH), Fit(line, text, leftW - 2 * u), text);
                         y += lineH;
                     }
                 }
