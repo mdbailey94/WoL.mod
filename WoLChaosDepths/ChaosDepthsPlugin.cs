@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.5.1";
+        public const string PluginVersion = "0.5.2";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -149,6 +149,7 @@ namespace WoLChaosDepths
             if (!modEnabled.Value)
                 return;
             DebugKeys.Update(this);
+            DebugKeys.ShieldTick();
             if (panel.Open)
             {
                 panel.Update();
@@ -324,6 +325,9 @@ namespace WoLChaosDepths
         {
             try
             {
+                if (DebugEnabled && hurt is Player && attack != null && DebugKeys.Shielding)
+                    Log($"Debug: a kill sweep hit player {((Player)hurt).playerID + 1} for {attack.damage} " +
+                        $"(attacker {(attacker != null ? attacker.GetType().Name : "none")}, skill '{attack.skillID}', category '{attack.skillCategory}')");
                 if (!modEnabled.Value || attack == null || !(hurt is Enemy))
                     return;
                 Player player = FindAttacker(attack, attacker);

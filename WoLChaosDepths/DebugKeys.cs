@@ -90,8 +90,43 @@ namespace WoLChaosDepths
             KillAll(false);
         }
 
+        // Players made invulnerable for a kill sweep (only ones that weren't already), and until
+        // when: the sweep once killed the wizard without god mode (the developer's wrath or a
+        // reflected hit), so every sweep is wrapped in a short invulnerability.
+        private static readonly System.Collections.Generic.List<Player> shielded = new System.Collections.Generic.List<Player>();
+        private static float shieldUntil;
+
+        private static void ShieldPlayers(float seconds)
+        {
+            shieldUntil = Time.unscaledTime + seconds;
+            Player[] players = GameController.activePlayers;
+            if (players == null)
+                return;
+            foreach (Player p in players)
+            {
+                if (p == null || p.health == null || p.health.invulnerable || shielded.Contains(p))
+                    continue;
+                p.health.invulnerable = true;
+                shielded.Add(p);
+            }
+        }
+
+        public static bool Shielding => shielded.Count > 0 || Time.unscaledTime < shieldUntil;
+
+        // Every frame from the plugin: lift the sweep's invulnerability once it has run out.
+        public static void ShieldTick()
+        {
+            if (shielded.Count == 0 || Time.unscaledTime < shieldUntil)
+                return;
+            foreach (Player p in shielded)
+                if (p != null && p.health != null)
+                    p.health.invulnerable = false;
+            shielded.Clear();
+        }
+
         public static int KillAll(bool quiet)
         {
+            ShieldPlayers(1.5f);
             try
             {
                 // First a huge hit from the player on everyone the game lists as an enemy or boss,
