@@ -7,10 +7,10 @@ namespace WoLTrailblazer
     // game's own sprites and effects where they fit:
     // - the cast: a ring of flame bursting out over the floor from the stamp, the game's flame
     //   circle burst and embers flying, and the game's own scorch mark under it;
-    // - while ablaze: flame tongues licking up round the wizard (two at a walk, up to five and
-    //   bigger as the speed level climbs; they lean back as the wizard runs), embers flicking off
-    //   behind them (more the faster they go), and the ring of fire drawn on the floor at the
-    //   size of its hit circle;
+    // - while ablaze: flame tongues licking up from the wizard's feet (two at a walk, up to five
+    //   and bigger as the speed level climbs; they lean back as the wizard runs), embers flicking
+    //   off behind them (more the faster they go), and, only with [Look] RingOfFire on, the ring
+    //   of fire drawn on the floor at the size of its hit circle;
     // - the trail: each patch gets the game's own flames (its meteor's burning flame, bigger at
     //   higher levels) and leaves the game's burn mark with a glow in it that cools and fades;
     //   when a patch goes out its flames burst into sparks as the game's do;
@@ -53,12 +53,13 @@ namespace WoLTrailblazer
         private const int RingSlot = 5;
         private const int BurstSlot = 1;
 
-        // The flames on the wizard: where each stands (from their feet, in world units) and
-        // whether it's drawn behind them. The first ones are lit first.
+        // The flames at the wizard's feet: where each stands (from the feet, in world units) and
+        // whether it's drawn behind the boots. The first ones are lit first; all of them stay
+        // down at the feet (the owner wanted burning feet, not a burning wizard).
         private static readonly Vector2[] FlameSlots =
         {
-            new Vector2(-0.24f, 0.06f), new Vector2(0.24f, 0.08f), new Vector2(-0.32f, 0.45f),
-            new Vector2(0.3f, 0.5f), new Vector2(0f, 0.78f)
+            new Vector2(-0.2f, 0.02f), new Vector2(0.2f, 0.03f), new Vector2(-0.34f, 0.0f),
+            new Vector2(0.34f, 0.0f), new Vector2(0f, 0.05f)
         };
         private static readonly bool[] FlameBehind = { false, false, true, true, true };
         private const float FlamePhaseStep = 0.13f;  // seconds between neighbouring flames' flickers
@@ -176,7 +177,13 @@ namespace WoLTrailblazer
                 return;
             Vector2 velocity = Velocity;
             BodyFlames(level, velocity);
-            Ring(ringUnits);
+            if (TrailblazerPlugin.RingOfFire)
+                Ring(ringUnits);
+            else
+            {
+                ring.Release();
+                ringRadius = -1;
+            }
             Embers(level, velocity);
         }
 
@@ -259,7 +266,7 @@ namespace WoLTrailblazer
             try
             {
                 Vector2 back = moving ? -velocity.normalized * Random.Range(EmberBack, EmberBackMax) : Vector2.zero;
-                Vector2 spot = Feet + new Vector2(Random.Range(-0.25f, 0.25f), Random.Range(0.1f, 0.9f));
+                Vector2 spot = Feet + new Vector2(Random.Range(-0.3f, 0.3f), Random.Range(0f, 0.25f));
                 Ember(spot, back + new Vector2(Random.Range(-0.3f, 0.3f), Random.Range(EmberRise, EmberRiseMax)), 2);
                 Fx.Ready("embers", FireArt.EmberTimes.Length, ppu, Body);
             }

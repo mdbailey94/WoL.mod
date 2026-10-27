@@ -43,9 +43,10 @@ own sprites and effects where they fit:
 
 - **The cast**: a ring of flame bursts out over the floor from the stamp with the game's flame
   circle burst and embers flying, and the game's own scorch mark is left under it.
-- **While ablaze**: flame tongues lick up round the wizard: two at a walk, up to five and bigger as
+- **While ablaze**: flame tongues lick up from your feet: two at a walk, up to five and bigger as
   the speed level climbs, leaning back as you run. Embers flick off behind you, more the faster you
-  go, and the ring of fire is drawn on the floor at the size of its hit circle.
+  go. The ring of fire's hit circle is invisible unless `[Look] RingOfFire` is on, which draws it on
+  the floor at its size.
 - **The trail**: each patch burns with the game's own flames (its meteor's flame, from the
   MeteorStrike sheet, taller at higher levels) and leaves the game's burn mark with a glow in it
   that cools from cream to orange and fades. When a patch goes out its flames burst into sparks
@@ -85,7 +86,8 @@ the level changes (the damage includes your own damage bonuses). If a hit can't 
 | Section | Setting | Default | What it does |
 | --- | --- | --- | --- |
 | Trail | `Duration` / `EnhancedDuration` | 6 / 9 | Seconds your feet stay ablaze |
-| Trail | `AuraSize` | 2 | Size of the ring of fire round the wizard |
+| Trail | `AuraSize` | 2 | Size of the (invisible) ring of fire round the wizard that hurts enemies |
+| Look | `RingOfFire` | false | Draw the ring of fire on the floor |
 | Trail | `AuraInterval` | 0.15 | Seconds between the ring's hits |
 | Trail | `PatchSpacing` | 0.6 | Distance moved between patches of the trail |
 | Trail | `TrailLinger` | 1.5 | Seconds each patch keeps burning |

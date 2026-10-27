@@ -13,7 +13,7 @@ namespace WoLTrailblazer
     {
         public const string PluginGuid = "mdbailey94.wol.trailblazer";
         public const string PluginName = "Trailblazer";
-        public const string PluginVersion = "0.8.1";
+        public const string PluginVersion = "0.9.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -23,7 +23,7 @@ namespace WoLTrailblazer
         // ---- Settings (BepInEx\config\mdbailey94.wol.trailblazer.cfg) ----
         // [Trail] and [Look] apply straight away; [Balance] after restarting the game.
         private static ConfigEntry<float> duration, enhancedDuration;
-        private static ConfigEntry<bool> searingFire, drawn;
+        private static ConfigEntry<bool> searingFire, drawn, ringOfFire;
         private static ConfigEntry<float> auraSize, auraInterval, patchSpacing, trailLinger, trailHitSize, trailHitInterval, flameAmount, flameSize, peakSpeedPercent, peakDamageMultiplier;
         private ConfigEntry<int> damage;
         private ConfigEntry<float> knockback, burnChance, cooldown;
@@ -41,6 +41,7 @@ namespace WoLTrailblazer
         public static float TrailHitInterval => Get(trailHitInterval, 0.3f, 0.1f, 2f);
         public static bool SearingFire => searingFire?.Value ?? true;
         public static bool Drawn => drawn?.Value ?? true;
+        public static bool RingOfFire => ringOfFire?.Value ?? false;
         public static float FlameSize => Get(flameSize, 1f, 0.2f, 4f);
         public static float FlameAmount => Get(flameAmount, 2f, 0.5f, 10f);
         public static float PeakSpeedPercent => Get(peakSpeedPercent, 230f, 110f, 600f);
@@ -119,8 +120,10 @@ namespace WoLTrailblazer
                 "Damage of each hit at level 10, as a multiple of Damage (the levels between are spread evenly: " +
                 "with Damage 3 and 4, the levels hit for 3, 4, 5 ... 12).");
 
+            ringOfFire = Config.Bind("Look", "RingOfFire", false,
+                "Draw the ring of fire on the floor round the wizard at the size of its hit circle (the hits happen either way).");
             drawn = Config.Bind("Look", "Drawn", true,
-                "The drawn fire on top of the game's flames: flames licking round the wizard, embers, the ring of fire on the floor, " +
+                "The drawn fire on top of the game's flames: flames licking up from the wizard's feet, embers, " +
                 "flames and char marks on the trail, the burst as you cast it and the flare-up as it burns out (from the next cast).");
 
             const string restart = " Applies after restarting the game.";
