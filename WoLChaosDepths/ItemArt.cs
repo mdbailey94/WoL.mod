@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
 using UnityEngine;
 
 namespace WoLChaosDepths
@@ -69,9 +71,87 @@ namespace WoLChaosDepths
                 tex = Paint(item);
                 textures[Key(item)] = tex;
             }
-            s = UnityEngine.Sprite.Create(tex, new Rect(0, 0, Size, Size), new Vector2(0.5f, 0.5f), ppu);
+            s = UnityEngine.Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), ppu);
             sprites[key] = s;
             return s;
+        }
+
+        // ---- Drawn artwork ----
+        // The item pictures are PNGs (16x16, drawn in the game's pixel style): item_<slot>_<rarity>
+        // for the three item types at each rarity and unique_<key> for the uniques. A file in an
+        // "Art" folder beside the plugin DLL wins; otherwise the copy embedded in the DLL is used;
+        // with neither, the picture is drawn in code (Paint below).
+        private static string artFolder;
+        private static readonly Dictionary<string, bool> missing = new Dictionary<string, bool>();
+
+        public static string ArtFolder
+        {
+            get
+            {
+                if (artFolder == null)
+                {
+                    try { artFolder = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Art"); }
+                    catch { artFolder = ""; }
+                }
+                return artFolder;
+            }
+        }
+
+        private static string ArtName(ItemData item)
+        {
+            if (!string.IsNullOrEmpty(item.unique))
+                return "unique_" + item.unique.ToLowerInvariant();
+            return "item_" + (item.slot ?? "amulet").ToLowerInvariant() + "_" + (item.rarity ?? "common").ToLowerInvariant();
+        }
+
+        // A PNG by name, from the Art folder or the DLL; null when there is none.
+        public static Texture2D LoadPng(string name)
+        {
+            if (missing.ContainsKey(name))
+                return null;
+            byte[] data = null;
+            try
+            {
+                string file = Path.Combine(ArtFolder, name + ".png");
+                if (ArtFolder != "" && File.Exists(file))
+                    data = File.ReadAllBytes(file);
+            }
+            catch { }
+            if (data == null)
+            {
+                try
+                {
+                    using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("WoLChaosDepths.Art." + name + ".png"))
+                    {
+                        if (stream != null)
+                        {
+                            data = new byte[stream.Length];
+                            int read = 0;
+                            while (read < data.Length)
+                            {
+                                int n = stream.Read(data, read, data.Length - read);
+                                if (n <= 0) break;
+                                read += n;
+                            }
+                        }
+                    }
+                }
+                catch { }
+            }
+            if (data == null)
+            {
+                missing[name] = true;
+                return null;
+            }
+            var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+            if (!tex.LoadImage(data))
+            {
+                missing[name] = true;
+                return null;
+            }
+            tex.filterMode = FilterMode.Point;
+            tex.wrapMode = TextureWrapMode.Clamp;
+            return tex;
         }
 
         // ---- Painting ----
@@ -127,6 +207,9 @@ namespace WoLChaosDepths
 
         private static Texture2D Paint(ItemData item)
         {
+            Texture2D drawn = LoadPng(ArtName(item));
+            if (drawn != null)
+                return drawn;
             var c = new Canvas();
             int tier = Tier(item);
             bool unique = !string.IsNullOrEmpty(item.unique);

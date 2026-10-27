@@ -47,6 +47,12 @@
     </Reference>
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The items' artwork (Art/*.png), embedded; a PNG of the same name in an Art folder beside
+         the DLL overrides it at runtime, so new art can be previewed without a rebuild. -->
+    <EmbeddedResource Include="Art\*.png" LogicalName="WoLChaosDepths.Art.%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <Target Name="CopyToPlugins" AfterTargets="Build" Condition="Exists('$(GameDir)\BepInEx\plugins')">
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(GameDir)\BepInEx\plugins\WoLChaosDepths" />
   </Target>

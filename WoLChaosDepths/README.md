@@ -189,3 +189,11 @@ animation, follow the facing, and sit behind the body when facing up. `[Look] Sh
   the two saves are independent, so a profile session can no longer rewrite the base game's
   loadout. `[Profile] SeparateSave` and `SeedFromBaseSave` control it. The log says
   `Profile save: ...` with the folder in use.
+
+## Drawn item artwork (0.11.1)
+
+- The twelve item icons (amulet, ring, charm at Common, Magic, Rare, Legendary) are now pixel
+  art drawn for the mod, 16x16, in `Art/` and embedded in the DLL. A PNG of the same name in an
+  `Art` folder beside the DLL overrides it at runtime, so a new piece can be previewed by
+  copying it in; a missing picture falls back to the code-drawn one. Uniques will take
+  `unique_<key>.png` the same way when their art arrives.
