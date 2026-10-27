@@ -9,11 +9,12 @@ namespace WoLChaosDepths
     //
     // A drop lands on the floor where the enemy died as a small gem in its rarity's colour (a
     // star for a unique), bobbing over a soft glow, and shows its name when a wizard is near.
-    // Walk over it to pick it up. Whatever is still lying around when the floor is left is
-    // collected for its owner, so nothing is lost ([Loot] CollectLeftovers).
+    // Stand next to it and press Interact to pick it up, as with relics (the game's own button
+    // prompt shows over it). Whatever is still lying around when the floor is left is collected
+    // for its owner, so nothing is lost ([Loot] CollectLeftovers).
     public static class Pickups
     {
-        private static ConfigEntry<bool> physical, collectLeftovers;
+        private static ConfigEntry<bool> physical, collectLeftovers, pressToPickUp;
         private static ConfigEntry<float> pickupRadius, nameRadius;
 
         private static readonly List<Pickup> live = new List<Pickup>();
@@ -32,6 +33,8 @@ namespace WoLChaosDepths
                 "Items drop on the floor where the enemy died and are picked up by walking over them (off: straight into the inventory).");
             collectLeftovers = config.Bind("Loot", "CollectLeftovers", true,
                 "Items still on the floor when you leave it go to their owner's inventory anyway.");
+            pressToPickUp = config.Bind("Loot", "PressToPickUp", true,
+                "Pick items up with the Interact button when next to them, like relics (the game's button prompt shows over the item). Off: walking over them picks them up.");
             pickupRadius = config.Bind("Loot", "PickupRadius", 1.3f, "How close a wizard must come to pick an item up, in game units.");
             nameRadius = config.Bind("Loot", "NameRadius", 3.5f, "From how far an item's name shows above it, in game units.");
         }
@@ -54,6 +57,75 @@ namespace WoLChaosDepths
             {
                 ChaosDepthsPlugin.LogError($"pickup spawn: {e.Message}");
                 Collected?.Invoke(owner, item, true); // never lose the item
+            }
+        }
+
+        // Every frame from the plugin: each player's nearest item within reach shows the game's
+        // button prompt, and Interact picks it up. (With PressToPickUp off, the items collect
+        // themselves on touch.)
+        public static void Update()
+        {
+            if (live.Count == 0)
+                return;
+            Player[] players = GameController.activePlayers;
+            if (players == null)
+                return;
+            var prompted = new HashSet<Pickup>();
+            foreach (Player player in players)
+            {
+                if (player == null || !player.gameObject.activeInHierarchy)
+                    continue;
+                Pickup nearest = null;
+                float best = pickupRadius.Value;
+                foreach (Pickup p in live)
+                {
+                    if (p == null || !p.Grabbable)
+                        continue;
+                    float d = Vector2.Distance(player.transform.position, p.transform.position);
+                    if (d <= best)
+                    {
+                        best = d;
+                        nearest = p;
+                    }
+                }
+                if (nearest == null)
+                    continue;
+                if (!pressToPickUp.Value)
+                {
+                    nearest.Take(player);
+                    continue;
+                }
+                prompted.Add(nearest);
+                nearest.Prompt(player);
+                if (InteractPressed(player))
+                    nearest.Take(player);
+            }
+            foreach (Pickup p in new List<Pickup>(live))
+                if (p != null && !prompted.Contains(p))
+                    p.Unprompt();
+        }
+
+        // The game's Interact button, read two ways (the game's own input, then Rewired's).
+        private static bool InteractPressed(Player p)
+        {
+            ChaosInputDevice device = p.inputDevice;
+            if (device == null)
+                return false;
+            try
+            {
+                if (device.GetButtonDown("Interact"))
+                    return true;
+            }
+            catch
+            {
+            }
+            try
+            {
+                return device.rewiredPlayer != null && device.rewiredPlayer.GetButtonDown("Interact");
+            }
+            catch
+            {
+                return false;
             }
         }
 
@@ -241,7 +313,9 @@ namespace WoLChaosDepths
             public ItemData item;
             private SpriteRenderer gem, halo;
             private float born, phase;
-            private bool taken;
+            private bool taken, prompted;
+            private OverheadPrompt prompt;
+            private static bool loggedPrompt;
 
             public void Build(SpriteRenderer like)
             {
@@ -295,23 +369,56 @@ namespace WoLChaosDepths
                     if (legendary)
                         halo.transform.localScale = Vector3.one * (1.35f + 0.25f * Mathf.Sin(t * 4f + phase));
                 }
-                if (t < 0.4f)
-                    return; // can't be grabbed mid-hop
-                Player[] players = GameController.activePlayers;
-                if (players == null)
+            }
+
+            // Not mid-hop and not taken.
+            public bool Grabbable => !taken && item != null && Time.time - born >= 0.4f;
+
+            // The game's own "press this button" prompt, over the gem, for this player's scheme.
+            public void Prompt(Player player)
+            {
+                if (prompted || player == null || player.inputDevice == null)
                     return;
-                // The owner first; anyone else can also pick it up for them.
-                Player taker = null;
-                if (owner != null && owner.gameObject.activeInHierarchy && Vector2.Distance(owner.transform.position, transform.position) <= pickupRadius.Value)
-                    taker = owner;
-                else
-                    foreach (Player p in players)
-                        if (p != null && p.gameObject.activeInHierarchy && Vector2.Distance(p.transform.position, transform.position) <= pickupRadius.Value)
-                        {
-                            taker = p;
-                            break;
-                        }
-                if (taker == null)
+                prompted = true;
+                try
+                {
+                    if (prompt == null)
+                    {
+                        GameObject go = Instantiate(OverheadPrompt.Prefab);
+                        prompt = go != null ? go.GetComponent<OverheadPrompt>() : null;
+                        if (prompt == null)
+                            return;
+                        prompt.Initialize(transform, player.inputDevice.inputScheme, 1.4f, 0f);
+                    }
+                    prompt.DisplayPrompt("Interact", false, false);
+                }
+                catch (Exception e)
+                {
+                    if (!loggedPrompt)
+                    {
+                        loggedPrompt = true;
+                        ChaosDepthsPlugin.Log($"Pickups: no button prompt ({e.Message})");
+                    }
+                }
+            }
+
+            public void Unprompt()
+            {
+                if (!prompted)
+                    return;
+                prompted = false;
+                try
+                {
+                    prompt?.HidePrompt("");
+                }
+                catch
+                {
+                }
+            }
+
+            public void Take(Player taker)
+            {
+                if (taken)
                     return;
                 taken = true;
                 Pickups.Remove(this);
@@ -331,6 +438,8 @@ namespace WoLChaosDepths
                 taken = true;
                 try
                 {
+                    if (prompt != null)
+                        Destroy(prompt.gameObject);
                     Destroy(gameObject);
                 }
                 catch

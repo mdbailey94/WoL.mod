@@ -137,8 +137,9 @@ the current depth. Log lines start with `Depth:`.
 
 Items now land on the floor where the enemy died: a small gem in the rarity's colour (grey,
 blue, gold, orange; a star for a unique), bobbing over a glow, bigger for Rare and Legendary, with a white outline and a pulsing glow for Legendary.
-Its name shows above it when a wizard is within 3.5 units (`[Loot] NameRadius`); walk over it
-(`PickupRadius` 1.3) to pick it up. Any item still on the floor when you leave it is collected
+Its name shows above it when a wizard is within 3.5 units (`[Loot] NameRadius`); within 1.3
+(`PickupRadius`) the game's button prompt appears over it and **Interact** picks it up, like a
+relic (`PressToPickUp = false` goes back to picking up by walking over). Any item still on the floor when you leave it is collected
 for its owner (`CollectLeftovers`), so nothing is lost. `PhysicalDrops = false` puts drops
 straight into the inventory as before. Rift rewards and F4's uniques go straight in. Log lines:
 `Player 1's drop: ... , on the floor`, then `Player 1 found: ...` on pickup or `collected: ...`
