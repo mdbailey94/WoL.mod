@@ -15,6 +15,7 @@ namespace WoLChaosDepths
     public static class Adornments
     {
         private static ConfigEntry<bool> enabled, uniqueSparks;
+        private static ConfigEntry<float> legendaryCharmScale;
         private static readonly Dictionary<int, Adorn> adorns = new Dictionary<int, Adorn>();
         private static readonly Dictionary<string, Sprite> sprites = new Dictionary<string, Sprite>();
         private static Material material;
@@ -23,6 +24,8 @@ namespace WoLChaosDepths
         {
             enabled = config.Bind("Look", "ShowEquipped", true, "Equipped items show on the wizard: a pendant, a ring glint and a belt charm.");
             uniqueSparks = config.Bind("Look", "UniqueSparks", true, "Unique legendaries worn give off small sparks.");
+            legendaryCharmScale = config.Bind("Look", "LegendaryCharmScale", 0.72f,
+                new ConfigDescription("Size of the four stones a Legendary (or unique) charm floats round the wizard, as a fraction of the drawn 7x7 stone. 1 = full size.", new AcceptableValueRange<float>(0.4f, 1f)));
         }
 
         // Twice a second from the plugin, for every active player, in and out of the trials.
@@ -361,7 +364,13 @@ namespace WoLChaosDepths
                     while (orbs.Count < stones)
                         orbs.Add(null);
                     for (int i = 0; i < stones; i++)
+                    {
                         orbs[i] = Part(orbs[i], charm, Charmstone(ColourOf(charm), charmTier, 0, ppu));
+                        // Legendary stones are drawn 7x7, which is a lot of orange round a
+                        // 37-px wizard four times over; they float a step smaller.
+                        if (orbs[i] != null)
+                            orbs[i].transform.localScale = Vector3.one * (charmTier >= 3 ? legendaryCharmScale.Value : 1f);
+                    }
                     // Stagger the first twinkles so the three parts don't flash together.
                     for (int i = 0; i < 3; i++)
                         nextTwinkle[i] = Time.time + UnityEngine.Random.Range(0.5f, 2f);

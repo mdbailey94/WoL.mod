@@ -160,10 +160,37 @@ namespace WoLChaosDepths
 
         // Debug: one elite of each affix beside the wizard, to look at the tints, the Giant's size
         // and the Swift speed.
+        // The enemy names the game can spawn (the keys of its prefab table), for the config hint.
+        public static List<string> EnemyNames()
+        {
+            var names = new List<string>();
+            try
+            {
+                if (Enemy.enemyPrefabPaths != null)
+                    names.AddRange(Enemy.enemyPrefabPaths.Keys);
+            }
+            catch
+            {
+            }
+            if (names.Count == 0)
+                names.AddRange(Enum.GetNames(typeof(Enemy.EName)));
+            names.Sort(StringComparer.OrdinalIgnoreCase);
+            return names;
+        }
+
         public static void SpawnShowcase(Player player, string enemyName)
         {
             if (player == null)
                 return;
+            // A name the game doesn't know would throw inside Enemy.Spawn; fall back to the
+            // Knight and log the names that work (case matters).
+            List<string> known = EnemyNames();
+            if (!known.Contains(enemyName))
+            {
+                string match = known.Find(n => string.Equals(n, enemyName, StringComparison.OrdinalIgnoreCase));
+                ChaosDepthsPlugin.Log($"Debug: no enemy called '{enemyName}'{(match != null ? $" (did you mean '{match}'?)" : "")}; spawning Knights instead. Known names: {string.Join(", ", known.ToArray())}");
+                enemyName = match ?? "Knight";
+            }
             Vector3 origin = player.transform.position;
             for (int i = 0; i < Affixes.Length; i++)
             {

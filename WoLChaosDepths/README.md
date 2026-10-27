@@ -206,3 +206,11 @@ animation, follow the facing, and sit behind the body when facing up. `[Look] Sh
 - The six unique powers use drawn effects: `fx_arc` (3 frames), `fx_burst` (4), `fx_motes` (2),
   `fx_gust` (2), `fx_echo` (3), `fx_thorns` (4, now one ring of thorns round the wizard instead
   of eight streaks). As with the icons, an `Art` folder beside the DLL overrides any of them.
+
+## 0.11.5
+
+- `[Debug] ShowcaseEnemy` with a name the game doesn't know no longer fails: F5 logs the
+  game's enemy names (and the nearest match) and spawns Knights. The setting's description
+  lists the common names.
+- Legendary and unique charm stones float at 72% size (`[Look] LegendaryCharmScale`); four
+  full 7x7 stones were a lot of orange round the wizard.

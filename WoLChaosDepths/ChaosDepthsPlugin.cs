@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.11.4";
+        public const string PluginVersion = "0.11.5";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -123,7 +123,7 @@ namespace WoLChaosDepths
             debugEnabled = Config.Bind("Debug", "Enabled", false,
                 "Test keys: F6 kill all enemies, F7 skip floor, F8 god mode, F9 gold, F10 auto-dive (kill and skip floor after floor until the run ends), F5 spawn one elite of each affix, F3 open a rift on this floor, F4 give one of each unique legendary, F11 log every relic's ID and name.");
             showcaseEnemy = Config.Bind("Debug", "ShowcaseEnemy", "Knight",
-                "F5 spawns one elite of each affix of this enemy beside the wizard (in the trials).");
+                "F5 spawns one elite of each affix of this enemy beside the wizard (in the trials). Game names, case matters: Knight, Archer, Rogue, Lancer, SkeletonMage, Summoner, Ghoul, GhoulLarge, Blob, Spider, Cyclops, and the elemental forms (FrostKnight, EarthArcher, FlameRogue, WindLancer, ThunderMage...). A name the game doesn't know logs the full list and spawns Knights.");
             autoDiveRelics = Config.Bind("Debug", "AutoDiveRelics", "",
                 "Relic IDs (comma separated) given to the first player when the auto-dive (F10) starts, e.g. one that speeds up getting to the exit room. Press F11 in a run to log every relic's ID and name.");
             var harmony = new Harmony(PluginGuid);
