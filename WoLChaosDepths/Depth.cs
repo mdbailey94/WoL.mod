@@ -24,6 +24,8 @@ namespace WoLChaosDepths
         private static bool diving;
         private static int startDepth = 1, floorsDown;
         private static readonly HashSet<int> scaled = new HashSet<int>();
+        private static readonly Dictionary<int, float> overrideOriginal = new Dictionary<int, float>();
+        private static readonly Dictionary<int, float> overrideScaled = new Dictionary<int, float>();
         private static readonly HashSet<int> playersScaled = new HashSet<int>();
         private static int playerScaleDepth = -1;
 
@@ -147,27 +149,48 @@ namespace WoLChaosDepths
             if (e == null || e.health == null || e.health.healthStat == null || e.health.CurrentHealthValue <= 0)
                 return;
             NumVarStat stat = e.health.healthStat;
-            if (stat.GetModIndex(Prefix + "Health") >= 0)
+            // Done already: the multiplier is on, or (for an override) the check below finds the
+            // override still at its scaled value.
+            if (!stat.HasOverrideMod && stat.GetModIndex(Prefix + "Health") >= 0)
                 return;
             float before = stat.ModifiedValue;
-            // Bosses set their health with an Override mod, which ignores multipliers (the 0.6.2
-            // test: 1500 -> 1500). Then ours is an Override one priority higher, at the boss's
-            // own override value times the depth bonus.
+            // Bosses set their health with an Override mod ('BossHP', 'MiniBossHP') that ignores
+            // multipliers, and a second override one priority higher didn't win either (the
+            // 0.6.3 test). So the boss's own override is scaled in place: removed, its value
+            // multiplied, and added back so the stat recalculates. Its original value is kept
+            // per boss so the bonus never compounds.
             var top = stat.HasOverrideMod ? stat.topPriorityOverride as NumVarStatMod : null;
             string how;
             if (top != null)
             {
-                stat.AddMod(new NumVarStatMod(Prefix + "Health", top.modValue * (1f + health), top.priority + 1, VarStatModType.Override, true));
-                how = $"override '{top.ID}' {top.modValue:0} x{1f + health:0.##}";
+                int id = e.GetInstanceID();
+                float original, scaledValue;
+                if (!overrideOriginal.TryGetValue(id, out original) || !overrideScaled.TryGetValue(id, out scaledValue) || !Mathf.Approximately(top.modValue, scaledValue))
+                    original = top.modValue; // first time, or the game set a new value
+                float target = original * (1f + health);
+                if (Mathf.Approximately(top.modValue, target))
+                    return;
+                stat.RemoveMod(top.ID);
+                top.modValue = target;
+                top.fillToNewMax = true;
+                stat.AddMod(top);
+                overrideOriginal[id] = original;
+                overrideScaled[id] = target;
+                how = $"override '{top.ID}' {original:0} x{1f + health:0.##} in place";
+                // A marker so the tick knows this one is done (and XP doesn't add the bonus again).
+                if (stat.GetModIndex(Prefix + "Health") < 0)
+                    stat.AddMod(new NumVarStatMod(Prefix + "Health", 0f, 10, VarStatModType.Additive, false));
             }
             else
             {
+                if (stat.GetModIndex(Prefix + "Health") >= 0)
+                    return;
                 stat.AddMod(new NumVarStatMod(Prefix + "Health", health, 10, VarStatModType.Multiplicative, true));
                 how = "multiplier";
             }
             bool again = !scaled.Add(e.GetInstanceID());
             if (e is Boss || e is MiniBoss || Mathf.Approximately(before, stat.ModifiedValue))
-                ChaosDepthsPlugin.Log($"Depth: {e.GetType().Name} max health {before:0} -> {stat.ModifiedValue:0} (+{health:P0}, {how}){(again ? ", re-applied after the game reset it" : "")}");
+                ChaosDepthsPlugin.Log($"Depth: {e.GetType().Name} max health {before:0} -> {stat.ModifiedValue:0}, health now {e.health.CurrentHealthValue} (+{health:P0}, {how}){(again ? ", re-applied after the game reset it" : "")}");
         }
 
         private static void ResetPlayers()
