@@ -13,6 +13,9 @@
   plugins and config. A launcher shortcut passes that argument; launching through Steam as
   usual runs the base game profile.
 
+  It also writes steam_appid.txt (445980) beside the game, without which the game started
+  from the launcher asks Steam to relaunch it and Steam asks about the arguments every time.
+
   Run this once (and again after updating WoLChaosDepths.dll):
     powershell -ExecutionPolicy Bypass -File .\Install-ChaosDepthsProfile.ps1
   Optional:  -GameDir "D:\Steam\steamapps\common\Wizard of Legend"
@@ -49,6 +52,16 @@ if (-not (Test-Path (Join-Path $baseBepInEx "core\BepInEx.Preloader.dll"))) {
 }
 Say "Game:    $($exe.FullName)"
 Say "Profile: $ProfileDir"
+
+# ---- steam_appid.txt ----
+# Started directly, the game asks Steam to relaunch it (SteamAPI_RestartAppIfNecessary, exit
+# code 53) and Steam then asks about the launch arguments every time, blocking launches until
+# answered. With the app id beside the executable it runs straight away.
+$appIdFile = Join-Path $GameDir "steam_appid.txt"
+if (-not (Test-Path $appIdFile)) {
+    Set-Content -Path $appIdFile -Value "445980" -Encoding ASCII
+    Say "Wrote steam_appid.txt (445980) so the launcher starts the game directly"
+}
 
 # ---- Make the profile folder ----
 $profBepInEx = Join-Path $ProfileDir "BepInEx"
@@ -116,7 +129,7 @@ $launcher = Join-Path $ProfileDir "Launch Chaos Depths.bat"
 rem Chaos Depths: Wizard of Legend with the Chaos Depths profile (Steam must be running).
 set CHAOSDEPTHS_PROFILE=1
 cd /d "$GameDir"
-start "" "$($exe.FullName)" --doorstop-enable true --doorstop-target "$preloader"
+start "" "$($exe.FullName)" --doorstop-enable true --doorstop-target "$preloader" -screen-fullscreen 1
 "@ | Set-Content -Path $launcher -Encoding ASCII
 Say "Launcher: $launcher"
 

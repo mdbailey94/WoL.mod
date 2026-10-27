@@ -368,8 +368,10 @@ namespace WoLChaosDepths
                     y += u;
                 }
                 // What it all adds up to.
+                // Only in the room left above the detail area (the 0.10.0 block ran over it).
                 List<string> totals = Totals(save);
-                if (totals.Count > 0)
+                float totalsBottom = panel.yMax - 24 * u;
+                if (totals.Count > 0 && y + 2 * u + 2 * lineH <= totalsBottom)
                 {
                     PixelUI.Fill(new Rect(x, y, leftW, u), PixelUI.InnerLine);
                     y += 2 * u;
@@ -377,6 +379,8 @@ namespace WoLChaosDepths
                     y += lineH;
                     foreach (string line in totals)
                     {
+                        if (y + lineH > totalsBottom)
+                            break;
                         Label(new Rect(x + 2 * u, y, leftW, lineH), line, text);
                         y += lineH;
                     }
@@ -483,9 +487,11 @@ namespace WoLChaosDepths
             foreach (string key in order)
             {
                 LootTable.AffixDef def = LootTable.Affix(key);
-                string value = def != null && def.percent ? Mathf.RoundToInt(sums[key] * 100f) + "%" : sums[key].ToString("0.##");
-                string part = def != null ? string.Format(def.label, value) : $"{key} {value}";
-                if (line.Length > 0 && line.Length + part.Length + 2 > 28)
+                bool percent = def == null || def.percent;
+                float v = sums[key];
+                string value = percent ? (v >= 0 ? "+" : "") + Mathf.RoundToInt(v * 100f) + "%" : v.ToString("+0.##;-0.##");
+                string part = value + " " + Short(key);
+                if (line.Length > 0 && line.Length + part.Length + 2 > 22)
                 {
                     lines.Add(line);
                     line = "";
@@ -495,6 +501,24 @@ namespace WoLChaosDepths
             if (line.Length > 0)
                 lines.Add(line);
             return lines;
+        }
+
+        // Short names for the totals, so they fit the column.
+        private static string Short(string key)
+        {
+            switch (key)
+            {
+                case "Damage": return "dmg";
+                case "CritChance": return "crit";
+                case "CritDamage": return "crit dmg";
+                case "Cooldown": return "cooldown";
+                case "Health": return "health";
+                case "MoveSpeed": return "speed";
+                case "Healing": return "healing";
+                case "DamageTaken": return "dmg taken";
+                case "Evade": return "evade";
+                default: return key.ToLowerInvariant();
+            }
         }
 
         // Shortens text to fit the width, ending in "...".

@@ -24,7 +24,8 @@ the design intends: a dive's gold and gems carry over.
    if the game isn't in the default Steam folder, and `-ProfileDir` to put the profile somewhere
    other than `%APPDATA%\ChaosDepths\profile`.
 
-3. The script copies BepInEx's core into the profile, puts the plugin (and any existing Chaos
+3. The script writes `steam_appid.txt` beside the game (so the launcher can start it directly
+   without Steam asking about the arguments), copies BepInEx's core into the profile, puts the plugin (and any existing Chaos
    Depths config and saves) there, **moves the plugin out of the base game** into
    `BepInEx\plugins.disabled`, and writes `Launch Chaos Depths.bat` plus a desktop shortcut.
 4. Launch from the shortcut (Steam must be running). The profile's `BepInEx\LogOutput.log` says
@@ -38,3 +39,10 @@ BepInEx's loader (UnityDoorstop) accepts `--doorstop-target <preloader>` on the 
 The launcher points it at the profile's copy of `BepInEx.Preloader.dll`, and BepInEx then uses
 that profile's `plugins` and `config` folders (the same mechanism mod managers use for profiles).
 Launched without the argument, the game uses its own `doorstop_config.ini` and the base folder.
+
+## Known limits
+
+- The game save is shared. In the profile the mod arcana don't exist, so a loadout that uses
+  them shows vanilla arcana there; whether the game rewrites the saved loadout when it can't
+  find them is being checked. If it does, keep a spare loadout or re-pick after a profile session.
+- The launcher passes `-screen-fullscreen 1`; take it out of the .bat to play windowed.

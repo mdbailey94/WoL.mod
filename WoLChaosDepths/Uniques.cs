@@ -149,6 +149,8 @@ namespace WoLChaosDepths
                     int damage = Mathf.Max(1, Mathf.RoundToInt(attack.damage * echoShare.Value));
                     Hit(player, hurt, damage, attack.elementType);
                     PowerFx.Echo(hurt.transform.position, ColourOf("Echo"), player);
+                    if (ChaosDepthsPlugin.DebugEnabled)
+                        ChaosDepthsPlugin.Log($"Twinfold: echo on {hurt.GetType().Name} for {damage}");
                 }
                 echoHits[id] = hits;
             }
@@ -226,6 +228,8 @@ namespace WoLChaosDepths
                     player.movement.moveSpeedStat.AddMod(new NumVarStatMod(GaleMod, galeSpeed.Value, 10, VarStatModType.Multiplicative, false));
                 Vector2 dir = player.movement.moveVector;
                 PowerFx.Gust(player, dir, ColourOf("Gale"));
+                if (ChaosDepthsPlugin.DebugEnabled)
+                    ChaosDepthsPlugin.Log($"Galeheart: +{galeSpeed.Value:P0} speed for {galeSeconds.Value:0.#} s{(fresh ? "" : " (restarted)")}");
                 if (fresh && ChaosDepthsPlugin.Instance != null)
                     ChaosDepthsPlugin.Instance.StartCoroutine(GaleEnds(player, id));
             }
@@ -237,8 +241,23 @@ namespace WoLChaosDepths
 
         private static IEnumerator GaleEnds(Player player, int id)
         {
+            // While the wind lasts, streaks whip off the wizard whenever they move.
+            float nextStreak = 0f;
             while (galeUntil.ContainsKey(id) && Time.time < galeUntil[id])
+            {
+                try
+                {
+                    if (player != null && player.movement != null && Time.time >= nextStreak && player.movement.moveVector.sqrMagnitude > 0.1f)
+                    {
+                        nextStreak = Time.time + 0.12f;
+                        PowerFx.Gust(player, player.movement.moveVector, ColourOf("Gale"));
+                    }
+                }
+                catch
+                {
+                }
                 yield return null;
+            }
             galeUntil.Remove(id);
             try
             {
