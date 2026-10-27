@@ -46,6 +46,10 @@ namespace WoLChaosDepths
             {
                 try
                 {
+                    // Before the floor unloads (the load event may come too late for its objects):
+                    // items still lying around go to their owners.
+                    if (IsTrial(CurrentScene()))
+                        Pickups.CollectLeftovers();
                     string chosen = OnDestination(givenLevelName ?? "");
                     if (chosen != null && chosen != givenLevelName)
                         givenLevelName = chosen;
@@ -224,12 +228,14 @@ namespace WoLChaosDepths
                     }
                     else if (IsTrial(previous) && IsTrial(next))
                     {
+                        Pickups.CollectLeftovers();
                         Layers.OnLeaveFloor(plugin.ActivePlayers(), plugin.RiftReward);
                         Depth.NextFloor(plugin.AllSaves());
                         Layers.OnFloor(Depth.Current, NextLevelLoader.InBossScene(next));
                     }
                     else if (IsTrial(previous) && !IsTrial(next))
                     {
+                        Pickups.CollectLeftovers();
                         Layers.OnLeaveFloor(plugin.ActivePlayers(), plugin.RiftReward);
                         Depth.EndDive(plugin.AllSaves());
                     }

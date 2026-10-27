@@ -132,3 +132,14 @@ the current depth. Log lines start with `Depth:`.
   (`RewardMinRarity`). With `[Debug] Enabled`, F3 opens a rift on the current floor.
 - Log lines: `Layer boss at depth N: ...`, `Rift opened at depth N: ...`, `Rift at depth N:
   cleared with S s to spare` or `collapsed`.
+
+## Physical drops (0.8.0, milestone M5)
+
+Items now land on the floor where the enemy died: a small gem in the rarity's colour (grey,
+blue, gold, orange; a star for a unique), bobbing over a glow, bigger for Rare and Legendary.
+Its name shows above it when a wizard is within 3.5 units (`[Loot] NameRadius`); walk over it
+(`PickupRadius` 0.9) to pick it up. Any item still on the floor when you leave it is collected
+for its owner (`CollectLeftovers`), so nothing is lost. `PhysicalDrops = false` puts drops
+straight into the inventory as before. Rift rewards and F4's uniques go straight in. Log lines:
+`Player 1's drop: ... , on the floor`, then `Player 1 found: ...` on pickup or `collected: ...`
+for leftovers.

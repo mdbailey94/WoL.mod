@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.7.2";
+        public const string PluginVersion = "0.8.0";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -107,6 +107,8 @@ namespace WoLChaosDepths
             Uniques.Bind(Config);
             Depth.Bind(Config);
             Layers.Bind(Config);
+            Pickups.Bind(Config);
+            Pickups.Collected = Collect;
             debugEnabled = Config.Bind("Debug", "Enabled", false,
                 "Test keys: F6 kill all enemies, F7 skip floor, F8 god mode, F9 gold, F10 auto-dive (kill and skip floor after floor until the run ends), F5 spawn one elite of each affix, F3 open a rift on this floor, F4 give one of each unique legendary, F11 log every relic's ID and name.");
             showcaseEnemy = Config.Bind("Debug", "ShowcaseEnemy", "Knight",
@@ -138,6 +140,7 @@ namespace WoLChaosDepths
                 lastHitBy.Clear();
                 lastKillTime.Clear();
                 Elites.ClearScene();
+                Pickups.Clear();
                 deathHooked.Clear();
             };
             Logger.LogInfo($"{PluginName} {PluginVersion} loaded (EXPERIMENTAL); saves in {SaveStore.Folder}");
@@ -191,7 +194,10 @@ namespace WoLChaosDepths
             if (panel != null && panel.Open)
                 panel.Draw();
             else if (InTrials())
+            {
                 Layers.Draw();
+                Pickups.Draw();
+            }
         }
 
         private void OnInventoryChanged(Player player, CharacterSave save)
@@ -450,15 +456,15 @@ namespace WoLChaosDepths
                 AddXp(player, save, xp);
                 Uniques.OnPlayerKill(player, save, entity);
                 if (Layers.IsLayerBoss(entity))
-                    Drop(player, save, LootTable.RarityIndex("Legendary"));
+                    Drop(player, save, LootTable.RarityIndex("Legendary"), entity.transform.position);
                 else if (boss)
-                    Drop(player, save, bossDropRarity.Value);
+                    Drop(player, save, bossDropRarity.Value, entity.transform.position);
                 else if (floorBoss)
-                    Drop(player, save, floorBossDropRarity.Value);
+                    Drop(player, save, floorBossDropRarity.Value, entity.transform.position);
                 else if (elite != null)
-                    Drop(player, save, Elites.DropMinRarity);
+                    Drop(player, save, Elites.DropMinRarity, entity.transform.position);
                 else if (UnityEngine.Random.value < dropChance.Value)
-                    Drop(player, save, 0);
+                    Drop(player, save, 0, entity.transform.position);
                 if (boss)
                     SaveStore.Save(player.playerID, save);
             }
@@ -522,13 +528,27 @@ namespace WoLChaosDepths
 
         // ---- Loot ----
 
-        private void Drop(Player player, CharacterSave save, int minRarity)
+        // Rolls an item for this player. Dropped on the floor at 'at' as a pickup when physical
+        // drops are on and a position is known; otherwise straight into the inventory.
+        private void Drop(Player player, CharacterSave save, int minRarity, Vector3? at = null)
         {
             ItemData item = LootTable.Roll(save.level + Elites.AscensionLevel() + Depth.ItemLevelBonus, minRarity, Elites.RarityBoost() + Depth.RarityBoost + Layers.RarityBonus);
+            Log($"Player {player.playerID + 1}'s drop: {item.rarity} {item.name} ({LootTable.Describe(item)})" + (at.HasValue && Pickups.Physical ? ", on the floor" : ""));
+            if (at.HasValue && Pickups.Physical)
+                Pickups.Spawn(player, item, at.Value);
+            else
+                Collect(player, item, false);
+        }
+
+        // An item reaches a player's inventory: picked up, or collected when leaving the floor.
+        private void Collect(Player player, ItemData item, bool leftover)
+        {
+            if (player == null || item == null)
+                return;
+            CharacterSave save = CharacterOf(player);
             save.inventory.Add(item);
             save.itemsFound++;
-            string text = $"{item.rarity} {item.name} ({LootTable.Describe(item)})";
-            Log($"Player {player.playerID + 1} found: {text}");
+            Log($"Player {player.playerID + 1} {(leftover ? "collected" : "found")}: {item.rarity} {item.name} ({LootTable.Describe(item)})");
             bool equipped = autoEquip.Value && EquipIfBetter(save, item);
             Notice((equipped ? "Equipped: " : "Found: ") + item.rarity + " " + item.name, 3f);
             if (equipped)
