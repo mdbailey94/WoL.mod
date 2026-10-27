@@ -81,7 +81,11 @@ namespace WoLChaosDepths
                 {
                     if (p == null || !p.Grabbable)
                         continue;
-                    float d = Vector2.Distance(player.transform.position, p.transform.position);
+                    // Measured from the feet or from the body's middle, whichever is closer, so an
+                    // item drawn over the wizard's head (standing just below it) is in reach too.
+                    Vector2 feet = player.transform.position;
+                    float d = Mathf.Min(Vector2.Distance(feet, p.transform.position),
+                        Vector2.Distance(feet + new Vector2(0f, 0.6f), p.transform.position));
                     if (d <= best)
                     {
                         best = d;

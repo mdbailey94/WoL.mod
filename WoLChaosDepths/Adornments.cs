@@ -411,6 +411,13 @@ namespace WoLChaosDepths
                     Show(false);
                     return;
                 }
+                // Lifted off the ground (riding Gale Rider's ball, up on Thunderhead's cloud): the
+                // gear would float in the ball or cloud, so it hides until the wizard is back down.
+                if (body.transform.localPosition.y > 0.45f)
+                {
+                    Show(false);
+                    return;
+                }
                 // A part goes with the body it hangs on; if that body was replaced, make it again.
                 bool orbGone = false;
                 foreach (SpriteRenderer o in orbs)
