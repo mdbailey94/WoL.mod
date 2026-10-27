@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.6.1";
+        public const string PluginVersion = "0.6.2";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -411,7 +411,7 @@ namespace WoLChaosDepths
                     DiveDirector.BossKilled(entity);
                 float maxHealth = entity.health != null && entity.health.healthStat != null ? entity.health.healthStat.ModifiedValue : 10f;
                 float mult = boss ? bossXpMultiplier.Value : floorBoss ? floorBossXpMultiplier.Value : elite != null ? Elites.XpMultiplier : 1f;
-                int xp = Mathf.Max(1, Mathf.RoundToInt(maxHealth * xpPerHealth.Value * mult * Depth.XpMultiplier));
+                int xp = Mathf.Max(1, Mathf.RoundToInt(maxHealth * xpPerHealth.Value * mult * Depth.XpMultiplier * Depth.MissingHealthFactor(entity)));
                 save.kills++;
                 string kind = boss ? " (boss)" : floorBoss ? " (floor boss)" : elite != null ? $" ({elite} elite)" : "";
                 if (logKills.Value || kind.Length > 0)

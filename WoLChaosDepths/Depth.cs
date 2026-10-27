@@ -45,6 +45,16 @@ namespace WoLChaosDepths
         private static int Below => Mathf.Max(0, Current - 1);
 
         public static float XpMultiplier => enabled.Value ? 1f + xpPerDepth.Value * Below : 1f;
+
+        // Experience comes from the slain enemy's max health. An enemy that died before the depth
+        // health bonus reached it (the auto-dive kills within half a second, and bosses reset
+        // their health stat) is counted as if it had it.
+        public static float MissingHealthFactor(Entity e)
+        {
+            if (!enabled.Value || !diving || Below <= 0 || e == null || e.health == null || e.health.healthStat == null)
+                return 1f;
+            return e.health.healthStat.GetModIndex(Prefix + "Health") >= 0 ? 1f : 1f + healthPerDepth.Value * Below;
+        }
         public static float RarityBoost => enabled.Value ? rarityPerDepth.Value * Below : 0f;
         public static int ItemLevelBonus => enabled.Value ? itemLevelsPerDepth.Value * Below : 0;
 
@@ -130,13 +140,20 @@ namespace WoLChaosDepths
                 }
         }
 
+        // Every tick, like the Ascension mod: bosses reset their health stat after spawning (the
+        // 0.6.1 test saw the same max health at every depth), so a missing mod is added again.
         private static void Scale(Entity e, float health)
         {
-            if (e == null || e.health == null || e.health.healthStat == null || e.health.CurrentHealthValue <= 0 || !scaled.Add(e.GetInstanceID()))
+            if (e == null || e.health == null || e.health.healthStat == null || e.health.CurrentHealthValue <= 0)
                 return;
-            e.health.healthStat.AddMod(new NumVarStatMod(Prefix + "Health", health, 10, VarStatModType.Multiplicative, true));
+            NumVarStat stat = e.health.healthStat;
+            if (stat.GetModIndex(Prefix + "Health") >= 0)
+                return;
+            float before = stat.ModifiedValue;
+            stat.AddMod(new NumVarStatMod(Prefix + "Health", health, 10, VarStatModType.Multiplicative, true));
+            bool again = !scaled.Add(e.GetInstanceID());
             if (e is Boss || e is MiniBoss)
-                ChaosDepthsPlugin.Log($"Depth: {e.GetType().Name} health +{health:P0} -> {e.health.CurrentHealthValue}");
+                ChaosDepthsPlugin.Log($"Depth: {e.GetType().Name} max health {before:0} -> {stat.ModifiedValue:0} (+{health:P0}){(again ? ", re-applied after the game reset it" : "")}");
         }
 
         private static void ResetPlayers()
