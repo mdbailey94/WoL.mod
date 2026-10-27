@@ -310,24 +310,31 @@ namespace WoLChaosDepths
                 // animation: running, dashing, casting), so the gear moves with the model.
                 Bounds bb = body.bounds;
                 float w = Mathf.Max(0.3f, bb.size.x), h = Mathf.Max(0.6f, bb.size.y);
-                Vector2 chest = new Vector2(bb.center.x + (up ? 0f : side * w * 0.06f), bb.min.y + h * 0.56f);
-                Vector2 hand = new Vector2(bb.center.x + side * w * 0.42f, bb.min.y + h * 0.36f);
+                // The wizard is about 37 px tall: chest at 70% of the height, hands at 42%, the
+                // belt at 54% (the 0.9.2 screenshots had the pendant on the belt buckle).
+                Vector2 chest = new Vector2(bb.center.x + (up ? 0f : side * w * 0.06f), bb.min.y + h * 0.70f);
+                Vector2 hand = new Vector2(bb.center.x + side * w * 0.42f, bb.min.y + h * 0.42f);
                 if (facing == FacingDirection.Down)
                     hand.x = bb.center.x + w * 0.36f;
-                Vector2 belt = new Vector2(bb.center.x - side * w * 0.3f, bb.min.y + h * 0.4f);
-                if (up || facing == FacingDirection.Down)
-                    belt.x = bb.center.x + (facing == FacingDirection.Down ? -1f : 1f) * w * 0.26f;
+                // The charm hangs from the belt: on the trailing side facing left or right, at
+                // the left hip facing down, in the middle of the back facing up.
+                Vector2 belt = new Vector2(bb.center.x - side * w * 0.3f, bb.min.y + h * 0.54f);
+                if (facing == FacingDirection.Down)
+                    belt.x = bb.center.x - w * 0.34f;
+                else if (up)
+                    belt.x = bb.center.x + w * 0.08f;
 
                 if (pendant != null)
                 {
                     pendant.transform.position = new Vector3(chest.x, chest.y, feet.z);
-                    Sort(pendant, body, up ? back : front);
+                    Sort(pendant, body, front);
                     pendant.enabled = !up;
                 }
                 if (glint != null)
                 {
                     glint.transform.position = new Vector3(hand.x, hand.y, feet.z);
-                    Sort(glint, body, up ? back : front);
+                    Sort(glint, body, front);
+                    glint.enabled = !up; // the hand is behind the body facing up
                     // A glint every 2-4 s: one pixel bright for 0.15 s.
                     float t = Time.time;
                     if (t >= nextTwinkle)
@@ -344,7 +351,9 @@ namespace WoLChaosDepths
                     Vector3 moved = feet - lastPos;
                     swing = Mathf.Lerp(swing, Mathf.Clamp(-moved.x * 4f, -0.05f, 0.05f), 0.2f);
                     tassel.transform.position = new Vector3(belt.x + swing, belt.y, feet.z);
-                    Sort(tassel, body, up ? front : back); // on the far side of the body
+                    // In front at the hip (down) and on the back (up); behind the body on the
+                    // trailing side otherwise.
+                    Sort(tassel, body, up || facing == FacingDirection.Down ? front : back);
                 }
                 lastPos = feet;
 
