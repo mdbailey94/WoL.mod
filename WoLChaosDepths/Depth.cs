@@ -42,6 +42,17 @@ namespace WoLChaosDepths
             xpPerDepth = config.Bind("Depth", "XpPerDepth", 0.05f, "Experience per depth below the first (0.05 = +5% each).");
             rarityPerDepth = config.Bind("Depth", "RarityBoostPerDepth", 0.05f, "Magic and better rarities per depth below the first (0.05 = +5% weight each).");
             itemLevelsPerDepth = config.Bind("Depth", "ItemLevelsPerDepth", 1, "Item levels added per depth below the first.");
+            // Scale bosses the moment they spawn, not on the next half-second scan (the auto-dive
+            // could kill an altar floor boss before the scan reached it).
+            try
+            {
+                MiniBoss.globalMiniBossSpawnEventHandlers += mini => OnBossSpawn(mini);
+                Boss.globalBossSpawnEventHandlers += boss => OnBossSpawn(boss);
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"depth boss spawn hook: {e.Message}");
+            }
         }
 
         private static int Below => Mathf.Max(0, Current - 1);
@@ -191,6 +202,19 @@ namespace WoLChaosDepths
             bool again = !scaled.Add(e.GetInstanceID());
             if (e is Boss || e is MiniBoss || Mathf.Approximately(before, stat.ModifiedValue))
                 ChaosDepthsPlugin.Log($"Depth: {e.GetType().Name} max health {before:0} -> {stat.ModifiedValue:0}, health now {e.health.CurrentHealthValue} (+{health:P0}, {how}){(again ? ", re-applied after the game reset it" : "")}");
+        }
+
+        private static void OnBossSpawn(Entity boss)
+        {
+            try
+            {
+                if (enabled.Value && diving && Below > 0)
+                    Scale(boss, healthPerDepth.Value * Below);
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"depth boss spawn: {e.Message}");
+            }
         }
 
         private static void ResetPlayers()
