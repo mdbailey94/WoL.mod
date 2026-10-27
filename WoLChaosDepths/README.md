@@ -196,4 +196,4 @@ animation, follow the facing, and sit behind the body when facing up. `[Look] Sh
   art drawn for the mod, 16x16, in `Art/` and embedded in the DLL. A PNG of the same name in an
   `Art` folder beside the DLL overrides it at runtime, so a new piece can be previewed by
   copying it in; a missing picture falls back to the code-drawn one. Uniques will take
-  `unique_<key>.png` the same way when their art arrives.
+  `unique_<key>.png` the same way; the six unique pictures arrived in 0.11.2.
