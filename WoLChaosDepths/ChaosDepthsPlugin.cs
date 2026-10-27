@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.11.6";
+        public const string PluginVersion = "0.11.7";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -32,7 +32,8 @@ namespace WoLChaosDepths
         private static ConfigEntry<string> panelKey, panelButton;
         private static ConfigEntry<bool> diveEnabled, debugEnabled;
         public static bool DebugEnabled => debugEnabled?.Value ?? false;
-        private static ConfigEntry<string> autoDiveRelics, showcaseEnemy;
+        private static ConfigEntry<string> autoDiveRelics, showcaseEnemy, dumpTextures;
+        public static string DumpTextures => dumpTextures?.Value ?? "";
         private static ConfigEntry<float> showcaseHealth;
         public static string ShowcaseEnemy => showcaseEnemy?.Value ?? "Knight";
         public static float ShowcaseHealth => showcaseHealth?.Value ?? 0f;
@@ -125,9 +126,11 @@ namespace WoLChaosDepths
             debugEnabled = Config.Bind("Debug", "Enabled", false,
                 "Test keys: F6 kill all enemies, F7 skip floor, F8 god mode, F9 gold, F10 auto-dive (kill and skip floor after floor until the run ends), F5 spawn one elite of each affix, F3 open a rift on this floor, F4 give one of each unique legendary, F11 log every relic's ID and name.");
             showcaseEnemy = Config.Bind("Debug", "ShowcaseEnemy", "Knight",
-                "F5 spawns one elite of each affix of this enemy beside the wizard (in the trials). Game names, case matters: Knight, Archer, Rogue, Lancer, SkeletonMage, Summoner, Ghoul, GhoulLarge, Blob, Spider, Cyclops, and the elemental forms (FrostKnight, EarthArcher, FlameRogue, WindLancer, ThunderMage...). A name the game doesn't know logs the full list and spawns Knights.");
+                "F5 spawns one elite of each affix of this enemy beside the wizard (in the trials). Game names, case matters: Knight, Archer, Rogue, Lancer, SkeletonMage, Summoner, Ghoul, GhoulLarge, Blob, Spider, Cyclops, and the elemental forms (FrostKnight, EarthArcher, FlameRogue, WindLancer, ThunderMage...). A name the game doesn't know logs the full list and spawns Knights. For status-effect screenshots, GhoulLarge with ShowcaseHealth 30 is big, slow and visible.");
             showcaseHealth = Config.Bind("Debug", "ShowcaseHealth", 0f,
                 new ConfigDescription("0 = F5 spawns the three elites. Above 0 = F5 spawns three plain (no affix, no guard or evade) enemies instead, with this many times their health, to hold still for screenshots of burns and freezes.", new AcceptableValueRange<float>(0f, 100f)));
+            dumpTextures = Config.Bind("Debug", "DumpTextures", "Ice,Frozen,Burn,Fire,ChaosGem,Status,Pickup",
+                "F12 writes every loaded game texture whose name contains one of these (comma separated, case ignored) as a PNG at true size into the mod's save folder under dump\\, with sprites.txt listing the sprites cut from each. Press it on a floor where the effect has been seen, so its textures are loaded.");
             autoDiveRelics = Config.Bind("Debug", "AutoDiveRelics", "",
                 "Relic IDs (comma separated) given to the first player when the auto-dive (F10) starts, e.g. one that speeds up getting to the exit room. Press F11 in a run to log every relic's ID and name.");
             var harmony = new Harmony(PluginGuid);

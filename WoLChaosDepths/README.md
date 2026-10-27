@@ -222,3 +222,10 @@ animation, follow the facing, and sit behind the body when facing up. `[Look] Sh
   burns and freezes. F5 works on a trial floor only, not in the house.
 - A local build no longer copies the DLL into the base game's `BepInEx\plugins` (Chaos Depths
   belongs in its profile); pass `-p:ChaosDepthsProfileDir=<profile folder>` to copy it there.
+
+## 0.11.7
+
+- F12 (debug) dumps the game's loaded textures whose names match `[Debug] DumpTextures` as
+  true-size PNGs into the mod's save folder under `dump\`, with a `sprites.txt` index of the
+  sprites on each sheet, for reference art. `[Debug] ShowcaseEnemy` suggests GhoulLarge for
+  status-effect screenshots.

@@ -15,6 +15,7 @@ namespace WoLChaosDepths
     //   F3  open a rift on this floor
     //   F4  put one of each unique legendary in the first player's inventory
     //   F11 log every relic's ID and name ([Debug] AutoDiveRelics gives relics at F10's start)
+    //   F12 dump the game's textures named in [Debug] DumpTextures as PNGs (reference art)
     //   F10 auto-dive: clear floor after floor (as F7) until the run leaves the trials (e.g. the dive
     //       director sends you back to the Hub), logging each step. Start it on a trial floor.
     public static class DebugKeys
@@ -72,6 +73,8 @@ namespace WoLChaosDepths
                 GiveUniques();
             if (Input.GetKeyDown(KeyCode.F11))
                 LogRelics();
+            if (Input.GetKeyDown(KeyCode.F12))
+                TextureDump.Run(ChaosDepthsPlugin.DumpTextures);
             if (Input.GetKeyDown(KeyCode.F10))
             {
                 if (running)
