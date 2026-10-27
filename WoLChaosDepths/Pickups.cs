@@ -7,8 +7,9 @@ namespace WoLChaosDepths
 {
     // M5, first slice: items are physical drops.
     //
-    // A drop lands on the floor where the enemy died as a small gem in its rarity's colour (a
-    // star for a unique), bobbing over a soft glow, and shows its name when a wizard is near.
+    // A drop lands on the floor where the enemy died as its own picture (ItemArt: an amulet,
+    // ring or charm that gains colour and glamour with rarity, a design of its own for a
+    // unique), bobbing over a soft glow, and shows its name when a wizard is near.
     // Stand next to it and press Interact to pick it up, as with relics (the game's own button
     // prompt shows over it). Whatever is still lying around when the floor is left is collected
     // for its owner, so nothing is lost ([Loot] CollectLeftovers).
@@ -338,7 +339,7 @@ namespace WoLChaosDepths
                 var gemGo = new GameObject("gem");
                 gemGo.transform.SetParent(transform, false);
                 gem = gemGo.AddComponent<SpriteRenderer>();
-                gem.sprite = Gem(item, ppu);
+                gem.sprite = ItemArt.Sprite(item, ppu);
                 gem.material = Mat();
 
                 if (like != null)
@@ -348,10 +349,11 @@ namespace WoLChaosDepths
                     gem.sortingLayerID = like.sortingLayerID;
                     gem.sortingOrder = like.sortingOrder - 1;
                 }
-                // Legendaries and uniques are a bit bigger.
-                float scale = item.rarity == "Legendary" ? 1.35f : item.rarity == "Rare" ? 1.15f : 1f;
-                gemGo.transform.localScale = Vector3.one * scale;
+                // The picture is the item's own artwork (ItemArt, 14 px); the glow grows with rarity.
+                float scale = item.rarity == "Legendary" ? 1.4f : item.rarity == "Rare" ? 1.2f : item.rarity == "Magic" ? 1.05f : 0.9f;
                 haloGo.transform.localScale = Vector3.one * scale;
+                if (item.rarity == "Common")
+                    halo.color = new Color(c.r, c.g, c.b, 0.35f);
             }
 
             private void Update()

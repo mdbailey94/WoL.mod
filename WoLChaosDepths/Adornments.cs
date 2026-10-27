@@ -63,13 +63,7 @@ namespace WoLChaosDepths
         {
             if (item == null)
                 return Color.clear;
-            switch (item.unique)
-            {
-                case "Chain": return new Color32(0x7f, 0xdc, 0xff, 0xff);  // storm cyan
-                case "Pyre": return new Color32(0xff, 0x7a, 0x2a, 0xff);   // ember orange
-                case "Leech": return new Color32(0xe0, 0x30, 0x48, 0xff);  // blood red
-            }
-            return Pickups.Colour(item);
+            return ItemArt.Stone(item); // a unique in its power's colour, else the rarity's
         }
 
         // ---- Pixel sprites, drawn in code (1 px = 1/ppu world units) ----

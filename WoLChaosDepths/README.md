@@ -156,3 +156,26 @@ more with rarity. Each is in
 its item's rarity colour; a unique is in its power's colour (storm cyan, ember orange, blood
 red) and sheds a single-pixel mote now and then. They are placed on the wizard's picture as drawn each frame, so they move with the
 animation, follow the facing, and sit behind the body when facing up. `[Look] ShowEquipped` and `UniqueSparks` switch them off.
+
+## Items with their own artwork, more uniques, a fuller panel (0.10.0, milestone M5)
+
+- **Artwork.** Every item has a 14x14 picture of its type (ItemArt.cs): an amulet on its chain, a
+  ring seen from above with its stone, a charm pouch on a cord. The picture gains with rarity:
+  Common is dull iron and a grey stone; Magic colours the stone and lights a facet; Rare makes
+  the metal gold and adds a spark; Legendary adds a gold setting and a halo. Each unique has a
+  picture of its own (a signet ring with a lightning face, an ember heart, a vial of blood, a
+  swirl stone, two interlocked rings, a thorn-wound token). The same picture is the drop on the
+  floor and the icon in the panel.
+- **Uniques.** Two per slot now. New: **Twinfold Band** (Ring, every 4th hit on an enemy strikes
+  it again for 60%), **Galeheart** (Amulet, kills give +30% move speed for 3 s), **Thornwick
+  Charm** (Charm, being hit lashes enemies within 2.5 for 50% of the damage taken, once a
+  second). All six powers are drawn in pixel style (PowerFx.cs): a jagged bolt for the arc, a
+  ring breaking into dashes for the burst, red motes flying to the wizard for the leech, white
+  streaks for the gale, a violet flash for the echo, thorns snapping out for the lash. All under
+  `[Uniques]`.
+- **Panel.** Item icons in the list, the equipped slots and the detail; a **Totals** block under
+  the equipped slots adding up every bonus you wear; a CHAOS DEPTHS title.
+- **Profile.** `Profile/Install-ChaosDepthsProfile.ps1` sets Chaos Depths up as its own game
+  profile with a desktop shortcut, leaving the base game and its arcana and relic mods alone
+  (see `Profile/README.md`). The log says `loaded (profile)` and the Hub shows a CHAOS DEPTHS
+  tag when launched that way.

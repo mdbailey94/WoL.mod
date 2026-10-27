@@ -316,6 +316,7 @@ namespace WoLChaosDepths
 
                 // Header: name, level, experience bar, dust.
                 Label(new Rect(x, y, w, lineH), $"{save.name}   Level {save.level}", text);
+                Label(new Rect(x, y - 3 * u, w - 10 * u, lineH), "CHAOS DEPTHS", PixelUI.Style(Mathf.Max(10, 3 * u), PixelUI.Accent, TextAnchor.UpperCenter));
                 Label(new Rect(x, y, w - 10 * u, lineH), $"Chaos Dust {save.dust}   Kills {save.kills}", right);
                 y += lineH;
                 if (Depth.Enabled)
@@ -345,7 +346,10 @@ namespace WoLChaosDepths
                     ItemData item = StatMods.FindItem(save, save.equipped[i]);
                     Label(new Rect(x, y, leftW, lineH), LootTable.Slots[i], dim);
                     y += lineH;
-                    Label(new Rect(x + 2 * u, y, leftW, lineH), item != null ? item.name : "-", Rarity(item, font));
+                    float iconPx = 4 * u;
+                    if (item != null)
+                        Icon(item, new Rect(x + u, y + (lineH - iconPx) / 2f, iconPx, iconPx));
+                    Label(new Rect(x + (item != null ? 6 * u : 2 * u), y, leftW, lineH), item != null ? item.name : "-", Rarity(item, font));
                     y += lineH;
                     if (item != null)
                     {
@@ -363,6 +367,20 @@ namespace WoLChaosDepths
                     }
                     y += u;
                 }
+                // What it all adds up to.
+                List<string> totals = Totals(save);
+                if (totals.Count > 0)
+                {
+                    PixelUI.Fill(new Rect(x, y, leftW, u), PixelUI.InnerLine);
+                    y += 2 * u;
+                    Label(new Rect(x, y, leftW, lineH), "Totals", dim);
+                    y += lineH;
+                    foreach (string line in totals)
+                    {
+                        Label(new Rect(x + 2 * u, y, leftW, lineH), line, text);
+                        y += lineH;
+                    }
+                }
 
                 y = top;
                 Label(new Rect(listX, y, listW, lineH), $"Inventory ({save.inventory.Count})", dim);
@@ -378,8 +396,10 @@ namespace WoLChaosDepths
                     var line = new Rect(listX, y, listW, lineH);
                     if (index == selected)
                         PixelUI.Fill(line, new Color(1f, 1f, 1f, 0.12f));
-                    string mark = IsEquipped(item) ? "* " : "  ";
-                    Label(new Rect(listX + u, y, listW, lineH), mark + item.name, Rarity(item, font));
+                    float rowIcon = 4 * u;
+                    Icon(item, new Rect(listX + u, y + (lineH - rowIcon) / 2f, rowIcon, rowIcon));
+                    string mark = IsEquipped(item) ? "* " : "";
+                    Label(new Rect(listX + 6 * u, y, listW, lineH), mark + item.name, Rarity(item, font));
                     Label(new Rect(listX, y, listW - u, lineH), item.rarity, Rarity(item, font, TextAnchor.UpperRight));
                     y += lineH;
                 }
@@ -393,13 +413,16 @@ namespace WoLChaosDepths
                 if (chosen != null)
                 {
                     GUIStyle chosenStyle = Rarity(chosen, font);
-                    Label(new Rect(x, detailY, barW, lineH), Fit($"{chosen.rarity} {chosen.name} (item level {chosen.itemLevel}): {LootTable.Describe(chosen)}", chosenStyle, barW), chosenStyle);
+                    float bigIcon = 10 * u;
+                    Icon(chosen, new Rect(x, detailY, bigIcon, bigIcon));
+                    float textX = x + bigIcon + 2 * u, textW = barW - bigIcon - 2 * u;
+                    Label(new Rect(textX, detailY, textW, lineH), Fit($"{chosen.rarity} {chosen.name} (item level {chosen.itemLevel}): {LootTable.Describe(chosen)}", chosenStyle, textW), chosenStyle);
                     int slot = SlotOf(chosen);
                     ItemData worn = slot >= 0 ? StatMods.FindItem(save, save.equipped[slot]) : null;
                     string compare = worn == null ? "Slot empty"
                         : worn == chosen ? "Equipped"
                         : $"Equipped {worn.rarity} {worn.name}: {LootTable.Describe(worn)}";
-                    Label(new Rect(x, detailY + lineH, barW, lineH), Fit(compare, dim, barW), dim);
+                    Label(new Rect(textX, detailY + lineH, textW, lineH), Fit(compare, dim, textW), dim);
                     if (confirmHeldSince >= 0f && !confirmConsumed)
                     {
                         float held = Mathf.Clamp01((Time.unscaledTime - confirmHeldSince) / SalvageHold);
@@ -421,6 +444,59 @@ namespace WoLChaosDepths
         }
 
         // A label with a one-pixel dark shadow, so the game's thin font reads on the panel.
+        // The item's picture (ItemArt), point-sampled so its pixels stay crisp.
+        private static void Icon(ItemData item, Rect rect)
+        {
+            try
+            {
+                Texture2D tex = ItemArt.Texture(item);
+                if (tex != null)
+                    GUI.DrawTexture(rect, tex, ScaleMode.StretchToFill, true);
+            }
+            catch
+            {
+            }
+        }
+
+        // The equipped items' bonuses added up, as a few short lines.
+        private static List<string> Totals(CharacterSave save)
+        {
+            var sums = new Dictionary<string, float>();
+            var order = new List<string>();
+            foreach (string id in save.equipped)
+            {
+                ItemData item = StatMods.FindItem(save, id);
+                if (item == null)
+                    continue;
+                foreach (AffixData affix in item.affixes)
+                {
+                    if (!sums.ContainsKey(affix.key))
+                    {
+                        sums[affix.key] = 0f;
+                        order.Add(affix.key);
+                    }
+                    sums[affix.key] += affix.value;
+                }
+            }
+            var lines = new List<string>();
+            string line = "";
+            foreach (string key in order)
+            {
+                LootTable.AffixDef def = LootTable.Affix(key);
+                string value = def != null && def.percent ? Mathf.RoundToInt(sums[key] * 100f) + "%" : sums[key].ToString("0.##");
+                string part = def != null ? string.Format(def.label, value) : $"{key} {value}";
+                if (line.Length > 0 && line.Length + part.Length + 2 > 28)
+                {
+                    lines.Add(line);
+                    line = "";
+                }
+                line += (line.Length > 0 ? ", " : "") + part;
+            }
+            if (line.Length > 0)
+                lines.Add(line);
+            return lines;
+        }
+
         // Shortens text to fit the width, ending in "...".
         private static string Fit(string text, GUIStyle style, float width)
         {

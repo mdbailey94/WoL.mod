@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.9.10";
+        public const string PluginVersion = "0.10.0";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -92,6 +92,14 @@ namespace WoLChaosDepths
                 openKey = KeyCode.I;
             }
             Instance = this;
+            try
+            {
+                InProfile = Environment.GetEnvironmentVariable("CHAOSDEPTHS_PROFILE") == "1";
+            }
+            catch
+            {
+                InProfile = false;
+            }
             panel = new InventoryPanel(OnInventoryChanged);
             diveEnabled = Config.Bind("Dive", "Enabled", true,
                 "Shape the run as a dive (the settings below) and log what the game does with it.");
@@ -141,11 +149,12 @@ namespace WoLChaosDepths
                 lastHitBy.Clear();
                 lastKillTime.Clear();
                 Elites.ClearScene();
+                Uniques.ClearScene();
                 Pickups.Clear();
                 Adornments.Clear();
                 deathHooked.Clear();
             };
-            Logger.LogInfo($"{PluginName} {PluginVersion} loaded (EXPERIMENTAL); saves in {SaveStore.Folder}");
+            Logger.LogInfo($"{PluginName} {PluginVersion} loaded ({(InProfile ? "profile" : "inside the base game; see WoLChaosDepths/Profile/README.md to run it as its own profile")}); saves in {SaveStore.Folder}");
         }
 
         private void OnApplicationQuit() => SaveAll();
@@ -202,6 +211,8 @@ namespace WoLChaosDepths
                 Layers.Draw();
                 Pickups.Draw();
             }
+            else if (InProfile)
+                ProfileTag();
         }
 
         private void OnInventoryChanged(Player player, CharacterSave save)
@@ -316,6 +327,10 @@ namespace WoLChaosDepths
 
         public static ChaosDepthsPlugin Instance { get; private set; }
 
+        // Launched through the Chaos Depths profile's launcher (Profile/README.md), which sets
+        // CHAOSDEPTHS_PROFILE=1; inside the base game's BepInEx otherwise.
+        public static bool InProfile { get; private set; }
+
         public static bool InTrialsNow() => InTrials();
 
         public CharacterSave SaveOf(Player player) => CharacterOf(player);
@@ -397,6 +412,8 @@ namespace WoLChaosDepths
                 if (DebugEnabled && hurt is Player && attack != null && DebugKeys.Shielding)
                     Log($"Debug: a kill sweep hit player {((Player)hurt).playerID + 1} for {attack.damage} " +
                         $"(attacker {(attacker != null ? attacker.GetType().Name : "none")}, skill '{attack.skillID}', category '{attack.skillCategory}')");
+                if (modEnabled.Value && attack != null && hurt is Player && InTrials())
+                    Uniques.OnPlayerHurt((Player)hurt, CharacterOf((Player)hurt), attack);
                 if (!modEnabled.Value || attack == null || !(hurt is Enemy))
                     return;
                 Player player = FindAttacker(attack, attacker);
@@ -491,6 +508,23 @@ namespace WoLChaosDepths
             {
             }
             return entity.GetType().Name.IndexOf("Boss", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        // A small "CHAOS DEPTHS" tag in the top-left corner outside the trials, so you can tell
+        // the profile from the base game at a glance.
+        private static void ProfileTag()
+        {
+            try
+            {
+                int u = Mathf.Max(2, Mathf.FloorToInt(Screen.height / 240f));
+                GUIStyle style = PixelUI.Style(Mathf.Max(10, 3 * u), PixelUI.Accent, TextAnchor.UpperLeft);
+                var rect = new Rect(3 * u, 2 * u, 60 * u, 5 * u);
+                PixelUI.Fill(new Rect(rect.x - u, rect.y, 36 * u, 5 * u), new Color(0f, 0f, 0f, 0.4f));
+                GUI.Label(rect, "CHAOS DEPTHS", style);
+            }
+            catch
+            {
+            }
         }
 
         private static bool InTrials()
