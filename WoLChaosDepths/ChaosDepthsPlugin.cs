@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.11.2";
+        public const string PluginVersion = "0.11.3";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -48,6 +48,7 @@ namespace WoLChaosDepths
         public static float HealthPerLevel => Mathf.Clamp(healthPerLevel?.Value ?? 0.02f, 0f, 0.1f);
         public static void Log(string message) => log?.LogInfo(message);
         public static void LogError(string message) => log?.LogError(message);
+        public static void LogWarning(string message) => log?.LogWarning(message);
 
         private readonly Dictionary<int, CharacterSave> characters = new Dictionary<int, CharacterSave>();
         private readonly Dictionary<int, Player> lastHitBy = new Dictionary<int, Player>();

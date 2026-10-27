@@ -67,6 +67,9 @@ namespace WoLChaosDepths
         {
             return Cached("bolt" + ColorUtility.ToHtmlStringRGB(edge) + ppu, () =>
             {
+                Sprite[] drawn = ItemArt.Frames("fx_arc", 3, new Vector2(0f, 0.5f), ppu);
+                if (drawn != null)
+                    return drawn;
                 const int W = 24, H = 7;
                 var result = new Sprite[3];
                 for (int v = 0; v < 3; v++)
@@ -104,6 +107,9 @@ namespace WoLChaosDepths
         {
             return Cached("ring" + ColorUtility.ToHtmlStringRGB(c) + ppu, () =>
             {
+                Sprite[] drawn = ItemArt.Frames("fx_burst", 4, new Vector2(0.5f, 0.5f), ppu);
+                if (drawn != null)
+                    return drawn;
                 const int S = 32;
                 Color light = Color.Lerp(c, Color.white, 0.5f);
                 var result = new Sprite[4];
@@ -130,16 +136,23 @@ namespace WoLChaosDepths
             });
         }
 
-        private static Sprite Dot(float ppu)
+        // The motes: drawn drops (two frames) when there is art, else a single white pixel.
+        private static Sprite[] Dots(float ppu)
         {
-            return Cached("dot" + ppu, () => new[] { Make(1, 1, (x, y) => Color.white, new Vector2(0.5f, 0.5f), ppu) })[0];
+            return Cached("dot" + ppu, () => ItemArt.Frames("fx_motes", 2, new Vector2(0.5f, 0.5f), ppu)
+                ?? new[] { Make(1, 1, (x, y) => Color.white, new Vector2(0.5f, 0.5f), ppu) });
         }
+
+        private static bool DrawnMotes(float ppu) => Dots(ppu).Length > 1;
 
         // A violet 5x5 flash: a plus, then a diamond, then gone.
         private static Sprite[] Plus(Color c, float ppu)
         {
             return Cached("plus" + ColorUtility.ToHtmlStringRGB(c) + ppu, () =>
             {
+                Sprite[] drawn = ItemArt.Frames("fx_echo", 3, new Vector2(0.5f, 0.5f), ppu);
+                if (drawn != null)
+                    return drawn;
                 var result = new Sprite[2];
                 for (int f = 0; f < 2; f++)
                 {
@@ -209,7 +222,8 @@ namespace WoLChaosDepths
                 {
                     var go = new GameObject("ChaosDepthsMote");
                     var m = go.AddComponent<Flyer>();
-                    m.Setup(Dot(ppu), from + (Vector3)(UnityEngine.Random.insideUnitCircle * 0.4f), to, Color.Lerp(colour, Color.white, 0.3f), 0.35f + i * 0.05f, ppu);
+                    Sprite[] dots = Dots(ppu);
+                    m.Setup(dots[i % dots.Length], from + (Vector3)(UnityEngine.Random.insideUnitCircle * 0.4f), to, DrawnMotes(ppu) ? Color.white : Color.Lerp(colour, Color.white, 0.3f), 0.35f + i * 0.05f, ppu);
                 }
             }
             catch (Exception e)
@@ -235,7 +249,8 @@ namespace WoLChaosDepths
                     go.transform.position = start;
                     go.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg);
                     var r = go.AddComponent<SpriteRenderer>();
-                    r.sprite = Streak(colour, ppu);
+                    Sprite[] streaks = Streaks(colour, ppu);
+                    r.sprite = streaks[i % streaks.Length];
                     r.material = Mat();
                     SpriteRenderer sr = player.spriteRenderer;
                     if (sr != null)
@@ -257,6 +272,12 @@ namespace WoLChaosDepths
         private static Sprite Streak(Color c, float ppu)
         {
             return Cached("streak" + ColorUtility.ToHtmlStringRGB(c) + ppu, () => new[] { Make(6, 1, (x, y) => x < 2 ? Color.white : c, new Vector2(1f, 0.5f), ppu) })[0];
+        }
+
+        // The gust: drawn wind streaks (two frames) when there is art, else the 6x1 streak.
+        private static Sprite[] Streaks(Color c, float ppu)
+        {
+            return Cached("gust" + ColorUtility.ToHtmlStringRGB(c) + ppu, () => ItemArt.Frames("fx_gust", 2, new Vector2(1f, 0.5f), ppu) ?? new[] { Streak(c, ppu) });
         }
 
         public static void Echo(Vector3 at, Color colour, Player near)
@@ -281,6 +302,18 @@ namespace WoLChaosDepths
             {
                 float ppu = Ppu(player);
                 Vector3 at = player.transform.position + new Vector3(0f, 0.4f, 0f);
+                // With drawn art: one ring of thorns (four frames, 32 px across) snapping out
+                // round the wizard, scaled to the lash's reach.
+                Sprite[] ring = ItemArt.Frames("fx_thorns", 4, new Vector2(0.5f, 0.5f), ppu);
+                if (ring != null)
+                {
+                    var ringGo = new GameObject("ChaosDepthsThorns");
+                    ringGo.transform.position = at;
+                    ringGo.transform.localScale = Vector3.one * (radius * 2f / (32f / ppu));
+                    var fx = ringGo.AddComponent<Anim>();
+                    fx.Setup(ring, 0.05f, 0.08f, player, 1);
+                    return;
+                }
                 for (int i = 0; i < 8; i++)
                 {
                     float a = i * Mathf.PI * 2f / 8f + 0.2f;

@@ -104,11 +104,46 @@ namespace WoLChaosDepths
             return "item_" + (item.slot ?? "amulet").ToLowerInvariant() + "_" + (item.rarity ?? "common").ToLowerInvariant();
         }
 
+        // A sprite sheet by name (frames side by side, all the same width), as sprites with the
+        // given pivot; null when there is no such PNG. Cached per name, pivot and ppu.
+        private static readonly Dictionary<string, Sprite[]> sheets = new Dictionary<string, Sprite[]>();
+
+        public static Sprite[] Frames(string name, int frameCount, Vector2 pivot, float ppu)
+        {
+            string key = name + "|" + frameCount + "|" + pivot + "|" + ppu;
+            Sprite[] result;
+            if (sheets.TryGetValue(key, out result))
+                return result;
+            Texture2D tex = LoadPng(name);
+            if (tex != null && frameCount > 0 && tex.width % frameCount == 0)
+            {
+                int w = tex.width / frameCount;
+                result = new Sprite[frameCount];
+                for (int i = 0; i < frameCount; i++)
+                    result[i] = UnityEngine.Sprite.Create(tex, new Rect(i * w, 0, w, tex.height), pivot, ppu);
+            }
+            else
+            {
+                if (tex != null)
+                    ChaosDepthsPlugin.LogWarning($"art: {name}.png is {tex.width} px wide, not a multiple of {frameCount} frames; using the code-drawn one");
+                result = null;
+            }
+            sheets[key] = result;
+            return result;
+        }
+
+        public static string RarityName(int tier) => tier <= 0 ? "common" : tier == 1 ? "magic" : tier == 2 ? "rare" : "legendary";
+
         // A PNG by name, from the Art folder or the DLL; null when there is none.
+        private static readonly Dictionary<string, Texture2D> loaded = new Dictionary<string, Texture2D>();
+
         public static Texture2D LoadPng(string name)
         {
             if (missing.ContainsKey(name))
                 return null;
+            Texture2D cached;
+            if (loaded.TryGetValue(name, out cached) && cached != null)
+                return cached;
             byte[] data = null;
             try
             {
@@ -151,6 +186,7 @@ namespace WoLChaosDepths
             }
             tex.filterMode = FilterMode.Point;
             tex.wrapMode = TextureWrapMode.Clamp;
+            loaded[name] = tex;
             return tex;
         }
 

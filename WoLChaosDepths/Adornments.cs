@@ -109,6 +109,9 @@ namespace WoLChaosDepths
         // white, and on a Legendary the setting's four points too. Pivot top.
         private static Sprite Pendant(Color c, int tier, int frame, float ppu)
         {
+            Sprite[] drawn = ItemArt.Frames("worn_pendant_" + ItemArt.RarityName(tier), 2, new Vector2(0.5f, 1f), ppu);
+            if (drawn != null)
+                return drawn[Mathf.Clamp(frame, 0, 1)];
             Color chain = new Color32(0xc8, 0xb0, 0x60, 0xff), setting = new Color32(0xf0, 0xd0, 0x70, 0xff);
             Color light = Color.Lerp(c, Color.white, 0.6f), dark = Color.Lerp(c, Color.black, 0.45f);
             int r = tier == 0 ? 1 : tier == 1 ? 2 : 3;
@@ -138,6 +141,11 @@ namespace WoLChaosDepths
         // of its top row on a Legendary). Pivot on the band.
         private static Sprite Ring(Color c, int tier, int frame, float ppu)
         {
+            // Drawn ring: pivot on the band (the bottom row), as the code-drawn one.
+            Texture2D ringArt = ItemArt.LoadPng("worn_ring_" + ItemArt.RarityName(tier));
+            Sprite[] drawn = ringArt != null ? ItemArt.Frames("worn_ring_" + ItemArt.RarityName(tier), 2, new Vector2(0.5f, 1f / ringArt.height), ppu) : null;
+            if (drawn != null)
+                return drawn[Mathf.Clamp(frame, 0, 1)];
             Color metal = tier >= 2 ? (Color)new Color32(0xe8, 0xc4, 0x5c, 0xff) : tier == 1 ? (Color)new Color32(0xc0, 0xc4, 0xd0, 0xff) : c;
             Color metalDark = Color.Lerp(metal, Color.black, 0.35f), light = Color.Lerp(c, Color.white, 0.7f);
             int w = tier <= 1 ? 3 : tier == 2 ? 4 : 5;
@@ -165,6 +173,9 @@ namespace WoLChaosDepths
         // points on a Legendary). Pivot centre.
         private static Sprite Charmstone(Color c, int tier, int frame, float ppu)
         {
+            Sprite[] drawn = ItemArt.Frames("worn_charm_" + ItemArt.RarityName(tier), 2, new Vector2(0.5f, 0.5f), ppu);
+            if (drawn != null)
+                return drawn[Mathf.Clamp(frame, 0, 1)];
             // The setting is a darker gold at rest so four Legendary stones don't read as a
             // cloud of white sparks (the 0.9.7 check); it only goes white on a glint.
             Color setting = new Color32(0xc8, 0xa0, 0x40, 0xff);

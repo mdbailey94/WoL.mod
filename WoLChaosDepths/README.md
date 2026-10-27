@@ -197,3 +197,12 @@ animation, follow the facing, and sit behind the body when facing up. `[Look] Sh
   `Art` folder beside the DLL overrides it at runtime, so a new piece can be previewed by
   copying it in; a missing picture falls back to the code-drawn one. Uniques will take
   `unique_<key>.png` the same way; the six unique pictures arrived in 0.11.2.
+
+## Drawn worn gear and power effects (0.11.3)
+
+- The gear on the wizard uses drawn sprites: `worn_pendant_<rarity>`, `worn_ring_<rarity>`,
+  `worn_charm_<rarity>` (two frames side by side, the second the glint). Common and Magic
+  pendants are still code-drawn until their art arrives. Uniques wear the Legendary sprites.
+- The six unique powers use drawn effects: `fx_arc` (3 frames), `fx_burst` (4), `fx_motes` (2),
+  `fx_gust` (2), `fx_echo` (3), `fx_thorns` (4, now one ring of thorns round the wizard instead
+  of eight streaks). As with the icons, an `Art` folder beside the DLL overrides any of them.
