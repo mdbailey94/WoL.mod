@@ -209,7 +209,7 @@ namespace WoLChaosDepths
 
             public static void Line(Vector3 a, Vector3 b, Color color, Player near)
             {
-                Make(new[] { a, b }, color, 0.18f, 0.15f, near);
+                Make(new[] { a, b }, color, 0.4f, 0.22f, near);
             }
 
             public static void Ring(Vector3 at, float radius, Color color, Player near)
@@ -221,7 +221,7 @@ namespace WoLChaosDepths
                     float t = i * Mathf.PI * 2f / Segments;
                     points[i] = at + new Vector3(Mathf.Cos(t) * radius, Mathf.Sin(t) * radius, 0f);
                 }
-                Make(points, color, 0.25f, 0.12f, near);
+                Make(points, color, 0.4f, 0.16f, near);
             }
 
             private static void Make(Vector3[] points, Color color, float life, float width, Player near)

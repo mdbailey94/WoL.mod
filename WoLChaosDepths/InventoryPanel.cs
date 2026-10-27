@@ -291,8 +291,14 @@ namespace WoLChaosDepths
                     y += lineH;
                     if (item != null)
                     {
-                        foreach (string line in Wrap(LootTable.Describe(item), 26))
+                        // Two lines per slot at most, so three uniques (long descriptions) still
+                        // fit above the detail lines; a unique shows its power, the rest is in
+                        // the detail line when it's selected.
+                        string power = Uniques.PowerText(item);
+                        var lines = new List<string>(Wrap(power ?? LootTable.Describe(item), 26));
+                        for (int l = 0; l < lines.Count && l < 2; l++)
                         {
+                            string line = l == 1 && lines.Count > 2 ? lines[l].TrimEnd(' ', ',', ';') + "..." : lines[l];
                             Label(new Rect(x + 2 * u, y, leftW, lineH), line, dim);
                             y += lineH;
                         }
