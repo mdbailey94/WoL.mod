@@ -8,8 +8,11 @@ and the arcana and relic mods that live there.
 - **The "Chaos Depths" shortcut** launches the same install with a second BepInEx profile folder
   that holds only Chaos Depths: its plugin, its config, its character saves.
 
-Both use the same game executable and the same game save (unlocks, gold, gems), which is what
-the design intends: a dive's gold and gems carry over.
+Both use the same game executable, but each has its own game save. The profile keeps its unlocks,
+loadout, gold, gems and settings in a `ChaosDepths` folder beside the game's save folder, so a
+profile session never rewrites the base game's loadout (the base game's mod arcana don't exist in
+the profile, and the game replaces them when it can't find them). The first time the profile runs
+it copies the base save in as its starting point, so nothing has to be unlocked twice.
 
 ## Setting it up
 
@@ -42,7 +45,10 @@ Launched without the argument, the game uses its own `doorstop_config.ini` and t
 
 ## Known limits
 
-- The game save is shared. In the profile the mod arcana don't exist, so a loadout that uses
-  them shows vanilla arcana there; whether the game rewrites the saved loadout when it can't
-  find them is being checked. If it does, keep a spare loadout or re-pick after a profile session.
+- The two saves don't talk to each other after the first copy: gold, gems and unlocks earned in
+  the profile stay in the profile. Delete the `ChaosDepths` save folder (under
+  `%USERPROFILE%\AppData\LocalLow\Contingent99\Wizard of Legend`) to copy the base save in again.
+  `[Profile] SeparateSave = false` in the mod's config goes back to a shared save.
+- Steam Cloud syncs the game's save folder; the profile's folder sits inside it and most likely
+  syncs too, which costs a few hundred kilobytes and nothing else.
 - The launcher passes `-screen-fullscreen 1`; take it out of the .bat to play windowed.

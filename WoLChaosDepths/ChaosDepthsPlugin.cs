@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.10.2";
+        public const string PluginVersion = "0.11.0";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -117,6 +117,7 @@ namespace WoLChaosDepths
             Layers.Bind(Config);
             Pickups.Bind(Config);
             Adornments.Bind(Config);
+            ProfileSave.Bind(Config);
             Pickups.Collected = Collect;
             debugEnabled = Config.Bind("Debug", "Enabled", false,
                 "Test keys: F6 kill all enemies, F7 skip floor, F8 god mode, F9 gold, F10 auto-dive (kill and skip floor after floor until the run ends), F5 spawn one elite of each affix, F3 open a rift on this floor, F4 give one of each unique legendary, F11 log every relic's ID and name.");
@@ -124,9 +125,11 @@ namespace WoLChaosDepths
                 "F5 spawns one elite of each affix of this enemy beside the wizard (in the trials).");
             autoDiveRelics = Config.Bind("Debug", "AutoDiveRelics", "",
                 "Relic IDs (comma separated) given to the first player when the auto-dive (F10) starts, e.g. one that speeds up getting to the exit room. Press F11 in a run to log every relic's ID and name.");
+            var harmony = new Harmony(PluginGuid);
+            ProfileSave.Install(harmony, Logger);
             try
             {
-                DiveDirector.Install(new Harmony(PluginGuid));
+                DiveDirector.Install(harmony);
             }
             catch (Exception e)
             {

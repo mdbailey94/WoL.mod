@@ -179,3 +179,13 @@ animation, follow the facing, and sit behind the body when facing up. `[Look] Sh
   profile with a desktop shortcut, leaving the base game and its arcana and relic mods alone
   (see `Profile/README.md`). The log says `loaded (profile)` and the Hub shows a CHAOS DEPTHS
   tag when launched that way.
+
+## Its own game save (0.11.0)
+
+- In the profile the game's own save (unlocks, loadout, gold, gems, settings) lives in a
+  `ChaosDepths` folder beside the game's save folder. The game fills its save root from a private
+  field only when that field is empty, so the mod fills it first; no save code is patched.
+- The first time the profile loads, the base save is copied in as its starting point. After that
+  the two saves are independent, so a profile session can no longer rewrite the base game's
+  loadout. `[Profile] SeparateSave` and `SeedFromBaseSave` control it. The log says
+  `Profile save: ...` with the folder in use.

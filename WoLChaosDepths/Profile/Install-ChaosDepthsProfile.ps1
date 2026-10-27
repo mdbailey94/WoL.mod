@@ -24,8 +24,9 @@
 
 .NOTES
   Saves: Chaos Depths' character saves live in the profile (BepInEx\config\ChaosDepths). The
-  game's own save (unlocks, gold, gems) is shared between the two profiles; a dive's gold and
-  gems carry over, which the design intends.
+  game's own save (unlocks, loadout, gold, gems, settings) is separate too: in the profile the
+  mod keeps it in a ChaosDepths folder beside the game's save folder, copying the base save in
+  the first time, so the base game's loadout is never touched.
 #>
 param(
     [string]$GameDir = "C:\Program Files (x86)\Steam\steamapps\common\Wizard of Legend",
