@@ -158,6 +158,35 @@ namespace WoLChaosDepths
             return false;
         }
 
+        // Debug: one elite of each affix beside the wizard, to look at the tints, the Giant's size
+        // and the Swift speed.
+        public static void SpawnShowcase(Player player, string enemyName)
+        {
+            if (player == null)
+                return;
+            Vector3 origin = player.transform.position;
+            for (int i = 0; i < Affixes.Length; i++)
+            {
+                Vector3 pos = origin + new Vector3((i - 1) * 3f, 4f, 0f);
+                try
+                {
+                    Enemy enemy = Enemy.Spawn(enemyName, pos, null, true, true);
+                    if (enemy == null)
+                    {
+                        ChaosDepthsPlugin.Log($"Debug: couldn't spawn a '{enemyName}' (set [Debug] ShowcaseEnemy to another enemy name)");
+                        return;
+                    }
+                    MakeElite(enemy, Affixes[i]);
+                }
+                catch (Exception e)
+                {
+                    ChaosDepthsPlugin.LogError($"Debug elite showcase: {e.Message}");
+                    return;
+                }
+            }
+            ChaosDepthsPlugin.Log($"Debug: spawned a Swift, an Armored and a Giant {enemyName} beside the wizard");
+        }
+
         public static void MakeElite(Entity entity, Affix affix)
         {
             try
@@ -173,6 +202,7 @@ namespace WoLChaosDepths
                 if (entity.spriteRenderer != null)
                     entity.spriteRenderer.color = affix.tint;
                 int id = entity.GetInstanceID();
+                rolled.Add(id);
                 elites[id] = affix;
                 eliteEntities[id] = entity;
                 ChaosDepthsPlugin.Log($"Elite: {affix.name} {entity.GetType().Name} (health {entity.health.CurrentHealthValue})");

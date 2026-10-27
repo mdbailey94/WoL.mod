@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.4.1";
+        public const string PluginVersion = "0.4.2";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -32,7 +32,8 @@ namespace WoLChaosDepths
         private static ConfigEntry<string> panelKey, panelButton;
         private static ConfigEntry<bool> diveEnabled, debugEnabled;
         public static bool DebugEnabled => debugEnabled?.Value ?? false;
-        private static ConfigEntry<string> autoDiveRelics;
+        private static ConfigEntry<string> autoDiveRelics, showcaseEnemy;
+        public static string ShowcaseEnemy => showcaseEnemy?.Value ?? "Knight";
         public static string AutoDiveRelics => autoDiveRelics?.Value ?? "";
         private static ConfigEntry<string> diveRealm;
         private static ConfigEntry<int> floorsPerRealm, realmsPerDive;
@@ -103,7 +104,9 @@ namespace WoLChaosDepths
                     new AcceptableValueRange<int>(0, 6)));
             Elites.Bind(Config);
             debugEnabled = Config.Bind("Debug", "Enabled", false,
-                "Test keys: F6 kill all enemies, F7 skip floor, F8 god mode, F9 gold, F10 auto-dive (kill and skip floor after floor until the run ends), F11 log every relic's ID and name.");
+                "Test keys: F6 kill all enemies, F7 skip floor, F8 god mode, F9 gold, F10 auto-dive (kill and skip floor after floor until the run ends), F5 spawn one elite of each affix, F11 log every relic's ID and name.");
+            showcaseEnemy = Config.Bind("Debug", "ShowcaseEnemy", "Knight",
+                "F5 spawns one elite of each affix of this enemy beside the wizard (in the trials).");
             autoDiveRelics = Config.Bind("Debug", "AutoDiveRelics", "",
                 "Relic IDs (comma separated) given to the first player when the auto-dive (F10) starts, e.g. one that speeds up getting to the exit room. Press F11 in a run to log every relic's ID and name.");
             try

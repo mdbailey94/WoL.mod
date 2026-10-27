@@ -11,6 +11,7 @@ namespace WoLChaosDepths
     //   F6  kill every enemy in the room       F7  clear the floor: skip to the exit room, summon
     //                                              the mini-boss, kill it, take the exit portal
     //   F8  god mode on/off                     F9  gold
+    //   F5  spawn a Swift, an Armored and a Giant elite beside the wizard ([Debug] ShowcaseEnemy)
     //   F11 log every relic's ID and name ([Debug] AutoDiveRelics gives relics at F10's start)
     //   F10 auto-dive: clear floor after floor (as F7) until the run leaves the trials (e.g. the dive
     //       director sends you back to the Hub), logging each step. Start it on a trial floor.
@@ -51,6 +52,13 @@ namespace WoLChaosDepths
                 GodMode();
             if (Input.GetKeyDown(KeyCode.F9))
                 Money();
+            if (Input.GetKeyDown(KeyCode.F5))
+            {
+                if (InTrials())
+                    Elites.SpawnShowcase(FirstPlayer(), ChaosDepthsPlugin.ShowcaseEnemy);
+                else
+                    ChaosDepthsPlugin.Log("Debug: F5 spawns elites in the trials only");
+            }
             if (Input.GetKeyDown(KeyCode.F11))
                 LogRelics();
             if (Input.GetKeyDown(KeyCode.F10))
