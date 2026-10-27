@@ -289,11 +289,23 @@ namespace WoLChaosDepths
             GUI.depth = -100;
             try
             {
-                // A little bigger than the altar prompt: 3 units and 12 px at 720p, 4 and 16 at 1080p.
-                int u = Mathf.Max(3, Mathf.FloorToInt(Screen.height / 240f));
+                // Sized to fill most of the screen's height (about 92%), so the text is big enough
+                // to read: 5 units and a 20 px font at 720p, 8 and 32 px at 1080p.
+                int unitsTall = Depth.Enabled ? 124 : 118;
+                int u = Mathf.Max(3, Mathf.FloorToInt(Screen.height * 0.92f / unitsTall));
                 int font = Mathf.Max(12, 4 * u);
-                float w = 176 * u, h = (Depth.Enabled ? 124 : 118) * u;
-                var panel = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
+                float w = 176 * u, h = unitsTall * u;
+                // Two players: on the opening player's side of the screen (player 1 left, player 2 right).
+                int activePlayers = 0;
+                if (GameController.activePlayers != null)
+                    foreach (Player p in GameController.activePlayers)
+                        if (p != null && p.gameObject.activeInHierarchy)
+                            activePlayers++;
+                float left = (Screen.width - w) / 2f;
+                if (activePlayers > 1 && player != null)
+                    left = player.playerID == 0 ? 4f * u : Screen.width - w - 4f * u;
+                left = Mathf.Clamp(left, 0f, Mathf.Max(0f, Screen.width - w));
+                var panel = new Rect(left, (Screen.height - h) / 2f, w, h);
                 PixelUI.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.45f));
                 PixelUI.Panel(panel, u);
 
