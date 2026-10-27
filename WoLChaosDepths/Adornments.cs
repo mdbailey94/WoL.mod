@@ -24,7 +24,7 @@ namespace WoLChaosDepths
         {
             enabled = config.Bind("Look", "ShowEquipped", true, "Equipped items show on the wizard: a pendant, a ring glint and a belt charm.");
             uniqueSparks = config.Bind("Look", "UniqueSparks", true, "Unique legendaries worn give off small sparks.");
-            legendaryCharmScale = config.Bind("Look", "LegendaryCharmScale", 0.72f,
+            legendaryCharmScale = config.Bind("Look", "LegendaryCharmScale", 0.6f,
                 new ConfigDescription("Size of the four stones a Legendary (or unique) charm floats round the wizard, as a fraction of the drawn 7x7 stone. 1 = full size.", new AcceptableValueRange<float>(0.4f, 1f)));
         }
 

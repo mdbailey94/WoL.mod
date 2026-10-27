@@ -53,8 +53,11 @@
     <EmbeddedResource Include="Art\*.png" LogicalName="WoLChaosDepths.Art.%(Filename)%(Extension)" />
   </ItemGroup>
 
-  <Target Name="CopyToPlugins" AfterTargets="Build" Condition="Exists('$(GameDir)\BepInEx\plugins')">
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(GameDir)\BepInEx\plugins\WoLChaosDepths" />
+  <!-- Chaos Depths runs as its own profile, never in the base game's BepInEx, so a build is
+       not copied into the game folder. Install it with Profile\Install-ChaosDepthsProfile.ps1,
+       or set ChaosDepthsProfileDir to the profile folder to copy it straight there. -->
+  <Target Name="CopyToProfile" AfterTargets="Build" Condition="'$(ChaosDepthsProfileDir)' != '' And Exists('$(ChaosDepthsProfileDir)\BepInEx\plugins')">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ChaosDepthsProfileDir)\BepInEx\plugins\WoLChaosDepths" />
   </Target>
 
 </Project>

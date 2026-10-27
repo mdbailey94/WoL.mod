@@ -57,7 +57,7 @@ namespace WoLChaosDepths
             if (Input.GetKeyDown(KeyCode.F5))
             {
                 if (InTrials())
-                    Elites.SpawnShowcase(FirstPlayer(), ChaosDepthsPlugin.ShowcaseEnemy);
+                    Elites.SpawnShowcase(FirstPlayer(), ChaosDepthsPlugin.ShowcaseEnemy, ChaosDepthsPlugin.ShowcaseHealth);
                 else
                     ChaosDepthsPlugin.Log("Debug: F5 spawns elites in the trials only");
             }

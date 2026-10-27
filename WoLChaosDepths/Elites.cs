@@ -178,7 +178,8 @@ namespace WoLChaosDepths
             return names;
         }
 
-        public static void SpawnShowcase(Player player, string enemyName)
+        // plainHealth > 0: three plain enemies (no affix) with that many times their health.
+        public static void SpawnShowcase(Player player, string enemyName, float plainHealth = 0f)
         {
             if (player == null)
                 return;
@@ -203,6 +204,12 @@ namespace WoLChaosDepths
                         ChaosDepthsPlugin.Log($"Debug: couldn't spawn a '{enemyName}' (set [Debug] ShowcaseEnemy to another enemy name)");
                         return;
                     }
+                    if (plainHealth > 0f)
+                    {
+                        enemy.health?.healthStat?.AddMod(new NumVarStatMod(Prefix + "Showcase", plainHealth - 1f, 10, VarStatModType.Multiplicative, true));
+                        rolled.Add(enemy.GetInstanceID());   // never rolled as an elite
+                        continue;
+                    }
                     MakeElite(enemy, Affixes[i]);
                 }
                 catch (Exception e)
@@ -211,7 +218,10 @@ namespace WoLChaosDepths
                     return;
                 }
             }
-            ChaosDepthsPlugin.Log($"Debug: spawned a Swift, an Armored and a Giant {enemyName} beside the wizard");
+            if (plainHealth > 0f)
+                ChaosDepthsPlugin.Log($"Debug: spawned three plain {enemyName}s with {plainHealth:0.#}x health beside the wizard");
+            else
+                ChaosDepthsPlugin.Log($"Debug: spawned a Swift, an Armored and a Giant {enemyName} beside the wizard");
         }
 
         public static void MakeElite(Entity entity, Affix affix)

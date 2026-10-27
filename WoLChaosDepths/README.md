@@ -212,5 +212,13 @@ animation, follow the facing, and sit behind the body when facing up. `[Look] Sh
 - `[Debug] ShowcaseEnemy` with a name the game doesn't know no longer fails: F5 logs the
   game's enemy names (and the nearest match) and spawns Knights. The setting's description
   lists the common names.
-- Legendary and unique charm stones float at 72% size (`[Look] LegendaryCharmScale`); four
+- Legendary and unique charm stones float at 60% size (`[Look] LegendaryCharmScale`); four
   full 7x7 stones were a lot of orange round the wizard.
+
+## 0.11.6
+
+- `[Debug] ShowcaseHealth` above 0 makes F5 spawn three plain enemies (no affix, so no guard
+  or evade) with that many times their health: targets that hold still for screenshots of
+  burns and freezes. F5 works on a trial floor only, not in the house.
+- A local build no longer copies the DLL into the base game's `BepInEx\plugins` (Chaos Depths
+  belongs in its profile); pass `-p:ChaosDepthsProfileDir=<profile folder>` to copy it there.
