@@ -13,7 +13,7 @@ namespace WoLGaleRider
     {
         public const string PluginGuid = "mdbailey94.wol.galerider";
         public const string PluginName = "Gale Rider";
-        public const string PluginVersion = "0.3.1";
+        public const string PluginVersion = "0.3.2";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -27,6 +27,8 @@ namespace WoLGaleRider
         private static ConfigEntry<float> minSize, maxSize, enhancedMaxSize, peakSpeedPercent;
         private static ConfigEntry<float> vortexSize;
         private static ConfigEntry<bool> dust, drawnEffects, rideOnTop;
+        private static ConfigEntry<string> ridePose;
+        private static ConfigEntry<float> ridePoseFrame, rideSeat;
         private static ConfigEntry<int> damage;
         private static ConfigEntry<float> knockback, peakKnockback, hitInterval, cooldown;
 
@@ -43,6 +45,9 @@ namespace WoLGaleRider
         public static bool Dust => dust?.Value ?? true;
         public static bool DrawnEffects => drawnEffects?.Value ?? true;
         public static bool RideOnTop => rideOnTop?.Value ?? true;
+        public static string RidePose => ridePose?.Value ?? "Slide";
+        public static float RidePoseFrame => ridePoseFrame?.Value ?? 0.5f;
+        public static float RideSeat => rideSeat?.Value ?? 0.4f;
         // Balance numbers are read again by the state for the knockback it sets on the ball each
         // frame; the stats registered below are what the game keeps (restart to change those).
         public static float Knockback => Get(knockback, 15f, 0f, 200f);
@@ -123,7 +128,14 @@ namespace WoLGaleRider
 
             vortexSize = Float("Look", "VortexSize", 1f, 0.3f, 3f, "Size of the swirling wind drawn round you, relative to the ball.");
             rideOnTop = Config.Bind("Look", "RideOnTop", true,
-                "Sit on top of the wind ball (lifted, in the jump pose) as it rolls under you. Off: ride inside it as before.");
+                "Sit on the wind ball as it rolls under you: a crouched pose, held still, with your feet partway up the ball (RidePose, RidePoseFrame, RideSeat). Off: ride inside it as before.");
+            ridePose = Config.Bind("Look", "RidePose", "Slide",
+                new ConfigDescription("The wizard's pose while riding, one of the game's own animations held on one frame: Slide (crouched low), GSlam (crouched, fist down), Jump (legs tucked), Fall, Charge, Dash, Run (not held).",
+                    new AcceptableValueList<string>("Slide", "GSlam", "Jump", "Fall", "Charge", "Dash", "Run")));
+            ridePoseFrame = Float("Look", "RidePoseFrame", 0.5f, 0f, 1f,
+                "Which moment of the pose's animation is held, 0 = its first frame, 1 = its last. Try a few: 0.5 of Slide is the full crouch.");
+            rideSeat = Float("Look", "RideSeat", 0.4f, 0f, 1f,
+                "Where your feet sit on the ball, as a fraction of its height: 0 = on the ground inside it, 0.4 = seated with your legs in its top, 1 = standing on top of it.");
             dust = Config.Bind("Look", "Dust", true, "Kick up a ring of dust as the ball rolls.");
             drawnEffects = Config.Bind("Look", "DrawnEffects", true,
                 "Add the wind ball, floor ring, streaks, gust puffs and gather/unravel on top of the game's wind effects (0.2.0; " +

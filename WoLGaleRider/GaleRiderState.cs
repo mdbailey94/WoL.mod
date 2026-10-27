@@ -84,7 +84,20 @@ namespace WoLGaleRider
         private WindBall windBall;
         private Rider rider;
         private FacingDirection ridingFacing = FacingDirection.Neutral;
-        private const float SeatSink = 0.3f;   // how far the wizard's feet sink into the top of the ball
+        // The game's animation for a ride pose name ([Look] RidePose); null = the run, not held.
+        private string PoseAnim(string name)
+        {
+            switch (name)
+            {
+                case "Slide": return parent.SlideAnimStr;
+                case "GSlam": return parent.GSlamAnimStr;
+                case "Jump": return parent.JumpAnimStr;
+                case "Fall": return parent.FallAnimStr;
+                case "Charge": return parent.ChargeAnimStr;
+                case "Dash": return parent.DashAnimStr;
+                default: return null;
+            }
+        }
         private float nextStreak, nextWake, nextTrail, lastPuff;
         private int streaks, puffs;
         private float lastBallWidth;
@@ -237,18 +250,25 @@ namespace WoLGaleRider
                 parent.rigidbody2D.velocity = velocity;
             if (rider != null)
             {
-                // Sitting on top: the jump pose (legs tucked), turned with the ball; lifted by
-                // the ball's height less a little sink into it.
+                // Sitting on the ball: a crouched pose held on one frame (the game's slide by
+                // default), turned with the ball; the picture is raised so the feet sit partway
+                // up the ball ([Look] RideSeat), its see-through front half over the legs.
                 FacingDirection facing = Mathf.Abs(direction.x) >= Mathf.Abs(direction.y)
                     ? (direction.x >= 0f ? FacingDirection.Right : FacingDirection.Left)
                     : (direction.y >= 0f ? FacingDirection.Up : FacingDirection.Down);
+                string pose = PoseAnim(GaleRiderPlugin.RidePose);
+                bool hold = pose != null;
                 if (facing != ridingFacing)
                 {
                     ridingFacing = facing;
                     parent.facingDirection = facing;
-                    parent.anim?.PlayDirectional(parent.JumpAnimStr, -1, 0.3f);
+                    if (!hold)
+                        parent.anim?.PlayDirectional("Run", -1, 0f);
                 }
-                rider.height = Mathf.Max(0f, (windBall != null ? windBall.Width : 0f) - SeatSink);
+                if (hold)
+                    // Replayed at the same moment every frame, so the pose holds still.
+                    parent.anim?.PlayDirectional(pose, -1, GaleRiderPlugin.RidePoseFrame);
+                rider.height = Mathf.Max(0f, (windBall != null ? windBall.Width : 0f) * GaleRiderPlugin.RideSeat);
             }
             else
                 // Run animation, turning with the ball (the game's Charge does the same).

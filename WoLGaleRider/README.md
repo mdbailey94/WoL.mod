@@ -36,9 +36,12 @@ them, so they match its art exactly:
 - **Cast**: the game's whirlwind forming at your feet over the wind-up (`WindEffects_0-5`), with
   its spinning air burst, a shockwave and a wind trail out the way you set off.
 - **The wind ball**: the game's ball of wind (`WindSlash/WindBall0-5`). From 0.3.0 you **sit on
-  top of it**: the ball rolls on the ground under you and your picture is lifted onto it in the
-  jump pose, turning with the ball, while your shadow stays on the ground (`[Look] RideOnTop`;
-  off, you ride inside it as before, behind you with its lower half see-through in front). It's sized to the ball's hit area and spins
+  it**: the ball rolls on the ground under you and your picture rides it, turning with the ball,
+  while your shadow stays on the ground (`[Look] RideOnTop`; off, you ride inside it as before,
+  behind you with its lower half see-through in front). From 0.3.2 the pose is a **crouch held
+  still** (the game's slide, `[Look] RidePose`, at the moment `RidePoseFrame` picks) with your
+  feet partway up the ball (`RideSeat`, 0.4 = seated with your legs in its see-through top,
+  0 = on the ground, 1 = standing on top), rather than the jump pose lifted onto its top. It's sized to the ball's hit area and spins
   faster the faster you go; from speed level 3 a faint copy spins behind it, brighter each level.
   Three thin wind arcs chase round on the floor under it.
 - **Travel**: the game's wind wisps (`WindTrail` sheet) flick off the back of the ball, more often
