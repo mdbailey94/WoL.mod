@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.5.2";
+        public const string PluginVersion = "0.6.0";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -105,6 +105,7 @@ namespace WoLChaosDepths
                     new AcceptableValueRange<int>(0, 6)));
             Elites.Bind(Config);
             Uniques.Bind(Config);
+            Depth.Bind(Config);
             debugEnabled = Config.Bind("Debug", "Enabled", false,
                 "Test keys: F6 kill all enemies, F7 skip floor, F8 god mode, F9 gold, F10 auto-dive (kill and skip floor after floor until the run ends), F5 spawn one elite of each affix, F4 give one of each unique legendary, F11 log every relic's ID and name.");
             showcaseEnemy = Config.Bind("Debug", "ShowcaseEnemy", "Knight",
@@ -169,7 +170,10 @@ namespace WoLChaosDepths
             nextTick = Time.unscaledTime + 0.5f;
             DiveDirector.Tick();
             if (InTrials())
+            {
                 Elites.Tick();
+                Depth.Tick();
+            }
             foreach (Player player in players)
             {
                 if (player == null)
@@ -296,7 +300,31 @@ namespace WoLChaosDepths
 
         public static ChaosDepthsPlugin Instance { get; private set; }
 
+        public static bool InTrialsNow() => InTrials();
+
         public CharacterSave SaveOf(Player player) => CharacterOf(player);
+
+        // The first active player's character (the one whose chosen depth starts a dive).
+        public CharacterSave FirstSave()
+        {
+            Player[] players = GameController.activePlayers;
+            if (players != null)
+                foreach (Player p in players)
+                    if (p != null)
+                        return CharacterOf(p);
+            return null;
+        }
+
+        public IEnumerable<CharacterSave> AllSaves()
+        {
+            var list = new List<CharacterSave>();
+            Player[] players = GameController.activePlayers;
+            if (players != null)
+                foreach (Player p in players)
+                    if (p != null)
+                        list.Add(CharacterOf(p));
+            return list;
+        }
 
         public void SaveCharacter(Player player, CharacterSave save) => SaveStore.Save(player.playerID, save);
 
@@ -383,7 +411,7 @@ namespace WoLChaosDepths
                     DiveDirector.BossKilled(entity);
                 float maxHealth = entity.health != null && entity.health.healthStat != null ? entity.health.healthStat.ModifiedValue : 10f;
                 float mult = boss ? bossXpMultiplier.Value : floorBoss ? floorBossXpMultiplier.Value : elite != null ? Elites.XpMultiplier : 1f;
-                int xp = Mathf.Max(1, Mathf.RoundToInt(maxHealth * xpPerHealth.Value * mult));
+                int xp = Mathf.Max(1, Mathf.RoundToInt(maxHealth * xpPerHealth.Value * mult * Depth.XpMultiplier));
                 save.kills++;
                 string kind = boss ? " (boss)" : floorBoss ? " (floor boss)" : elite != null ? $" ({elite} elite)" : "";
                 if (logKills.Value || kind.Length > 0)
@@ -463,7 +491,7 @@ namespace WoLChaosDepths
 
         private void Drop(Player player, CharacterSave save, int minRarity)
         {
-            ItemData item = LootTable.Roll(save.level + Elites.AscensionLevel(), minRarity, Elites.RarityBoost());
+            ItemData item = LootTable.Roll(save.level + Elites.AscensionLevel() + Depth.ItemLevelBonus, minRarity, Elites.RarityBoost() + Depth.RarityBoost);
             save.inventory.Add(item);
             save.itemsFound++;
             string text = $"{item.rarity} {item.name} ({LootTable.Describe(item)})";

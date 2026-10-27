@@ -101,3 +101,21 @@ affixes plus a power that works while it is equipped.
 Powers don't trigger each other, and their damage counts as yours (experience and drops).
 The panel shows the power first in the item's description. With `[Debug] Enabled`, F4 puts one
 of each unique in your inventory.
+
+## Depth and waypoints (0.6.0, milestone M4)
+
+Every dive has a depth. It starts at the depth chosen in the Hub and goes one deeper with
+each floor and boss arena. Below depth 1, each depth adds (all under `[Depth]`):
+
+| Setting | Default | Effect per depth |
+|---|---|---|
+| EnemyHealthPerDepth | 0.06 | +6% health for enemies and bosses |
+| EnemyDamagePerDepth | 0.04 | +4% damage you take |
+| XpPerDepth | 0.05 | +5% experience |
+| RarityBoostPerDepth | 0.05 | +5% weight for Magic and better |
+| ItemLevelsPerDepth | 1 | +1 item level |
+
+Each character remembers the deepest depth it has reached: its waypoint (a notice shows
+"Waypoint: depth N"). In the Hub, open the inventory panel and press left or right (or the
+stick) to pick where the next dive starts, from 1 up to the waypoint. In a run the panel shows
+the current depth. Log lines start with `Depth:`.

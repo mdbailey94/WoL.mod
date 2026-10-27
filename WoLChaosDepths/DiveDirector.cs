@@ -205,6 +205,18 @@ namespace WoLChaosDepths
             {
                 if (returningToHub && !IsTrial(next))
                     returningToHub = false;
+                // Depth: a dive starts entering the trials, goes one deeper per trial load, and
+                // ends leaving them.
+                ChaosDepthsPlugin plugin = ChaosDepthsPlugin.Instance;
+                if (plugin != null)
+                {
+                    if (!IsTrial(previous) && IsTrial(next))
+                        Depth.StartDive(plugin.FirstSave());
+                    else if (IsTrial(previous) && IsTrial(next))
+                        Depth.NextFloor(plugin.AllSaves());
+                    else if (IsTrial(previous) && !IsTrial(next))
+                        Depth.EndDive(plugin.AllSaves());
+                }
                 if (!ChaosDepthsPlugin.DiveEnabled)
                     return;
                 if (inRun && IsTrial(next))

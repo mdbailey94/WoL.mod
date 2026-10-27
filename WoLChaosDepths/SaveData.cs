@@ -20,6 +20,8 @@ namespace WoLChaosDepths
         public int kills;
         public int itemsFound;
         public int dust;        // Chaos Dust from salvaged items
+        public int depthReached = 1;   // the deepest depth this character has reached (its waypoint)
+        public int depthChosen = 1;    // where its next dive starts (1 up to depthReached)
         public List<ItemData> inventory = new List<ItemData>();
         // Item id equipped in each slot, "" for none; same order as LootTable.Slots.
         public List<string> equipped = new List<string>();
@@ -125,6 +127,8 @@ namespace WoLChaosDepths
                 save.equipped = new List<string>();
             while (save.equipped.Count < LootTable.Slots.Length)
                 save.equipped.Add("");
+            save.depthReached = Math.Max(1, save.depthReached);
+            save.depthChosen = Math.Min(Math.Max(1, save.depthChosen), save.depthReached);
             save.version = 1;
         }
     }

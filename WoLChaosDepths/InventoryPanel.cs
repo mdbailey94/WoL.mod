@@ -15,6 +15,7 @@ namespace WoLChaosDepths
     public class InventoryPanel
     {
         private const float RepeatFirst = 0.3f, RepeatNext = 0.11f, SalvageHold = 0.7f;
+        private float nextDepthRepeat;
         private const int Rows = 9;
         private static readonly int[] DustByRarity = { 1, 3, 8, 20 };
 
@@ -113,6 +114,43 @@ namespace WoLChaosDepths
             {
                 Close();
                 return;
+            }
+
+            // Left and right, in the Hub: the depth the next dive starts at.
+            if (Depth.Enabled && !ChaosDepthsPlugin.InTrialsNow())
+            {
+                float horizontal = 0f;
+                if (Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A))
+                    horizontal = -1f;
+                else if (Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D))
+                    horizontal = 1f;
+                else if (pad != null)
+                {
+                    try
+                    {
+                        horizontal = pad.GetAxis("MoveHorizontal");
+                    }
+                    catch
+                    {
+                    }
+                }
+                if (Mathf.Abs(horizontal) > 0.5f)
+                {
+                    if (Time.unscaledTime >= nextDepthRepeat)
+                    {
+                        bool first = nextDepthRepeat == 0f;
+                        nextDepthRepeat = Time.unscaledTime + (first ? RepeatFirst : RepeatNext);
+                        int before = save.depthChosen;
+                        save.depthChosen = Mathf.Clamp(save.depthChosen + (horizontal > 0f ? 1 : -1), 1, Mathf.Max(1, save.depthReached));
+                        if (save.depthChosen != before)
+                        {
+                            ChaosDepthsPlugin.Log($"Next dive starts at depth {save.depthChosen} (waypoint {save.depthReached})");
+                            onChanged(player, save);
+                        }
+                    }
+                }
+                else
+                    nextDepthRepeat = 0f;
             }
 
             // Up and down with repeat.
@@ -254,7 +292,7 @@ namespace WoLChaosDepths
                 // A little bigger than the altar prompt: 3 units and 12 px at 720p, 4 and 16 at 1080p.
                 int u = Mathf.Max(3, Mathf.FloorToInt(Screen.height / 240f));
                 int font = Mathf.Max(12, 4 * u);
-                float w = 176 * u, h = 118 * u;
+                float w = 176 * u, h = (Depth.Enabled ? 124 : 118) * u;
                 var panel = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
                 PixelUI.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.45f));
                 PixelUI.Panel(panel, u);
@@ -268,6 +306,14 @@ namespace WoLChaosDepths
                 Label(new Rect(x, y, w, lineH), $"{save.name}   Level {save.level}", text);
                 Label(new Rect(x, y, w - 10 * u, lineH), $"Chaos Dust {save.dust}   Kills {save.kills}", right);
                 y += lineH;
+                if (Depth.Enabled)
+                {
+                    string depthText = ChaosDepthsPlugin.InTrialsNow()
+                        ? $"Depth {Depth.Current}   Waypoint {save.depthReached}"
+                        : $"Next dive: depth < {save.depthChosen} >   Waypoint {save.depthReached}   (left / right)";
+                    Label(new Rect(x, y, w, lineH), depthText, dim);
+                    y += lineH;
+                }
                 int need = ChaosDepthsPlugin.XpToNext(save.level);
                 float barW = w - 10 * u;
                 PixelUI.Fill(new Rect(x, y + u, barW, 2 * u), PixelUI.PipEmpty);
