@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.8.1";
+        public const string PluginVersion = "0.9.0";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -108,6 +108,7 @@ namespace WoLChaosDepths
             Depth.Bind(Config);
             Layers.Bind(Config);
             Pickups.Bind(Config);
+            Adornments.Bind(Config);
             Pickups.Collected = Collect;
             debugEnabled = Config.Bind("Debug", "Enabled", false,
                 "Test keys: F6 kill all enemies, F7 skip floor, F8 god mode, F9 gold, F10 auto-dive (kill and skip floor after floor until the run ends), F5 spawn one elite of each affix, F3 open a rift on this floor, F4 give one of each unique legendary, F11 log every relic's ID and name.");
@@ -141,6 +142,7 @@ namespace WoLChaosDepths
                 lastKillTime.Clear();
                 Elites.ClearScene();
                 Pickups.Clear();
+                Adornments.Clear();
                 deathHooked.Clear();
             };
             Logger.LogInfo($"{PluginName} {PluginVersion} loaded (EXPERIMENTAL); saves in {SaveStore.Folder}");
@@ -184,6 +186,7 @@ namespace WoLChaosDepths
                 if (player == null)
                     continue;
                 StatMods.Apply(player, CharacterOf(player));
+                Adornments.Tick(player, CharacterOf(player));
             }
         }
 
