@@ -319,3 +319,9 @@ Laid out after WoL Art's mockup (`inventory_mockup_1x.png`):
 - The ring and the pendant now find the hand and chest from the wizard's drawn pixels in every
   frame (the game's sheet is read once), not from the sprite's outline polygon, whose corners
   can lie past the picture: that put the ring out in front of the face in a side run (#24).
+
+## 0.13.1 (task sheet #25)
+
+- Picking an item up no longer also fires an arcana when Interact shares its button (X on the
+  pad fired a basic attack). As with the game's relics, the press picks up only while standing,
+  running or dashing, and from standing or running it is used up by the pickup.

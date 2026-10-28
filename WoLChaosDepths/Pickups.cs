@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using BepInEx.Configuration;
+using HarmonyLib;
 using UnityEngine;
 
 namespace WoLChaosDepths
@@ -19,6 +20,9 @@ namespace WoLChaosDepths
         private static ConfigEntry<float> pickupRadius, nameRadius;
 
         private static readonly List<Pickup> live = new List<Pickup>();
+        // Each wizard's nearest item in reach, from the last Update (taken in BeforePlayerUpdate).
+        private static readonly Dictionary<Player, Pickup> reachable = new Dictionary<Player, Pickup>();
+        private static bool pressHooked;
         private static readonly Dictionary<string, Sprite> gems = new Dictionary<string, Sprite>();
         private static Sprite glow;
         private static Material material;
@@ -102,12 +106,51 @@ namespace WoLChaosDepths
                 }
                 prompted.Add(nearest);
                 nearest.Prompt(player);
-                if (InteractPressed(player))
-                    nearest.Take(player);
+                reachable[player] = nearest;
+                if (!pressHooked && InteractPressed(player))
+                    nearest.Take(player); // the hook below didn't install: the old way
             }
             foreach (Pickup p in new List<Pickup>(live))
                 if (p != null && !prompted.Contains(p))
                     p.Unprompt();
+        }
+
+        // The Interact press is taken here, just before the wizard's own Update reads its buttons,
+        // not in the plugin's Update: on a pad Interact can share a button with an arcana (#25: X
+        // picked the item up and fired a basic attack). As the game does for relics
+        // (PickupItem.HandleInteractRequirement), it counts only while standing, running or
+        // dashing, and from standing or running it queues the default state, which takes this
+        // frame's state update and with it the skill press.
+        public static void Install(Harmony harmony)
+        {
+            harmony.Patch(AccessTools.Method(typeof(Player), nameof(Player.Update)),
+                new HarmonyMethod(typeof(Pickups), nameof(BeforePlayerUpdate)));
+            pressHooked = true;
+        }
+
+        private static void BeforePlayerUpdate(Player __instance)
+        {
+            if (live.Count == 0 || __instance == null || !pressToPickUp.Value)
+                return;
+            try
+            {
+                Pickup nearest;
+                if (!reachable.TryGetValue(__instance, out nearest))
+                    return;
+                reachable.Remove(__instance);
+                if (nearest == null || !live.Contains(nearest) || !nearest.Grabbable || !InteractPressed(__instance))
+                    return;
+                IState state = __instance.fsm.currentState;
+                if (state.name.Contains("Idle") || state.name.Contains("Run"))
+                    __instance.fsm.QueueChangeState(__instance.fsm.defaultStateName);
+                else if (!(state is Player.SkillState skill && skill.isDash))
+                    return;
+                nearest.Take(__instance);
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"pickup press: {e.Message}");
+            }
         }
 
         // The game's Interact button, read two ways (the game's own input, then Rewired's).
@@ -150,6 +193,7 @@ namespace WoLChaosDepths
                 p.Vanish();
             }
             live.Clear();
+            reachable.Clear();
             if (count > 0)
                 ChaosDepthsPlugin.Log($"Pickups: {count} item(s) left on the floor collected for their owners");
         }
@@ -160,6 +204,7 @@ namespace WoLChaosDepths
                 if (p != null)
                     p.Vanish();
             live.Clear();
+            reachable.Clear();
         }
 
         internal static void Remove(Pickup p) => live.Remove(p);
