@@ -457,3 +457,8 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
 - VS EQUIPPED shows the losses again: gains first, then losses, carried onto a second line when
   the first is full (on one line the losses at its end were cut off).
 - The tab row shows where the list is when it scrolls ("5-8 OF 12").
+
+## 0.14.8
+
+- The frame cap from 0.14.6 moved to Mod Menu 0.1.5 (`[Display] FrameCap`, 120 by default), so
+  it also works in the base game; at 120 the stalls WoL Player measured were gone.

@@ -20,6 +20,17 @@ What "off" means:
 Each switch is the mod's own `[General] Enabled` setting, so you can also change it in that mod's
 file in `BepInEx\config`.
 
+## Frame cap
+
+`[Display] FrameCap` (default **120**; 0 = no cap) caps the frame rate. The game never caps it
+itself, so with its V-Sync option off it runs at 700-1400 fps, which caused a ~100 ms stall every
+few seconds on the owner's PC; at 120 the stalls were gone (task sheet #26). With the game's
+V-Sync on, V-Sync sets the pace instead.
+
+## Changes in 0.1.5
+
+- The frame cap above.
+
 ## Changes in 0.1.4
 
 - Lighter during a run (task sheet #26, frame-rate drops): the title screen is no longer searched

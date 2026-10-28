@@ -15,7 +15,7 @@ namespace WoLModMenu
     {
         public const string PluginGuid = "mdbailey94.wol.modmenu";
         public const string PluginName = "Mod Menu";
-        public const string PluginVersion = "0.1.4";
+        public const string PluginVersion = "0.1.5";
 
         private const string ModGuidPrefix = "mdbailey94.wol.";
         private const float ReferenceHeight = 1080f;
@@ -57,7 +57,25 @@ namespace WoLModMenu
 
         private void Awake()
         {
+            // The game never caps its frame rate, so with its V-Sync option off it runs at
+            // 700-1400 fps, which on the owner's PC stalled for ~100 ms every few seconds; capped
+            // at 120 the stalls went away entirely (WoL Player's test, task sheet #26, 0.1.5).
+            frameCap = Config.Bind("Display", "FrameCap", 120,
+                new ConfigDescription("Cap the frame rate at this many frames a second (0 = the game's own: none). Only applies with the game's V-Sync off.",
+                    new AcceptableValueRange<int>(0, 500)));
+            ApplyFrameCap();
+            frameCap.SettingChanged += (s, e) => ApplyFrameCap();
             Logger.LogInfo($"{PluginName} {PluginVersion} loaded");
+        }
+
+        private ConfigEntry<int> frameCap;
+
+        private void ApplyFrameCap()
+        {
+            Application.targetFrameRate = frameCap.Value > 0 ? frameCap.Value : -1;
+            Logger.LogInfo(frameCap.Value > 0
+                ? $"Frame rate capped at {frameCap.Value} fps (only applies with the game's V-Sync off)"
+                : "Frame rate left to the game (no cap)");
         }
 
         private void Update()
