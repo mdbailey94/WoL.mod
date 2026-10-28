@@ -39,6 +39,11 @@ In co-op, player 1's panel is on the left and player 2's on the right.
 
 Press **F2** to pin everything (wizard, every arcana, and this run so far) on screen. Press F2 again to unpin.
 
+## Changes in 0.4.6
+
+- No new list every frame when no menu box is showing extra stats (task sheet #26, frame-rate
+  drops).
+
 ## Install
 
 Download `WoLExtendedStats.zip` from the [latest release](https://github.com/mdbailey94/wol.mod/releases/tag/latest)
