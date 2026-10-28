@@ -21,7 +21,7 @@ namespace WoLUnlockModContent
     {
         public const string PluginGuid = "mdbailey94.wol.unlockmodcontent";
         public const string PluginName = "Unlock Mod Content";
-        public const string PluginVersion = "0.2.0";
+        public const string PluginVersion = "0.2.1";
 
         private const float CheckInterval = 2f;
 
@@ -63,6 +63,10 @@ namespace WoLUnlockModContent
 
         private void Sync()
         {
+            // Chaos Depths' fresh save (0.2.1): arcana are bought in the shop there, as on any new
+            // save, so nothing is unlocked or locked; this mod carries on as usual in other saves.
+            if (Environment.GetEnvironmentVariable("CHAOSDEPTHS_FRESH_SAVE") == "1")
+                return;
             GameData data = GameDataManager.gameData;
             if (data == null || data.skillDataDictionary == null || data.itemDataDictionary == null)
                 return;

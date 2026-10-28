@@ -363,3 +363,17 @@ Laid out after WoL Art's mockup (`inventory_mockup_1x.png`):
 - Two players: each opens their own inventory. The keyboard key belongs to the wizard playing on
   the keyboard and a pad's button to the wizard playing on that pad; before, a press went to the
   first wizard free to open it, so player 2 got player 1's inventory unless player 1 was busy.
+
+## 0.13.7: a fresh save (task sheet #31)
+
+- The profile now has two saves, picked on the title screen with **Tab** (keyboard) or **LB**
+  (pad); the tag in the corner says which is on, and the choice is remembered (`[Profile] Save`,
+  `Fresh` or `Debugging`).
+  - **Fresh** (the default from now on): a new game save in `ChaosDepthsFresh` beside the game's
+    save folder, with only the settings file (controls, screen, sound) carried over, and its own
+    characters for player 1 and player 2 in `BepInEx\config\ChaosDepths\Fresh`. Every arcana,
+    mod ones too, is bought in the shop as on any new save (Unlock Mod Content stands down in it).
+  - **Debugging**: the save used up to now, untouched (`ChaosDepths` save folder, characters in
+    `BepInEx\config\ChaosDepths`), for testing.
+- Switching saves on the title screen writes out the characters of the save being left, points
+  the game at the other save's folder and loads it the way the game does when it starts.

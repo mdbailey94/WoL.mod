@@ -11,6 +11,8 @@ and is easy to find and test.
 - 0.2.0 fixes switching off not sticking in 0.1.0. The first time 0.2.0 runs with the mod off, it
   locks every mod-added arcana once (0.1.0 had lost track of which ones it unlocked).
 - Vanilla arcana and relics are never touched.
+- 0.2.1: does nothing while Chaos Depths' **fresh save** is being played (there, arcana are bought
+  in the shop as on any new save); in its Debugging save and outside the profile it works as before.
 
 Needs BepInEx and LegendAPI. Download `WoLUnlockModContent.zip` from the
 [latest release](https://github.com/mdbailey94/wol.mod/releases/tag/latest) and unzip it into your

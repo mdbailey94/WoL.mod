@@ -18,27 +18,49 @@ namespace WoLChaosDepths
     /// "<persistentDataPath>/ChaosDepths/" moves every file the game reads or writes, without
     /// patching any of the save code. The first time the profile loads, the base save is copied
     /// in as its starting point, so nothing has to be unlocked twice.
+    ///
+    /// Two saves (#31), picked on the title screen: "Fresh", a new game save (only the settings
+    /// file is carried over) with its own Chaos Depths characters, where every arcana, mod ones
+    /// too, is bought in the shop as on any new save; and "Debugging", the save the profile used
+    /// up to 0.13.6 (folder ChaosDepths, characters in BepInEx\config\ChaosDepths), kept as it is
+    /// for testing.
     /// </summary>
     public static class ProfileSave
     {
-        private const string Folder = "ChaosDepths";
+        private const string DebugFolder = "ChaosDepths", FreshFolder = "ChaosDepthsFresh";
+        private const string SettingsFile = "GameSettings.gs";
+        // Read by Unlock Mod Content, which leaves a fresh save's mod arcana locked.
+        public const string FreshSaveVariable = "CHAOSDEPTHS_FRESH_SAVE";
         private static readonly string[] Files = { "GameData.gd", "GameDataChaos.gd", "GameSettings.gs", "GameVars.gv" };
 
         private static ConfigEntry<bool> separate;
         private static ConfigEntry<bool> seed;
+        private static ConfigEntry<string> slot;
         private static ManualLogSource log;
+        private static FieldInfo basePath;
         private static string baseRoot;   // the game's own save root, with trailing slash
         private static string profileRoot;
         private static bool seeded;
 
         public static bool Active { get; private set; }
 
+        // The fresh save is in use (only ever in the profile).
+        public static bool Fresh => Active && IsFresh(slot.Value);
+
+        public static string SaveName => Fresh ? "FRESH SAVE" : "DEBUGGING SAVE";
+
+        private static bool IsFresh(string value) => !string.Equals((value ?? "").Trim(), "Debugging", StringComparison.OrdinalIgnoreCase);
+
+        private static string RootFor(bool fresh) => baseRoot + (fresh ? FreshFolder : DebugFolder) + "/";
+
         public static void Bind(ConfigFile config)
         {
             separate = config.Bind("Profile", "SeparateSave", true,
                 "In the profile, keep the game's own save (unlocks, loadout, gold, gems, settings) in its own folder, so a profile session never changes the base game's save. The folder is ChaosDepths beside the game's save folder.");
             seed = config.Bind("Profile", "SeedFromBaseSave", true,
-                "The first time the profile runs, copy the base game's save into the profile's folder as its starting point.");
+                "The first time the profile runs, copy the base game's save into the profile's folder as its starting point (the Debugging save only).");
+            slot = config.Bind("Profile", "Save", "Fresh",
+                "Which save the profile plays: Fresh (a new save, arcana bought in the shop, its own characters) or Debugging (the save used for testing). Switched on the title screen with Tab or LB; remembered here.");
         }
 
         /// <summary>Called from Awake, before the game touches its save. Only acts in the profile.</summary>
@@ -49,7 +71,7 @@ namespace WoLChaosDepths
             try
             {
                 baseRoot = Application.persistentDataPath + "/";
-                profileRoot = baseRoot + Folder + "/";
+                profileRoot = RootFor(IsFresh(slot.Value));
                 var field = AccessTools.Field(typeof(GameDataManager), "basePathStr");
                 if (field == null)
                 {
@@ -64,7 +86,9 @@ namespace WoLChaosDepths
                 }
                 Directory.CreateDirectory(profileRoot);
                 field.SetValue(null, profileRoot);
+                basePath = field;
                 Active = true;
+                MarkFresh();
                 // Copy the base save in once, when the game first loads it (by then the Steam ID
                 // folder name is known).
                 foreach (var name in new[] { "LoadInitial", "Load", "LoadChaosData", "LoadSettings", "LoadGameVars" })
@@ -80,10 +104,83 @@ namespace WoLChaosDepths
             }
         }
 
+        // Tells Unlock Mod Content (through the process's environment) whether the fresh save is on.
+        private static void MarkFresh()
+        {
+            try
+            {
+                Environment.SetEnvironmentVariable(FreshSaveVariable, Fresh ? "1" : null);
+            }
+            catch
+            {
+            }
+        }
+
+        /// <summary>
+        /// On the title screen: switch to the other save. The game reads every save file through
+        /// basePathStr, so pointing it at the other folder and running the game's own first load
+        /// again loads that save, as if the game had started with it.
+        /// </summary>
+        public static bool Switch()
+        {
+            if (!Active || basePath == null)
+                return false;
+            try
+            {
+                bool toFresh = !Fresh;
+                profileRoot = RootFor(toFresh);
+                Directory.CreateDirectory(profileRoot);
+                if (toFresh)
+                    PrepareFresh(GameDataManager.steamIDStr ?? "");
+                basePath.SetValue(null, profileRoot);
+                slot.Value = toFresh ? "Fresh" : "Debugging";
+                MarkFresh();
+                GameDataManager.LoadInitial(true);
+                log.LogInfo($"Profile save: switched to the {SaveName.ToLowerInvariant()} ({profileRoot})");
+                return true;
+            }
+            catch (Exception e)
+            {
+                log.LogError($"Profile save: couldn't switch saves ({e.Message})");
+                return false;
+            }
+        }
+
+        // A new fresh save takes only the settings (controls, screen, sound) from the Debugging
+        // save, or the base game's; everything else starts as on a new game.
+        private static void PrepareFresh(string id)
+        {
+            var dst = RootFor(true) + id;
+            if (File.Exists(dst + SettingsFile))
+                return;
+            foreach (var src in new[] { RootFor(false) + id, baseRoot + id })
+            {
+                if (!File.Exists(src + SettingsFile))
+                    continue;
+                Directory.CreateDirectory(dst);
+                File.Copy(src + SettingsFile, dst + SettingsFile, false);
+                log.LogInfo($"Profile save: the fresh save takes its settings from {src}");
+                return;
+            }
+        }
+
         private static void BeforeLoad()
         {
             if (seeded || !Active) return;
             seeded = true;
+            if (Fresh)
+            {
+                try
+                {
+                    PrepareFresh(GameDataManager.steamIDStr ?? "");
+                    log.LogInfo($"Profile save: playing the fresh save ({profileRoot})");
+                }
+                catch (Exception e)
+                {
+                    log.LogWarning($"Profile save: couldn't carry the settings over ({e.Message})");
+                }
+                return;
+            }
             if (!seed.Value) return;
             try
             {

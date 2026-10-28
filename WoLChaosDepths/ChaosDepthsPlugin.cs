@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.13.6";
+        public const string PluginVersion = "0.13.7";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -201,6 +201,7 @@ namespace WoLChaosDepths
                 panel.Update();
                 return;
             }
+            TitleSaveSwitch();
             Player[] players = GameController.activePlayers;
             if (players == null)
                 return;
@@ -602,19 +603,92 @@ namespace WoLChaosDepths
 
         // A small "CHAOS DEPTHS" tag in the top-left corner outside the trials, so you can tell
         // the profile from the base game at a glance.
+        // The tag in the corner: the profile and which save it is playing; on the title screen,
+        // how to switch saves (#31).
         private static void ProfileTag()
         {
             try
             {
                 int u = Mathf.Max(2, Mathf.FloorToInt(Screen.height / 240f));
                 GUIStyle style = PixelUI.Style(Mathf.Max(10, 3 * u), PixelUI.Accent, TextAnchor.UpperLeft);
-                var rect = new Rect(3 * u, 2 * u, 60 * u, 5 * u);
-                PixelUI.Fill(new Rect(rect.x - u, rect.y, 36 * u, 5 * u), new Color(0f, 0f, 0f, 0.4f));
-                GUI.Label(rect, "CHAOS DEPTHS", style);
+                bool saves = ProfileSave.Active;
+                var rect = new Rect(3 * u, 2 * u, 90 * u, 5 * u);
+                PixelUI.Fill(new Rect(rect.x - u, rect.y, (saves ? 70 : 36) * u, (onTitle && saves ? 10 : 5) * u), new Color(0f, 0f, 0f, 0.4f));
+                GUI.Label(rect, saves ? "CHAOS DEPTHS  " + ProfileSave.SaveName : "CHAOS DEPTHS", style);
+                if (onTitle && saves)
+                    GUI.Label(new Rect(rect.x, rect.y + 5 * u, rect.width, rect.height), "TAB / LB: SWITCH SAVE",
+                        PixelUI.Style(Mathf.Max(10, 3 * u), PixelUI.Dim, TextAnchor.UpperLeft));
             }
             catch
             {
             }
+        }
+
+        // ---- Picking the save on the title screen (#31) ----
+
+        private static bool onTitle;
+        private float nextTitleCheck;
+
+        private void TitleSaveSwitch()
+        {
+            if (!ProfileSave.Active)
+            {
+                onTitle = false;
+                return;
+            }
+            if (Time.unscaledTime >= nextTitleCheck)
+            {
+                nextTitleCheck = Time.unscaledTime + 1f;
+                onTitle = OnTitleMenu();
+            }
+            if (!onTitle || !(Input.GetKeyDown(KeyCode.Tab) || PadShoulderPressed()))
+                return;
+            if (!OnTitleMenu())
+            {
+                onTitle = false;
+                return;
+            }
+            // The characters of the save being left are written out and forgotten, so the other
+            // save's are read fresh when a run starts.
+            SaveAll();
+            characters.Clear();
+            ProfileSave.Switch();
+        }
+
+        // On the title screen's menu, with no wizard about (not in its Options screen).
+        private static bool OnTitleMenu()
+        {
+            try
+            {
+                Player[] players = GameController.activePlayers;
+                if (players != null)
+                    foreach (Player p in players)
+                        if (p != null)
+                            return false;
+                TitleScreen title = UnityEngine.Object.FindObjectOfType<TitleScreen>();
+                return title != null && title.gameObject.activeInHierarchy && title.currentState != TitleScreen.TitleScreenState.Options;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        // LB on any pad (XInput button 4).
+        private static bool PadShoulderPressed()
+        {
+            try
+            {
+                if (!ReInput.isReady)
+                    return false;
+                foreach (Joystick joystick in ReInput.controllers.Joysticks)
+                    if (joystick != null && joystick.buttonCount > 4 && joystick.GetButtonDown(4))
+                        return true;
+            }
+            catch
+            {
+            }
+            return false;
         }
 
         private static bool InTrials()
