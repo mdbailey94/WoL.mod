@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.15.10";
+        public const string PluginVersion = "0.15.11";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -170,6 +170,14 @@ namespace WoLChaosDepths
             catch (Exception e)
             {
                 Logger.LogError($"Pickup press hook failed to install: {e.Message}");
+            }
+            try
+            {
+                ShopOdds.Install(Config, harmony);
+            }
+            catch (Exception e)
+            {
+                Logger.LogError($"Shop odds failed to install: {e.Message}");
             }
 
             LootTable.Load();

@@ -544,3 +544,13 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
 - Each level takes three times the experience of the original curve (was twice since 0.15.2),
   so levels come about a third as often: `[Progression] LevelXpScale` (3), a new name so it
   replaces `XpToLevelScale` = 2 in existing config files.
+
+## 0.15.11: mod arcana in the plaza shop more often, for test runs (asked for by Matt)
+
+- Each arcana card in the plaza shop (paid in gems) is a mod arcana you haven't unlocked yet
+  half the time, while any are left (`[Testing] ShopModArcanaChance`, 0.5; 0 = the game's own
+  odds). The vanilla arcana it replaces goes back for a later card. Only outside the trials;
+  arcana a mod hides or switches off (Mod Menu's Rolling Gale) are never offered. The log says
+  "Shop: offering mod arcana ..." for each one.
+- In the Debugging save, Unlock Mod Content has already unlocked every mod arcana, so there is
+  nothing left to offer; this is for the save slots.
