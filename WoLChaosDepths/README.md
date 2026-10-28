@@ -388,3 +388,9 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
 - 30% of Legendaries are uniques (`[Uniques] FreshUniqueChance`; was 50%).
 - The first realm boss each character beats drops a guaranteed Legendary.
 - Elites, floor bosses, realm bosses and rifts drop as before; each drop is the killer's own.
+
+## 0.13.9 (task sheet #33)
+
+- `[Debug] PortalLog` (on): each Interact press outside the trials logs every portal or exit pad
+  within 5 units and what the game checks before it loads (whether it has caught the wizard,
+  the distance, whether the wizard is free), to find why the Hub's trials portal ignored it.
