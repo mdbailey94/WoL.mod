@@ -293,3 +293,13 @@ Laid out after WoL Art's mockup (`inventory_mockup_1x.png`):
   several times too big; VS EQUIPPED showed a better cooldown in red (lower is now better for
   cooldowns as for damage taken); holding Y (or F) with left / right now picks the depth in the
   Hub, since a tap of Y changes the sort only on release.
+
+## 0.12.3
+
+- Hub depth picker: press Up from the top of the list to put the cursor on the depth line, then
+  left / right; Down goes back to the list (Q / E still work anywhere in the Hub). The held
+  Y + left / right of 0.12.0–0.12.2 is gone; Y (or F, or Tab) just changes the sort.
+- VS EQUIPPED leaves out differences that round to 0%.
+- Pendant: facing left it sits on the chest (the outline is now mirrored to match the picture
+  as drawn), and its height follows each frame's own picture, so a lower run frame no longer
+  leaves it on the hood. The ring on the hand uses the same mirror check.

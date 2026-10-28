@@ -25,7 +25,10 @@ namespace WoLChaosDepths
         private readonly List<ItemData> view = new List<ItemData>();
         private int rows = 4;   // rows that fit, set while drawing
         private float nextTabRepeat;
-        private bool interactWasHeld, interactUsedForDepth;
+        // In the Hub, Up from the top of the list moves the cursor onto the depth line, where
+        // left / right pick the depth; Down goes back to the list. (A held Y + left / right
+        // never reached the depth in testing, so the depth line got its own place instead.)
+        private bool depthFocus;
         private static readonly Color Gain = new Color32(0x6f, 0xe0, 0x7a, 0xff), Loss = new Color32(0xff, 0x6a, 0x6a, 0xff), EquippedMark = new Color32(0x6f, 0xe0, 0x7a, 0xff);
 
         public bool Open { get; private set; }
@@ -146,21 +149,18 @@ namespace WoLChaosDepths
                 }
             }
             bool depthKeys = Input.GetKey(KeyCode.Q) || Input.GetKey(KeyCode.E);
-            bool interactHeld = Held(pad, "Interact") || Input.GetKey(KeyCode.F);
-            bool depthModifier = interactHeld || depthKeys;
             bool inHub = Depth.Enabled && !ChaosDepthsPlugin.InTrialsNow();
-            if (depthKeys)
-                horizontal = Input.GetKey(KeyCode.E) ? 1f : -1f;
-            if (Mathf.Abs(horizontal) > 0.5f && inHub && depthModifier)
+            if (!inHub)
+                depthFocus = false;
+            float depthMove = depthKeys ? (Input.GetKey(KeyCode.E) ? 1f : -1f) : depthFocus ? horizontal : 0f;
+            if (Mathf.Abs(depthMove) > 0.5f && inHub)
             {
-                if (interactHeld)
-                    interactUsedForDepth = true;
                 if (Time.unscaledTime >= nextDepthRepeat)
                 {
                     bool first = nextDepthRepeat == 0f;
                     nextDepthRepeat = Time.unscaledTime + (first ? RepeatFirst : RepeatNext);
                     int before = save.depthChosen;
-                    save.depthChosen = Mathf.Clamp(save.depthChosen + (horizontal > 0f ? 1 : -1), 1, Mathf.Max(1, save.depthReached));
+                    save.depthChosen = Mathf.Clamp(save.depthChosen + (depthMove > 0f ? 1 : -1), 1, Mathf.Max(1, save.depthReached));
                     if (save.depthChosen != before)
                     {
                         ChaosDepthsPlugin.Log($"Next dive starts at depth {save.depthChosen} (waypoint {save.depthReached})");
@@ -170,7 +170,7 @@ namespace WoLChaosDepths
             }
             else
                 nextDepthRepeat = 0f;
-            if (Mathf.Abs(horizontal) > 0.5f && !depthModifier)
+            if (Mathf.Abs(horizontal) > 0.5f && !depthFocus && !depthKeys)
             {
                 if (Time.unscaledTime >= nextTabRepeat)
                 {
@@ -185,19 +185,8 @@ namespace WoLChaosDepths
             else
                 nextTabRepeat = 0f;
 
-            // Interact (Y / F) tapped and released without left / right, or Tab: the next sort
-            // order. (On press it fired before a held Y + right could pick the depth.)
-            bool sortNow = Input.GetKeyDown(KeyCode.Tab);
-            if (interactHeld)
-                interactWasHeld = true;
-            else if (interactWasHeld)
-            {
-                if (!interactUsedForDepth)
-                    sortNow = true;
-                interactWasHeld = false;
-                interactUsedForDepth = false;
-            }
-            if (sortNow)
+            // Interact (Y / F) or Tab: the next sort order.
+            if (Pressed(pad, "Interact") || Input.GetKeyDown(KeyCode.Tab))
             {
                 sortMode = (sortMode + 1) % SortNames.Length;
                 selected = 0;
@@ -228,6 +217,18 @@ namespace WoLChaosDepths
                 {
                     bool first = nextRepeat == 0f;
                     nextRepeat = Time.unscaledTime + (first ? RepeatFirst : RepeatNext);
+                    bool inHubNow = Depth.Enabled && !ChaosDepthsPlugin.InTrialsNow();
+                    if (depthFocus)
+                    {
+                        if (vertical < 0f)
+                            depthFocus = false;   // Down: back to the list
+                        return;
+                    }
+                    if (vertical > 0f && selected == 0 && inHubNow)
+                    {
+                        depthFocus = true;        // Up from the top: onto the depth line
+                        return;
+                    }
                     selected = (selected + (vertical < 0f ? 1 : count - 1)) % count;
                     if (selected < scroll)
                         scroll = selected;
@@ -240,7 +241,11 @@ namespace WoLChaosDepths
 
             // Confirm: tap equips, hold salvages.
             bool confirmDown = Held(pad, "Confirm") || Input.GetKey(KeyCode.Return) || Input.GetKey(KeyCode.Space);
-            if (confirmDown)
+            if (confirmDown && depthFocus)
+            {
+                confirmConsumed = true;   // Confirm on the depth line does nothing
+            }
+            else if (confirmDown)
             {
                 if (confirmHeldSince < 0f)
                     confirmHeldSince = Time.unscaledTime;
@@ -427,8 +432,15 @@ namespace WoLChaosDepths
                 {
                     string depthText = !inHubNow
                         ? $"Depth {Depth.Current}   Waypoint {save.depthReached}"
-                        : $"Next dive: depth < {save.depthChosen} >   Waypoint {save.depthReached}   (Y + left / right, or Q / E)";
-                    Label(new Rect(x, y, w, lineH), depthText, dim);
+                        : depthFocus
+                            ? $"Next dive: depth < {save.depthChosen} >   Waypoint {save.depthReached}   (left / right; down to the list)"
+                            : $"Next dive: depth {save.depthChosen}   Waypoint {save.depthReached}   (up from the list, or Q / E)";
+                    if (depthFocus)
+                    {
+                        PixelUI.Fill(new Rect(x - u, y, w - 8 * u, lineH), new Color(1f, 1f, 1f, 0.12f));
+                        PixelUI.Fill(new Rect(x - u, y, u, lineH), PixelUI.Border);
+                    }
+                    Label(new Rect(x, y, w, lineH), depthText, depthFocus ? text : dim);
                     y += lineH;
                 }
                 int need = ChaosDepthsPlugin.XpToNext(save.level);
@@ -591,7 +603,7 @@ namespace WoLChaosDepths
                     }
                 }
                 Label(new Rect(x, panel.yMax - 8 * u, barW, lineH),
-                    inHubNow ? "(A) EQUIP   (HOLD A) SALVAGE   (B) BACK   < > TAB   (Y) SORT   (HOLD Y + < >, Q / E) DEPTH" : "(A) EQUIP   (HOLD A) SALVAGE   (B) BACK   < > TAB   (Y / Tab) SORT", dim);
+                    inHubNow ? "(A) EQUIP   (HOLD A) SALVAGE   (B) BACK   < > TAB   (Y) SORT   UP: DEPTH" : "(A) EQUIP   (HOLD A) SALVAGE   (B) BACK   < > TAB   (Y / Tab) SORT", dim);
             }
             catch (Exception e)
             {
@@ -658,10 +670,11 @@ namespace WoLChaosDepths
                 foreach (AffixData a in chosen.affixes) if (a.key == key) mine += a.value;
                 foreach (AffixData a in worn.affixes) if (a.key == key) theirs += a.value;
                 float diff = mine - theirs;
-                if (Mathf.Abs(diff) < 0.0001f)
-                    continue;
                 LootTable.AffixDef def = LootTable.Affix(key);
                 bool percent = def == null || def.percent;
+                // Nothing to show for a difference that rounds to nothing.
+                if (percent ? Mathf.RoundToInt(diff * 100f) == 0 : Mathf.Abs(diff) < 0.005f)
+                    continue;
                 string value = percent ? Mathf.RoundToInt(diff * 100f) + "%" : diff.ToString("0.##");
                 if (diff > 0f) value = "+" + value;
                 // Lower is better for an affix that rolls negative (cooldowns, damage taken).

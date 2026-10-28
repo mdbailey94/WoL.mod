@@ -487,7 +487,7 @@ namespace WoLChaosDepths
                     // which left it at the back of the neck when it kept its standing spot).
                     Vector2 chestWorld;
                     if (ChestOnFrame(body, bb, down || up, side, out chestWorld))
-                        pendant.transform.position = new Vector3(chestWorld.x, pendant.transform.position.y, pivot.z);
+                        pendant.transform.position = new Vector3(chestWorld.x, chestWorld.y, pivot.z);
                     Sort(pendant, body, up ? back : front);
                     pendant.enabled = !up || HasPendantView(amuletTier, "up");
                     pendant.flipX = view == "side" && side < 0f && HasPendantView(amuletTier, "side");
@@ -592,25 +592,31 @@ namespace WoLChaosDepths
                         return false;
                     float h = Mathf.Max(0.6f, bb.size.y);
                     float lo = bb.min.y + h * 0.62f, hi = bb.min.y + h * 0.78f;
+                    // Whether the outline needs mirroring to match the picture as drawn: the game
+                    // may face left by flipX or by a negative scale, so both readings are tried and
+                    // the one whose overall width lines up with the renderer's bounds is used (the
+                    // 0.12.1 pendant sat at the back of the neck facing left).
+                    bool mirror = MirrorFits(verts, body, bb);
                     float minX = float.PositiveInfinity, maxX = float.NegativeInfinity;
-                    float yAt = 0f;
                     int n = 0;
                     foreach (Vector2 v in verts)
                     {
-                        Vector2 local = body.flipX ? new Vector2(-v.x, v.y) : v;
+                        Vector2 local = mirror ? new Vector2(-v.x, v.y) : v;
                         Vector2 w = body.transform.TransformPoint(local);
                         if (w.y < lo || w.y > hi)
                             continue;
                         minX = Mathf.Min(minX, w.x);
                         maxX = Mathf.Max(maxX, w.x);
-                        yAt += w.y;
                         n++;
                     }
                     if (n < 2 || maxX - minX < 2f / ppu)
                         return false;
                     float x = centred ? (minX + maxX) * 0.5f : (side > 0f ? maxX : minX) - side * 1.5f / ppu;
+                    // Height from this frame's own picture (70% up it), so a lower run frame
+                    // carries the pendant down with it instead of leaving it on the hood.
+                    float y = bb.min.y + h * 0.70f;
                     Vector2 pivot = body.transform.position;
-                    var offset = new Vector2(Mathf.Round((x - pivot.x) * ppu) / ppu, Mathf.Round((yAt / n - pivot.y) * ppu) / ppu);
+                    var offset = new Vector2(Mathf.Round((x - pivot.x) * ppu) / ppu, Mathf.Round((y - pivot.y) * ppu) / ppu);
                     float key = centred ? 0f : side;
                     if (key == lastChestSide && Mathf.Abs(offset.x - lastChest.x) > 0.5f && chestRefused < 6)
                     {
@@ -630,6 +636,23 @@ namespace WoLChaosDepths
                 }
             }
 
+            // True when the sprite's outline, mirrored, lines up with the renderer's bounds better
+            // than as stored (see ChestOnFrame).
+            private static bool MirrorFits(Vector2[] verts, SpriteRenderer body, Bounds bb)
+            {
+                float aMin = float.PositiveInfinity, aMax = float.NegativeInfinity, bMin = float.PositiveInfinity, bMax = float.NegativeInfinity;
+                foreach (Vector2 v in verts)
+                {
+                    float a = body.transform.TransformPoint(v).x;
+                    float b = body.transform.TransformPoint(new Vector2(-v.x, v.y)).x;
+                    aMin = Mathf.Min(aMin, a); aMax = Mathf.Max(aMax, a);
+                    bMin = Mathf.Min(bMin, b); bMax = Mathf.Max(bMax, b);
+                }
+                float errA = Mathf.Abs(aMin - bb.min.x) + Mathf.Abs(aMax - bb.max.x);
+                float errB = Mathf.Abs(bMin - bb.min.x) + Mathf.Abs(bMax - bb.max.x);
+                return errB + 0.01f < errA;
+            }
+
             private bool HandOnFrame(SpriteRenderer body, Bounds bb, float side, out Vector2 world)
             {
                 world = Vector2.zero;
@@ -643,12 +666,13 @@ namespace WoLChaosDepths
                         return false;
                     float h = Mathf.Max(0.6f, bb.size.y);
                     float lo = bb.min.y + h * 0.33f, hi = bb.min.y + h * 0.52f;
+                    bool mirror = MirrorFits(verts, body, bb);
                     bool found = false;
                     float best = float.NegativeInfinity;
                     Vector2 pick = Vector2.zero;
                     foreach (Vector2 v in verts)
                     {
-                        Vector2 local = body.flipX ? new Vector2(-v.x, v.y) : v;
+                        Vector2 local = mirror ? new Vector2(-v.x, v.y) : v;
                         Vector2 w = body.transform.TransformPoint(local);
                         if (w.y < lo || w.y > hi)
                             continue;
