@@ -699,7 +699,10 @@ namespace WoLGaleRider
         // Every frame of the ride: size from the ball's hit radius, spin and glow from the level.
         public void Update(float radius, int level, float lookScale)
         {
-            Width = 2f * radius * Fill * lookScale;
+            // The ball's picture always matches its hit (0.3.7: [Look] VortexSize no longer
+            // scales it, only the swirl round it; at 0.3 it had shrunk the picture to a third of
+            // the hit while the hit stayed full size).
+            Width = 2f * radius * Fill;
             FxSprite b = back.Get, f = front.Get, g = glow.Get, fl = floor.Get;
             float fps = BaseFps + PerLevelFps * level;
             int best = 0;

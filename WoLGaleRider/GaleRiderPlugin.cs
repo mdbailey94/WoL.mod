@@ -13,7 +13,7 @@ namespace WoLGaleRider
     {
         public const string PluginGuid = "mdbailey94.wol.galerider";
         public const string PluginName = "Gale Rider";
-        public const string PluginVersion = "0.3.6";
+        public const string PluginVersion = "0.3.7";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -107,6 +107,16 @@ namespace WoLGaleRider
                 unlockCondition = () => modEnabled.Value
             });
 
+            // 0.3.5 shrank the ball's default radii, but a config file written by an older
+            // version keeps its stored values, so the old defaults are moved to the new ones
+            // once; values the player changed themselves are left alone.
+            if (Mathf.Approximately(minSize.Value, 1.2f) && Mathf.Approximately(maxSize.Value, 2.4f) && Mathf.Approximately(enhancedMaxSize.Value, 3f))
+            {
+                minSize.Value = 0.8f;
+                maxSize.Value = 1.6f;
+                enhancedMaxSize.Value = 2f;
+                Logger.LogInfo("Gale Rider: [Ball] sizes were the pre-0.3.5 defaults (1.2 / 2.4 / 3); set to the new defaults 0.8 / 1.6 / 2");
+            }
             Logger.LogInfo($"{PluginName} {PluginVersion} registered");
         }
 
@@ -131,7 +141,7 @@ namespace WoLGaleRider
                 "(100) is the smallest and weakest; it grows evenly between. Riding alone is 100 + RideSpeedPercent; " +
                 "speed relics, the cloak and speed-boost arcana take you further.");
 
-            vortexSize = Float("Look", "VortexSize", 1f, 0.3f, 3f, "Size of the swirling wind drawn round you, relative to the ball.");
+            vortexSize = Float("Look", "VortexSize", 1f, 0.3f, 3f, "Size of the swirling wind (the game's air vortex) drawn round you, relative to the ball. The ball's own picture always matches its hit area.");
             ballArt = Config.Bind("Look", "Ball", "Drawn",
                 new ConfigDescription("The ball's picture: Drawn = the hand-drawn wind ball made for the mod (8 frames, near and far strokes round the wizard); Game = the game's own WindBall sprite when its sheet is loaded; Coded = the ball drawn in code.",
                     new AcceptableValueList<string>("Drawn", "Game", "Coded")));

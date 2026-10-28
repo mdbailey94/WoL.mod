@@ -28,6 +28,14 @@ A ride like Aero Ring's, with Tearing Whirlwind's rolling hit:
   the game's slide, like Tearing Whirlwind. Cooldown 7 seconds (from the cast).
 - **Enhanced**: 4.5 seconds on the ball, and the biggest ball is radius 3.
 
+## 0.3.7
+
+- The ball's picture always matches its hit area: `[Look] VortexSize` scales only the swirl
+  round it (at 0.3 it had shrunk the picture to a third of the hit).
+- `[Ball]` sizes still at the pre-0.3.5 defaults in an older config file are moved to the new
+  defaults once (a config file keeps its stored values, so 0.3.5's smaller ball never applied
+  on an existing install); sizes you set yourself are left alone.
+
 ## 0.3.6
 
 - The ball is the **hand-drawn wind ball** made for the mod (`Assets/galerider_ball*.png`,
