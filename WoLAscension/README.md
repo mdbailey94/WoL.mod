@@ -3,22 +3,29 @@
 Ascension levels 1–10 for harder runs. Pick your level as you enter the Chaos Trials; each level adds a modifier on
 top of the ones before it.
 
-| Level | Adds |
-|-------|------|
-| 1 | Enemies +15% health |
-| 2 | Enemies deal +15% damage |
-| 3 | Your healing −25% |
-| 4 | Enemies move 10% faster |
-| 5 | Gold drops −20% |
-| 6 | Bosses +25% health |
-| 7 | Your max health −15% |
-| 8 | Enemies +30% health (replaces level 1) |
-| 9 | Enemies deal +30% damage (replaces level 2) |
-| 10 | Healing −50% and enemies 20% faster (replace levels 3 and 4) |
+The table since 0.7.0 (WoL Player's, approved by Matt; task sheet #27/#28). "Damage" is the
+damage you take. The elite columns and the loot rewards are applied by Chaos Depths, which reads
+this table; without Chaos Depths only the health, damage, speed and healing parts apply.
 
-**The reward:** every level also gives **+4% chaos gems** during the run (+40% at level 10). Gems
-come in small amounts, so the bonus builds up fractions between pickups instead of rounding them
-away.
+| Level | Elites | Enemy health | Damage | New at this level |
+|-------|--------|--------------|--------|-------------------|
+| 1 | 12% | +20% | +10% | (entry level) |
+| 2 | 15% | +30% | +20% | your healing −25% |
+| 3 | 18% | +40% | +30% | enemies move 10% faster |
+| 4 | 22% | +55% | +40% | 1 in 4 elites has two affixes |
+| 5 | 25% | +70% | +50% | bosses +30% health and an elite affix; elites drop Rare or better |
+| 6 | 28% | +85% | +60% | your max health −15% |
+| 7 | 31% | +100% | +75% | enemies 20% faster (replaces 3); rifts 40% of floors |
+| 8 | 34% | +120% | +90% | healing −50% (replaces 2); half of elites have two affixes |
+| 9 | 37% | +140% | +105% | elites come in pairs; bosses +60% (replaces 5's +30%) |
+| 10 | 40% | +160% | +120% | every elite and realm boss has two affixes; the realm boss drops a Legendary |
+
+**The rewards**, per level: +5% chaos gems and +5% experience, Magic-and-better rarity weight
++15%, item level +2. Gold drops are no longer cut (0.6.x had −20% from level 5).
+
+Not in yet: the enemies' attack speed (only their movement is faster at 3 and 7) and level 10's
+Chaos Surge look (waiting on art, #29). Bosses with an affix roll Swift or Armored (a Giant boss
+would be scaled up inside its arena).
 
 ## Choosing a level: the Ascension altar
 
@@ -49,6 +56,10 @@ or lists the level loaders it saw. If the altar is in an awkward spot, move it w
 `BepInEx/config/mdbailey94.wol.ascension.cfg` (game units from the portal; default 3.5 to the left,
 level with it). If a run starts some way that skips the portal, the altar's level is applied as soon as
 the first enemies appear.
+
+## Changes in 0.7.0
+
+- The approved 1–10 table above in place of the old one (task sheet #27/#28).
 
 ## Changes in 0.6.1
 

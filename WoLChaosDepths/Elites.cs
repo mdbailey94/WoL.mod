@@ -42,13 +42,16 @@ namespace WoLChaosDepths
         private static ConfigEntry<int> dropMinRarity;
         private static ConfigEntry<float> rarityBoostPerAscension;
 
-        // Enemies already rolled this scene, and the ones that became elites.
+        // Enemies already rolled this scene, and the ones that became elites (with their affixes
+        // and the tint those give).
         private static readonly HashSet<int> rolled = new HashSet<int>();
-        private static readonly Dictionary<int, Affix> elites = new Dictionary<int, Affix>();
+        private static readonly Dictionary<int, Affix[]> elites = new Dictionary<int, Affix[]>();
+        private static readonly Dictionary<int, Color> tints = new Dictionary<int, Color>();
         private static readonly Dictionary<int, Entity> eliteEntities = new Dictionary<int, Entity>();
 
         public static float XpMultiplier => xpMultiplier.Value;
-        public static int DropMinRarity => dropMinRarity.Value;
+        // Ascension 5 and up (#27): elites drop Rare or better.
+        public static int DropMinRarity => AscensionLink.ElitesDropRare ? Mathf.Max(dropMinRarity.Value, 2) : dropMinRarity.Value;
 
         public static void Bind(ConfigFile config)
         {
@@ -68,6 +71,16 @@ namespace WoLChaosDepths
             giantHealth = config.Bind("Elites", "GiantHealth", 1.5f, "Giant elites have this much more health again.");
             rarityBoostPerAscension = config.Bind("Loot", "RarityBoostPerAscension", 0.15f,
                 "Per Ascension level, Magic and better rarities become this much more likely (0.15 = +15% weight each level).");
+            // Ascension 5 and up: bosses get an elite affix as they appear (#27).
+            try
+            {
+                MiniBoss.globalMiniBossSpawnEventHandlers += mini => OnBossSpawn(mini, false);
+                Boss.globalBossSpawnEventHandlers += boss => OnBossSpawn(boss, true);
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"elite boss spawn hook: {e.Message}");
+            }
         }
 
         private static bool announced;
@@ -77,40 +90,52 @@ namespace WoLChaosDepths
             announced = false;
             rolled.Clear();
             elites.Clear();
+            tints.Clear();
             eliteEntities.Clear();
+            bossesDone.Clear();
         }
 
+        // Ordinary elites only (a boss with an affix isn't one: it drops and scores as a boss).
         public static bool IsElite(Entity entity) => entity != null && elites.ContainsKey(entity.GetInstanceID());
 
+        // "Swift", or "Swift + Armored" for two.
         public static string AffixOf(Entity entity)
         {
-            Affix affix;
-            return entity != null && elites.TryGetValue(entity.GetInstanceID(), out affix) ? affix.name : null;
+            Affix[] affixes;
+            if (entity == null || !elites.TryGetValue(entity.GetInstanceID(), out affixes))
+                return null;
+            var names = new string[affixes.Length];
+            for (int i = 0; i < affixes.Length; i++)
+                names[i] = affixes[i].name;
+            return string.Join(" + ", names);
         }
 
-        // The Ascension mod's level, or 0 without it.
-        public static int AscensionLevel()
-        {
-            try
-            {
-                PluginInfo info;
-                if (!Chainloader.PluginInfos.TryGetValue("mdbailey94.wol.ascension", out info) || info.Instance == null)
-                    return 0;
-                var field = info.Instance.GetType().GetField("level",
-                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Static |
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
-                var entry = field != null ? field.GetValue(field.IsStatic ? null : info.Instance) as ConfigEntry<int> : null;
-                return entry != null ? Mathf.Max(0, entry.Value) : 0;
-            }
-            catch
-            {
-                return 0;
-            }
-        }
+        // The Ascension mod's level (the run's while one is on), or 0 without it.
+        public static int AscensionLevel() => AscensionLink.Level;
 
         public static float RarityBoost() => rarityBoostPerAscension.Value * AscensionLevel();
 
-        public static float Chance() => Mathf.Clamp01(chance.Value + chancePerAscension.Value * AscensionLevel() + Layers.EliteChanceBonus);
+        // Ascension's table sets the elite chance from level 1 (12% up to 40%); at level 0, or
+        // with an Ascension older than its table, Chance plus ChancePerAscension a level.
+        public static float Chance()
+        {
+            float table = AscensionLink.EliteChance;
+            float baseChance = table > 0f ? table : chance.Value + chancePerAscension.Value * AscensionLevel();
+            return Mathf.Clamp01(baseChance + Layers.EliteChanceBonus);
+        }
+
+        // One affix, or (Ascension 4 and up, 1 in 4 at 4, half at 8, all at 10) two different ones.
+        private static Affix[] RollAffixes()
+        {
+            Affix first = Affixes[UnityEngine.Random.Range(0, Affixes.Length)];
+            if (UnityEngine.Random.value >= AscensionLink.TwoAffixChance)
+                return new[] { first };
+            Affix second;
+            do
+                second = Affixes[UnityEngine.Random.Range(0, Affixes.Length)];
+            while (second == first);
+            return new[] { first, second };
+        }
 
         // Twice a second from the plugin, in the trials: roll new enemies, keep elite tints on.
         public static void Tick()
@@ -137,12 +162,75 @@ namespace WoLChaosDepths
                 if (entity is Boss || entity is MiniBoss || entity is Player || Stationary(entity))
                     continue;
                 if (UnityEngine.Random.value < odds)
-                    MakeElite(entity, Affixes[UnityEngine.Random.Range(0, Affixes.Length)]);
+                {
+                    Affix[] affixes = RollAffixes();
+                    MakeElite(entity, affixes);
+                    if (AscensionLink.ElitesInPairs)
+                        SpawnPartner(entity, affixes);
+                }
             }
             // Hit flashes reset the colour: put the tint back.
             foreach (KeyValuePair<int, Entity> pair in eliteEntities)
                 if (pair.Value != null && pair.Value.spriteRenderer != null && pair.Value.health != null && pair.Value.health.CurrentHealthValue > 0)
-                    pair.Value.spriteRenderer.color = elites[pair.Key].tint;
+                    pair.Value.spriteRenderer.color = tints[pair.Key];
+        }
+
+        // Ascension 9 and up: an elite comes with a partner, another of the same enemy with the
+        // same affixes, summoned beside it the way the game brings enemies in.
+        private static void SpawnPartner(Entity entity, Affix[] affixes)
+        {
+            try
+            {
+                string name = entity.gameObject.name.Replace("(Clone)", "").Trim();
+                if (Enemy.enemyPrefabPaths == null || !Enemy.enemyPrefabPaths.ContainsKey(name))
+                {
+                    ChaosDepthsPlugin.Log($"Elite pair: no prefab named '{name}' to summon a partner from");
+                    return;
+                }
+                Vector3 at = entity.transform.position + (Vector3)(UnityEngine.Random.insideUnitCircle.normalized * 1.5f);
+                Enemy partner = Enemy.Spawn(name, at, entity.transform.parent, true, true);
+                if (partner == null)
+                    return;
+                rolled.Add(partner.GetInstanceID());   // never rolled again (and never pairs itself)
+                MakeElite(partner, affixes);
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"elite pair: {e.Message}");
+            }
+        }
+
+        // ---- Bosses with affixes (Ascension 5 and up; realm bosses two at 10) ----
+
+        private static readonly HashSet<int> bossesDone = new HashSet<int>();
+        // A Giant boss would be scaled up inside its arena, so bosses roll Swift or Armored only.
+        private static readonly Affix[] BossAffixPool = { Affixes[0], Affixes[1] };
+
+        private static void OnBossSpawn(Entity boss, bool realm)
+        {
+            try
+            {
+                if (!enabled.Value || boss == null || boss.health == null || !ChaosDepthsPlugin.InTrialsNow())
+                    return;
+                int count = Mathf.Min(AscensionLink.BossAffixes(realm), BossAffixPool.Length);
+                if (count <= 0 || !bossesDone.Add(boss.GetInstanceID()))
+                    return;
+                var picked = new List<Affix>(BossAffixPool);
+                while (picked.Count > count)
+                    picked.RemoveAt(UnityEngine.Random.Range(0, picked.Count));
+                var names = new List<string>();
+                for (int i = 0; i < picked.Count; i++)
+                {
+                    ApplyEffect(boss, picked[i]);
+                    EliteMarkers.Attach(boss, picked[i].name, i, picked.Count);
+                    names.Add(picked[i].name);
+                }
+                ChaosDepthsPlugin.Log($"Ascension {AscensionLevel()}: {(realm ? "realm" : "floor")} boss {boss.GetType().Name} is {string.Join(" + ", names.ToArray())}");
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"boss affix: {e.Message}");
+            }
         }
 
         // Spawners and turrets (Coffin, EnemyTurret...) don't move or fight like a creature, so
@@ -224,31 +312,46 @@ namespace WoLChaosDepths
                 ChaosDepthsPlugin.Log($"Debug: spawned a Swift, an Armored and a Giant {enemyName} beside the wizard");
         }
 
-        public static void MakeElite(Entity entity, Affix affix)
+        // An elite with one affix or two: the elite's extra health (more again for a Giant), each
+        // affix's effect, a tint between their colours and a marker for each over its head.
+        public static void MakeElite(Entity entity, params Affix[] affixes)
         {
             try
             {
-                float health = healthMultiplier.Value * (affix.name == "Giant" ? giantHealth.Value : 1f);
+                bool giant = Array.Exists(affixes, a => a.name == "Giant");
+                float health = healthMultiplier.Value * (giant ? giantHealth.Value : 1f);
                 entity.health.healthStat?.AddMod(new NumVarStatMod(Prefix + "Health", health - 1f, 10, VarStatModType.Multiplicative, true));
-                if (affix.name == "Swift")
-                    entity.movement?.moveSpeedStat?.AddMod(new NumVarStatMod(Prefix + "Speed", swiftSpeed.Value, 10, VarStatModType.Multiplicative, false));
-                if (affix.name == "Armored")
-                    entity.health.damageTakenStat?.AddMod(new NumVarStatMod(Prefix + "Armor", -armoredReduction.Value, 10, VarStatModType.Additive, false));
-                if (affix.name == "Giant")
-                    entity.transform.localScale = entity.transform.localScale * giantScale.Value;
+                Color tint = Color.black;
+                for (int i = 0; i < affixes.Length; i++)
+                {
+                    ApplyEffect(entity, affixes[i]);
+                    EliteMarkers.Attach(entity, affixes[i].name, i, affixes.Length);
+                    tint += affixes[i].tint / affixes.Length;
+                }
+                tint.a = 1f;
                 if (entity.spriteRenderer != null)
-                    entity.spriteRenderer.color = affix.tint;
-                EliteMarkers.Attach(entity, affix.name);
+                    entity.spriteRenderer.color = tint;
                 int id = entity.GetInstanceID();
                 rolled.Add(id);
-                elites[id] = affix;
+                elites[id] = affixes;
+                tints[id] = tint;
                 eliteEntities[id] = entity;
-                ChaosDepthsPlugin.Log($"Elite: {affix.name} {entity.GetType().Name} (health {entity.health.CurrentHealthValue})");
+                ChaosDepthsPlugin.Log($"Elite: {AffixOf(entity)} {entity.GetType().Name} (health {entity.health.CurrentHealthValue})");
             }
             catch (Exception e)
             {
-                ChaosDepthsPlugin.LogError($"elite {affix.name}: {e.Message}");
+                ChaosDepthsPlugin.LogError($"elite: {e.Message}");
             }
+        }
+
+        private static void ApplyEffect(Entity entity, Affix affix)
+        {
+            if (affix.name == "Swift")
+                entity.movement?.moveSpeedStat?.AddMod(new NumVarStatMod(Prefix + "Speed", swiftSpeed.Value, 10, VarStatModType.Multiplicative, false));
+            if (affix.name == "Armored")
+                entity.health?.damageTakenStat?.AddMod(new NumVarStatMod(Prefix + "Armor", -armoredReduction.Value, 10, VarStatModType.Additive, false));
+            if (affix.name == "Giant")
+                entity.transform.localScale = entity.transform.localScale * giantScale.Value;
         }
     }
 }

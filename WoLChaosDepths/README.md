@@ -394,3 +394,18 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
 - `[Debug] PortalLog` (on): each Interact press outside the trials logs every portal or exit pad
   within 5 units and what the game checks before it loads (whether it has caught the wizard,
   the distance, whether the wizard is free), to find why the Hub's trials portal ignored it.
+
+## 0.14.0: no more depths; difficulty from Ascension (task sheet #27)
+
+- **Depths are gone**: no depth scaling, no waypoints, no depth line or picker in the Hub's
+  inventory panel, and so no layer bosses (they came every 5 depths). Rifts stay.
+- **Ascension's approved 1–10 table** (Ascension 0.7.0 holds it; see its README) drives the rest:
+  - elite chance 12% at level 1 up to 40% at 10 (level 0 keeps `[Elites] Chance`);
+  - elites with **two affixes** (1 in 4 from level 4, half from 8, all at 10): both effects, a
+    tint between their colours, and both markers side by side;
+  - from level 5 bosses get an elite affix (Swift or Armored) and elites drop Rare or better;
+    from 9 every elite brings a **partner** (another of the same enemy, same affixes, summoned
+    beside it); at 10 realm bosses get two affixes and drop a Legendary;
+  - from level 7 a floor opens as a rift 40% of the time;
+  - rewards: item level +2 a level (was depth's +1), experience +5% a level; Magic-and-better
+    weight +15% a level as before.

@@ -50,7 +50,8 @@ namespace WoLChaosDepths
 
         // ---- Layer bosses ----
 
-        public static bool IsLayerDepth(int depth) => layerEvery.Value > 0 && depth > 0 && depth % layerEvery.Value == 0;
+        // Layers are depth's: with depths gone (0.14.0, #27) there are no layer bosses.
+        public static bool IsLayerDepth(int depth) => Depth.Enabled && layerEvery.Value > 0 && depth > 0 && depth % layerEvery.Value == 0;
 
         public static bool IsLayerBoss(Entity e) => e != null && layerBosses.Contains(e.GetInstanceID());
 
@@ -107,7 +108,9 @@ namespace WoLChaosDepths
             layerBosses.Clear();
             layerEntities.Clear();
             riftOpen = false;
-            if (bossArena || riftChance.Value <= 0f || UnityEngine.Random.value >= riftChance.Value)
+            // Ascension 7 and up raises the chance to 40% (#27).
+            float chance = Mathf.Max(riftChance.Value, AscensionLink.RiftChance);
+            if (bossArena || chance <= 0f || UnityEngine.Random.value >= chance)
                 return;
             Open(depth, "opened");
         }

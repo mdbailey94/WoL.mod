@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.13.9";
+        public const string PluginVersion = "0.14.0";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -564,7 +564,7 @@ namespace WoLChaosDepths
                     DiveDirector.BossKilled(entity);
                 float maxHealth = entity.health != null && entity.health.healthStat != null ? entity.health.healthStat.ModifiedValue : 10f;
                 float mult = (boss ? bossXpMultiplier.Value : floorBoss ? floorBossXpMultiplier.Value : elite != null ? Elites.XpMultiplier : 1f) * Layers.XpMultiplier(entity);
-                int xp = Mathf.Max(1, Mathf.RoundToInt(maxHealth * xpPerHealth.Value * mult * Depth.XpMultiplier * Depth.MissingHealthFactor(entity)));
+                int xp = Mathf.Max(1, Mathf.RoundToInt(maxHealth * xpPerHealth.Value * mult * Depth.XpMultiplier * AscensionLink.Experience * Depth.MissingHealthFactor(entity)));
                 save.kills++;
                 string kind = Layers.IsLayerBoss(entity) ? " (layer boss)" : boss ? " (boss)" : floorBoss ? " (floor boss)" : elite != null ? $" ({elite} elite)" : "";
                 if (logKills.Value || kind.Length > 0)
@@ -576,9 +576,12 @@ namespace WoLChaosDepths
                 else if (boss)
                 {
                     int min = bossDropRarity.Value;
+                    // Ascension 10: the realm boss drops a Legendary (#27).
+                    if (AscensionLink.RealmBossDropsLegendary)
+                        min = LootTable.RarityIndex("Legendary");
                     // The fresh save: the first realm boss each character beats drops a Legendary,
                     // so everyone sees one early (#31).
-                    if (ProfileSave.Fresh && !save.firstBossLegendary)
+                    else if (ProfileSave.Fresh && !save.firstBossLegendary)
                     {
                         save.firstBossLegendary = true;
                         min = LootTable.RarityIndex("Legendary");
@@ -750,7 +753,9 @@ namespace WoLChaosDepths
         // drops are on and a position is known; otherwise straight into the inventory.
         private void Drop(Player player, CharacterSave save, int minRarity, Vector3? at = null)
         {
-            ItemData item = LootTable.Roll(save.level + Elites.AscensionLevel() + Depth.ItemLevelBonus, minRarity, Elites.RarityBoost() + Depth.RarityBoost + Layers.RarityBonus);
+            // Item level: the character's level, plus 2 a level of Ascension (#27, in place of
+            // depth's 1 a depth).
+            ItemData item = LootTable.Roll(save.level + AscensionLink.ItemLevelBonus + Depth.ItemLevelBonus, minRarity, Elites.RarityBoost() + Depth.RarityBoost + Layers.RarityBonus);
             Log($"Player {player.playerID + 1}'s drop: {item.rarity} {item.name} ({LootTable.Describe(item)})" + (at.HasValue && Pickups.Physical ? ", on the floor" : ""));
             if (at.HasValue && Pickups.Physical)
                 Pickups.Spawn(player, item, at.Value);

@@ -13,6 +13,7 @@ namespace WoLChaosDepths
         private const float Fps = 7f;
         private const int GapPixels = 2;     // between the top of the enemy's picture and the marker
         private const int HeadGapPixels = 6; // between the game's head point and the marker
+        private const int SidePixels = 15;   // between two markers' centres (16 px wide, 1 px apart, trimmed edges)
 
         private static ConfigEntry<bool> enabled;
         private static Material material;
@@ -22,7 +23,8 @@ namespace WoLChaosDepths
             enabled = config.Bind("Elites", "Markers", true, "Show a marker for the affix (Swift, Armored, Giant) over each elite's head.");
         }
 
-        public static void Attach(Entity entity, string affix)
+        // index / count: with two affixes (Ascension 4 and up) the markers stand side by side.
+        public static void Attach(Entity entity, string affix, int index = 0, int count = 1)
         {
             if (!enabled.Value || entity == null || entity.spriteRenderer == null)
                 return;
@@ -45,6 +47,7 @@ namespace WoLChaosDepths
                     material = new Material(Shader.Find("Sprites/Default"));
                 marker.r.material = material;
                 marker.born = Time.time + Random.value; // so markers in a pack don't pulse together
+                marker.sideways = (index - (count - 1) * 0.5f) * SidePixels / ppu;
                 marker.Follow();
             }
             catch (System.Exception e)
@@ -59,7 +62,7 @@ namespace WoLChaosDepths
             public SpriteRenderer body;
             public Sprite[] frames;
             public SpriteRenderer r;
-            public float ppu, born;
+            public float ppu, born, sideways;
 
             private void LateUpdate()
             {
@@ -89,7 +92,7 @@ namespace WoLChaosDepths
                     Bounds b = body.bounds;
                     top = new Vector3(b.center.x, b.max.y + GapPixels / ppu, 0f);
                 }
-                float x = Mathf.Round(top.x * ppu) / ppu;
+                float x = Mathf.Round((top.x + sideways) * ppu) / ppu;
                 float y = Mathf.Round(top.y * ppu) / ppu;
                 transform.position = new Vector3(x, y, body.transform.position.z);
                 r.sortingLayerID = body.sortingLayerID;

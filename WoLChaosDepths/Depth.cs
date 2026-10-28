@@ -16,7 +16,6 @@ namespace WoLChaosDepths
     {
         private const string Prefix = "ChaosDepthsDepth_";
 
-        private static ConfigEntry<bool> enabled;
         private static ConfigEntry<float> healthPerDepth, damagePerDepth, xpPerDepth, rarityPerDepth;
         private static ConfigEntry<int> itemLevelsPerDepth;
 
@@ -35,7 +34,7 @@ namespace WoLChaosDepths
             if (e == null)
                 return;
             extraFactor[e.GetInstanceID()] = Mathf.Max(0.01f, factor);
-            Scale(e, enabled.Value && diving ? healthPerDepth.Value * Below : 0f);
+            Scale(e, Enabled && diving ? healthPerDepth.Value * Below : 0f);
         }
 
         private static float Extra(Entity e)
@@ -46,14 +45,15 @@ namespace WoLChaosDepths
         private static readonly HashSet<int> playersScaled = new HashSet<int>();
         private static int playerScaleDepth = -1;
 
-        public static bool Enabled => enabled.Value;
+        // Depths are gone (0.14.0, #27): difficulty comes from Ascension's 1-10 table instead, so
+        // there is no depth scaling, waypoint or Hub depth picker. The code stays for the layer
+        // boss health factor's formula and in case depths come back; Enabled is always false.
+        public static bool Enabled => false;
 
         public static int Current => diving ? startDepth + floorsDown : startDepth;
 
         public static void Bind(ConfigFile config)
         {
-            enabled = config.Bind("Depth", "Enabled", true,
-                "Dives have a depth: one deeper each floor, starting at the depth chosen in the Hub's inventory panel.");
             healthPerDepth = config.Bind("Depth", "EnemyHealthPerDepth", 0.06f, "Enemy and boss health per depth below the first (0.06 = +6% each).");
             damagePerDepth = config.Bind("Depth", "EnemyDamagePerDepth", 0.04f, "Damage you take per depth below the first (0.04 = +4% each).");
             xpPerDepth = config.Bind("Depth", "XpPerDepth", 0.05f, "Experience per depth below the first (0.05 = +5% each).");
@@ -74,19 +74,19 @@ namespace WoLChaosDepths
 
         private static int Below => Mathf.Max(0, Current - 1);
 
-        public static float XpMultiplier => enabled.Value ? 1f + xpPerDepth.Value * Below : 1f;
+        public static float XpMultiplier => Enabled ? 1f + xpPerDepth.Value * Below : 1f;
 
         // Experience comes from the slain enemy's max health. An enemy that died before the depth
         // health bonus reached it (the auto-dive kills within half a second, and bosses reset
         // their health stat) is counted as if it had it.
         public static float MissingHealthFactor(Entity e)
         {
-            if (!enabled.Value || !diving || Below <= 0 || e == null || e.health == null || e.health.healthStat == null)
+            if (!Enabled || !diving || Below <= 0 || e == null || e.health == null || e.health.healthStat == null)
                 return 1f;
             return e.health.healthStat.GetModIndex(Prefix + "Health") >= 0 ? 1f : 1f + healthPerDepth.Value * Below;
         }
-        public static float RarityBoost => enabled.Value ? rarityPerDepth.Value * Below : 0f;
-        public static int ItemLevelBonus => enabled.Value ? itemLevelsPerDepth.Value * Below : 0;
+        public static float RarityBoost => Enabled ? rarityPerDepth.Value * Below : 0f;
+        public static int ItemLevelBonus => Enabled ? itemLevelsPerDepth.Value * Below : 0;
 
         // A dive starts (from the Hub into the trials): begin at the chosen depth.
         public static void StartDive(CharacterSave save)
@@ -97,7 +97,7 @@ namespace WoLChaosDepths
             scaled.Clear();
             extraFactor.Clear();
             ResetPlayers();
-            if (enabled.Value)
+            if (Enabled)
                 ChaosDepthsPlugin.Log($"Depth: dive starts at depth {startDepth}");
         }
 
@@ -110,7 +110,7 @@ namespace WoLChaosDepths
             scaled.Clear();
             extraFactor.Clear();
             Reached(saves);
-            if (enabled.Value)
+            if (Enabled)
                 ChaosDepthsPlugin.Log($"Depth: now {Current} (enemy health +{healthPerDepth.Value * Below:P0}, damage taken +{damagePerDepth.Value * Below:P0}, " +
                     $"xp +{xpPerDepth.Value * Below:P0}, rarity +{RarityBoost:P0}, item level +{ItemLevelBonus})");
         }
@@ -123,14 +123,14 @@ namespace WoLChaosDepths
             Reached(saves);
             diving = false;
             ResetPlayers();
-            if (enabled.Value)
+            if (Enabled)
                 ChaosDepthsPlugin.Log($"Depth: dive over at depth {startDepth + floorsDown}");
         }
 
         // Each character's waypoint: the deepest depth it has stood on.
         private static void Reached(IEnumerable<CharacterSave> saves)
         {
-            if (!enabled.Value || saves == null)
+            if (!Enabled || saves == null)
                 return;
             foreach (CharacterSave save in saves)
             {
@@ -145,7 +145,7 @@ namespace WoLChaosDepths
         // Twice a second in the trials: scale new enemies and the players' damage taken.
         public static void Tick()
         {
-            if (!enabled.Value || !diving)
+            if (!Enabled || !diving)
                 return;
             float health = healthPerDepth.Value * Below;
             if (health > 0f)
@@ -232,7 +232,7 @@ namespace WoLChaosDepths
         {
             try
             {
-                if (enabled.Value && diving && Below > 0)
+                if (Enabled && diving && Below > 0)
                     Scale(boss, healthPerDepth.Value * Below);
                 Layers.OnBossSpawn(boss, Current);
             }
