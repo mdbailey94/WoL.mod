@@ -34,6 +34,24 @@ A new **Fire standard arcana**, added with [LegendAPI](https://github.com/yekoc/
   (3, 4, 5 ... 12), knockback up to 2.5x and the burn chance up to 100%.
 - **Enhanced**: 9 seconds and one level higher.
 
+## Signature: the comet (0.10.0, asked for by Matt)
+
+Trailblazer has a **signature version** now (the spellbook's Signature page; unlocked along with
+the arcana, `[General] SignatureUnlocksWithArcana`):
+
+1. **Comet**: for **5 s** (`[Signature] Duration`) the room darkens to half its light and the
+   camera pulls back 15%. Your fire burns **three levels hotter** (the enhanced level and two
+   more), its trail patches hit **twice as wide**, and its flames and fire columns are half again
+   as big. The ring round you is 1.5x as wide.
+2. **Eruption**: when it burns out, every patch of the trail still burning **erupts in a pillar
+   of fire**, oldest first, a beat apart. Each pillar hits for twice a level-10 hit (24 at the
+   default balance; `EruptionMultiplier`).
+3. **Blast**: a quarter second later a blast goes off round you (radius 3) for four times a
+   level-10 hit (48; `FinalMultiplier`), with a 5-frame hit-stop, a flash, a heavy shake and a
+   moment of near-frozen time. Then the camera and light ease back.
+
+The camera and light always go back (`Trailblazer: signature restored (...)`).
+
 ## Look
 
 Since **0.8.0** more fire is layered on top of the game's flames and Searing Rush's columns (which
