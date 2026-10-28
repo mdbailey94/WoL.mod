@@ -20,6 +20,23 @@ A new **Air standard arcana**, added with [LegendAPI](https://github.com/yekoc/L
 - **Enhanced**: full size in 3 seconds (bursting at 4), and a wider burst.
 - Dash to cancel at any time. Cooldown 5 seconds.
 
+## 0.5.0: three tiers and a signature (asked for by Matt)
+
+- **Standard**: as before, but the wind carries only dust and rocks, no leaves.
+- **Enhanced**: leaves whirl round it, it steers faster (5.5 instead of 3.5 while small) and
+  keeps moving when grown (heavy only from three quarters of the growth, 0.8 instead of 0.15),
+  and it charges quicker: full size in 3 s, bursting 0.6 s later (standard: 4 s and 1 s).
+- **Signature** (the signature slot; it has everything enhanced has): the twister is **1.8x
+  wider** (hit area, burst and look; `[Signature] Width`), and from early in its growth it
+  **throws every enemy it catches up into the air**, bosses and the floor boss excepted. A thrown
+  enemy is held where it was caught while its picture rises 2.5 units and falls over 0.9 s
+  (`TossHeight`). When it lands it takes 12 damage (`TossDamage`) with a puff of dust and a
+  small shake; it can be thrown again half a second after landing.
+- The signature is unlocked along with the arcana (`[General] SignatureUnlocksWithArcana`, on;
+  off: find its Signature drop in a run, as for the game's own arcana).
+- The log says `Cyclone: cast (standard|enhanced|signature...)`, and how many enemies the
+  signature threw when it bursts or is let go.
+
 ## Look
 
 The twister is pixel art in the game's own wind style, at the game's pixel size:

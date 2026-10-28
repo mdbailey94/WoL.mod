@@ -30,11 +30,15 @@ namespace WoLCyclone
         private bool stormTried;
         private static bool loggedTwister, loggedStorm;
 
-        public CycloneLook(Vector2 position, Player player)
+        // How much bigger everything is drawn (the signature's wider twister, 0.5.0).
+        private readonly float size = 1f;
+
+        public CycloneLook(Vector2 position, Player player, bool leaves = true, float widthScale = 1f, float heightScale = 1f)
         {
-            funnel = CycloneFunnel.Create(position, player);
+            size = widthScale;
+            funnel = CycloneFunnel.Create(position, player, leaves, widthScale, heightScale);
             if (funnel == null)
-                twister = Look.Make(() => Twister.Prefab, position, TwisterStart, "twister", ref loggedTwister);
+                twister = Look.Make(() => Twister.Prefab, position, TwisterStart * size, "twister", ref loggedTwister);
         }
 
         // Burst at full power: the funnel blows apart in a gust ring this wide (units, radius).
@@ -55,16 +59,16 @@ namespace WoLCyclone
         {
             if (funnel != null)
                 funnel.Set(position, progress);
-            twister?.Set(position, Mathf.Lerp(TwisterStart, TwisterEnd, progress), 0.5f + progress);
+            twister?.Set(position, Mathf.Lerp(TwisterStart, TwisterEnd, progress) * size, 0.5f + progress);
             if (!stormTried && progress >= StormFrom)
             {
                 stormTried = true;
-                storm = Look.Make(() => AirBossVortex.Prefab, position, StormStart, "storm vortex", ref loggedStorm);
+                storm = Look.Make(() => AirBossVortex.Prefab, position, StormStart * size, "storm vortex", ref loggedStorm);
             }
             if (storm != null)
             {
                 float t = Mathf.Clamp01((progress - StormFrom) / (1f - StormFrom));
-                storm.Set(position, Mathf.Lerp(StormStart, StormEnd, t), 0.15f + 0.85f * t);
+                storm.Set(position, Mathf.Lerp(StormStart, StormEnd, t) * size, 0.15f + 0.85f * t);
             }
         }
 

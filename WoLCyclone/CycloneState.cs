@@ -10,6 +10,14 @@ namespace WoLCyclone
     // (level 5).
     //
     // The hits are invisible wind bursts at the twister; the look is CycloneLook.
+    //
+    // 0.5.0, three tiers (Matt):
+    // - standard: as before, but no leaves in the wind (dust and rocks only);
+    // - enhanced (IsEmpowered): leaves whirl in it, it steers faster and stays steerable longer,
+    //   and it charges quicker (full size in 3 s, bursting 0.6 s later);
+    // - signature (isUltimate, the game's flag for a signature cast; the signature slot is always
+    //   empowered, so it has everything enhanced has): a much wider twister that throws enemies
+    //   (not bosses) caught in it up into the air; each takes damage when it lands (Toss).
     public class CycloneState : Player.SkillState
     {
         public new static string staticID = "Cyclone";
@@ -17,6 +25,14 @@ namespace WoLCyclone
         private const float GrowTime = 4f;         // from small twister to full hurricane
         private const float EnhancedGrowTime = 3f;
         private const float FullPowerTime = 1f;    // then this long at full power, and it bursts
+        private const float EnhancedFullPowerTime = 0.6f;
+        private const float EnhancedSteerSpeed = 5.5f;      // enhanced: quicker to steer...
+        private const float EnhancedHeavySteerSpeed = 0.8f; // ...still moving when grown...
+        private const float EnhancedHeavyAt = 0.75f;        // ...and heavy only later on
+        private const float TossFrom = 0.15f;      // the signature starts throwing this far into the growth
+        private const float TossReach = 0.6f;      // throws enemies within this times the hit scale
+        private const float TossTime = 0.9f;       // seconds up and down
+        private const float TossAgain = 0.5f;      // an enemy can be thrown again this long after landing
         private const float MinTime = 0.35f;       // a tap still gives a brief twister
         private const float Distance = 4f;         // starts about three tiles in front of the wizard
         private const float SteerSpeed = 3.5f;     // how fast you can move it when it's small...
@@ -38,10 +54,16 @@ namespace WoLCyclone
         private Vector2 aim;
         private Vector2 center;
         private CycloneLook look;
+        private bool signature;
+        private int tossed;
+        private readonly System.Collections.Generic.Dictionary<Entity, float> landedAt = new System.Collections.Generic.Dictionary<Entity, float>();
 
         public CycloneState(FSM newFSM, Player newEnt) : base(staticID, newFSM, newEnt)
         {
             applyStopElementStatus = true;
+            // Lets the arcana into the signature slot (the spellbook's Signature page); see
+            // SignatureUnlock.cs for when that's unlocked.
+            hasSignatureVariant = true;
             SetAnimTimes(
                 0.05f, // start
                 0.1f,  // hold
@@ -51,11 +73,18 @@ namespace WoLCyclone
                 0.6f); // exit
         }
 
-        private float GrowTimeNow => IsEmpowered ? EnhancedGrowTime : GrowTime;
+        private bool EnhancedTier => IsEmpowered || signature;
+        private float GrowTimeNow => EnhancedTier ? EnhancedGrowTime : GrowTime;
+        private float FullPowerNow => EnhancedTier ? EnhancedFullPowerTime : FullPowerTime;
+        private float Wide => signature ? CyclonePlugin.SignatureWidth : 1f;
+        private float HitScaleAt(float progress) => Mathf.Lerp(StartHitScale, EndHitScale, progress) * Wide;
 
         public override void OnEnter()
         {
             base.OnEnter();
+            signature = isUltimate;
+            tossed = 0;
+            landedAt.Clear();
             held = 0f;
             nextHit = 0f;
             nextSwirl = 0f;
@@ -71,7 +100,9 @@ namespace WoLCyclone
                 distance = Mathf.Max(0.8f, wall.distance - 0.4f);
             center = (Vector2)parent.transform.position + aim * distance;
             look?.Remove();
-            look = new CycloneLook(center, parent);
+            look = new CycloneLook(center, parent, EnhancedTier, Wide, signature ? Mathf.Sqrt(Wide) : 1f);
+            CyclonePlugin.Log($"Cyclone: cast ({(signature ? IsEmpowered ? "signature + enhanced" : "signature" : IsEmpowered ? "enhanced" : "standard")}" +
+                $"{(signature ? $", {Wide:0.#}x wide, throwing enemies" : "")})");
         }
 
         public override void ExecuteSkill()
@@ -92,7 +123,7 @@ namespace WoLCyclone
             // Only while you're actually pushing a direction (not the last aim, which would drift it).
             Vector2 input = GetInputVector(false, false, false);
             if (input.sqrMagnitude > 0.04f)
-                Steer(input.normalized * SteerSpeedAt(progress) * Time.deltaTime);
+                Steer(input.normalized * SteerSpeedAt(progress, EnhancedTier) * Time.deltaTime);
             if (parent.rigidbody2D != null)
                 parent.rigidbody2D.velocity = Vector2.zero;
             parent.FaceTarget(center);
@@ -103,6 +134,8 @@ namespace WoLCyclone
             {
                 nextHit = Time.time + Mathf.Lerp(SlowHit, FastHit, progress);
                 Hit(progress);
+                if (signature && progress >= TossFrom)
+                    TossCaught(progress);
             }
             if (Time.time >= nextSwirl)
             {
@@ -110,7 +143,7 @@ namespace WoLCyclone
                 Swirl(progress);
             }
 
-            if (held >= GrowTimeNow + FullPowerTime)
+            if (held >= GrowTimeNow + FullPowerNow)
             {
                 Burst();
                 Finish();
@@ -135,11 +168,43 @@ namespace WoLCyclone
             base.ExecuteSkill();
         }
 
-        // Quick while small, heavier and heavier, and barely moving from halfway on.
-        private static float SteerSpeedAt(float progress)
+        // Quick while small, heavier and heavier, and barely moving from halfway on (enhanced:
+        // quicker, heavy only from three quarters on, and still moving when grown).
+        private static float SteerSpeedAt(float progress, bool enhanced)
         {
-            float t = Mathf.Clamp01(progress / HeavyAt);
-            return Mathf.Lerp(SteerSpeed, HeavySteerSpeed, 1f - (1f - t) * (1f - t));
+            float t = Mathf.Clamp01(progress / (enhanced ? EnhancedHeavyAt : HeavyAt));
+            return Mathf.Lerp(enhanced ? EnhancedSteerSpeed : SteerSpeed, enhanced ? EnhancedHeavySteerSpeed : HeavySteerSpeed,
+                1f - (1f - t) * (1f - t));
+        }
+
+        // The signature throws every enemy in its reach up into the air (not bosses, not one
+        // already up or just landed); each lands for TossDamage.
+        private void TossCaught(float progress)
+        {
+            try
+            {
+                if (GameController.enemies == null)
+                    return;
+                float reach = HitScaleAt(progress) * TossReach;
+                foreach (GameObject go in new System.Collections.Generic.List<GameObject>(GameController.enemies))
+                {
+                    if (go == null || !go.activeInHierarchy || Vector2.Distance(go.transform.position, center) > reach)
+                        continue;
+                    Entity e = go.GetComponent<Entity>();
+                    if (e == null || e is Boss || e is MiniBoss || e.health == null || e.health.CurrentHealthValue <= 0 || Toss.Airborne(e))
+                        continue;
+                    float landed;
+                    if (landedAt.TryGetValue(e, out landed) && Time.time < landed)
+                        continue;
+                    landedAt[e] = Time.time + TossTime + TossAgain;
+                    Toss.Launch(e, parent, CyclonePlugin.TossHeight, TossTime, CyclonePlugin.TossDamage, skillID);
+                    tossed++;
+                }
+            }
+            catch (System.Exception ex)
+            {
+                CyclonePlugin.Log($"Cyclone: couldn't throw enemies: {ex.Message}");
+            }
         }
 
         // Moves the twister, but not through walls or too far from the wizard.
@@ -170,7 +235,7 @@ namespace WoLCyclone
         private void Hit(float progress)
         {
             int level = 1 + Mathf.Min(3, Mathf.FloorToInt(progress * 4f));
-            float scale = Mathf.Lerp(StartHitScale, EndHitScale, progress);
+            float scale = HitScaleAt(progress);
             WindBurst burst = WindBurst.CreateBurst(center, parent.skillCategory, skillID, level, scale);
             if (burst != null)
                 burst.emitParticles = false;
@@ -179,7 +244,7 @@ namespace WoLCyclone
         // The game's air vortex swirling at the twister, growing with it.
         private void Swirl(float progress)
         {
-            float scale = Mathf.Lerp(StartHitScale, EndHitScale, progress);
+            float scale = HitScaleAt(progress);
             Try(() =>
             {
                 // Layered swirls: more of them, wider and slower, as it builds.
@@ -209,8 +274,10 @@ namespace WoLCyclone
                     float a = Random.value * Mathf.PI * 2f;
                     var ring = center + new Vector2(Mathf.Cos(a), Mathf.Sin(a) * 0.6f) * scale * 1.1f;
                     PoolManager.GetPoolItem<RockDebrisEmitter>().EmitSingle(new int?(1), new Vector3?(ring), null, null, 0f, null);
-                    PoolManager.GetPoolItem<LeafEmitter>().EmitSingle(new int?(1), new Vector3?(ring), null, null, 0f, null,
-                        LeafEmitter.LeafColor.Green);
+                    // Leaves only from the enhanced tier up (0.5.0).
+                    if (EnhancedTier)
+                        PoolManager.GetPoolItem<LeafEmitter>().EmitSingle(new int?(1), new Vector3?(ring), null, null, 0f, null,
+                            LeafEmitter.LeafColor.Green);
                 }
             });
             // A rumble that grows into a shake at full power.
@@ -249,7 +316,9 @@ namespace WoLCyclone
         // Held to the end: the hurricane bursts and throws everyone away.
         private void Burst()
         {
-            float scale = EndHitScale * (IsEmpowered ? EnhancedBurstScale : BurstScale);
+            float scale = EndHitScale * Wide * (EnhancedTier ? EnhancedBurstScale : BurstScale);
+            if (signature)
+                CyclonePlugin.Log($"Cyclone: signature burst after throwing {tossed} enem{(tossed == 1 ? "y" : "ies")}");
             WindBurst.CreateBurst(center, parent.skillCategory, skillID, 5, scale);
             // The drawn funnel blows apart in a gust ring the size of the burst (its own try/catch).
             look?.Burst(scale);
@@ -280,6 +349,8 @@ namespace WoLCyclone
         // Let go early: it just blows itself out.
         private void DieDown()
         {
+            if (signature)
+                CyclonePlugin.Log($"Cyclone: signature let go after throwing {tossed} enem{(tossed == 1 ? "y" : "ies")}");
             look?.DieDown();
             try
             {

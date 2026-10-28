@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
@@ -13,12 +13,18 @@ namespace WoLCyclone
     {
         public const string PluginGuid = "mdbailey94.wol.cyclone";
         public const string PluginName = "Cyclone";
-        public const string PluginVersion = "0.4.4";
+        public const string PluginVersion = "0.5.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
         private static ConfigEntry<string> twister;
         public static bool DrawnTwister => twister == null || twister.Value != "Coded";
+        private ConfigEntry<bool> signatureWithArcana;
+        private static ConfigEntry<float> signatureWidth, tossHeight;
+        private static ConfigEntry<int> tossDamage;
+        public static float SignatureWidth => Mathf.Clamp(signatureWidth?.Value ?? 1.8f, 1f, 3f);
+        public static float TossHeight => Mathf.Clamp(tossHeight?.Value ?? 2.5f, 0.5f, 6f);
+        public static int TossDamage => Mathf.Clamp(tossDamage?.Value ?? 12, 0, 200);
 
         public static void Log(string message) => log?.LogInfo(message);
 
@@ -32,13 +38,25 @@ namespace WoLCyclone
             twister = Config.Bind("Look", "Twister", "Drawn",
                 new ConfigDescription("Drawn: the hand-drawn twister (three sizes, six frames each, scaled to the funnel's width). Coded: the funnel drawn in code (0.4.3's spiral column). Applies to the next cast.",
                     new AcceptableValueList<string>("Drawn", "Coded")));
+            signatureWithArcana = Config.Bind("General", "SignatureUnlocksWithArcana", true,
+                "Unlock Cyclone's signature version along with the arcana itself, so it can go in the signature slot as soon as " +
+                "you have it. Off: its Signature drop has to be found in a run, as for the game's own arcana.");
+            signatureWidth = Config.Bind("Signature", "Width", 1.8f,
+                new ConfigDescription("The signature twister's hit area and look, times the enhanced one's. Applies to the next cast.", new AcceptableValueRange<float>(1f, 3f)));
+            tossHeight = Config.Bind("Signature", "TossHeight", 2.5f,
+                new ConfigDescription("How high the signature throws enemies (units). Applies to the next cast.", new AcceptableValueRange<float>(0.5f, 6f)));
+            tossDamage = Config.Bind("Signature", "TossDamage", 12,
+                new ConfigDescription("Damage a thrown enemy takes when it lands. Applies to the next cast.", new AcceptableValueRange<int>(0, 200)));
+            SignatureUnlock.Install(new HarmonyLib.Harmony(PluginGuid), CycloneState.staticID,
+                () => signatureWithArcana.Value, message => Log("Cyclone: " + message));
 
             Skills.Register(new SkillInfo
             {
                 ID = CycloneState.staticID,
                 displayName = "Cyclone",
                 description = "Hold to whip up a twister you can steer, growing into a raging hurricane that bursts, blowing everyone away!",
-                enhancedDescription = "Reaches full strength sooner and bursts wider!",
+                // The game shows this one text on the card for both the enhanced and the signature.
+                enhancedDescription = "Charges faster, steers easier and whirls leaves! Signature: a huge twister that throws enemies into the air!",
                 icon = LoadIcon("icon.png"),
                 tier = 2,
                 stateType = typeof(CycloneState),

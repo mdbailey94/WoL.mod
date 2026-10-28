@@ -339,11 +339,14 @@ namespace WoLCyclone
         }
 
         // A random bit of debris: mostly dust, some leaves, the odd pebble; the game's own dust
-        // puffs and rocks when they're loaded, tinted as they'd be.
-        public static Sprite[] RandomDebris(out Color tint)
+        // puffs and rocks when they're loaded, tinted as they'd be. Without leaves (the standard
+        // cast, 0.5.0) it's dust and pebbles in the same proportion to each other.
+        public static Sprite[] RandomDebris(bool leaves, out Color tint)
         {
             float roll = Random.value;
             tint = Color.white;
+            if (!leaves)
+                roll = roll < 0.714f ? roll * 0.7f : 0.8f + (roll - 0.714f) * 0.7f;
             if (roll < 0.5f)
             {
                 Sprite[] game = GameArt.DustPuffs();

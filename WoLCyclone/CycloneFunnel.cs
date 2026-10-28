@@ -131,8 +131,12 @@ namespace WoLCyclone
         private float endAge;
         private float nextWisp;
 
+        // Leaves among the debris (enhanced and signature, 0.5.0), and the signature's bigger funnel.
+        private bool leaves = true;
+        private float widthScale = 1f, heightScale = 1f;
+
         // Null if it can't be drawn (CycloneLook then falls back to the game's twister).
-        public static CycloneFunnel Create(Vector2 position, Player player)
+        public static CycloneFunnel Create(Vector2 position, Player player, bool leaves = true, float widthScale = 1f, float heightScale = 1f)
         {
             if (broken)
                 return null;
@@ -143,6 +147,9 @@ namespace WoLCyclone
                 go = new GameObject("CycloneFunnel");
                 go.transform.position = position;
                 CycloneFunnel funnel = go.AddComponent<CycloneFunnel>();
+                funnel.leaves = leaves;
+                funnel.widthScale = widthScale;
+                funnel.heightScale = heightScale;
                 for (int i = 0; i < Slices; i++)
                     funnel.bands.Add(new Band { sr = funnel.Child("Slice" + i, PixelFx.ActorLayer) });
                 funnel.ring = funnel.Child("DustRing", PixelFx.GroundLayer);
@@ -264,9 +271,10 @@ namespace WoLCyclone
             try
             {
                 float dt = Time.deltaTime;
+                float w = widthScale, h = heightScale;
                 if (ending == 0)
                 {
-                    Draw(dt, 1f, 1f, 1f);
+                    Draw(dt, w, h, 1f);
                     return;
                 }
                 endAge += dt;
@@ -277,9 +285,9 @@ namespace WoLCyclone
                     return;
                 }
                 if (ending == 2)
-                    Draw(dt, Mathf.Lerp(1f, BlowWiden, t), Mathf.Lerp(1f, 1.15f, t), 1f - t);
+                    Draw(dt, w * Mathf.Lerp(1f, BlowWiden, t), h * Mathf.Lerp(1f, 1.15f, t), 1f - t);
                 else
-                    Draw(dt, Mathf.Lerp(1f, 0.4f, t), Mathf.Lerp(1f, 0.3f, t), 1f - t);
+                    Draw(dt, w * Mathf.Lerp(1f, 0.4f, t), h * Mathf.Lerp(1f, 0.3f, t), 1f - t);
             }
             catch (System.Exception e)
             {
@@ -408,7 +416,7 @@ namespace WoLCyclone
 
         private void AddOrbiter()
         {
-            Sprite[] frames = PixelFx.RandomDebris(out Color tint);
+            Sprite[] frames = PixelFx.RandomDebris(leaves, out Color tint);
             var o = new Orbiter
             {
                 sr = Child("Debris" + orbiters.Count, PixelFx.ActorLayer),
