@@ -95,7 +95,11 @@ namespace WoLChaosDepths
                 }
                 Label(R(118, 16, 108, 9), $"SORT: {SortNames[sortMode].ToUpperInvariant()}", textRight);
                 Label(R(118, 24, 108, 9), "(Y) CHANGE", dimRight);
-                Label(R(118, 24, 60, 9), $"{view.Count} ITEM{(view.Count == 1 ? "" : "S")}", dim);
+                // The item count, or where the list is when it scrolls ("5-8 OF 12").
+                string count = view.Count > ListRows
+                    ? $"{scroll + 1}-{Mathf.Min(scroll + ListRows, view.Count)} OF {view.Count}"
+                    : $"{view.Count} ITEM{(view.Count == 1 ? "" : "S")}";
+                Label(R(118, 24, 60, 9), count, dim);
 
                 // Left: the equipped slots, each in its rarity's frame.
                 NineSlice(inset, R(4, 35, 59, 78), s);
@@ -169,26 +173,37 @@ namespace WoLChaosDepths
                         Label(R(8, 140, 217, 9), "EQUIPPED", dim);
                     else
                     {
-                        float cx = left + 8 * s;
-                        Rect vs = R(8, 140, 217, 9);
+                        // Gains then losses, carried onto a second line when the first is full
+                        // (0.14.7: on one line the losses at the end were cut off).
+                        Rect vs = R(8, 139, 217, 9);
                         Label(vs, "VS EQUIPPED: ", dim);
                         labelMeasure.text = "VS EQUIPPED: ";
-                        cx += dim.CalcSize(labelMeasure).x;
-                        foreach (KeyValuePair<string, bool> part in Compare(chosen, worn))
+                        float lineStart = vs.x + dim.CalcSize(labelMeasure).x;
+                        float cx = lineStart, cy = vs.y;
+                        int line = 0;
+                        var all = Compare(chosen, worn);
+                        var parts = all.FindAll(p => p.Value);   // in their own order, gains first
+                        parts.AddRange(all.FindAll(p => !p.Value));
+                        foreach (KeyValuePair<string, bool> part in parts)
                         {
                             GUIStyle st = PixelUI.Style(font, part.Value ? Gain : Loss);
-                            labelMeasure.text = part.Key.ToUpperInvariant() + "   ";
+                            labelMeasure.text = part.Key.ToUpperInvariant() + "  ";
                             float pw = st.CalcSize(labelMeasure).x;
                             if (cx + pw > vs.xMax)
-                                break;
-                            Label(new Rect(cx, vs.y, pw, vs.height), part.Key.ToUpperInvariant(), st);
+                            {
+                                if (++line > 1)
+                                    break;
+                                cx = lineStart;
+                                cy += 6 * s;
+                            }
+                            Label(new Rect(cx, cy, pw, vs.height), part.Key.ToUpperInvariant(), st);
                             cx += pw;
                         }
                     }
                     if (confirmHeldSince >= 0f && !confirmConsumed)
                     {
                         float held = Mathf.Clamp01((Time.unscaledTime - confirmHeldSince) / SalvageHold);
-                        PixelUI.Fill(R(8, 149, 217 * held, 1), PixelUI.Accent);
+                        PixelUI.Fill(R(8, 151, 217 * held, 1), PixelUI.Accent);
                     }
                 }
                 Label(R(8, 156, 220, 9), "(A) EQUIP   (B) BACK   (HOLD A) SALVAGE   < > TAB   (Y) SORT", dim);

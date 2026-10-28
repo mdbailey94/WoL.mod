@@ -451,3 +451,9 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
   its vsync option off it runs at 500-1400 fps, and the frame probe showed a ~100 ms stall every
   few seconds even on the title screen with no mod code behind it. Try 60 or 120 (or the game's
   vsync) if the game stutters.
+
+## 0.14.7 (task sheet #16)
+
+- VS EQUIPPED shows the losses again: gains first, then losses, carried onto a second line when
+  the first is full (on one line the losses at its end were cut off).
+- The tab row shows where the list is when it scrolls ("5-8 OF 12").
