@@ -529,7 +529,8 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
 - Each character's first boss win (a realm boss or the final boss) drops a **unique** Legendary,
   so the powers can be tried early. `[Testing] FirstBossUnique` (on) turns it off; the save
   remembers it as `firstBossUnique`, so characters that already beat bosses get one too.
-- Planned next: item tiers and bonus lines, Legendaries included (see `PLAN-tiers.md`).
+- Planned next: item tiers and bonus lines, Legendaries included (see `PLAN-tiers.md`). The
+  list of future changes is `FUTURE.md`.
 
 ## 0.15.9: elites drop gear less often (asked for by Matt)
 
