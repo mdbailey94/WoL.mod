@@ -22,11 +22,11 @@ a **signature version**, so it can go in the signature slot.
 | Damage | 5 for the catch, then 3 a prick every 0.5 s: 20 over the full 3 s (enhanced 29 over 4.5 s). 0.2.1 trimmed the pricks from 5 (30 a full stand): a hard snare for the whole stand shouldn't also out-damage Embracing Vines (25) |
 | Control | Snare: the game's root (held in place, no knockback), renewed by every prick, 1 s past the last. Bosses are slowed instead (50% for 2 s) |
 | Cooldown | 6 s |
-| Reach | about 2.4 units around where it was cast (enhanced: 3.4). 0.4.1 drew it in from 3 (4): it was too big |
+| Reach | about 2 units around where it was cast (enhanced: 3.4). 0.5.2 drew the standard thicket in from 2.4, 0.4.1 from 3: a tight ring round the wizard, the enhanced cast is the wide one |
 | Signature | All three rows erupt outward, wider than the enhanced thicket (rows 1.4, 2.4 and 3.5 out, reach 4; 0.4.2 widened it from 3.4), stands 6 s, 10 for the catch and 6 a prick, every half second each snared enemy is dragged 0.5 units toward the centre, and a closing crush of 12 on everything inside (88 for an enemy held the whole way) |
 
 Your wizard slams the ground (Rippling Vines' slam) and thorny vines knit a thicket around them,
-one after another round the ring, in two rows about 1.1 and 1.9 units out. The vines are the
+one after another round the ring, in two rows about 0.8 and 1.5 units out. The vines are the
 game's own vine traps, the ones Rippling Vines and the Root Shield relic raise, each with its own
 grabbing hit box. The thicket stands where it was cast for **3 seconds** while you walk off (or
 stay inside it, nothing in it hurts you).

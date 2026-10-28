@@ -44,10 +44,11 @@ namespace WoLBrambleRing
         public new static string staticID = "BrambleRing";
 
         // Rows of vines around the cast point. Vines are about a unit across, so this knits a
-        // thicket roughly 0.6 to 2.4 units out (and enemies right up against you are inside it).
-        // 0.4.1 drew the standard thicket in from 1.5/2.5 (and a 3-unit reach): it was too big.
-        private const float InnerRowRadius = 1.1f;
-        private const float OuterRowRadius = 1.9f;
+        // thicket roughly 0.3 to 2 units out (and enemies right up against you are inside it).
+        // 0.4.1 drew the standard thicket in from 1.5/2.5 (and a 3-unit reach), 0.5.2 again from
+        // 1.1/1.9 (reach 2.4): a tight thicket round the wizard, the enhanced cast is the wide one.
+        private const float InnerRowRadius = 0.8f;
+        private const float OuterRowRadius = 1.5f;
         // Enhanced: the third, wider row, and how long after the outer row is knitted it spreads.
         private const float SpreadRowRadius = 2.9f;
         private const float SpreadRowDelay = 0.3f;
