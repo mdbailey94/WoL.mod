@@ -274,6 +274,13 @@ in a `lib` folder at the repo root, and run
 `dotnet build WoLSlingshotDash/WoLSlingshotDash.csproj -c Release`; if your game is in the
 default Steam folder, the DLL is copied into `BepInEx\plugins` automatically.
 
+## Changes in 0.25.6
+
+- Lighter HUD (task sheet #26, frame-rate drops): a slingshot arcana's cooldown icon is now
+  drawn by the mod in place of the game's update, not after it. Before, whenever the
+  slingshot's cooldown and the normal one disagreed, the game and the mod set the icon ready and
+  cooling in turn, rewriting it every frame. It looks the same.
+
 ## Install
 
 Needs BepInExPack of Legend, **LegendAPI** and **HookGenPatcher**. Download `WoLSlingshotDash.zip`
