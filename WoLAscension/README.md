@@ -57,6 +57,14 @@ or lists the level loaders it saw. If the altar is in an awkward spot, move it w
 level with it). If a run starts some way that skips the portal, the altar's level is applied as soon as
 the first enemies appear.
 
+## Changes in 0.7.1
+
+- Levels unlock in order (task sheet #32). In Chaos Depths' **fresh save** the altar starts with
+  only level 1; beating a run at your highest level unlocks the next one (a banner says so).
+  "Beating" is a Chaos Depths dive reported complete, or, without Chaos Depths, leaving the final
+  boss's arena for the ending. Every other save (the base game, Chaos Depths' Debugging save)
+  keeps all ten. `[Unlocks] FreshSave` / `OtherSaves` hold the highest level for each.
+
 ## Changes in 0.7.0
 
 - The approved 1–10 table above in place of the old one (task sheet #27/#28).

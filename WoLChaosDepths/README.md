@@ -409,3 +409,8 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
   - from level 7 a floor opens as a rift 40% of the time;
   - rewards: item level +2 a level (was depth's +1), experience +5% a level; Magic-and-better
     weight +15% a level as before.
+
+## 0.14.1 (task sheet #32)
+
+- A completed dive (its final boss, or its last realm boss with `[Dive] RealmsPerDive`) is
+  reported to Ascension 0.7.1, which unlocks the next level in the fresh save.

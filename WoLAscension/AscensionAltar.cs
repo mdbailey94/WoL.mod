@@ -496,7 +496,8 @@ namespace WoLAscension
             return 0;
         }
 
-        private int Level => Mathf.Clamp(level.Value, 0, AscensionLevels.Max);
+        // Up to the highest level unlocked in this save (#32).
+        private int Level => Mathf.Clamp(level.Value, 0, AscensionPlugin.Unlocked);
 
         private void Update()
         {
@@ -545,7 +546,7 @@ namespace WoLAscension
             if (InteractPressed(near) && CanInteract(near))
             {
                 int from = Level;
-                level.Value = Level >= AscensionLevels.Max ? 0 : Level + 1;
+                level.Value = Level >= AscensionPlugin.Unlocked ? 0 : Level + 1;
                 ShowLevel();
                 LevelChangedEffects(from, Level);
                 log?.LogInfo($"Ascension altar: level set to {Level}");
@@ -575,6 +576,9 @@ namespace WoLAscension
             int lvl = Level;
             string header = lvl > 0 ? $"ASCENSION {lvl}" : "ASCENSION OFF";
             string info = AscensionLevels.Summary(lvl);
+            int unlocked = AscensionPlugin.Unlocked;
+            if (lvl == unlocked && unlocked < AscensionLevels.Max)
+                info += $" - Beat it to unlock {unlocked + 1}";
             if (!string.IsNullOrEmpty(extra))
                 info = extra + " - " + info;
             GameBanner.Show(header, info, Icon(lvl));

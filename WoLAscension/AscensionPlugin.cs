@@ -17,7 +17,7 @@ namespace WoLAscension
     {
         public const string PluginGuid = "mdbailey94.wol.ascension";
         public const string PluginName = "Ascension";
-        public const string PluginVersion = "0.7.0";
+        public const string PluginVersion = "0.7.1";
 
         private const string PlayerDamageTakenMod = "Ascension_DamageTaken";
         private const string PlayerHealingMod = "Ascension_Healing";
@@ -65,6 +65,12 @@ namespace WoLAscension
                     new AcceptableValueRange<int>(0, AscensionLevels.Max)));
             showInRun = Config.Bind("General", "ShowLevelInRun", true,
                 "Show a small 'ASCENSION n' tag in the corner during a run.");
+            unlockedFresh = Config.Bind("Unlocks", "FreshSave", 1,
+                new ConfigDescription("Chaos Depths' fresh save: the highest level the altar offers. It starts at 1, and beating a run at the highest level unlocks the next (#32).",
+                    new AcceptableValueRange<int>(1, AscensionLevels.Max)));
+            unlockedOther = Config.Bind("Unlocks", "OtherSaves", AscensionLevels.Max,
+                new ConfigDescription("Every other save (the base game, Chaos Depths' Debugging save): the highest level the altar offers.",
+                    new AcceptableValueRange<int>(1, AscensionLevels.Max)));
             AscensionAltar.RememberedPortal = Config.Bind("Altar", "LastPortal", string.Empty,
                 "Where the trials portal was when a run last started (found automatically). Don't edit.");
             AscensionAltar.Offset = new Vector2(
@@ -97,6 +103,10 @@ namespace WoLAscension
             GameController.levelLoadEventHandlers += (next, previous) =>
             {
                 Logger.LogInfo($"Level load: '{previous}' -> '{next}'");
+                // Out of the final boss's arena to anywhere but the Hub or the house (dying goes
+                // back there): the game is won.
+                if (IsFinalBoss(previous) && !IsTrialScene(next) && next != "Hub" && next != "PlayerRoom")
+                    RunBeaten("the final boss was beaten");
                 if (IsTrialScene(previous) && !IsTrialScene(next))
                     runEnded = true;
             };
@@ -139,10 +149,61 @@ namespace WoLAscension
             return true;
         }
 
+        // ---- Unlocking levels in order (#32) ----
+
+        private ConfigEntry<int> unlockedFresh, unlockedOther;
+
+        // Chaos Depths' fresh save is on (it says so through the process's environment).
+        private static bool FreshSave
+        {
+            get
+            {
+                try
+                {
+                    return Environment.GetEnvironmentVariable("CHAOSDEPTHS_FRESH_SAVE") == "1";
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+        }
+
+        private ConfigEntry<int> UnlockedEntry => FreshSave ? unlockedFresh : unlockedOther;
+
+        // The highest level the altar offers in this save.
+        public static int Unlocked => instance == null || instance.UnlockedEntry == null
+            ? AscensionLevels.Max : Mathf.Clamp(instance.UnlockedEntry.Value, 1, AscensionLevels.Max);
+
+        // Called by Chaos Depths when a dive is complete (its final boss, or its last realm boss).
+        public static void ReportRunBeaten() => instance?.RunBeaten("Chaos Depths: dive complete");
+
+        private bool runBeatenLogged;
+
+        // A run at the highest unlocked level was beaten: the next level opens.
+        private void RunBeaten(string why)
+        {
+            if (runLevel < 0 || runBeatenLogged)
+                return;
+            runBeatenLogged = true;
+            ConfigEntry<int> entry = UnlockedEntry;
+            int next = Mathf.Min(AscensionLevels.Max, Mathf.Max(1, runLevel + 1));
+            Logger.LogInfo($"Run beaten at Ascension {runLevel} ({why})");
+            if (entry == null || next <= entry.Value)
+                return;
+            entry.Value = next;
+            Logger.LogInfo($"Ascension {next} unlocked ({(FreshSave ? "fresh save" : "this save")})");
+            GameBanner.Show($"ASCENSION {next} UNLOCKED", "Choose it at the altar by the trials portal", AscensionAltar.Icon(next));
+        }
+
+        private static bool IsFinalBoss(string scene) =>
+            !string.IsNullOrEmpty(scene) && scene.IndexOf("FinalBoss", StringComparison.OrdinalIgnoreCase) >= 0;
+
         // The run is locked to the altar's level; the banner says so as you go in.
         private void StartRun()
         {
-            runLevel = Mathf.Clamp(level.Value, 0, AscensionLevels.Max);
+            runBeatenLogged = false;
+            runLevel = Mathf.Clamp(level.Value, 0, Unlocked);
             Logger.LogInfo($"Starting run at Ascension {runLevel}");
             if (runLevel > 0)
                 GameBanner.Show($"ASCENSION {runLevel}", AscensionLevels.Summary(runLevel), AscensionAltar.Icon(runLevel));

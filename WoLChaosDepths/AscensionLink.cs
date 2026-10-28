@@ -90,6 +90,22 @@ namespace WoLChaosDepths
             }
         }
 
+        // A dive is complete: Ascension unlocks the next level if this was the highest (#32).
+        public static void ReportRunBeaten()
+        {
+            Find();
+            try
+            {
+                MethodInfo m = instance != null ? instance.GetType().GetMethod("ReportRunBeaten", BindingFlags.Public | BindingFlags.Static) : null;
+                if (m != null)
+                    m.Invoke(null, null);
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogWarning($"Ascension link (run beaten): {e.Message}");
+            }
+        }
+
         // Each reads the level first (which finds the table on first use).
         public static float EliteChance { get { int l = Level; return eliteChance != null ? eliteChance(l) : 0f; } }
         public static float TwoAffixChance { get { int l = Level; return twoAffixChance != null ? twoAffixChance(l) : 0f; } }

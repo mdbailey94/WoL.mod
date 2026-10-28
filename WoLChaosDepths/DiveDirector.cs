@@ -201,6 +201,7 @@ namespace WoLChaosDepths
         {
             inRun = false;
             returningToHub = true;
+            AscensionLink.ReportRunBeaten();
             try
             {
                 GameUI.BroadcastNoticeMessage("Dive complete!", 3f);
