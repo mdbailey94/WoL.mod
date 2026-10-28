@@ -555,6 +555,16 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
 - In the Debugging save, Unlock Mod Content has already unlocked every mod arcana, so there is
   nothing left to offer; this is for the save slots.
 
+## 0.15.13: fix the title screen hang from 0.15.11
+
+- 0.15.11's shop odds hooked the game's arcana picker (`LootManager.GetSkillID`) with Harmony
+  as the mod loaded. That ran the game's loot set-up before its asset bundle was ready, which
+  threw and left the loot manager broken, so the game hung on the title screen. The shop odds
+  now act on each shop card as it appears (the shop's own spawn event) and patch nothing. Same
+  setting, same 50%.
+- Elite markers no longer throw an IndexOutOfRange for their first moments: their animation
+  clock started up to a second in the future.
+
 ## 0.15.12: Legendary charms show their theme in the trail (asked for by Matt)
 
 - A non-unique Legendary charm now always wears the plain orange Legendary orb. Its theme shows

@@ -48,7 +48,9 @@ namespace WoLChaosDepths
                 if (material == null)
                     material = new Material(Shader.Find("Sprites/Default"));
                 marker.r.material = material;
-                marker.born = Time.time + Random.value; // so markers in a pack don't pulse together
+                // So markers in a pack don't pulse together. In the past: up to 0.15.12 it was in the
+                // future, and the frame index went negative for up to a second (an IndexOutOfRange).
+                marker.born = Time.time - Random.value;
                 marker.sideways = (index - (count - 1) * 0.5f) * SidePixels / ppu;
                 marker.Follow();
             }
