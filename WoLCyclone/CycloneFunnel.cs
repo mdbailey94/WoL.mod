@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
 using UnityEngine;
 
 namespace WoLCyclone
@@ -146,7 +148,9 @@ namespace WoLCyclone
                 funnel.ring = funnel.Child("DustRing", PixelFx.GroundLayer);
                 funnel.center = position;
                 funnel.Draw(0f, 1f, 1f, 1f);
-                PixelFx.Effect("funnel", () => $"one spiral-striped funnel in {Slices} leaning slices x {FunnelFrames} frames in {Shades.Length} shades of the game's wind tones, ppu {PixelFx.Ppu}");
+                PixelFx.Effect("funnel", () => CyclonePlugin.DrawnTwister && DrawnSet(1f) >= 0
+                    ? $"hand-drawn twister, {DrawnNames.Length} sizes x {drawn[0].Length} frames, in {Slices} leaning slices, ppu {PixelFx.Ppu}"
+                    : $"one spiral-striped funnel in {Slices} leaning slices x {FunnelFrames} frames in {Shades.Length} shades of the game's wind tones, ppu {PixelFx.Ppu}");
                 PixelFx.Effect("dust ring", () => $"{RingFrames} frames, {funnel.ring.sprite.rect.width} px wide to start, ppu {PixelFx.Ppu}");
                 return funnel;
             }
@@ -314,14 +318,32 @@ namespace WoLCyclone
             // The funnel: one picture, drawn at (or near) native size and scaled the rest of the
             // way, cut into horizontal slices that each lean with the sway at their height, so the
             // whole column snakes while its stripes run unbroken from tip to mouth.
-            float pxScale = Mathf.Max(1f, top * ppu / MaxFunnelPx, height * ppu / MaxFunnelHeightPx);
-            int topPx = Mathf.Clamp(Mathf.RoundToInt(top * ppu / pxScale / PxStep) * PxStep, 8, MaxFunnelPx);
-            int bottomPx = Mathf.Clamp(Mathf.RoundToInt(bottom * ppu / pxScale / 2f) * 2, 4, topPx);
-            int heightPx = Mathf.Clamp(Mathf.RoundToInt(height * ppu / pxScale / PxStep) * PxStep, 8, MaxFunnelHeightPx);
-            Sprite[][] art = FunnelArt(topPx, bottomPx, heightPx, shade);
-            int frame = Frame(time, Mathf.Lerp(SpinFpsSlow, SpinFpsFast, p), 0f, FunnelFrames);
+            Sprite[][] art;
+            float scaleX, scaleY;
+            int drawnSet = CyclonePlugin.DrawnTwister ? DrawnSet(top * ppu) : -1;
+            if (drawnSet >= 0)
+            {
+                // The hand-drawn twister: the largest of its three sizes that fits under the
+                // funnel's width, scaled up the rest of the way; its height follows the picture.
+                // It is drawn in the wind teal only, so the gale and storm shades tint it.
+                art = drawn[drawnSet];
+                float contentW = drawnWidth[drawnSet];
+                scaleX = scaleY = top * ppu / contentW;
+                height = drawnHeight[drawnSet] * scaleX / ppu;
+                color = new Color(DrawnTint[shade].r, DrawnTint[shade].g, DrawnTint[shade].b, fade);
+            }
+            else
+            {
+                float pxScale = Mathf.Max(1f, top * ppu / MaxFunnelPx, height * ppu / MaxFunnelHeightPx);
+                int topPx = Mathf.Clamp(Mathf.RoundToInt(top * ppu / pxScale / PxStep) * PxStep, 8, MaxFunnelPx);
+                int bottomPx = Mathf.Clamp(Mathf.RoundToInt(bottom * ppu / pxScale / 2f) * 2, 4, topPx);
+                int heightPx = Mathf.Clamp(Mathf.RoundToInt(height * ppu / pxScale / PxStep) * PxStep, 8, MaxFunnelHeightPx);
+                art = FunnelArt(topPx, bottomPx, heightPx, shade);
+                scaleX = top * ppu / topPx;
+                scaleY = height * ppu / heightPx;
+            }
+            int frame = Frame(time, Mathf.Lerp(SpinFpsSlow, SpinFpsFast, p), 0f, art.Length);
             Sprite[] slices = art[frame];
-            float scaleX = top * ppu / topPx, scaleY = height * ppu / heightPx;
             float sliceBottom = 0f;
             for (int i = 0; i < bands.Count; i++)
             {
@@ -403,6 +425,109 @@ namespace WoLCyclone
             o.sr.enabled = true;
             orbiters.Add(o);
             PixelFx.Effect("orbiting debris", () => $"dust puffs, rocks and leaves (game's Dust and Rocks when loaded), up to {MaxDebris}, ppu {PixelFx.Ppu}");
+        }
+
+        // ---- The hand-drawn twister (Assets/twister_small|medium|large.png, 6 frames each, drawn
+        // for the mod in the game's wind tones) ----
+        private static readonly string[] DrawnNames = { "small", "medium", "large" };
+        private static readonly Color[] DrawnTint =
+        {
+            Color.white,
+            new Color(0.84f, 0.88f, 0.9f),
+            new Color(0.68f, 0.75f, 0.8f),
+        };
+        private static Sprite[][][] drawn;        // [set][frame][slice]
+        private static float[] drawnWidth, drawnHeight; // the picture's content size per set, px
+        private static float drawnPpu;
+        private static bool drawnFailed;
+
+        // The set to use for a funnel `wantPx` wide: the largest whose picture isn't wider, so
+        // it only ever scales up; -1 when the art isn't available.
+        private static int DrawnSet(float wantPx)
+        {
+            if (!LoadDrawn())
+                return -1;
+            int best = 0;
+            for (int i = 1; i < drawn.Length; i++)
+                if (drawnWidth[i] <= wantPx * 1.1f)
+                    best = i;
+            return best;
+        }
+
+        private static bool LoadDrawn()
+        {
+            if (drawnFailed)
+                return false;
+            if (drawn != null && Mathf.Approximately(drawnPpu, PixelFx.Ppu) && drawn[0] != null && drawn[0][0] != null && drawn[0][0][0] != null && drawn[0][0][0].texture != null)
+                return true;
+            try
+            {
+                var sets = new Sprite[DrawnNames.Length][][];
+                var widths = new float[DrawnNames.Length];
+                var heights = new float[DrawnNames.Length];
+                for (int i = 0; i < DrawnNames.Length; i++)
+                {
+                    Texture2D tex = LoadPng("twister_" + DrawnNames[i]);
+                    if (tex == null)
+                    {
+                        drawnFailed = true;
+                        PixelFx.Log($"drawn twister sheet twister_{DrawnNames[i]}.png not found; using the coded funnel");
+                        return false;
+                    }
+                    const int frameCount = 6;
+                    int fw = tex.width / frameCount, fh = tex.height;
+                    widths[i] = fw - 2;   // a 1-px margin either side of the picture
+                    heights[i] = fh;
+                    int sliceH = Mathf.CeilToInt((float)fh / Slices);
+                    sets[i] = new Sprite[frameCount][];
+                    for (int f = 0; f < frameCount; f++)
+                    {
+                        sets[i][f] = new Sprite[Slices];
+                        for (int k = 0; k < Slices; k++)
+                        {
+                            int y0 = k * sliceH, hh = Mathf.Min(sliceH, fh - y0);
+                            if (hh <= 0)
+                                continue;
+                            sets[i][f][k] = Sprite.Create(tex, new Rect(f * fw, y0, fw, hh), new Vector2(0.5f, 0f), PixelFx.Ppu);
+                        }
+                    }
+                }
+                drawn = sets;
+                drawnWidth = widths;
+                drawnHeight = heights;
+                drawnPpu = PixelFx.Ppu;
+                return true;
+            }
+            catch (System.Exception e)
+            {
+                drawnFailed = true;
+                PixelFx.Log($"drawn twister couldn't be loaded ({e.Message}); using the coded funnel");
+                return false;
+            }
+        }
+
+        private static Texture2D LoadPng(string name)
+        {
+            using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("WoLCyclone.Assets." + name + ".png"))
+            {
+                if (stream == null)
+                    return null;
+                var data = new byte[stream.Length];
+                int read = 0;
+                while (read < data.Length)
+                {
+                    int n = stream.Read(data, read, data.Length - read);
+                    if (n <= 0)
+                        break;
+                    read += n;
+                }
+                var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+                if (!tex.LoadImage(data))
+                    return null;
+                tex.filterMode = FilterMode.Point;
+                tex.wrapMode = TextureWrapMode.Clamp;
+                return tex;
+            }
         }
 
         // The funnel picture: `topPx` wide at the mouth, `bottomPx` at the tip, `heightPx` tall

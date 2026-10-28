@@ -40,6 +40,9 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Assets\icon.png" LogicalName="WoLCyclone.Assets.icon.png" />
+    <EmbeddedResource Include="Assets\twister_small.png" LogicalName="WoLCyclone.Assets.twister_small.png" />
+    <EmbeddedResource Include="Assets\twister_medium.png" LogicalName="WoLCyclone.Assets.twister_medium.png" />
+    <EmbeddedResource Include="Assets\twister_large.png" LogicalName="WoLCyclone.Assets.twister_large.png" />
   </ItemGroup>
 
   <Target Name="CopyToPlugins" AfterTargets="Build" Condition="Exists('$(GameDir)\BepInEx\plugins')">

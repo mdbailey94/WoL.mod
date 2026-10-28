@@ -13,10 +13,12 @@ namespace WoLCyclone
     {
         public const string PluginGuid = "mdbailey94.wol.cyclone";
         public const string PluginName = "Cyclone";
-        public const string PluginVersion = "0.4.3";
+        public const string PluginVersion = "0.4.4";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
+        private static ConfigEntry<string> twister;
+        public static bool DrawnTwister => twister == null || twister.Value != "Coded";
 
         public static void Log(string message) => log?.LogInfo(message);
 
@@ -26,6 +28,10 @@ namespace WoLCyclone
             modEnabled = Config.Bind("General", "Enabled", true,
                 "Offer Cyclone in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
+
+            twister = Config.Bind("Look", "Twister", "Drawn",
+                new ConfigDescription("Drawn: the hand-drawn twister (three sizes, six frames each, scaled to the funnel's width). Coded: the funnel drawn in code (0.4.3's spiral column). Applies to the next cast.",
+                    new AcceptableValueList<string>("Drawn", "Coded")));
 
             Skills.Register(new SkillInfo
             {

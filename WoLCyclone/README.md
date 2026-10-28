@@ -24,7 +24,11 @@ A new **Air standard arcana**, added with [LegendAPI](https://github.com/yekoc/L
 
 The twister is pixel art in the game's own wind style, at the game's pixel size:
 
-- **Funnel** (0.4.3): one tapered twister, narrow at the ground and flaring open at the top, its
+- **Funnel** (0.4.4): a **hand-drawn twister** in three sizes (12, 32 and 48 px wide, six
+  frames each, drawn for the mod in the game's wind tones), the largest that fits under the
+  funnel's current width scaled up the rest of the way, tinted to gale grey and storm slate as
+  it grows, cut into slices that lean with the sway. `[Look] Twister = Coded` uses the 0.4.3
+  funnel instead: one tapered twister, narrow at the ground and flaring open at the top, its
   body wound with spiral stripes that wrap round it and scroll (a 6-frame loop), lit from the
   upper left with its right side in shade and the dark throat showing in the open mouth; the
   game's three wind tones, no outline. It grows taller and wider and darkens in two steps from the
