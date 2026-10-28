@@ -39,7 +39,23 @@ This brief is for a new Claude Code session that continues the work of the cloud
   status "Needs Review". Reference sheets from the game are in Reference (game art) >
   WoL reference art. Art must be true pixel size, transparent PNG, frames side by side.
 
-## Chaos Depths (the main project, `WoLChaosDepths`, 0.12.3)
+## Since the handover (2026-10-28, local session as WoL Modder)
+
+All pushed and installed (base game, and the Chaos Depths profile's copies); none tested in game
+yet, WoL Player retests from Monday. Notes are on each task row.
+
+- Chaos Depths 0.13.1 (#25: pickup no longer fires the basic attack), 0.13.2 (#26: `[Debug]
+  HitchLog` frame probe, cached text styles), 0.13.3 (#17: WoL Art's elite affix markers).
+- Slingshot Dash 0.25.5 (#24: Feint Swap signature fan at full range, 52 degrees), 0.25.6 (#26:
+  slingshot HUD icon no longer rewritten every frame).
+- Trailblazer 0.9.2, Ascension 0.6.1, Mod Menu 0.1.4 (#26: pooled trail columns, cached styles,
+  no title-screen search during runs).
+- #23 (Trailblazer at level 10 = maxed): waiting on WoL Art to redraw the white-hot flame at the
+  trail's 25x60 tongue size before it is hooked in.
+- To build without deploying, point `-GameDir` at a copy holding only `BepInEx\core` and
+  `WizardOfLegend_Data\Managed` (no `plugins` folder, so nothing is copied).
+
+## Chaos Depths (the main project, `WoLChaosDepths`, 0.13.3)
 
 A Diablo-like loot layer on Wizard of Legend: character level and XP, items in three slots
 (Amulet, Ring, Charm) at four rarities with rolled affixes, six unique legendaries with powers,
@@ -90,11 +106,11 @@ https://claude.ai/artifact/9ygkyb3WgVeYYtpFDpSGxM.
 | Bramble Ring | 0.5.2 | Standard thicket drawn in (rows 0.8 / 1.5). |
 | Thunderhead | 0.9.4 | Drawn icon; crackling strike cracks. |
 | Tidal Wall | 0.4.3 | Drawn icon; larger crest that keeps its throw angle. |
-| Trailblazer | 0.9.1 | Flames at the feet, no ring. |
-| Slingshot Dash | 0.25.4 | Holds Vacuum Fist, Blazing Kick, Feint Swap, Vine Slingshot, Charged Leap; drawn icons. |
+| Trailblazer | 0.9.2 | Flames at the feet, no ring. |
+| Slingshot Dash | 0.25.6 | Holds Vacuum Fist, Blazing Kick, Feint Swap, Vine Slingshot, Charged Leap; drawn icons. |
 | Rolling Gale | 0.4.2 | Drawn icon. |
 | Stone Charge | 0.4.1 | |
-| Ascension | 0.6.0 | Chaos Depths reads its level for loot. |
+| Ascension | 0.6.1 | Chaos Depths reads its level for loot. |
 | Others | | Camera Zoom, Cloak Upgrades, Custom Paintings, Damage Meter, Duelist's Cloak, Extended Stats, Mod Menu, Potion Price, Relic Pack, Unlock Mod Content. |
 
 Matt's base-game loadout is Stone Shot / Charged Leap / Trailblazer / Feint Swap. Restore it if
