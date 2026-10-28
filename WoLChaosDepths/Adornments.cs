@@ -147,7 +147,9 @@ namespace WoLChaosDepths
             string name;
             if (!string.IsNullOrEmpty(item.unique) && UniqueArt.TryGetValue(item.unique, out name))
                 list.Add("worn_" + part + "_" + name);
-            string theme = tier >= 3 && string.IsNullOrEmpty(item.unique) ? Theme(item) : null;
+            // A Legendary charm keeps the plain orb whatever its theme (Matt, 0.15.12): the theme
+            // shows in its trail (CharmTrail), and the themed orbs are kept for uniques.
+            string theme = tier >= 3 && string.IsNullOrEmpty(item.unique) && part != "charm" ? Theme(item) : null;
             if (theme != null)
                 list.Add("worn_" + part + "_legendary_" + theme);
             list.Add("worn_" + part + "_" + ItemArt.RarityName(tier));
@@ -222,6 +224,16 @@ namespace WoLChaosDepths
         }
 
         // The first design with a picture of its own (2 frames: rest, glint), for rings and charms.
+        // A charm's trail puffs: a unique's own; a plain Legendary's in its theme's colour (red
+        // offense, green defense, violet utility) when drawn, else the plain orange one.
+        private static string CharmTrail(ItemData charm, string design)
+        {
+            string theme = charm != null && string.IsNullOrEmpty(charm.unique) ? Theme(charm) : null;
+            if (theme != null && ItemArt.LoadPng("worn_charm_legendary_" + theme + "_trail") != null)
+                return "worn_charm_legendary_" + theme + "_trail";
+            return design + "_trail";
+        }
+
         private static string FirstDrawn(string[] designs)
         {
             foreach (string d in designs)
@@ -547,7 +559,7 @@ namespace WoLChaosDepths
                     amuletDesigns = Designs("pendant", amulet, amuletTier);
                     ringDesign = FirstDrawn(Designs("ring", ring, ringTier));
                     charmDesign = FirstDrawn(Designs("charm", charm, charmTier));
-                    charmTrail = charmDesign != null && charmTier >= 3 ? ItemArt.Frames(charmDesign + "_trail", 4, Centre, ppu) : null;
+                    charmTrail = charmDesign != null && charmTier >= 3 ? ItemArt.Frames(CharmTrail(charm, charmDesign), 4, Centre, ppu) : null;
                     pendant = Part(pendant, amulet, amulet != null ? PendantSprite("down", 0, -1, -1) : null);
                     glint = Part(glint, ring, ring != null ? Ring(ringDesign, ColourOf(ring), ringTier, 0, ppu) : null);
                     // The aura of the first unique worn (amulet, then ring, then charm).

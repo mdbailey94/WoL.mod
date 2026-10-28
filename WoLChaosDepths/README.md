@@ -554,3 +554,10 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
   "Shop: offering mod arcana ..." for each one.
 - In the Debugging save, Unlock Mod Content has already unlocked every mod arcana, so there is
   nothing left to offer; this is for the save slots.
+
+## 0.15.12: Legendary charms show their theme in the trail (asked for by Matt)
+
+- A non-unique Legendary charm now always wears the plain orange Legendary orb. Its theme shows
+  in the trail puffs: red for offense, green for defense, violet for utility. The red, green
+  and violet orbs are kept for the charm uniques being drafted (`FUTURE.md`). Rings and
+  pendants still wear their themed looks.
