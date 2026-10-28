@@ -28,6 +28,13 @@ A ride like Aero Ring's, with Tearing Whirlwind's rolling hit:
   the game's slide, like Tearing Whirlwind. Cooldown 7 seconds (from the cast).
 - **Enhanced**: 4.5 seconds on the ball, and the biggest ball is radius 3.
 
+## 0.3.5
+
+- The ball is a third smaller (hit radius 0.8 at base speed to 1.6 at the peak, 2 enhanced;
+  `[Ball]`); the drawn ball is sized from the hit radius, so picture and hit shrink together.
+- `[Balance] HittableWhileRiding` (on): the ride never made you invulnerable itself, but any
+  invulnerability the game puts on a riding wizard is cleared while it's on, logged once.
+
 ## Look
 
 0.2.0 added these on top of the game's own wind; 0.2.1 plays the **game's own wind sprites** for

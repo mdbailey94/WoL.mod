@@ -15,7 +15,7 @@ namespace WoLChaosDepths
     public static class Adornments
     {
         private static ConfigEntry<bool> enabled, uniqueSparks;
-        private static ConfigEntry<float> legendaryCharmScale;
+        private static ConfigEntry<float> legendaryCharmScale, charmOrbitHeight;
         private static readonly Dictionary<int, Adorn> adorns = new Dictionary<int, Adorn>();
         private static readonly Dictionary<string, Sprite> sprites = new Dictionary<string, Sprite>();
         private static Material material;
@@ -24,6 +24,8 @@ namespace WoLChaosDepths
         {
             enabled = config.Bind("Look", "ShowEquipped", true, "Equipped items show on the wizard: a pendant, a ring glint and a belt charm.");
             uniqueSparks = config.Bind("Look", "UniqueSparks", true, "Unique legendaries worn give off small sparks.");
+            charmOrbitHeight = config.Bind("Look", "CharmOrbitHeight", 0.45f,
+                new ConfigDescription("How high the charm's stones circle, as a fraction of the wizard's height: 0.6 was chest height (0.11.9 and before), 0.45 the waist, 0.3 the hips.", new AcceptableValueRange<float>(0.1f, 0.9f)));
             legendaryCharmScale = config.Bind("Look", "LegendaryCharmScale", 0.6f,
                 new ConfigDescription("Size of the four stones a Legendary (or unique) charm floats round the wizard, as a fraction of the drawn 7x7 stone. 1 = full size.", new AcceptableValueRange<float>(0.4f, 1f)));
         }
@@ -96,6 +98,8 @@ namespace WoLChaosDepths
             return s;
         }
 
+        private static bool HasPendantView(int tier, string facing) => ItemArt.LoadPng("worn_pendant_" + ItemArt.RarityName(tier) + "_" + facing) != null;
+
         // Rarity tier: 0 Common, 1 Magic, 2 Rare, 3 Legendary (a unique counts as Legendary).
         // Each part grows and shines more with it.
         private static int Tier(ItemData item)
@@ -110,9 +114,13 @@ namespace WoLChaosDepths
         // A pendant on a short chain: a 3x3 gem (Common), 5x5 (Magic), 7x7 (Rare), 7x7 in a gold
         // setting (Legendary), with a dark rim and a lit facet. When it glints the facet goes
         // white, and on a Legendary the setting's four points too. Pivot top.
-        private static Sprite Pendant(Color c, int tier, int frame, float ppu)
+        // facing: "down", "side" or "up". A drawn worn_pendant_<rarity>_<facing>.png is used for
+        // that view when it exists (the side view drawn facing right; it is flipped for left),
+        // else the single worn_pendant_<rarity>.png for every view, else the code-drawn one.
+        private static Sprite Pendant(Color c, int tier, int frame, float ppu, string facing = "down")
         {
-            Sprite[] drawn = ItemArt.Frames("worn_pendant_" + ItemArt.RarityName(tier), 2, new Vector2(0.5f, 1f), ppu);
+            Sprite[] drawn = ItemArt.Frames("worn_pendant_" + ItemArt.RarityName(tier) + "_" + facing, 2, new Vector2(0.5f, 1f), ppu)
+                ?? ItemArt.Frames("worn_pendant_" + ItemArt.RarityName(tier), 2, new Vector2(0.5f, 1f), ppu);
             if (drawn != null)
                 return drawn[Mathf.Clamp(frame, 0, 1)];
             Color chain = new Color32(0xc8, 0xb0, 0x60, 0xff), setting = new Color32(0xf0, 0xd0, 0x70, 0xff);
@@ -469,10 +477,15 @@ namespace WoLChaosDepths
 
                 if (pendant != null)
                 {
+                    // One picture for every view unless the art has a view for this facing;
+                    // facing up it shows only when there is an "up" picture (the chain at the
+                    // back of the neck), behind the body.
+                    string view = down ? "down" : up ? "up" : "side";
                     Place(pendant, body, pivot, a.chest, fwd, bob);
-                    Sort(pendant, body, front);
-                    pendant.enabled = !up;
-                    pendant.sprite = Pendant(ColourOf(amulet), amuletTier, Twinkle(0, amuletTier), ppu);
+                    Sort(pendant, body, up ? back : front);
+                    pendant.enabled = !up || HasPendantView(amuletTier, "up");
+                    pendant.flipX = view == "side" && side < 0f && HasPendantView(amuletTier, "side");
+                    pendant.sprite = Pendant(ColourOf(amulet), amuletTier, Twinkle(0, amuletTier), ppu, view);
                 }
                 if (glint != null)
                 {
@@ -503,7 +516,7 @@ namespace WoLChaosDepths
                     // it on the far half. More stones, and a quicker, wider circle, with rarity.
                     orbitPhase += Time.deltaTime * (1.3f + 0.15f * charmTier);
                     float rx = 0.55f + 0.05f * charmTier, ry = rx * 0.35f;
-                    float centreY = pivot.y + a.top * 0.6f + bob;
+                    float centreY = pivot.y + a.top * charmOrbitHeight.Value + bob;
                     for (int i = 0; i < orbs.Count; i++)
                     {
                         SpriteRenderer o = orbs[i];

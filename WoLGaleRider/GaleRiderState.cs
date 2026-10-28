@@ -84,6 +84,31 @@ namespace WoLGaleRider
         private WindBall windBall;
         private Rider rider;
         private FacingDirection ridingFacing = FacingDirection.Neutral;
+        // The ride never asks for invulnerability, but if the game gives a riding wizard any
+        // (a movement skill's grace, say) it is taken off again while [Balance]
+        // HittableWhileRiding is on, and noted in the log once so we know it happened.
+        private static bool loggedInvulnerable;
+        private void KeepHittable()
+        {
+            if (!GaleRiderPlugin.HittableWhileRiding)
+                return;
+            try
+            {
+                if (parent.health != null && parent.health.invulnerable)
+                {
+                    parent.health.invulnerable = false;
+                    if (!loggedInvulnerable)
+                    {
+                        loggedInvulnerable = true;
+                        GaleRiderPlugin.Log("Gale Rider: the game had the wizard invulnerable during the ride; cleared it ([Balance] HittableWhileRiding)");
+                    }
+                }
+            }
+            catch
+            {
+            }
+        }
+
         // The game's animation for a ride pose name ([Look] RidePose); null = the run, not held.
         private string PoseAnim(string name)
         {
@@ -205,6 +230,7 @@ namespace WoLGaleRider
             Steer();
             UpdateBall();
             Effects();
+            KeepHittable();
 
             bool hopOff = GaleRiderPlugin.HopOffOnPress && time >= GaleRiderPlugin.MinRideTime && skillSlot >= 0
                 && parent.inputDevice != null && parent.inputDevice.GetButtonDown("Skill" + skillSlot);

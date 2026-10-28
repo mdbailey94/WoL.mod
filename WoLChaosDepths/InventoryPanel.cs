@@ -368,7 +368,7 @@ namespace WoLChaosDepths
                 // What it all adds up to.
                 // Only in the room left above the detail area (the 0.10.0 block ran over it).
                 List<string> totals = Totals(save);
-                float totalsBottom = panel.yMax - 24 * u;
+                float totalsBottom = panel.yMax - 34 * u;
                 if (totals.Count > 0 && y + 2 * u + 2 * lineH <= totalsBottom)
                 {
                     PixelUI.Fill(new Rect(x, y, leftW, u), PixelUI.InnerLine);
@@ -411,8 +411,10 @@ namespace WoLChaosDepths
                 if (save.inventory.Count > Rows)
                     Label(new Rect(listX, y, listW, lineH), $"{scroll + 1}-{Mathf.Min(scroll + Rows, save.inventory.Count)} of {save.inventory.Count}", dim);
 
-                // Selected item's details, and the equipped one for its slot.
-                float detailY = panel.yMax - 22 * u;
+                // Selected item's details, and the equipped one for its slot: the name on one
+                // line, the description wrapped over up to two, the comparison over what's left
+                // (the 0.11.9 one-line version cut long descriptions off).
+                float detailY = panel.yMax - 32 * u;
                 PixelUI.Fill(new Rect(x, detailY - 2 * u, barW, u), PixelUI.InnerLine);
                 ItemData chosen = Selected;
                 if (chosen != null)
@@ -421,17 +423,30 @@ namespace WoLChaosDepths
                     float bigIcon = 10 * u;
                     Icon(chosen, new Rect(x, detailY, bigIcon, bigIcon));
                     float textX = x + bigIcon + 2 * u, textW = barW - bigIcon - 2 * u;
-                    Label(new Rect(textX, detailY, textW, lineH), Fit($"{chosen.rarity} {chosen.name} (item level {chosen.itemLevel}): {LootTable.Describe(chosen)}", chosenStyle, textW), chosenStyle);
+                    float ty = detailY;
+                    float textBottom = panel.yMax - 10 * u;   // above the salvage bar and the key hints
+                    Label(new Rect(textX, ty, textW, lineH), Fit($"{chosen.rarity} {chosen.name}   item level {chosen.itemLevel}", chosenStyle, textW), chosenStyle);
+                    ty += lineH;
+                    foreach (string line in Wrap(LootTable.Describe(chosen), text, textW, 2))
+                    {
+                        Label(new Rect(textX, ty, textW, lineH), line, text);
+                        ty += lineH;
+                    }
                     int slot = SlotOf(chosen);
                     ItemData worn = slot >= 0 ? StatMods.FindItem(save, save.equipped[slot]) : null;
                     string compare = worn == null ? "Slot empty"
                         : worn == chosen ? "Equipped"
                         : $"Equipped {worn.rarity} {worn.name}: {LootTable.Describe(worn)}";
-                    Label(new Rect(textX, detailY + lineH, textW, lineH), Fit(compare, dim, textW), dim);
+                    int room = Mathf.Max(1, Mathf.FloorToInt((textBottom - ty) / lineH));
+                    foreach (string line in Wrap(compare, dim, textW, room))
+                    {
+                        Label(new Rect(textX, ty, textW, lineH), line, dim);
+                        ty += lineH;
+                    }
                     if (confirmHeldSince >= 0f && !confirmConsumed)
                     {
                         float held = Mathf.Clamp01((Time.unscaledTime - confirmHeldSince) / SalvageHold);
-                        PixelUI.Fill(new Rect(x, detailY + 2 * lineH + u, barW * held, u), PixelUI.Accent);
+                        PixelUI.Fill(new Rect(x, panel.yMax - 10 * u + u, barW * held, u), PixelUI.Accent);
                     }
                 }
                 Label(new Rect(x, panel.yMax - 8 * u, barW, lineH),
@@ -520,6 +535,45 @@ namespace WoLChaosDepths
                 case "Evade": return "evade";
                 default: return key.ToLowerInvariant();
             }
+        }
+
+        // Breaks text into lines no wider than the width, at spaces (a word longer than the
+        // width is cut), up to maxLines; the last line is shortened with "..." if more remains.
+        private static List<string> Wrap(string text, GUIStyle style, float width, int maxLines)
+        {
+            var lines = new List<string>();
+            if (string.IsNullOrEmpty(text) || maxLines <= 0)
+                return lines;
+            string[] words = text.Split(' ');
+            string current = "";
+            for (int i = 0; i < words.Length; i++)
+            {
+                string word = words[i];
+                string candidate = current.Length == 0 ? word : current + " " + word;
+                if (style.CalcSize(new GUIContent(candidate)).x <= width)
+                {
+                    current = candidate;
+                    continue;
+                }
+                if (current.Length > 0)
+                {
+                    lines.Add(current);
+                    current = "";
+                    if (lines.Count == maxLines)
+                    {
+                        // Out of lines: the last one carries the rest, shortened.
+                        string rest = string.Join(" ", words, i, words.Length - i);
+                        lines[lines.Count - 1] = Fit(lines[lines.Count - 1] + " " + rest, style, width);
+                        return lines;
+                    }
+                }
+                current = word;
+                if (style.CalcSize(new GUIContent(current)).x > width)
+                    current = Fit(current, style, width);
+            }
+            if (current.Length > 0)
+                lines.Add(current);
+            return lines;
         }
 
         // Shortens text to fit the width, ending in "...".

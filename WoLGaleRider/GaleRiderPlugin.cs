@@ -13,7 +13,7 @@ namespace WoLGaleRider
     {
         public const string PluginGuid = "mdbailey94.wol.galerider";
         public const string PluginName = "Gale Rider";
-        public const string PluginVersion = "0.3.4";
+        public const string PluginVersion = "0.3.5";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -30,6 +30,7 @@ namespace WoLGaleRider
         private static ConfigEntry<string> ridePose;
         private static ConfigEntry<float> ridePoseFrame, rideSeat;
         private static ConfigEntry<int> damage;
+        private static ConfigEntry<bool> hittable;
         private static ConfigEntry<float> knockback, peakKnockback, hitInterval, cooldown;
 
         public static float RideTime => Get(rideTime, 3f, 0.5f, 10f);
@@ -37,9 +38,10 @@ namespace WoLGaleRider
         public static float RideSpeedPercent => Get(rideSpeedPercent, 40f, 0f, 150f);
         public static float MinRideTime => Get(minRideTime, 0.4f, 0f, 5f);
         public static bool HopOffOnPress => hopOffOnPress?.Value ?? true;
-        public static float MinSize => Get(minSize, 1.2f, 0.3f, 5f);
-        public static float MaxSize => Get(maxSize, 2.4f, 0.3f, 6f);
-        public static float EnhancedMaxSize => Get(enhancedMaxSize, 3f, 0.3f, 6f);
+        public static float MinSize => Get(minSize, 0.8f, 0.3f, 5f);
+        public static float MaxSize => Get(maxSize, 1.6f, 0.3f, 6f);
+        public static float EnhancedMaxSize => Get(enhancedMaxSize, 2f, 0.3f, 6f);
+        public static bool HittableWhileRiding => hittable?.Value ?? true;
         public static float PeakSpeedPercent => Get(peakSpeedPercent, 200f, 110f, 600f);
         public static float VortexSize => Get(vortexSize, 1f, 0.3f, 3f);
         public static bool Dust => dust?.Value ?? true;
@@ -118,9 +120,11 @@ namespace WoLGaleRider
                 "Press the arcana's button again (after MinRideTime) to hop off early. Dashing always cancels the ride.");
             minRideTime = Float("Ride", "MinRideTime", 0.4f, 0f, 5f, "Seconds before you can hop off by pressing again.");
 
-            minSize = Float("Ball", "MinSize", 1.2f, 0.3f, 5f, "Radius of the ball's hit at base run speed (x1.0).");
-            maxSize = Float("Ball", "MaxSize", 2.4f, 0.3f, 6f, "Radius of the ball's hit at the peak speed (see PeakSpeedPercent).");
-            enhancedMaxSize = Float("Ball", "EnhancedMaxSize", 3f, 0.3f, 6f, "MaxSize when enhanced.");
+            // 0.3.5 shrank the ball by a third (1.2/2.4/3 before): the drawn ball is sized from
+            // this radius, so the picture and the hit shrink together (task sheet #9/#10).
+            minSize = Float("Ball", "MinSize", 0.8f, 0.3f, 5f, "Radius of the ball's hit at base run speed (x1.0). The drawn ball is sized to it.");
+            maxSize = Float("Ball", "MaxSize", 1.6f, 0.3f, 6f, "Radius of the ball's hit at the peak speed (see PeakSpeedPercent).");
+            enhancedMaxSize = Float("Ball", "EnhancedMaxSize", 2f, 0.3f, 6f, "MaxSize when enhanced.");
             peakSpeedPercent = Float("Ball", "PeakSpeedPercent", 200f, 110f, 600f,
                 "Speed, as a percentage of base run speed, at which the ball is biggest and shoves hardest. Base run speed " +
                 "(100) is the smallest and weakest; it grows evenly between. Riding alone is 100 + RideSpeedPercent; " +
@@ -144,6 +148,8 @@ namespace WoLGaleRider
                 "0.2.1 plays the game's own wind sprites for them where loaded). Off = the 0.1.0 look. Cosmetic only.");
 
             const string restart = " Applies after restarting the game.";
+            hittable = Config.Bind("Balance", "HittableWhileRiding", true,
+                "Enemies can hurt you while you ride. The mod never made you invulnerable itself; with this on it also clears any invulnerability the game puts on a riding wizard, and logs once if it found any.");
             damage = Config.Bind("Balance", "Damage", 4,
                 new ConfigDescription("Damage of each hit of the ball." + restart, new AcceptableValueRange<int>(0, 100)));
             knockback = Float("Balance", "Knockback", 15f, 0f, 200f, "Knockback at base run speed (Aero Ring is 25).");

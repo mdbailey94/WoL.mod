@@ -242,3 +242,14 @@ animation, follow the facing, and sit behind the body when facing up. `[Look] Sh
 - The profile installer copies the base game's other mods (arcana, relics, menus, LegendAPI,
   patchers, and their configs) into the profile, so a dive plays with them; the base game keeps
   its own copies and still never loads Chaos Depths. `-OnlyChaosDepths` leaves them out.
+
+## 0.11.10
+
+- Panel: the selected item's description wraps over up to two lines and the comparison line
+  over the room below, instead of one shortened line each (task sheet #6). The detail area is
+  taller; the Totals block clips above it as before.
+- Charm stones circle at the waist, `[Look] CharmOrbitHeight` 0.45 of the wizard's height
+  (0.6, the chest, before; task sheet #3).
+- Pendant art per view: `worn_pendant_<rarity>_down.png`, `_side.png` (drawn facing right,
+  flipped for left) and `_up.png` (the chain at the back of the neck, behind the body) are used
+  when present, else the one `worn_pendant_<rarity>.png` for every view (task sheet #2).
