@@ -537,3 +537,9 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
   ItemChanceAtAscension0`), and from Ascension 1 35%, rising 5% a level to 80% at 10 (was
   always; `ItemChance`, `ItemChancePerAscension`). New setting names, so the lower rates reach
   config files that already held the old `DropChanceAtAscension0`.
+
+## 0.15.10: slower levelling again (asked for by Matt)
+
+- Each level takes three times the experience of the original curve (was twice since 0.15.2),
+  so levels come about a third as often: `[Progression] LevelXpScale` (3), a new name so it
+  replaces `XpToLevelScale` = 2 in existing config files.
