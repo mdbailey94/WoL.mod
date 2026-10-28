@@ -23,7 +23,7 @@ namespace WoLChaosDepths
             public Func<string> power;
         }
 
-        private static ConfigEntry<float> uniqueChance;
+        private static ConfigEntry<float> uniqueChance, freshUniqueChance;
         private static ConfigEntry<float> chainShare, chainRange, pyreShare, pyreRadius, leechShare;
         private static ConfigEntry<float> echoShare, galeSpeed, galeSeconds, thornDamage, thornRadius, thornCooldown;
         private static ConfigEntry<int> echoEvery;
@@ -42,6 +42,8 @@ namespace WoLChaosDepths
         {
             uniqueChance = config.Bind("Uniques", "UniqueChance", 0.5f,
                 new ConfigDescription("Chance a Legendary drop is a unique legendary with a power.", new AcceptableValueRange<float>(0f, 1f)));
+            freshUniqueChance = config.Bind("Uniques", "FreshUniqueChance", 0.3f,
+                new ConfigDescription("UniqueChance in the profile's fresh save (WoL Player's balanced rates, #31); UniqueChance is used in the Debugging save.", new AcceptableValueRange<float>(0f, 1f)));
             chainShare = config.Bind("Uniques", "ChainShare", 0.35f, "Stormlinked Signet: share of each hit's damage that arcs to the nearest enemy.");
             chainRange = config.Bind("Uniques", "ChainRange", 6f, "Stormlinked Signet: how far the arc reaches.");
             echoEvery = config.Bind("Uniques", "EchoEvery", 4, "Twinfold Band: every this many hits on an enemy, it is struck again.");
@@ -83,7 +85,7 @@ namespace WoLChaosDepths
         // Called on every new Legendary: maybe turn it into a unique (its slot follows the unique).
         public static void MaybeMakeUnique(ItemData item)
         {
-            if (Defs.Count == 0 || UnityEngine.Random.value >= uniqueChance.Value)
+            if (Defs.Count == 0 || UnityEngine.Random.value >= (ProfileSave.Fresh ? freshUniqueChance.Value : uniqueChance.Value))
                 return;
             MakeUnique(item, Defs[UnityEngine.Random.Range(0, Defs.Count)]);
         }

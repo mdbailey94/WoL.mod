@@ -377,3 +377,14 @@ Laid out after WoL Art's mockup (`inventory_mockup_1x.png`):
     `BepInEx\config\ChaosDepths`), for testing.
 - Switching saves on the title screen writes out the characters of the save being left, points
   the game at the other save's folder and loads it the way the game does when it starts.
+
+## 0.13.8: balanced drops in the fresh save (task sheet #31)
+
+WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps the old ones):
+
+- An ordinary kill drops an item 6% of the time (`[Loot] FreshDropChance`; was 15%).
+- Rarity weights Common 62 / Magic 28 / Rare 8.5 / Legendary 1.5 (the fresh save's own
+  `loot.json`, written doubled as 124 / 56 / 17 / 3); Ascension's rarity boost stacks on top.
+- 30% of Legendaries are uniques (`[Uniques] FreshUniqueChance`; was 50%).
+- The first realm boss each character beats drops a guaranteed Legendary.
+- Elites, floor bosses, realm bosses and rifts drop as before; each drop is the killer's own.

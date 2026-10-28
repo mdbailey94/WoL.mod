@@ -20,12 +20,12 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.13.7";
+        public const string PluginVersion = "0.13.8";
 
 
         private static BepInEx.Logging.ManualLogSource log;
         private static ConfigEntry<bool> modEnabled;
-        private static ConfigEntry<float> healthPerLevel, xpPerHealth, bossXpMultiplier, dropChance;
+        private static ConfigEntry<float> healthPerLevel, xpPerHealth, bossXpMultiplier, dropChance, freshDropChance;
         private static ConfigEntry<int> levelCap, bossDropRarity, floorBossDropRarity;
         private static ConfigEntry<float> floorBossXpMultiplier;
         private static ConfigEntry<bool> autoEquip, logKills;
@@ -78,6 +78,8 @@ namespace WoLChaosDepths
                 "The floor boss always drops an item of at least this rarity (0 Common, 1 Magic, 2 Rare, 3 Legendary).");
             dropChance = Config.Bind("Loot", "DropChance", 0.15f,
                 new ConfigDescription("Chance a kill drops an item (bosses always do).", new AcceptableValueRange<float>(0f, 1f)));
+            freshDropChance = Config.Bind("Loot", "FreshDropChance", 0.06f,
+                new ConfigDescription("DropChance in the profile's fresh save (WoL Player's balanced rates, #31); DropChance is used in the Debugging save.", new AcceptableValueRange<float>(0f, 1f)));
             bossDropRarity = Config.Bind("Loot", "BossDropMinRarity", 2,
                 new ConfigDescription("A boss drop is at least this rarity (0 Common, 1 Magic, 2 Rare, 3 Legendary).", new AcceptableValueRange<int>(0, 3)));
             autoEquip = Config.Bind("Loot", "AutoEquip", true,
@@ -570,12 +572,23 @@ namespace WoLChaosDepths
                 if (Layers.IsLayerBoss(entity))
                     Drop(player, save, LootTable.RarityIndex("Legendary"), entity.transform.position);
                 else if (boss)
-                    Drop(player, save, bossDropRarity.Value, entity.transform.position);
+                {
+                    int min = bossDropRarity.Value;
+                    // The fresh save: the first realm boss each character beats drops a Legendary,
+                    // so everyone sees one early (#31).
+                    if (ProfileSave.Fresh && !save.firstBossLegendary)
+                    {
+                        save.firstBossLegendary = true;
+                        min = LootTable.RarityIndex("Legendary");
+                        Log($"Player {player.playerID + 1}'s first realm boss: a guaranteed Legendary");
+                    }
+                    Drop(player, save, min, entity.transform.position);
+                }
                 else if (floorBoss)
                     Drop(player, save, floorBossDropRarity.Value, entity.transform.position);
                 else if (elite != null)
                     Drop(player, save, Elites.DropMinRarity, entity.transform.position);
-                else if (UnityEngine.Random.value < dropChance.Value)
+                else if (UnityEngine.Random.value < (ProfileSave.Fresh ? freshDropChance.Value : dropChance.Value))
                     Drop(player, save, 0, entity.transform.position);
                 if (boss)
                     SaveStore.Save(player.playerID, save);
@@ -652,7 +665,8 @@ namespace WoLChaosDepths
             // save's are read fresh when a run starts.
             SaveAll();
             characters.Clear();
-            ProfileSave.Switch();
+            if (ProfileSave.Switch())
+                LootTable.Load(); // each save has its own loot.json beside its characters
         }
 
         // On the title screen's menu, with no wizard about (not in its Options screen).

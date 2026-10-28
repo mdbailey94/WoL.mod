@@ -93,9 +93,12 @@ namespace WoLChaosDepths
         public static Data Defaults()
         {
             var data = new Data();
-            data.rarities.Add(new RarityDef { name = "Common", weight = 55, affixes = 1, valueScale = 0.6f });
-            data.rarities.Add(new RarityDef { name = "Magic", weight = 30, affixes = 2, valueScale = 1f });
-            data.rarities.Add(new RarityDef { name = "Rare", weight = 12, affixes = 3, valueScale = 1.25f });
+            // The fresh save's own loot.json starts with WoL Player's balanced weights (#31:
+            // 62 / 28 / 8.5 / 1.5, doubled to whole numbers); the Debugging save keeps 55 / 30 / 12 / 3.
+            bool fresh = ProfileSave.Fresh;
+            data.rarities.Add(new RarityDef { name = "Common", weight = fresh ? 124 : 55, affixes = 1, valueScale = 0.6f });
+            data.rarities.Add(new RarityDef { name = "Magic", weight = fresh ? 56 : 30, affixes = 2, valueScale = 1f });
+            data.rarities.Add(new RarityDef { name = "Rare", weight = fresh ? 17 : 12, affixes = 3, valueScale = 1.25f });
             data.rarities.Add(new RarityDef { name = "Legendary", weight = 3, affixes = 4, valueScale = 1.6f });
             data.affixes.Add(new AffixDef { key = "Damage", label = "+{0} damage", percent = true, min = 0.04f, max = 0.10f, perLevel = 0.002f, suffix = "Might", weight = 12 });
             data.affixes.Add(new AffixDef { key = "CritChance", label = "+{0} critical chance", percent = true, min = 0.02f, max = 0.05f, perLevel = 0.001f, suffix = "Precision", weight = 10 });
