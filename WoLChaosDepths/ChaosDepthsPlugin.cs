@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.15.13";
+        public const string PluginVersion = "0.15.14";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -127,8 +127,10 @@ namespace WoLChaosDepths
             diveRealm = Config.Bind("Dive", "Realm", "Game",
                 new ConfigDescription("Which realm a run starts in. Game = the game's own order.",
                     new AcceptableValueList<string>("Game", "Earth", "Fire", "Water", "Air", "Lightning")));
-            floorsPerRealm = Config.Bind("Dive", "FloorsPerRealm", 0,
-                new ConfigDescription("Floors before each realm's boss. 0 = the game's own count.", new AcceptableValueRange<int>(0, 5)));
+            // A new key in 0.15.14 (FloorsPerRealm = 0 stays in config files unused), so the
+            // beta's one floor reaches existing installs.
+            floorsPerRealm = Config.Bind("Dive", "FloorsBeforeBoss", 1,
+                new ConfigDescription("Floors in each realm before its boss (the beta: 1). 0 = the game's own two.", new AcceptableValueRange<int>(0, 5)));
             realmsPerDive = Config.Bind("Dive", "RealmsPerDive", 0,
                 new ConfigDescription("Realm bosses to beat before the dive ends and you return to the Hub. 0 = the whole run as the game plays it.",
                     new AcceptableValueRange<int>(0, 6)));

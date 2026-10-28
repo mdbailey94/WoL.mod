@@ -36,7 +36,41 @@ namespace WoLChaosDepths
         public static void Install(Harmony harmony)
         {
             harmony.CreateClassProcessor(typeof(LoadLevelPatch)).Patch();
+            harmony.CreateClassProcessor(typeof(NextLevelPatch)).Patch();
             GameController.levelLoadEventHandlers += OnLevelLoad;
+        }
+
+        // Fewer floors before a realm's boss (the beta's one, Matt 0.15.14). The game sends a
+        // realm floor's exit to the boss once stageCount passes stagesPerTier, which is static
+        // readonly: Mono can fold it into the code as a constant, so writing it (ApplyFloors) may
+        // not take. Here a realm floor's exit is pointed at the boss itself once the floors are
+        // done; the game then loads that name instead of the next floor. More floors than the
+        // game's two still rely on ApplyFloors.
+        [HarmonyPatch(typeof(NextLevelLoader), nameof(NextLevelLoader.LoadNextLevel))]
+        private static class NextLevelPatch
+        {
+            private static void Prefix(NextLevelLoader __instance)
+            {
+                try
+                {
+                    int floors = ChaosDepthsPlugin.FloorsPerRealm;
+                    if (!ChaosDepthsPlugin.DiveEnabled || floors <= 0 || __instance is PvpStageLoader || Level.isBossRushMode)
+                        return;
+                    if (!string.IsNullOrEmpty(__instance.nextLevelName) || !NextLevelLoader.InTierScene(string.Empty))
+                        return;
+                    string boss, here = CurrentScene();
+                    if (GameController.stageCount >= floors && GameController.bossLevelNameDict != null
+                        && GameController.bossLevelNameDict.TryGetValue(here, out boss) && !string.IsNullOrEmpty(boss))
+                    {
+                        __instance.nextLevelName = boss;
+                        ChaosDepthsPlugin.Log($"Dive: floor {GameController.stageCount} of {floors} done in '{here}', on to its boss ({boss})");
+                    }
+                }
+                catch (Exception e)
+                {
+                    ChaosDepthsPlugin.LogError($"floors before boss: {e.Message}");
+                }
+            }
         }
 
         [HarmonyPatch(typeof(GameController), nameof(GameController.LoadLevel))]

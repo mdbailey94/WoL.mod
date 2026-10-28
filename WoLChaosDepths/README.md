@@ -555,6 +555,16 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
 - In the Debugging save, Unlock Mod Content has already unlocked every mod arcana, so there is
   nothing left to offer; this is for the save slots.
 
+## 0.15.14: one floor, then the boss, in each realm (the beta, asked for by Matt)
+
+- A run is now 3 realms of **one floor and then that realm's boss**, then the final boss. It
+  was two floors before each boss. `[Dive] FloorsBeforeBoss` (1) sets it; 0 gives the game's
+  own two. It's a new name, so it replaces `FloorsPerRealm` = 0 in existing config files.
+- How: a realm floor's exit is pointed at the realm's boss once its floors are done (a hook on
+  the game's `NextLevelLoader.LoadNextLevel`). The game's own floor count is `static readonly`,
+  so writing it, as 0.3.0 did, may never take. The log says "Dive: floor 1 of 1 done in
+  '<realm>', on to its boss".
+
 ## 0.15.13: fix the title screen hang from 0.15.11
 
 - 0.15.11's shop odds hooked the game's arcana picker (`LootManager.GetSkillID`) with Harmony
