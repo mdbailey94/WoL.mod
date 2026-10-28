@@ -40,6 +40,9 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Assets\icon.png" LogicalName="WoLGaleRider.Assets.icon.png" />
+    <EmbeddedResource Include="Assets\galerider_ball.png" LogicalName="WoLGaleRider.Assets.galerider_ball.png" />
+    <EmbeddedResource Include="Assets\galerider_ball_back.png" LogicalName="WoLGaleRider.Assets.galerider_ball_back.png" />
+    <EmbeddedResource Include="Assets\galerider_ball_front.png" LogicalName="WoLGaleRider.Assets.galerider_ball_front.png" />
   </ItemGroup>
 
   <Target Name="CopyToPlugins" AfterTargets="Build" Condition="Exists('$(GameDir)\BepInEx\plugins')">

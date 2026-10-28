@@ -13,7 +13,7 @@ namespace WoLGaleRider
     {
         public const string PluginGuid = "mdbailey94.wol.galerider";
         public const string PluginName = "Gale Rider";
-        public const string PluginVersion = "0.3.5";
+        public const string PluginVersion = "0.3.6";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -27,7 +27,8 @@ namespace WoLGaleRider
         private static ConfigEntry<float> minSize, maxSize, enhancedMaxSize, peakSpeedPercent;
         private static ConfigEntry<float> vortexSize;
         private static ConfigEntry<bool> dust, drawnEffects, rideOnTop;
-        private static ConfigEntry<string> ridePose;
+        private static ConfigEntry<string> ridePose, ballArt;
+        public static string BallArt => ballArt?.Value ?? "Drawn";
         private static ConfigEntry<float> ridePoseFrame, rideSeat;
         private static ConfigEntry<int> damage;
         private static ConfigEntry<bool> hittable;
@@ -131,6 +132,9 @@ namespace WoLGaleRider
                 "speed relics, the cloak and speed-boost arcana take you further.");
 
             vortexSize = Float("Look", "VortexSize", 1f, 0.3f, 3f, "Size of the swirling wind drawn round you, relative to the ball.");
+            ballArt = Config.Bind("Look", "Ball", "Drawn",
+                new ConfigDescription("The ball's picture: Drawn = the hand-drawn wind ball made for the mod (8 frames, near and far strokes round the wizard); Game = the game's own WindBall sprite when its sheet is loaded; Coded = the ball drawn in code.",
+                    new AcceptableValueList<string>("Drawn", "Game", "Coded")));
             rideOnTop = Config.Bind("Look", "RideOnTop", true,
                 "Crouch on top of the wind ball as it rolls under you: a crouched pose, held still, your feet on its top (RidePose, RidePoseFrame, RideSeat). Off: ride inside it as before.");
             // No AcceptableValueList here: BepInEx resets a value that isn't listed exactly (a

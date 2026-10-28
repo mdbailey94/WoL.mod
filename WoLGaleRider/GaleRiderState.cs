@@ -134,7 +134,7 @@ namespace WoLGaleRider
         private float nextStreak, nextWake, nextTrail, lastPuff;
         private int streaks, puffs;
         private float lastBallWidth;
-        private bool lastBallGame;
+        private bool lastBallGame, lastBallDrawn;
         private static readonly HashSet<string> failed = new HashSet<string>();
 
         public GaleRiderState(FSM newFSM, Player newEnt) : base(staticID, newFSM, newEnt)
@@ -595,6 +595,7 @@ namespace WoLGaleRider
             // The drawn ball and anything else riding on the wizard go with it.
             float ballWidth = windBall != null ? windBall.Width : 0f;
             bool ballGame = windBall != null && windBall.UsesGameSprites;
+            lastBallDrawn = windBall != null && windBall.UsesDrawnArt;
             if (windBall != null)
             {
                 Effect("wind ball", () => windBall.Stop());
@@ -648,7 +649,7 @@ namespace WoLGaleRider
             GaleRiderPlugin.Log($"Gale Rider: {endReason} after {time:0.00}s, travelled {travelled:0.0} u, hit {hits} time(s), " +
                 $"biggest knockback {biggestKnockback:0.#} (last speed x{currentSpeed:0.00}, level {speedLevel})" +
                 (heldAtPitEdge ? ", held back at a pit's edge" : "") +
-                (GaleRiderPlugin.DrawnEffects ? $"; drawn: ball {lastBallWidth:0.0} u wide ({(lastBallGame ? "the game's WindBall" : "drawn")}), {streaks} streak(s), {puffs} gust puff(s), {FxSprite.Live} fx sprite(s) live" : ""));
+                (GaleRiderPlugin.DrawnEffects ? $"; drawn: ball {lastBallWidth:0.0} u wide ({(lastBallDrawn ? "the hand-drawn ball" : lastBallGame ? "the game's WindBall" : "coded")}), {streaks} streak(s), {puffs} gust puff(s), {FxSprite.Live} fx sprite(s) live" : ""));
         }
 
         // The ball coming apart where the ride ends, sized to it: the game's whirlwind lifting

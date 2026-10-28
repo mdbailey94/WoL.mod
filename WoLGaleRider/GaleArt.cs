@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
 using UnityEngine;
 
 namespace WoLGaleRider
@@ -48,6 +50,80 @@ namespace WoLGaleRider
             GameSprites.Cells("WindTrail", 32, 32, 0, 0, 8, new Vector2(16f, 16f)));
         public static Sprite[] GameRing => Game("unravel ring", "WindParticles sheet row 5 (6 cells of 48x48)",
             GameSprites.Cells("WindParticles", 48, 48, 4, 0, 6, new Vector2(24f, 24f)));
+
+        // ---- The hand-drawn ball (Assets/galerider_ball*.png: 8 frames of 48x48, the ball about
+        // 44 px across centred like the game's WindBall, in the game's wind tones), drawn for the
+        // mod: the whole ball, its far-side strokes (behind the wizard) and its near-side strokes
+        // (in front), so the wizard rides inside or on it. Same size as the game's frames, so the
+        // ball code scales and places it the same way. ----
+        private static Sprite[] drawnBall, drawnBallBack, drawnBallFront;
+        private static float drawnPpu;
+        private static bool drawnFailed;
+
+        public static Sprite[] DrawnBall => LoadDrawnBall() ? drawnBall : null;
+        public static Sprite[] DrawnBallBack => LoadDrawnBall() ? drawnBallBack : null;
+        public static Sprite[] DrawnBallFront => LoadDrawnBall() ? drawnBallFront : null;
+
+        private static bool LoadDrawnBall()
+        {
+            if (drawnFailed)
+                return false;
+            if (PixelArt.Alive(drawnBall) && Mathf.Approximately(drawnPpu, PixelArt.Ppu))
+                return true;
+            try
+            {
+                drawnBall = Sheet("galerider_ball");
+                drawnBallBack = Sheet("galerider_ball_back");
+                drawnBallFront = Sheet("galerider_ball_front");
+                if (drawnBall == null || drawnBallBack == null || drawnBallFront == null)
+                {
+                    drawnFailed = true;
+                    GaleRiderPlugin.Log("Gale Rider: the drawn ball sheets aren't in the DLL; using the game's WindBall");
+                    return false;
+                }
+                drawnPpu = PixelArt.Ppu;
+                return true;
+            }
+            catch (System.Exception e)
+            {
+                drawnFailed = true;
+                GaleRiderPlugin.Log($"Gale Rider: couldn't load the drawn ball ({e.Message}); using the game's WindBall");
+                return false;
+            }
+        }
+
+        // An embedded sheet of 48x48 frames, pivot at the centre, at the game's pixel size.
+        private static Sprite[] Sheet(string name)
+        {
+            using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("WoLGaleRider.Assets." + name + ".png"))
+            {
+                if (stream == null)
+                    return null;
+                var data = new byte[stream.Length];
+                int read = 0;
+                while (read < data.Length)
+                {
+                    int n = stream.Read(data, read, data.Length - read);
+                    if (n <= 0)
+                        break;
+                    read += n;
+                }
+                var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+                if (!tex.LoadImage(data))
+                    return null;
+                tex.filterMode = FilterMode.Point;
+                tex.wrapMode = TextureWrapMode.Clamp;
+                tex.hideFlags = HideFlags.HideAndDontSave;
+                int cell = tex.height, count = Mathf.Max(1, tex.width / cell);
+                var frames = new Sprite[count];
+                for (int i = 0; i < count; i++)
+                {
+                    frames[i] = Sprite.Create(tex, new Rect(i * cell, 0, cell, cell), new Vector2(0.5f, 0.5f), PixelArt.Ppu, 0, SpriteMeshType.FullRect);
+                    frames[i].hideFlags = HideFlags.HideAndDontSave;
+                }
+                return frames;
+            }
+        }
 
         // The lower half of each of the game's ball frames (up to its middle), pivoted to line up
         // with the whole frame: drawn in front of the wizard so they ride inside the ball.
@@ -546,7 +622,8 @@ namespace WoLGaleRider
         private static bool loggedSorting;
 
         public float Width { get; private set; }
-        public bool UsesGameSprites => game != null;
+        public bool UsesGameSprites => game != null && !UsesDrawnArt;
+        public bool UsesDrawnArt { get; private set; }
         // Riding on top: the ball sits on the ground (its bottom at the feet) under the lifted
         // wizard, instead of round their waist.
         public bool OnTop;
@@ -555,11 +632,27 @@ namespace WoLGaleRider
         {
             var ball = new WindBall();
             SpriteRenderer body = player.spriteRenderer;
-            ball.game = GaleArt.GameBall;
-            Sprite[] gameFront = ball.game != null ? GaleArt.GameBallFront(ball.game) : null;
-            if (gameFront == null)
-                ball.game = null;
-            FxSprite backFx = Make(ball.game ?? GaleArt.BallBack(0), player, owner, body, -1);
+            // The ball's picture ([Look] Ball): the hand-drawn one (its far strokes behind the
+            // wizard, its near strokes in front), else the game's WindBall cut in half, else the
+            // coded ball. The drawn sheets share the game frames' size and centre, so the same
+            // scaling and placement serve both.
+            Sprite[] gameFront = null;
+            string want = GaleRiderPlugin.BallArt;
+            if (want == "Drawn" && GaleArt.DrawnBall != null)
+            {
+                ball.game = GaleArt.DrawnBall;
+                gameFront = GaleArt.DrawnBallFront;
+                ball.UsesDrawnArt = true;
+            }
+            else if (want != "Coded")
+            {
+                ball.game = GaleArt.GameBall;
+                gameFront = ball.game != null ? GaleArt.GameBallFront(ball.game) : null;
+                if (gameFront == null)
+                    ball.game = null;
+            }
+            Sprite[] backFrames = ball.UsesDrawnArt ? GaleArt.DrawnBallBack : ball.game;
+            FxSprite backFx = Make(backFrames ?? GaleArt.BallBack(0), player, owner, body, -1);
             FxSprite frontFx = Make(gameFront ?? GaleArt.BallFront(0), player, owner, body, 1);
             FxSprite glowFx = Make(ball.game ?? GaleArt.BallWhole(0), player, owner, body, -2);
             FxSprite floorFx = FxSprite.Spawn(GaleArt.GroundRing(0), player.transform.position, "TargetLineGround", 0);
@@ -576,7 +669,7 @@ namespace WoLGaleRider
                 glowFx.Skip(GlowFrameLead);
             }
             if (frontFx != null)
-                frontFx.alpha = ball.game != null ? GameFrontAlpha : FrontAlpha;
+                frontFx.alpha = ball.UsesDrawnArt ? FrontAlpha : ball.game != null ? GameFrontAlpha : FrontAlpha;
             ball.back = new FxHandle(backFx);
             ball.front = new FxHandle(frontFx);
             ball.glow = new FxHandle(glowFx);
