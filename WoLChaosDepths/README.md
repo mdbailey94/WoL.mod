@@ -325,3 +325,12 @@ Laid out after WoL Art's mockup (`inventory_mockup_1x.png`):
 - Picking an item up no longer also fires an arcana when Interact shares its button (X on the
   pad fired a basic attack). As with the game's relics, the press picks up only while standing,
   running or dashing, and from standing or running it is used up by the pickup.
+
+## 0.13.2 (task sheet #26, frame-rate drops)
+
+- `[Debug] HitchLog` (off by default): every frame slower than `HitchMs` (34 ms) is logged with
+  whether the garbage collector ran in it and how long Chaos Depths' own Update and OnGUI took,
+  and every 10 s a line gives the average and worst frame and the number of collections. Scene
+  loads are left out. Turn it on, play where the drops happen, then read `BepInEx\LogOutput.log`.
+- On-screen text (drop names, the rift timer, the inventory) no longer makes a new text style
+  for every label several times a frame; each style is made once and kept.

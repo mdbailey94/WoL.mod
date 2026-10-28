@@ -92,7 +92,33 @@ namespace WoLChaosDepths
             return gameFont;
         }
 
+        // Made once per size, colour and alignment and kept (#26): OnGUI runs several times a
+        // frame, and a new GUIStyle per label each time was steady garbage for the collector.
+        // Callers may change a style for one draw but must put it back (InventoryPanel's shadow).
+        private static readonly System.Collections.Generic.Dictionary<long, GUIStyle> styles =
+            new System.Collections.Generic.Dictionary<long, GUIStyle>();
+        private static Font stylesFont;
+
         public static GUIStyle Style(int fontSize, Color color, TextAnchor anchor = TextAnchor.UpperLeft)
+        {
+            Font font = GameFont();
+            if (font != stylesFont)
+            {
+                styles.Clear(); // the game's font turned up (or went with a scene): restyle
+                stylesFont = font;
+            }
+            Color32 c = color;
+            long key = ((long)fontSize << 40) | ((long)anchor << 32) | ((long)c.r << 24) | ((long)c.g << 16) | ((long)c.b << 8) | c.a;
+            GUIStyle style;
+            if (!styles.TryGetValue(key, out style) || style == null)
+            {
+                style = NewStyle(fontSize, color, anchor, font);
+                styles[key] = style;
+            }
+            return style;
+        }
+
+        private static GUIStyle NewStyle(int fontSize, Color color, TextAnchor anchor, Font font)
         {
             var style = new GUIStyle(GUI.skin.label)
             {
@@ -101,7 +127,6 @@ namespace WoLChaosDepths
                 wordWrap = false,
                 alignment = anchor
             };
-            Font font = GameFont();
             if (font != null)
                 style.font = font;
             style.normal.textColor = color;
