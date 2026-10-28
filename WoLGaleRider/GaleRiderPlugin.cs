@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
@@ -13,7 +13,7 @@ namespace WoLGaleRider
     {
         public const string PluginGuid = "mdbailey94.wol.galerider";
         public const string PluginName = "Gale Rider";
-        public const string PluginVersion = "0.3.7";
+        public const string PluginVersion = "0.3.8";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -117,7 +117,48 @@ namespace WoLGaleRider
                 enhancedMaxSize.Value = 2f;
                 Logger.LogInfo("Gale Rider: [Ball] sizes were the pre-0.3.5 defaults (1.2 / 2.4 / 3); set to the new defaults 0.8 / 1.6 / 2");
             }
+            configStamp = ConfigStamp();
             Logger.LogInfo($"{PluginName} {PluginVersion} registered");
+        }
+
+        // Edits to the config file while the game runs are read in (0.3.8): BepInEx only reads
+        // it at start, so a RidePose changed mid-session never applied, and the game's next save
+        // of the file could put the old value back. [Ride], [Ball] and [Look] apply on the next
+        // cast; [Balance] still needs a restart.
+        private System.DateTime configStamp;
+        private float nextConfigCheck;
+
+        private System.DateTime ConfigStamp()
+        {
+            try
+            {
+                return File.Exists(Config.ConfigFilePath) ? File.GetLastWriteTimeUtc(Config.ConfigFilePath) : System.DateTime.MinValue;
+            }
+            catch
+            {
+                return System.DateTime.MinValue;
+            }
+        }
+
+        private void Update()
+        {
+            if (Time.unscaledTime < nextConfigCheck)
+                return;
+            nextConfigCheck = Time.unscaledTime + 2f;
+            System.DateTime stamp = ConfigStamp();
+            if (stamp == configStamp)
+                return;
+            configStamp = stamp;
+            try
+            {
+                Config.Reload();
+                configStamp = ConfigStamp();
+                Logger.LogInfo($"Gale Rider: settings read again from the config file (RidePose {RidePose}, RidePoseFrame {RidePoseFrame}, ball {MinSize}-{MaxSize})");
+            }
+            catch (System.Exception e)
+            {
+                Logger.LogWarning($"Gale Rider: couldn't read the config file again: {e.Message}");
+            }
         }
 
         private void BindSettings()
@@ -131,11 +172,12 @@ namespace WoLGaleRider
                 "Press the arcana's button again (after MinRideTime) to hop off early. Dashing always cancels the ride.");
             minRideTime = Float("Ride", "MinRideTime", 0.4f, 0f, 5f, "Seconds before you can hop off by pressing again.");
 
-            // 0.3.5 shrank the ball by a third (1.2/2.4/3 before): the drawn ball is sized from
-            // this radius, so the picture and the hit shrink together (task sheet #9/#10).
-            minSize = Float("Ball", "MinSize", 0.8f, 0.3f, 5f, "Radius of the ball's hit at base run speed (x1.0). The drawn ball is sized to it.");
-            maxSize = Float("Ball", "MaxSize", 1.6f, 0.3f, 6f, "Radius of the ball's hit at the peak speed (see PeakSpeedPercent).");
-            enhancedMaxSize = Float("Ball", "EnhancedMaxSize", 2f, 0.3f, 6f, "MaxSize when enhanced.");
+            // 0.3.5 shrank the ball by a third (1.2/2.4/3 before) and 0.3.8 by a quarter again
+            // (0.8/1.6/2 before): the drawn ball is sized from this radius, so the picture and the
+            // hit shrink together (task sheet #9/#10).
+            minSize = Float("Ball", "MinSize", 0.6f, 0.3f, 5f, "Radius of the ball's hit at base run speed (x1.0). The drawn ball is sized to it.");
+            maxSize = Float("Ball", "MaxSize", 1.2f, 0.3f, 6f, "Radius of the ball's hit at the peak speed (see PeakSpeedPercent).");
+            enhancedMaxSize = Float("Ball", "EnhancedMaxSize", 1.5f, 0.3f, 6f, "MaxSize when enhanced.");
             peakSpeedPercent = Float("Ball", "PeakSpeedPercent", 200f, 110f, 600f,
                 "Speed, as a percentage of base run speed, at which the ball is biggest and shoves hardest. Base run speed " +
                 "(100) is the smallest and weakest; it grows evenly between. Riding alone is 100 + RideSpeedPercent; " +
@@ -150,8 +192,8 @@ namespace WoLGaleRider
             // No AcceptableValueList here: BepInEx resets a value that isn't listed exactly (a
             // different case included) to the default on load, which looks like the edit vanishing.
             // The name is matched ignoring case in the state; an unknown one falls back to Slide.
-            ridePose = Config.Bind("Look", "RidePose", "Slide",
-                "The wizard's pose while riding, one of the game's own animations held on one frame: Slide (crouched low), GSlam (crouched, fist down), Jump (legs tucked), Fall, Charge, Dash, or Run (not held). Case doesn't matter; an unknown name means Slide.");
+            ridePose = Config.Bind("Look", "RidePose", "GSlam",
+                "The wizard's pose while riding, one of the game's own animations held on one frame: GSlam (crouched, fist down; the game draws it facing up or down only, so riding sideways it's turned the way you go), Slide (crouched low), Jump (legs tucked), Fall, Charge, Dash, or Run (not held). Case doesn't matter; an unknown name means Slide.");
             ridePoseFrame = Float("Look", "RidePoseFrame", 0.5f, 0f, 1f,
                 "Which moment of the pose's animation is held, 0 = its first frame, 1 = its last. Try a few: 0.5 of Slide is the full crouch.");
             rideSeat = Float("Look", "RideSeat", 0.9f, 0f, 1f,

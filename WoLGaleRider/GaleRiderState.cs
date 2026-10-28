@@ -115,7 +115,7 @@ namespace WoLGaleRider
             switch ((name ?? "").Trim().ToLowerInvariant())
             {
                 case "slide": return parent.SlideAnimStr;
-                case "gslam": return parent.GSlamAnimStr;
+                case "gslam": return GSlamAnim();
                 case "jump": return parent.JumpAnimStr;
                 case "fall": return parent.FallAnimStr;
                 case "charge": return parent.ChargeAnimStr;
@@ -131,6 +131,33 @@ namespace WoLGaleRider
             }
         }
         private static bool warnedPose;
+
+        // The game draws its ground slam facing up or down only (GSlamAnimStr picks GroundSlamUp
+        // for up and GroundSlamDown for everything else). Riding sideways, a GroundSlamRight
+        // state is used if the wizard's animator has one, else the down pose; either way the
+        // picture is flipped to face the way the ball rolls (SetXScale).
+        private static int sideSlam = -1;   // -1 not checked yet, 0 no side state, 1 has one
+        private string GSlamAnim()
+        {
+            FacingDirection f = parent.facingDirection;
+            if (f != FacingDirection.Left && f != FacingDirection.Right)
+                return parent.GSlamAnimStr;
+            if (sideSlam < 0)
+            {
+                bool has = false;
+                try
+                {
+                    has = parent.anim != null && parent.anim.HasState(0, Animator.StringToHash("GroundSlamRight"));
+                }
+                catch
+                {
+                }
+                sideSlam = has ? 1 : 0;
+                GaleRiderPlugin.Log(has ? "Gale Rider: GSlam pose riding sideways uses the game's GroundSlamRight"
+                    : "Gale Rider: the game has no sideways ground slam; riding sideways holds GroundSlamDown, turned to face the way you ride");
+            }
+            return sideSlam == 1 ? "GroundSlamRight" : parent.GSlamAnimStr;
+        }
         private float nextStreak, nextWake, nextTrail, lastPuff;
         private int streaks, puffs;
         private float lastBallWidth;
@@ -290,12 +317,17 @@ namespace WoLGaleRider
                 FacingDirection facing = Mathf.Abs(direction.x) >= Mathf.Abs(direction.y)
                     ? (direction.x >= 0f ? FacingDirection.Right : FacingDirection.Left)
                     : (direction.y >= 0f ? FacingDirection.Up : FacingDirection.Down);
+                if (facing != ridingFacing)
+                    parent.facingDirection = facing;   // so the pose below is picked for the new facing
                 string pose = PoseAnim(GaleRiderPlugin.RidePose);
                 bool hold = pose != null;
                 if (facing != ridingFacing)
                 {
                     ridingFacing = facing;
                     parent.facingDirection = facing;
+                    // The picture only turns left through the transform's x scale: up to 0.3.7
+                    // the facing was set without it, so riding left showed the right-facing pose.
+                    parent.SetXScale();
                     if (!hold)
                         parent.anim?.PlayDirectional("Run", -1, 0f);
                 }

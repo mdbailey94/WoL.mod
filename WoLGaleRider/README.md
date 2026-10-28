@@ -28,6 +28,20 @@ A ride like Aero Ring's, with Tearing Whirlwind's rolling hit:
   the game's slide, like Tearing Whirlwind. Cooldown 7 seconds (from the cast).
 - **Enhanced**: 4.5 seconds on the ball, and the biggest ball is radius 3.
 
+## 0.3.8
+
+- **Facing the way you ride**: the ride set the wizard's facing without the game's left/right
+  flip, so riding left showed the right-facing pose. It now turns with the ball.
+- **GSlam is the default pose** (`[Look] RidePose`). The game draws its ground slam facing up
+  or down only: riding sideways uses a `GroundSlamRight` animation if the wizard has one
+  (logged once), otherwise the down pose, flipped to the way you ride.
+- **A quarter smaller ball** (picture and hit together): hit radius 0.6 at base speed to 1.2
+  at the peak, 1.5 enhanced (`[Ball]`, was 0.8 / 1.6 / 2).
+- **Config edits apply while the game runs**: the file is read again within 2 s of being saved
+  (logged as "settings read again"). `[Ride]`, `[Ball]` and `[Look]` apply on the next cast,
+  `[Balance]` still after a restart. Before, an edit made mid-session never applied, and the
+  game could save the old value back over it.
+
 ## 0.3.7
 
 - The ball's picture always matches its hit area: `[Look] VortexSize` scales only the swirl
