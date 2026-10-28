@@ -106,7 +106,9 @@ namespace WoLChaosDepths
         {
             { "Pyre", "cinderheart" }, { "Gale", "galeheart" },
             { "Chain", "signet" }, { "Echo", "twinfold" },
-            { "Leech", "bloodwell" }, { "Thorn", "thornwick" }
+            { "Leech", "bloodwell" }, { "Thorn", "thornwick" },
+            // The themed Legendary orbs, kept for these since 0.15.12 (their trails come with them).
+            { "Ember", "legendary_offense" }, { "Moss", "legendary_defense" }, { "Void", "legendary_utility" }
         };
 
         // A non-unique Legendary's theme, from the strongest stat its name is taken from (#8):
@@ -810,6 +812,9 @@ namespace WoLChaosDepths
                         o.transform.position = new Vector3(px, py, pivot.z);
                         Sort(o, body, Mathf.Sin(ang) < 0f ? front : back);
                         o.sprite = Charmstone(charmDesign, ColourOf(charm), charmTier, Twinkle(2, charmTier), ppu);
+                        // Mossguard: the orb swells while its ward is up.
+                        if (charm != null && charm.unique == "Moss")
+                            o.transform.localScale = Vector3.one * (Uniques.WardUp(player) ? 1.3f : 1f);
                     }
                     // Rare and up leave a trail behind each stone: a Legendary's drawn puffs
                     // (every 0.08 s) when it has them, else a pixel that fades.

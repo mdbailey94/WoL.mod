@@ -48,6 +48,10 @@ namespace WoLChaosDepths
                 case "Gale": return new Color32(0xa8, 0xf0, 0xd0, 0xff);
                 case "Echo": return new Color32(0xd8, 0xb0, 0xff, 0xff);
                 case "Thorn": return new Color32(0x8c, 0xd0, 0x50, 0xff);
+                // The 0.16.0 charms: the main colour of WoL Art's red, green and violet orbs.
+                case "Ember": return new Color32(0xff, 0x5a, 0x3a, 0xff);
+                case "Moss": return new Color32(0x4c, 0xc0, 0x70, 0xff);
+                case "Void": return new Color32(0xb3, 0x8a, 0xe6, 0xff);
             }
             return Pickups.Colour(item);
         }

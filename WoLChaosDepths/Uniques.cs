@@ -14,6 +14,10 @@ namespace WoLChaosDepths
     //   Galeheart (Amulet)         Gale: a kill puts the wind at your back for a few seconds.
     //   Bloodwell Charm (Charm)    Leech: kills restore a little health.
     //   Thornwick Charm (Charm)    Thorn: being hit lashes out at enemies round you.
+    //   Embersting Charm (Charm)   Ember: the red orb darts at the nearest enemy every 1.5 s.
+    //   Mossguard Charm (Charm)    Moss: every 12 s a ward halves the next hit you take.
+    //   Voidmote Charm (Charm)     Void: enemies near you are slowed.
+    // (The last three, 0.16.0, wear WoL Art's red, green and violet Legendary orbs.)
     // Their looks are PowerFx's (pixel-drawn); their pictures are ItemArt's.
     public static class Uniques
     {
@@ -27,6 +31,8 @@ namespace WoLChaosDepths
         private static ConfigEntry<float> chainShare, chainRange, pyreShare, pyreRadius, leechShare;
         private static ConfigEntry<float> echoShare, galeSpeed, galeSeconds, thornDamage, thornRadius, thornCooldown;
         private static ConfigEntry<int> echoEvery;
+        private static ConfigEntry<float> emberEvery, emberRange, emberDamage, emberPerLevel;
+        private static ConfigEntry<float> mossEvery, mossBlock, voidRadius, voidSlow;
 
         public static readonly List<Def> Defs = new List<Def>();
 
@@ -56,6 +62,16 @@ namespace WoLChaosDepths
             thornDamage = config.Bind("Uniques", "ThornDamage", 0.5f, "Thornwick Charm: damage of the lash, as a share of the damage you took (at least 3).");
             thornRadius = config.Bind("Uniques", "ThornRadius", 2.5f, "Thornwick Charm: how far the lash reaches.");
             thornCooldown = config.Bind("Uniques", "ThornCooldown", 1f, "Thornwick Charm: seconds between lashes.");
+            emberEvery = config.Bind("Uniques", "EmberstingEvery", 1.5f, "Embersting Charm: seconds between darts.");
+            emberRange = config.Bind("Uniques", "EmberstingRange", 5f, "Embersting Charm: how far the orb reaches for an enemy.");
+            emberDamage = config.Bind("Uniques", "EmberstingDamage", 8f, "Embersting Charm: damage of a dart, before EmberstingPerLevel.");
+            emberPerLevel = config.Bind("Uniques", "EmberstingPerLevel", 1f, "Embersting Charm: extra dart damage per character level.");
+            mossEvery = config.Bind("Uniques", "MossguardEvery", 12f, "Mossguard Charm: seconds for the ward to form again after it breaks.");
+            mossBlock = config.Bind("Uniques", "MossguardBlock", 0.5f,
+                new ConfigDescription("Mossguard Charm: how much of the next hit the ward takes (0.5 = half).", new AcceptableValueRange<float>(0f, 1f)));
+            voidRadius = config.Bind("Uniques", "VoidmoteRadius", 3f, "Voidmote Charm: enemies this close to you are slowed.");
+            voidSlow = config.Bind("Uniques", "VoidmoteSlow", 0.25f,
+                new ConfigDescription("Voidmote Charm: how much slower they move (0.25 = 25%; bosses half as much).", new AcceptableValueRange<float>(0f, 0.9f)));
 
             Defs.Clear();
             Defs.Add(new Def { key = "Chain", name = "Stormlinked Signet", slot = "Ring",
@@ -70,6 +86,12 @@ namespace WoLChaosDepths
                 power = () => $"Unique: kills restore {Mathf.RoundToInt(leechShare.Value * 1000f) / 10f}% health" });
             Defs.Add(new Def { key = "Thorn", name = "Thornwick Charm", slot = "Charm",
                 power = () => $"Unique: being hit lashes enemies within {thornRadius.Value:0.#} for {Mathf.RoundToInt(thornDamage.Value * 100f)}% of the damage" });
+            Defs.Add(new Def { key = "Ember", name = "Embersting Charm", slot = "Charm",
+                power = () => $"Unique: every {emberEvery.Value:0.#} s the orb darts at an enemy for {emberDamage.Value:0} + {emberPerLevel.Value:0.#} per level" });
+            Defs.Add(new Def { key = "Moss", name = "Mossguard Charm", slot = "Charm",
+                power = () => $"Unique: every {mossEvery.Value:0} s a ward takes {Mathf.RoundToInt(mossBlock.Value * 100f)}% of the next hit" });
+            Defs.Add(new Def { key = "Void", name = "Voidmote Charm", slot = "Charm",
+                power = () => $"Unique: enemies within {voidRadius.Value:0.#} are slowed {Mathf.RoundToInt(voidSlow.Value * 100f)}%" });
         }
 
         public static Def Find(string key)
@@ -194,10 +216,14 @@ namespace WoLChaosDepths
             }
         }
 
-        // The wizard took damage: the Thornwick lashes out.
+        // The wizard took damage: the Mossguard's ward breaks, the Thornwick lashes out.
         public static void OnPlayerHurt(Player player, CharacterSave save, AttackInfo attack)
         {
-            if (applying || player == null || attack == null || !Active(save, "Thorn"))
+            if (applying || player == null || attack == null)
+                return;
+            if (attack.damage > 0 && WardUp(player))
+                BreakWard(player);
+            if (!Active(save, "Thorn"))
                 return;
             int id = player.GetInstanceID();
             float ready;
@@ -271,12 +297,178 @@ namespace WoLChaosDepths
             }
         }
 
+        // ---- The charms that act on their own (0.16.0): every frame in the trials ----
+
+        private const string WardMod = "ChaosDepths_Mossguard", VoidMod = "ChaosDepths_Voidmote";
+        private static readonly Dictionary<int, float> emberNext = new Dictionary<int, float>();
+        private static readonly Dictionary<int, float> wardReadyAt = new Dictionary<int, float>();
+        private static readonly Dictionary<Entity, float> slowed = new Dictionary<Entity, float>();
+        private static float nextVoidCheck, nextVoidMote;
+
+        public static void Tick(IEnumerable<Player> players, bool inTrials)
+        {
+            try
+            {
+                var voidPlayers = new List<Player>();
+                foreach (Player player in players)
+                {
+                    if (player == null || ChaosDepthsPlugin.Instance == null)
+                        continue;
+                    CharacterSave save = ChaosDepthsPlugin.Instance.SaveOf(player);
+                    Ember(player, save, inTrials);
+                    Ward(player, save, inTrials);
+                    if (inTrials && Active(save, "Void"))
+                        voidPlayers.Add(player);
+                }
+                Voidmote(voidPlayers);
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"unique charms: {e.Message}");
+            }
+        }
+
+        // Embersting: the orb darts at the nearest enemy in reach, every EmberstingEvery seconds.
+        private static void Ember(Player player, CharacterSave save, bool inTrials)
+        {
+            int id = player.GetInstanceID();
+            if (!inTrials || !Active(save, "Ember"))
+            {
+                emberNext.Remove(id);
+                return;
+            }
+            float next;
+            if (emberNext.TryGetValue(id, out next) && Time.time < next)
+                return;
+            Vector3 from = player.transform.position + new Vector3(0f, 0.5f, 0f);
+            Entity target = Nearest(player.transform.position, emberRange.Value, null);
+            if (target == null)
+            {
+                emberNext[id] = Time.time + 0.2f;   // look again soon
+                return;
+            }
+            emberNext[id] = Time.time + Mathf.Max(0.3f, emberEvery.Value);
+            int damage = Mathf.Max(1, Mathf.RoundToInt(emberDamage.Value + emberPerLevel.Value * Mathf.Max(1, save.level)));
+            Vector3 to = target.transform.position + new Vector3(0f, 0.5f, 0f);
+            PowerFx.Arc(from, to, ColourOf("Ember"), player);
+            PowerFx.Burst(to, 0.6f, ColourOf("Ember"), player);
+            Hit(player, target, damage, ElementType.Fire);
+            if (ChaosDepthsPlugin.DebugEnabled)
+                ChaosDepthsPlugin.Log($"Embersting: dart at {target.GetType().Name} for {damage}");
+        }
+
+        // Mossguard: a damage-taken mod while the ward is up, so the next hit is cut before it
+        // lands (a killing blow included); the hit breaks it (OnPlayerHurt), and it forms again
+        // MossguardEvery seconds later.
+        public static bool WardUp(Player player)
+        {
+            try
+            {
+                return player != null && player.health != null && player.health.damageTakenStat != null
+                    && player.health.damageTakenStat.GetModIndex(WardMod) >= 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static void Ward(Player player, CharacterSave save, bool inTrials)
+        {
+            int id = player.GetInstanceID();
+            bool up = WardUp(player);
+            if (!Active(save, "Moss"))
+            {
+                if (up)
+                    player.health.damageTakenStat.RemoveMod(WardMod);
+                wardReadyAt.Remove(id);
+                return;
+            }
+            if (up || player.health == null || player.health.damageTakenStat == null)
+                return;
+            float ready;
+            if (!wardReadyAt.TryGetValue(id, out ready))
+                wardReadyAt[id] = ready = Time.time;   // just put on: ready straight away
+            if (Time.time < ready)
+                return;
+            player.health.damageTakenStat.AddMod(new NumVarStatMod(WardMod, -Mathf.Clamp01(mossBlock.Value), 10, VarStatModType.Multiplicative, false));
+            if (inTrials)
+                PowerFx.Echo(player.transform.position, ColourOf("Moss"), player);
+            if (ChaosDepthsPlugin.DebugEnabled)
+                ChaosDepthsPlugin.Log("Mossguard: ward up");
+        }
+
+        private static void BreakWard(Player player)
+        {
+            try
+            {
+                player.health.damageTakenStat.RemoveMod(WardMod);
+                wardReadyAt[player.GetInstanceID()] = Time.time + Mathf.Max(1f, mossEvery.Value);
+                PowerFx.Burst(player.transform.position + new Vector3(0f, 0.4f, 0f), 1f, ColourOf("Moss"), player);
+                if (ChaosDepthsPlugin.DebugEnabled)
+                    ChaosDepthsPlugin.Log($"Mossguard: ward broke, back in {mossEvery.Value:0} s");
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"Mossguard: {e.Message}");
+            }
+        }
+
+        // Voidmote: enemies within VoidmoteRadius of a wearer move slower (bosses half as much);
+        // checked five times a second, the slow comes off as soon as they're out of reach.
+        private static void Voidmote(List<Player> wearers)
+        {
+            if (Time.time < nextVoidCheck)
+                return;
+            nextVoidCheck = Time.time + 0.2f;
+            var near = new HashSet<Entity>();
+            foreach (Player p in wearers)
+                foreach (Entity e in EnemiesNear(p.transform.position, voidRadius.Value, null))
+                    near.Add(e);
+            foreach (Entity e in new List<Entity>(slowed.Keys))
+                if (e == null || !near.Contains(e))
+                    Unslow(e);
+            bool mote = Time.time >= nextVoidMote;
+            if (mote)
+                nextVoidMote = Time.time + 0.8f;
+            foreach (Entity e in near)
+            {
+                if (e.movement == null || e.movement.moveSpeedStat == null)
+                    continue;
+                if (!slowed.ContainsKey(e))
+                {
+                    float slow = Mathf.Clamp(voidSlow.Value, 0f, 0.9f) * (e is Boss || e is MiniBoss ? 0.5f : 1f);
+                    e.movement.moveSpeedStat.AddMod(new NumVarStatMod(VoidMod, -slow, 10, VarStatModType.Multiplicative, false));
+                    slowed[e] = slow;
+                }
+                if (mote && wearers.Count > 0)
+                    PowerFx.Echo(e.transform.position + new Vector3(0f, 0.6f, 0f), ColourOf("Void"), wearers[0]);
+            }
+        }
+
+        private static void Unslow(Entity e)
+        {
+            slowed.Remove(e);
+            try
+            {
+                if (e != null && e.movement != null && e.movement.moveSpeedStat != null)
+                    e.movement.moveSpeedStat.RemoveMod(VoidMod);
+            }
+            catch
+            {
+            }
+        }
+
         // A scene change: nothing lingers.
         public static void ClearScene()
         {
             echoHits.Clear();
             galeUntil.Clear();
             thornReady.Clear();
+            emberNext.Clear();
+            foreach (Entity e in new List<Entity>(slowed.Keys))
+                Unslow(e);
+            slowed.Clear();
         }
 
         private static void Hit(Player player, Entity target, int damage, ElementType element)

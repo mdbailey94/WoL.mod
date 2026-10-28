@@ -555,6 +555,27 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
 - In the Debugging save, Unlock Mod Content has already unlocked every mod arcana, so there is
   nothing left to offer; this is for the save slots.
 
+## 0.16.0: three new unique charms (asked for by Matt)
+
+The red, green and violet Legendary orbs (WoL Art's, kept for them since 0.15.12) are now
+uniques, each with its own coloured trail. There are nine uniques now, so each is about a
+ninth of the unique drops; the first-boss testing unique can be any of them.
+
+- **Embersting Charm** (red): every 1.5 s the orb strikes the nearest enemy within 5 units for
+  8 damage plus 1 per character level (fire), with a red streak and a small burst where it
+  hits. `[Uniques] EmberstingEvery`, `EmberstingRange`, `EmberstingDamage`,
+  `EmberstingPerLevel`.
+- **Mossguard Charm** (green): a ward forms as soon as it's worn and the orb swells while it's
+  up. The next hit you take does 50% less damage; the ward is cut in before the damage lands, so
+  it can save you from a killing blow. The hit breaks it into a green burst and it forms again
+  12 s later. `MossguardEvery`, `MossguardBlock`.
+- **Voidmote Charm** (violet): enemies within 3 units of you move 25% slower (bosses and the
+  floor boss 12.5%), with a violet flicker over each slowed enemy. The slow ends as soon as they
+  leave the range. `VoidmoteRadius`, `VoidmoteSlow`.
+- Their inventory icons are code-drawn charms in the orb's colour until Art draws
+  `unique_ember`, `unique_moss` and `unique_void` (16x16).
+- They act only in the trials (the ward is ready when you arrive).
+
 ## 0.15.14: one floor, then the boss, in each realm (the beta, asked for by Matt)
 
 - A run is now 3 realms of **one floor and then that realm's boss**, then the final boss. It
