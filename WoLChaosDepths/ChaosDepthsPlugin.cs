@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.16.0";
+        public const string PluginVersion = "0.16.1";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -371,9 +371,12 @@ namespace WoLChaosDepths
                         count++;
                 if (count < 2)
                     return;
-                bool ownerOnKeyboard = KeyboardPlayer(players) == owner;
-                keyboard = ownerOnKeyboard;
-                pad = !ownerOnKeyboard;
+                // The pad side always reads only the owner's own controllers, so it stays on: up
+                // to 0.16.0 it was switched off for whoever was taken for the keyboard wizard, and
+                // the game lists the keyboard under player 1 even on a controller, so player 1's
+                // pad couldn't move in or close their inventory (only Escape did).
+                keyboard = KeyboardPlayer(players) == owner;
+                pad = true;
             }
             catch (Exception e)
             {
@@ -442,6 +445,8 @@ namespace WoLChaosDepths
         }
 
         // XInput order: A0 B1 X2 Y3 LB4 RB5 Back6 Start7 LS8 RS9; named pads by button name.
+        internal static bool OpenButtonJustPressed(Joystick joystick) => ButtonJustPressed(joystick);
+
         private static bool ButtonJustPressed(Joystick joystick)
         {
             if (joystick == null || joystick.Buttons == null)

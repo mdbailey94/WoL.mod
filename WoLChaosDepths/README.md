@@ -555,6 +555,16 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
 - In the Debugging save, Unlock Mod Content has already unlocked every mod arcana, so there is
   nothing left to offer; this is for the save slots.
 
+## 0.16.1: a controller can close the inventory again
+
+- In co-op, player 1's controller couldn't move in or close their inventory; only Escape
+  did. With two wizards the panel switched its owner's pad off whenever that owner was taken
+  for the keyboard player, and the game lists the keyboard under player 1 even when they play
+  on a controller. The owner's own pad now always works; the keyboard still only works for the
+  keyboard player.
+- B (Circle) closes the panel, and so does the pad button that opens it (`[Panel]
+  ControllerButton`). Both are read straight off the pad, as Y has been since 0.15.7.
+
 ## 0.16.0: three new unique charms (asked for by Matt)
 
 The red, green and violet Legendary orbs (WoL Art's, kept for them since 0.15.12) are now

@@ -40,6 +40,7 @@ namespace WoLChaosDepths
         private float confirmHeldSince = -1f;
         private bool confirmConsumed;
         private bool pausedByUs;
+        private float openedAt;
         private readonly Action<Player, CharacterSave> onChanged;
 
         public InventoryPanel(Action<Player, CharacterSave> onChanged)
@@ -57,6 +58,7 @@ namespace WoLChaosDepths
             scroll = 0;
             confirmHeldSince = -1f;
             confirmConsumed = true; // the press that opened it isn't an equip
+            openedAt = Time.unscaledTime;
             Open = true;
             Rebuild();
             try
@@ -127,7 +129,11 @@ namespace WoLChaosDepths
             bool Key(KeyCode k) => useKeys && Input.GetKey(k);
             bool KeyDown(KeyCode k) => useKeys && Input.GetKeyDown(k);
 
-            if (Pressed(pad, "Cancel") || KeyDown(KeyCode.Escape) || (useKeys && ChaosDepthsPlugin.OpenKeyPressed()))
+            // B (Circle) and the pad's open button are read off the pad itself (0.16.1): the
+            // game's Cancel action doesn't come through while the panel has the game paused, so a
+            // controller couldn't close it. The open button is ignored for a moment after opening.
+            bool padClose = PadButton(pad, 1, BNames) || (Time.unscaledTime - openedAt > 0.25f && PadOpenButton(pad));
+            if (padClose || Pressed(pad, "Cancel") || KeyDown(KeyCode.Escape) || (useKeys && ChaosDepthsPlugin.OpenKeyPressed()))
             {
                 Close();
                 return;
@@ -272,14 +278,34 @@ namespace WoLChaosDepths
         }
 
         private static readonly string[] YNames = { "y", "y button", "triangle" };
+        private static readonly string[] BNames = { "b", "b button", "circle" };
 
-        private static bool PadY(Rewired.Player pad)
+        private static bool PadY(Rewired.Player pad) => PadButton(pad, 3, YNames);
+
+        // A button just pressed on one of this player's pads (XInput index, or its name).
+        private static bool PadButton(Rewired.Player pad, int index, string[] names)
         {
             try
             {
                 if (pad != null)
                     foreach (Rewired.Joystick joystick in pad.controllers.Joysticks)
-                        if (ChaosDepthsPlugin.PadButtonJustPressed(joystick, 3, YNames))
+                        if (ChaosDepthsPlugin.PadButtonJustPressed(joystick, index, names))
+                            return true;
+            }
+            catch
+            {
+            }
+            return false;
+        }
+
+        // The pad button that opens the inventory ([Panel] ControllerButton) closes it too.
+        private static bool PadOpenButton(Rewired.Player pad)
+        {
+            try
+            {
+                if (pad != null)
+                    foreach (Rewired.Joystick joystick in pad.controllers.Joysticks)
+                        if (ChaosDepthsPlugin.OpenButtonJustPressed(joystick))
                             return true;
             }
             catch
