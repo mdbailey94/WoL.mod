@@ -78,8 +78,10 @@ namespace WoLChaosDepths
             bossXpMultiplier = Config.Bind("Progression", "BossXpMultiplier", 10f,
                 new ConfigDescription("Bosses give this many times the experience their health would.", new AcceptableValueRange<float>(1f, 50f)));
             levelCap = Config.Bind("Progression", "LevelCap", 50, new ConfigDescription("Highest level.", new AcceptableValueRange<int>(2, 99)));
-            xpToLevelScale = Config.Bind("Progression", "XpToLevelScale", 2f,
-                new ConfigDescription("Experience each level takes, times the base curve (1 = the old pace; 2 = levels about half as often).", new AcceptableValueRange<float>(0.25f, 10f)));
+            // A new key in 0.15.10 (XpToLevelScale = 2 from 0.15.2 stays in config files unused),
+            // so the slower pace reaches existing installs.
+            xpToLevelScale = Config.Bind("Progression", "LevelXpScale", 3f,
+                new ConfigDescription("Experience each level takes, times the base curve (1 = the pace before 0.15.2; 3 = levels about a third as often).", new AcceptableValueRange<float>(0.25f, 10f)));
             floorBossXpMultiplier = Config.Bind("Progression", "FloorBossXpMultiplier", 4f,
                 "Experience multiplier for the floor boss summoned at the skull altar (realm bosses use BossXpMultiplier).");
             floorBossDropRarity = Config.Bind("Loot", "FloorBossDropMinRarity", 1,
