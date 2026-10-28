@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.15.7";
+        public const string PluginVersion = "0.15.8";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -33,6 +33,7 @@ namespace WoLChaosDepths
             : AscensionLink.Level <= 0 ? freshDropChanceZero.Value : freshDropChance.Value;
         private static ConfigEntry<int> levelCap, bossDropRarity, floorBossDropRarity;
         private static ConfigEntry<float> floorBossXpMultiplier, xpToLevelScale;
+        private static ConfigEntry<bool> firstBossUnique;
         private static ConfigEntry<bool> autoEquip, logKills;
         private static ConfigEntry<string> panelKey, panelButton;
         private static ConfigEntry<bool> diveEnabled, debugEnabled;
@@ -91,6 +92,8 @@ namespace WoLChaosDepths
                 new ConfigDescription("FreshDropChance at Ascension 0 (Matt: the game on its own comes first; from level 1, FreshDropChance).", new AcceptableValueRange<float>(0f, 1f)));
             bossDropRarity = Config.Bind("Loot", "BossDropMinRarity", 2,
                 new ConfigDescription("A boss drop is at least this rarity (0 Common, 1 Magic, 2 Rare, 3 Legendary).", new AcceptableValueRange<int>(0, 3)));
+            firstBossUnique = Config.Bind("Testing", "FirstBossUnique", true,
+                "For test runs: each character's first boss win (a realm boss or the final boss) drops a unique Legendary.");
             autoEquip = Config.Bind("Loot", "AutoEquip", true,
                 "Equip a found item when it's better than the one in its slot (there's no inventory screen yet).");
 
@@ -638,7 +641,16 @@ namespace WoLChaosDepths
                         min = LootTable.RarityIndex("Legendary");
                         Log($"Player {player.playerID + 1}'s first final boss win at Ascension {AscensionLink.Level}: a guaranteed Legendary");
                     }
-                    Drop(player, save, min, entity.transform.position);
+                    // Testing (Matt, 0.15.8): a character's first boss win drops a unique, so
+                    // the powers can be tried early. [Testing] FirstBossUnique turns it off.
+                    bool unique = false;
+                    if (firstBossUnique.Value && !save.firstBossUnique)
+                    {
+                        save.firstBossUnique = unique = true;
+                        min = LootTable.RarityIndex("Legendary");
+                        Log($"Player {player.playerID + 1}'s first boss win: a guaranteed unique Legendary (testing)");
+                    }
+                    Drop(player, save, min, entity.transform.position, unique);
                 }
                 else if (floorBoss)
                     Drop(player, save, floorBossDropRarity.Value, entity.transform.position);
@@ -826,11 +838,14 @@ namespace WoLChaosDepths
 
         // Rolls an item for this player. Dropped on the floor at 'at' as a pickup when physical
         // drops are on and a position is known; otherwise straight into the inventory.
-        private void Drop(Player player, CharacterSave save, int minRarity, Vector3? at = null)
+        private void Drop(Player player, CharacterSave save, int minRarity, Vector3? at = null, bool unique = false)
         {
             // Item level: the character's level, plus 2 a level of Ascension (#27, in place of
             // depth's 1 a depth).
             ItemData item = LootTable.Roll(save.level + AscensionLink.ItemLevelBonus + Depth.ItemLevelBonus, minRarity, Elites.RarityBoost() + Depth.RarityBoost + Layers.RarityBonus);
+            // A promised unique: a Legendary that didn't roll one becomes a random unique.
+            if (unique && string.IsNullOrEmpty(item.unique) && Uniques.Defs.Count > 0)
+                Uniques.MakeUnique(item, Uniques.Defs[UnityEngine.Random.Range(0, Uniques.Defs.Count)]);
             Log($"Player {player.playerID + 1}'s drop: {item.rarity} {item.name} ({LootTable.Describe(item)})" + (at.HasValue && Pickups.Physical ? ", on the floor" : ""));
             if (at.HasValue && Pickups.Physical)
                 Pickups.Spawn(player, item, at.Value);

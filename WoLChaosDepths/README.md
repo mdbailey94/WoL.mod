@@ -523,3 +523,10 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
 
 - Y (Triangle) now cycles the sort, read straight off the pad like the button that opens the
   inventory: the sort listened for the game's Interact, which isn't on Y, so only Tab worked.
+
+## 0.15.8: a unique from the first boss, for test runs (asked for by Matt)
+
+- Each character's first boss win (a realm boss or the final boss) drops a **unique** Legendary,
+  so the powers can be tried early. `[Testing] FirstBossUnique` (on) turns it off; the save
+  remembers it as `firstBossUnique`, so characters that already beat bosses get one too.
+- Planned next: item tiers and bonus lines, Legendaries included (see `PLAN-tiers.md`).

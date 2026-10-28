@@ -23,6 +23,7 @@ namespace WoLChaosDepths
         public int depthReached = 1;   // the deepest depth this character has reached (its waypoint)
         public int depthChosen = 1;    // where its next dive starts (1 up to depthReached)
         public bool firstBossLegendary; // up to 0.15.2: the first realm boss's guaranteed Legendary was given (#31); unused now
+        public bool firstBossUnique;    // the testing unique from this character's first boss win is given (0.15.8)
         public List<int> finalLegendaryAt = new List<int>(); // Ascension levels whose first final boss win's Legendary is given (0.15.4)
         public List<ItemData> inventory = new List<ItemData>();
         // Item id equipped in each slot, "" for none; same order as LootTable.Slots.
