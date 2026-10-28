@@ -8,8 +8,8 @@ namespace WoLChaosDepths
     // M4, second slice: layer bosses and rifts.
     //
     // Layer bosses: every few depths (default every 5), the realm boss met at that depth is a
-    // layer boss: more health again, a tint, more experience, and a Legendary drop for each
-    // player who hurt it.
+    // layer boss: more health again, a tint and more experience (its drop is any boss's; up to
+    // 0.15.2 it was a Legendary).
     //
     // Rifts: a trial floor can open as a rift (default 1 in 4). For a few minutes the floor's
     // elite chance and loot quality are raised; leave the floor through its exit before the rift

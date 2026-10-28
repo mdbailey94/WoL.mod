@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.15.2";
+        public const string PluginVersion = "0.15.3";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -611,21 +611,21 @@ namespace WoLChaosDepths
                     Log($"{entity.GetType().Name}{kind} slain by player {player.playerID + 1}: +{xp} xp");
                 AddXp(player, save, xp);
                 Uniques.OnPlayerKill(player, save, entity);
-                if (Layers.IsLayerBoss(entity))
-                    Drop(player, save, LootTable.RarityIndex("Legendary"), entity.transform.position);
-                else if (boss)
+                if (boss)
                 {
+                    // Every boss drops an item, rolled from BossDropMinRarity up: a Legendary is
+                    // possible, not promised (Matt, 0.15.3; layer bosses and each character's
+                    // first realm boss used to promise one).
                     int min = bossDropRarity.Value;
                     // Ascension 10: the realm boss drops a Legendary (#27).
                     if (AscensionLink.RealmBossDropsLegendary)
                         min = LootTable.RarityIndex("Legendary");
-                    // The fresh save: the first realm boss each character beats drops a Legendary,
-                    // so everyone sees one early (#31).
-                    else if (ProfileSave.Fresh && !save.firstBossLegendary)
+                    // The first time a character beats the final boss, it drops a Legendary.
+                    else if (!save.firstFinalLegendary && DiveDirector.IsFinalBoss(DiveDirector.CurrentScene()) && !OtherBossAlive(entity))
                     {
-                        save.firstBossLegendary = true;
+                        save.firstFinalLegendary = true;
                         min = LootTable.RarityIndex("Legendary");
-                        Log($"Player {player.playerID + 1}'s first realm boss: a guaranteed Legendary");
+                        Log($"Player {player.playerID + 1}'s first final boss win: a guaranteed Legendary");
                     }
                     Drop(player, save, min, entity.transform.position);
                 }
@@ -645,6 +645,25 @@ namespace WoLChaosDepths
             {
                 LogError($"death hook: {e.Message}");
             }
+        }
+
+        // Whether a boss other than this one still stands (the final boss is the last to fall).
+        private static bool OtherBossAlive(Entity entity)
+        {
+            try
+            {
+                if (GameController.bosses != null)
+                    foreach (GameObject go in GameController.bosses)
+                    {
+                        Entity e = go != null && go != entity.gameObject && go.activeInHierarchy ? go.GetComponent<Entity>() : null;
+                        if (e != null && e.health != null && e.health.CurrentHealthValue > 0)
+                            return true;
+                    }
+            }
+            catch
+            {
+            }
+            return false;
         }
 
         private static bool IsBoss(Entity entity)

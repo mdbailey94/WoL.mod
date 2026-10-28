@@ -22,7 +22,8 @@ namespace WoLChaosDepths
         public int dust;        // Chaos Dust from salvaged items
         public int depthReached = 1;   // the deepest depth this character has reached (its waypoint)
         public int depthChosen = 1;    // where its next dive starts (1 up to depthReached)
-        public bool firstBossLegendary; // the fresh save's guaranteed Legendary from the first realm boss is given (#31)
+        public bool firstBossLegendary; // up to 0.15.2: the first realm boss's guaranteed Legendary was given (#31); unused now
+        public bool firstFinalLegendary; // the guaranteed Legendary for this character's first final boss win is given (0.15.3)
         public List<ItemData> inventory = new List<ItemData>();
         // Item id equipped in each slot, "" for none; same order as LootTable.Slots.
         public List<string> equipped = new List<string>();

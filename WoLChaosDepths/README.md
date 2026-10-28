@@ -123,8 +123,8 @@ the current depth. Log lines start with `Depth:`.
 ## Layer bosses and rifts (0.7.0, milestone M4)
 
 - **Layer bosses.** Every 5 depths (`[Layers] LayerEvery`), the realm boss met at that depth is
-  a layer boss: +50% health on top of depth, a pink tint, double experience, and a Legendary
-  drop for each player who hurt it. Notice: "Layer N boss: <name>".
+  a layer boss: +50% health on top of depth, a pink tint and double experience (since 0.15.3 it
+  drops what any boss does, not a promised Legendary). Notice: "Layer N boss: <name>".
 - **Rifts.** A trial floor (never a boss arena) has a 1 in 4 chance (`[Rifts] Chance`) to open
   as a rift for 3 minutes (`Seconds`): +25 points of elite chance and +50% Magic-and-better
   weight while it is open, with a timer at the top of the screen. Leave the floor through its
@@ -386,7 +386,8 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
 - Rarity weights Common 62 / Magic 28 / Rare 8.5 / Legendary 1.5 (the fresh save's own
   `loot.json`, written doubled as 124 / 56 / 17 / 3); Ascension's rarity boost stacks on top.
 - 30% of Legendaries are uniques (`[Uniques] FreshUniqueChance`; was 50%).
-- The first realm boss each character beats drops a guaranteed Legendary.
+- The first realm boss each character beats drops a guaranteed Legendary (until 0.15.3, which
+  moved it to the first final boss win).
 - Elites, floor bosses, realm bosses and rifts drop as before; each drop is the killer's own.
 
 ## 0.13.9 (task sheet #33)
@@ -496,3 +497,13 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
   at full health stays full under the new maximum, anyone else keeps the health they had.
 - `[Debug] GearLog` (from 0.15.1, on for now) logs where the ring and pendant are put while
   running, to find why they drift off the body.
+
+## 0.15.3: bosses promise a drop, not a Legendary (asked for by Matt)
+
+- Every boss (realm, layer and the skull altar's floor boss) still always drops an item, but it is
+  rolled like any other: realm and layer bosses from Rare up (`[Loot] BossDropMinRarity`), the
+  floor boss from Magic up. Layer bosses and each character's first realm boss no longer
+  promise a Legendary.
+- **The first time a character beats the final boss**, its drop is a guaranteed Legendary (the
+  last boss of the fight to fall; remembered in the save as `firstFinalLegendary`).
+- Ascension 10's realm boss Legendary (#27) is unchanged.
