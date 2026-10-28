@@ -111,6 +111,17 @@ settings after restarting the game.
 they're still in your .cfg they're ignored. Older `Damage`, `Knockback` and `BurnChance` values
 carry over unchanged, but now mean the level-1 numbers under the new scaling.
 
+### Changes in 0.9.3
+
+- Lighter again (task sheet #26): each of the trail's hits is a new copy of the game's flame
+  burst, and a full trail asked for over a hundred a second, nearly all on empty floor. A patch
+  now makes its hit only when an enemy (or a boss) is within reach of it, so enemies are hit as
+  before; the trail no longer burns crates and pots it is merely lying next to (the ring round
+  the wizard still does). In PvP every patch hits as before.
+- The trail's borrowed flame frames are kept instead of looked up on every patch, and when the
+  game's flame sheet isn't loaded (it comes with Meteor), all lookups share one search of the
+  loaded textures every 20 s instead of one search each.
+
 ### Changes in 0.9.2
 
 - Faster trail (task sheet #26, frame-rate drops): each patch used to copy Searing Rush's fire

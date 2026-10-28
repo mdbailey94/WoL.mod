@@ -196,6 +196,7 @@ namespace WoLTrailblazer
             bool empowered = skill != null && skill.IsEmpowered;
             int level = Level(speed, empowered);
             float size = SizeOf(level);
+            float hitRadius = TrailblazerPlugin.TrailHitSize * HitScale(size);
             for (int i = patches.Count - 1; i >= 0; i--)
             {
                 Patch patch = patches[i];
@@ -218,9 +219,38 @@ namespace WoLTrailblazer
                 if (now >= patch.nextHit)
                 {
                     patch.nextHit = now + TrailblazerPlugin.TrailHitInterval;
-                    Burst(patch.position, level, TrailblazerPlugin.TrailHitSize * HitScale(size), false);
+                    if (FoeNear(patch.position, hitRadius + FoeMargin))
+                        Burst(patch.position, level, hitRadius, false);
                 }
             }
+        }
+
+        // Each hit is a new copy of the game's FlameBurst (it isn't pooled), and a full trail asks
+        // for over a hundred a second, nearly all on empty floor. So a patch only makes its hit
+        // when an enemy is within reach of it (0.9.2, #26); enemies are hit just as before. With no
+        // enemy list to go by (or in PvP, where the foes are wizards) every patch hits as it did.
+        private const float FoeMargin = 1.5f;  // past the hit's radius, for an enemy's size and movement
+        private const float BossMargin = 3f;   // more for a boss, whose body reaches far from its feet
+
+        private static bool FoeNear(Vector2 at, float reach)
+        {
+            if (GameController.pvpOn || GameController.enemies == null)
+                return true;
+            if (Near(GameController.enemies, at, reach * reach))
+                return true;
+            float bossReach = reach + BossMargin;
+            return GameController.bosses != null && Near(GameController.bosses, at, bossReach * bossReach);
+        }
+
+        private static bool Near(List<GameObject> foes, Vector2 at, float reach2)
+        {
+            for (int i = 0; i < foes.Count; i++)
+            {
+                GameObject foe = foes[i];
+                if (foe != null && foe.activeInHierarchy && ((Vector2)foe.transform.position - at).sqrMagnitude <= reach2)
+                    return true;
+            }
+            return false;
         }
 
         // How much faster (as a fraction of base run speed) each level needs than the one before:

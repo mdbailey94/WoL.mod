@@ -251,20 +251,7 @@ namespace WoLTrailblazer
                 return frames;
             if (StillMissing(key))
                 return null;
-            Texture2D source;
-            if (!textures.TryGetValue(texture, out source) || source == null)
-            {
-                source = null;
-                foreach (Texture2D t in Resources.FindObjectsOfTypeAll<Texture2D>())
-                {
-                    if (t != null && t.name == texture)
-                    {
-                        source = t;
-                        break;
-                    }
-                }
-                textures[texture] = source;
-            }
+            Texture2D source = FindTexture(texture);
             if (source == null)
                 return Missing(key);
             frames = new Sprite[rects.Length];
@@ -277,6 +264,26 @@ namespace WoLTrailblazer
             sets[key] = frames;
             return frames;
         }
+
+        // Every loaded texture by name, from one search kept and shared by all lookups; a name not
+        // in it is searched for again at most every RescanGap (0.9.2, #26: each cut used to search
+        // all textures on its own whenever its retry came up, four of them for the trail's flames).
+        private static Texture2D FindTexture(string name)
+        {
+            Texture2D found;
+            if (textures.TryGetValue(name, out found) && found != null)
+                return found;
+            if (Time.realtimeSinceStartup - texturesScannedAt < RescanGap)
+                return null;
+            texturesScannedAt = Time.realtimeSinceStartup;
+            textures.Clear();
+            foreach (Texture2D t in Resources.FindObjectsOfTypeAll<Texture2D>())
+                if (t != null && !textures.ContainsKey(t.name))
+                    textures[t.name] = t;
+            return textures.TryGetValue(name, out found) ? found : null;
+        }
+
+        private static float texturesScannedAt = -1000f;
 
         private static void Scan()
         {

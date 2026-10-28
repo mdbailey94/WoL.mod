@@ -399,7 +399,29 @@ namespace WoLTrailblazer
 
         // The game's flame frames: tiles of the top row of its MeteorStrike particle sheet (the
         // flame that burns down and bursts into sparks), or null if that sheet isn't loaded.
+        // Kept per tile set (the arrays above), so a patch doesn't build the lookup again; while
+        // the sheet isn't loaded, asked for again only every few seconds.
+        private readonly System.Collections.Generic.Dictionary<int[], Sprite[]> flameSets = new System.Collections.Generic.Dictionary<int[], Sprite[]>();
+        private readonly System.Collections.Generic.Dictionary<int[], float> flamesMissingUntil = new System.Collections.Generic.Dictionary<int[], float>();
+        private const float FlameRetry = 5f;
+
         private Sprite[] GameFlames(int[] tiles)
+        {
+            Sprite[] frames;
+            if (flameSets.TryGetValue(tiles, out frames) && PixelCanvas.Alive(frames))
+                return frames;
+            float until;
+            if (flamesMissingUntil.TryGetValue(tiles, out until) && Time.realtimeSinceStartup < until)
+                return null;
+            frames = CutFlames(tiles);
+            if (frames != null)
+                flameSets[tiles] = frames;
+            else
+                flamesMissingUntil[tiles] = Time.realtimeSinceStartup + FlameRetry;
+            return frames;
+        }
+
+        private Sprite[] CutFlames(int[] tiles)
         {
             var rects = new Rect[tiles.Length];
             for (int i = 0; i < tiles.Length; i++)
