@@ -303,3 +303,19 @@ Laid out after WoL Art's mockup (`inventory_mockup_1x.png`):
 - Pendant: facing left it sits on the chest (the outline is now mirrored to match the picture
   as drawn), and its height follows each frame's own picture, so a lower run frame no longer
   leaves it on the hood. The ring on the hand uses the same mirror check.
+
+## 0.13.0: WoL Art's new worn gear (task sheet #1, #23, #24)
+
+- Each worn part picks its picture in this order: the unique's own design, then a Legendary's
+  theme from its strongest stat (offense: Might, Precision, Ruin; defense: Vigor, Warding,
+  Mending; utility: Haste, the Wind, Shadows), then its rarity.
+- Pendants: the v3 slim set (about 125%), Cinderheart and Galeheart, and the three themed
+  Legendaries (the defense one is the large gold pendant). Running, they swing back and forward
+  once per stride (`_swing` frames); standing, Cinderheart's flames flicker (`_flicker`, 8 fps).
+- Charms are one floating orb whose size goes with rarity (3, 4, 5, 7 px), shown at true pixel
+  size; Bloodwell, Thornwick and the themed Legendaries have their own orbs, and every Legendary
+  orb leaves drawn trail puffs. `LegendaryCharmScale` now only sizes the code-drawn stones.
+- Rings: the new rarity bands, the Stormlinked Signet, the Twinfold Band and the themed ones.
+- The ring and the pendant now find the hand and chest from the wizard's drawn pixels in every
+  frame (the game's sheet is read once), not from the sprite's outline polygon, whose corners
+  can lie past the picture: that put the ring out in front of the face in a side run (#24).

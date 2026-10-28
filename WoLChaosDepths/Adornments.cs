@@ -60,6 +60,7 @@ namespace WoLChaosDepths
                 if (a != null)
                     a.Vanish();
             adorns.Clear();
+            BodyPixels.Prune();
         }
 
         // ---- Colours ----
@@ -98,7 +99,113 @@ namespace WoLChaosDepths
             return s;
         }
 
-        private static bool HasPendantView(int tier, string facing) => ItemArt.LoadPng("worn_pendant_" + ItemArt.RarityName(tier) + "_" + facing) != null;
+        // ---- Drawn designs ----
+
+        // Each unique's own worn picture (worn_<part>_<name>), by its key.
+        private static readonly Dictionary<string, string> UniqueArt = new Dictionary<string, string>
+        {
+            { "Pyre", "cinderheart" }, { "Gale", "galeheart" },
+            { "Chain", "signet" }, { "Echo", "twinfold" },
+            { "Leech", "bloodwell" }, { "Thorn", "thornwick" }
+        };
+
+        // A non-unique Legendary's theme, from the strongest stat its name is taken from (#8):
+        // offense (Might, Precision, Ruin), defense (Vigor, Warding, Mending), utility (Haste,
+        // the Wind, Shadows).
+        private static readonly Dictionary<string, string> ThemeOfAffix = new Dictionary<string, string>
+        {
+            { "Damage", "offense" }, { "CritChance", "offense" }, { "CritDamage", "offense" },
+            { "Health", "defense" }, { "DamageTaken", "defense" }, { "Healing", "defense" },
+            { "Cooldown", "utility" }, { "MoveSpeed", "utility" }, { "Evade", "utility" }
+        };
+
+        private static string Theme(ItemData item)
+        {
+            if (item == null || string.IsNullOrEmpty(item.name) || LootTable.Current == null)
+                return null;
+            int of = item.name.IndexOf(" of ", StringComparison.Ordinal);
+            if (of < 0)
+                return null;
+            string suffix = item.name.Substring(of + 4);
+            foreach (LootTable.AffixDef def in LootTable.Current.affixes)
+            {
+                string theme;
+                if (def.suffix == suffix && ThemeOfAffix.TryGetValue(def.key, out theme))
+                    return theme;
+            }
+            return null;
+        }
+
+        // The drawn pictures to try for an item, best first: its unique's own, then a
+        // Legendary's theme, then its rarity (worn_pendant_cinderheart, worn_pendant_legendary_
+        // offense, worn_pendant_legendary).
+        private static string[] Designs(string part, ItemData item, int tier)
+        {
+            var list = new List<string>();
+            if (item == null)
+                return list.ToArray();
+            string name;
+            if (!string.IsNullOrEmpty(item.unique) && UniqueArt.TryGetValue(item.unique, out name))
+                list.Add("worn_" + part + "_" + name);
+            string theme = tier >= 3 && string.IsNullOrEmpty(item.unique) ? Theme(item) : null;
+            if (theme != null)
+                list.Add("worn_" + part + "_legendary_" + theme);
+            list.Add("worn_" + part + "_" + ItemArt.RarityName(tier));
+            return list.ToArray();
+        }
+
+        private static readonly Vector2 TopCentre = new Vector2(0.5f, 1f), Centre = new Vector2(0.5f, 0.5f);
+
+        // The drawn pendant for this view ("down", "side" or "up"), from the first design that
+        // has it: its 4-frame flicker loop when one is asked for and drawn (Cinderheart, standing),
+        // its 2-frame swing while running, else its rest / glint pair. Then the older single
+        // picture for every view (worn_pendant_<rarity>.png). Null when nothing is drawn.
+        private static Sprite DrawnPendant(string[] designs, string view, int glint, int swing, int flicker, float ppu)
+        {
+            foreach (string d in designs)
+            {
+                Sprite[] rest = ItemArt.Frames(d + "_" + view, 2, TopCentre, ppu);
+                if (rest == null)
+                    continue;
+                if (flicker >= 0)
+                {
+                    Sprite[] f = ItemArt.Frames(d + "_" + view + "_flicker", 4, TopCentre, ppu);
+                    if (f != null)
+                        return f[flicker & 3];
+                }
+                if (swing >= 0)
+                {
+                    Sprite[] s = ItemArt.Frames(d + "_" + view + "_swing", 2, TopCentre, ppu);
+                    if (s != null)
+                        return s[swing & 1];
+                }
+                return rest[Mathf.Clamp(glint, 0, 1)];
+            }
+            foreach (string d in designs)
+            {
+                Sprite[] single = ItemArt.Frames(d, 2, TopCentre, ppu);
+                if (single != null)
+                    return single[Mathf.Clamp(glint, 0, 1)];
+            }
+            return null;
+        }
+
+        private static bool HasPendantView(string[] designs, string view)
+        {
+            foreach (string d in designs)
+                if (ItemArt.LoadPng(d + "_" + view) != null)
+                    return true;
+            return false;
+        }
+
+        // The first design with a picture of its own (2 frames: rest, glint), for rings and charms.
+        private static string FirstDrawn(string[] designs)
+        {
+            foreach (string d in designs)
+                if (ItemArt.LoadPng(d) != null)
+                    return d;
+            return null;
+        }
 
         // Rarity tier: 0 Common, 1 Magic, 2 Rare, 3 Legendary (a unique counts as Legendary).
         // Each part grows and shines more with it.
@@ -114,15 +221,9 @@ namespace WoLChaosDepths
         // A pendant on a short chain: a 3x3 gem (Common), 5x5 (Magic), 7x7 (Rare), 7x7 in a gold
         // setting (Legendary), with a dark rim and a lit facet. When it glints the facet goes
         // white, and on a Legendary the setting's four points too. Pivot top.
-        // facing: "down", "side" or "up". A drawn worn_pendant_<rarity>_<facing>.png is used for
-        // that view when it exists (the side view drawn facing right; it is flipped for left),
-        // else the single worn_pendant_<rarity>.png for every view, else the code-drawn one.
-        private static Sprite Pendant(Color c, int tier, int frame, float ppu, string facing = "down")
+        // The code-drawn fallback when no picture is drawn (see DrawnPendant).
+        private static Sprite Pendant(Color c, int tier, int frame, float ppu)
         {
-            Sprite[] drawn = ItemArt.Frames("worn_pendant_" + ItemArt.RarityName(tier) + "_" + facing, 2, new Vector2(0.5f, 1f), ppu)
-                ?? ItemArt.Frames("worn_pendant_" + ItemArt.RarityName(tier), 2, new Vector2(0.5f, 1f), ppu);
-            if (drawn != null)
-                return drawn[Mathf.Clamp(frame, 0, 1)];
             Color chain = new Color32(0xc8, 0xb0, 0x60, 0xff), setting = new Color32(0xf0, 0xd0, 0x70, 0xff);
             Color light = Color.Lerp(c, Color.white, 0.6f), dark = Color.Lerp(c, Color.black, 0.45f);
             int r = tier == 0 ? 1 : tier == 1 ? 2 : 3;
@@ -150,11 +251,12 @@ namespace WoLChaosDepths
         // (Magic), a 4-wide gold band with a 2-px stone (Rare), a 5-wide gold band with a 3x2
         // stone (Legendary). The stone is in the item's colour; a glint lights its corner (all
         // of its top row on a Legendary). Pivot on the band.
-        private static Sprite Ring(Color c, int tier, int frame, float ppu)
+        // design: the drawn picture to use (see Designs), or null for the code-drawn one.
+        private static Sprite Ring(string design, Color c, int tier, int frame, float ppu)
         {
             // Drawn ring: pivot on the band (the bottom row), as the code-drawn one.
-            Texture2D ringArt = ItemArt.LoadPng("worn_ring_" + ItemArt.RarityName(tier));
-            Sprite[] drawn = ringArt != null ? ItemArt.Frames("worn_ring_" + ItemArt.RarityName(tier), 2, new Vector2(0.5f, 1f / ringArt.height), ppu) : null;
+            Texture2D ringArt = design != null ? ItemArt.LoadPng(design) : null;
+            Sprite[] drawn = ringArt != null ? ItemArt.Frames(design, 2, new Vector2(0.5f, 1f / ringArt.height), ppu) : null;
             if (drawn != null)
                 return drawn[Mathf.Clamp(frame, 0, 1)];
             Color metal = tier >= 2 ? (Color)new Color32(0xe8, 0xc4, 0x5c, 0xff) : tier == 1 ? (Color)new Color32(0xc0, 0xc4, 0xd0, 0xff) : c;
@@ -181,10 +283,10 @@ namespace WoLChaosDepths
         // A charm stone that floats round the wizard: a 3x3 gem (Common); a 5x5 gem with a lit
         // facet (Magic); the same with a white spark on its point (Rare); a 5x5 gem in a gold
         // setting with four points (Legendary, 7x7). A glint lights the facet (and the setting's
-        // points on a Legendary). Pivot centre.
-        private static Sprite Charmstone(Color c, int tier, int frame, float ppu)
+        // points on a Legendary). Pivot centre. design: the drawn orb (see Designs), or null.
+        private static Sprite Charmstone(string design, Color c, int tier, int frame, float ppu)
         {
-            Sprite[] drawn = ItemArt.Frames("worn_charm_" + ItemArt.RarityName(tier), 2, new Vector2(0.5f, 0.5f), ppu);
+            Sprite[] drawn = design != null ? ItemArt.Frames(design, 2, Centre, ppu) : null;
             if (drawn != null)
                 return drawn[Mathf.Clamp(frame, 0, 1)];
             // The setting is a darker gold at rest so four Legendary stones don't read as a
@@ -286,6 +388,46 @@ namespace WoLChaosDepths
             }
         }
 
+        // A drawn trail puff (worn_charm_<design>_trail.png, 4 frames) left where a Legendary
+        // charm's orb was: it stays put in the world, plays its frames at 10 fps and goes.
+        private class Puff : MonoBehaviour
+        {
+            private SpriteRenderer r;
+            private Sprite[] frames;
+            private float born;
+
+            public static void Leave(SpriteRenderer from, Sprite[] frames)
+            {
+                try
+                {
+                    var go = new GameObject("charm trail");
+                    var p = go.AddComponent<Puff>();
+                    p.frames = frames;
+                    p.r = go.AddComponent<SpriteRenderer>();
+                    p.r.sprite = frames[0];
+                    p.r.material = Mat();
+                    p.r.sortingLayerID = from.sortingLayerID;
+                    p.r.sortingOrder = from.sortingOrder - 1;
+                    p.born = Time.time;
+                    go.transform.position = from.transform.position;
+                }
+                catch
+                {
+                }
+            }
+
+            private void Update()
+            {
+                int i = (int)((Time.time - born) * 10f);
+                if (i >= frames.Length)
+                {
+                    Destroy(gameObject);
+                    return;
+                }
+                r.sprite = frames[i];
+            }
+        }
+
         // ---- Per-player component ----
 
         private class Adorn : MonoBehaviour
@@ -294,6 +436,15 @@ namespace WoLChaosDepths
             private string signature = "";
             private ItemData amulet, ring, charm;
             private int amuletTier, ringTier, charmTier;
+            // The drawn pictures to try for each part, best first (see Designs); the ring's and
+            // the charm's picked, or null when only the code-drawn one exists; the charm's trail.
+            private string[] amuletDesigns = new string[0];
+            private string ringDesign, charmDesign;
+            private Sprite[] charmTrail;
+            // Running: the swing frame advances every second change of the body's picture, so
+            // the pendant swings back and forward once per stride.
+            private Sprite lastBodySprite;
+            private int bodyFrames;
             private SpriteRenderer pendant, glint;
             // The charm's stones floating round the wizard (one per rarity tier above Common).
             private readonly List<SpriteRenderer> orbs = new List<SpriteRenderer>();
@@ -360,9 +511,15 @@ namespace WoLChaosDepths
                     amuletTier = Tier(amulet);
                     ringTier = Tier(ring);
                     charmTier = Tier(charm);
-                    pendant = Part(pendant, amulet, amulet != null ? Pendant(ColourOf(amulet), amuletTier, 0, ppu) : null);
-                    glint = Part(glint, ring, ring != null ? Ring(ColourOf(ring), ringTier, 0, ppu) : null);
-                    int stones = charm != null ? charmTier + 1 : 0;
+                    amuletDesigns = Designs("pendant", amulet, amuletTier);
+                    ringDesign = FirstDrawn(Designs("ring", ring, ringTier));
+                    charmDesign = FirstDrawn(Designs("charm", charm, charmTier));
+                    charmTrail = charmDesign != null && charmTier >= 3 ? ItemArt.Frames(charmDesign + "_trail", 4, Centre, ppu) : null;
+                    pendant = Part(pendant, amulet, amulet != null ? PendantSprite("down", 0, -1, -1) : null);
+                    glint = Part(glint, ring, ring != null ? Ring(ringDesign, ColourOf(ring), ringTier, 0, ppu) : null);
+                    // A drawn charm is one orb, its size set by its rarity; the code-drawn
+                    // stones are one per rarity tier.
+                    int stones = charm == null ? 0 : charmDesign != null ? 1 : charmTier + 1;
                     while (orbs.Count > stones)
                     {
                         if (orbs[orbs.Count - 1] != null)
@@ -373,11 +530,12 @@ namespace WoLChaosDepths
                         orbs.Add(null);
                     for (int i = 0; i < stones; i++)
                     {
-                        orbs[i] = Part(orbs[i], charm, Charmstone(ColourOf(charm), charmTier, 0, ppu));
-                        // Legendary stones are drawn 7x7, which is a lot of orange round a
-                        // 37-px wizard four times over; they float a step smaller.
+                        orbs[i] = Part(orbs[i], charm, Charmstone(charmDesign, ColourOf(charm), charmTier, 0, ppu));
+                        // The code-drawn Legendary stones are 7x7, which is a lot of orange round
+                        // a 37-px wizard four times over; they float a step smaller. A drawn orb
+                        // is shown at its true pixel size.
                         if (orbs[i] != null)
-                            orbs[i].transform.localScale = Vector3.one * (charmTier >= 3 ? legendaryCharmScale.Value : 1f);
+                            orbs[i].transform.localScale = Vector3.one * (charmTier >= 3 && charmDesign == null ? legendaryCharmScale.Value : 1f);
                     }
                     // Stagger the first twinkles so the three parts don't flash together.
                     for (int i = 0; i < 3; i++)
@@ -387,6 +545,11 @@ namespace WoLChaosDepths
                 {
                     ChaosDepthsPlugin.LogError($"adornments: {e.Message}");
                 }
+            }
+
+            private Sprite PendantSprite(string view, int glint, int swing, int flicker)
+            {
+                return DrawnPendant(amuletDesigns, view, glint, swing, flicker, ppu) ?? Pendant(ColourOf(amulet), amuletTier, glint, ppu);
             }
 
             private SpriteRenderer Part(SpriteRenderer existing, ItemData item, Sprite sprite)
@@ -475,12 +638,23 @@ namespace WoLChaosDepths
                 // Follow the run's bob (the top of the picture), at most 2 px either way.
                 float bob = Mathf.Clamp(Mathf.Round((bb.max.y - pivot.y - a.top) * ppu), -2f, 2f) / ppu;
 
+                bool moving = (feet - lastPos).sqrMagnitude > 1e-8f;
+                if (body.sprite != lastBodySprite)
+                {
+                    lastBodySprite = body.sprite;
+                    bodyFrames++;
+                }
+
                 if (pendant != null)
                 {
                     // One picture for every view unless the art has a view for this facing;
                     // facing up it shows only when there is an "up" picture (the chain at the
-                    // back of the neck), behind the body.
+                    // back of the neck), behind the body. Running, the swing frames; standing,
+                    // a flicker loop where one is drawn (Cinderheart's flames, 8 fps), else the
+                    // rest / glint pair.
                     string view = down ? "down" : up ? "up" : "side";
+                    int swing = moving ? (bodyFrames / 2) & 1 : -1;
+                    int flicker = moving ? -1 : (int)(Time.time * 8f) & 3;
                     Place(pendant, body, pivot, a.chest, fwd, bob);
                     // Across the body the pendant follows the chest in every frame, read from
                     // the picture's outline at chest height (the run leans the torso forward,
@@ -489,9 +663,9 @@ namespace WoLChaosDepths
                     if (ChestOnFrame(body, bb, down || up, side, out chestWorld))
                         pendant.transform.position = new Vector3(chestWorld.x, chestWorld.y, pivot.z);
                     Sort(pendant, body, up ? back : front);
-                    pendant.enabled = !up || HasPendantView(amuletTier, "up");
-                    pendant.flipX = view == "side" && side < 0f && HasPendantView(amuletTier, "side");
-                    pendant.sprite = Pendant(ColourOf(amulet), amuletTier, Twinkle(0, amuletTier), ppu, view);
+                    pendant.enabled = !up || HasPendantView(amuletDesigns, "up");
+                    pendant.flipX = view == "side" && side < 0f && HasPendantView(amuletDesigns, "side");
+                    pendant.sprite = PendantSprite(view, Twinkle(0, amuletTier), swing, flicker);
                 }
                 if (glint != null)
                 {
@@ -512,7 +686,7 @@ namespace WoLChaosDepths
                     }
                     Sort(glint, body, front);
                     glint.enabled = !up; // the hand is behind the body facing up
-                    glint.sprite = Ring(ColourOf(ring), ringTier, Twinkle(1, ringTier), ppu);
+                    glint.sprite = Ring(ringDesign, ColourOf(ring), ringTier, Twinkle(1, ringTier), ppu);
                 }
                 if (orbs.Count > 0)
                 {
@@ -536,15 +710,21 @@ namespace WoLChaosDepths
                             o.transform.SetParent(body.transform, false);
                         o.transform.position = new Vector3(px, py, pivot.z);
                         Sort(o, body, Mathf.Sin(ang) < 0f ? front : back);
-                        o.sprite = Charmstone(ColourOf(charm), charmTier, Twinkle(2, charmTier), ppu);
+                        o.sprite = Charmstone(charmDesign, ColourOf(charm), charmTier, Twinkle(2, charmTier), ppu);
                     }
-                    // Rare and up leave a pixel trail that fades behind each stone.
+                    // Rare and up leave a trail behind each stone: a Legendary's drawn puffs
+                    // (every 0.08 s) when it has them, else a pixel that fades.
                     if (charmTier >= 2 && Time.time >= nextTrail && Time.timeScale > 0f)
                     {
-                        nextTrail = Time.time + 0.09f;
+                        nextTrail = Time.time + (charmTrail != null ? 0.08f : 0.09f);
                         foreach (SpriteRenderer o in orbs)
                             if (o != null && o.enabled)
-                                Mote.Trail(o, ColourOf(charm), ppu);
+                            {
+                                if (charmTrail != null)
+                                    Puff.Leave(o, charmTrail);
+                                else
+                                    Mote.Trail(o, ColourOf(charm), ppu);
+                            }
                     }
                 }
                 lastPos = feet;
@@ -568,14 +748,60 @@ namespace WoLChaosDepths
                 }
             }
 
-            // The hand on this frame of the picture, from the sprite's tight outline: the vertex
-            // furthest along `side` within the hand's height band (33-52% of the picture). The
-            // cloak's hem is below that band and the shoulders above it. False when the outline
-            // isn't there or the point is too far from where the hand should be.
-            // The chest's spot across the body in this frame, from the outline's vertices at
-            // chest height (62-78% of the picture): its middle facing down or up, a pixel and a
-            // half inside its front edge facing sideways. A jump of more than half a unit (the
-            // outline caught a sleeve or a spell) is refused for a few frames, as for the hand.
+            // ---- Reading this frame's picture (BodyPixels) ----
+
+            // A pixel of the body's picture in the world (the renderer's flips applied; the
+            // transform's own scale is in TransformPoint).
+            private static Vector2 World(SpriteRenderer body, BodyPixels.Shape sh, int x, int y)
+            {
+                Vector2 local = sh.Local(x, y);
+                if (body.flipX)
+                    local.x = -local.x;
+                if (body.flipY)
+                    local.y = -local.y;
+                return body.transform.TransformPoint(local);
+            }
+
+            // The drawn pixels between two fractions of the picture's height (from its lowest to
+            // its highest opaque row): the leftmost and rightmost in the world, and the one
+            // furthest along `side`. False when the picture can't be read.
+            private static bool PixelBand(SpriteRenderer body, float loFrac, float hiFrac, float side,
+                out float minX, out float maxX, out Vector2 furthest, out float heightAt70)
+            {
+                minX = float.PositiveInfinity;
+                maxX = float.NegativeInfinity;
+                furthest = Vector2.zero;
+                heightAt70 = 0f;
+                BodyPixels.Shape sh = BodyPixels.Of(body.sprite);
+                if (sh == null || body.flipY)
+                    return false;
+                int rows = sh.top - sh.bottom + 1;
+                if (rows < 8)
+                    return false;
+                int lo = sh.bottom + Mathf.FloorToInt(rows * loFrac), hi = sh.bottom + Mathf.CeilToInt(rows * hiFrac);
+                float best = float.NegativeInfinity;
+                for (int y = lo; y <= hi; y++)
+                {
+                    int l, r;
+                    if (!sh.Row(y, out l, out r))
+                        continue;
+                    Vector2 a = World(body, sh, l, y), b = World(body, sh, r, y);
+                    minX = Mathf.Min(minX, Mathf.Min(a.x, b.x));
+                    maxX = Mathf.Max(maxX, Mathf.Max(a.x, b.x));
+                    if (a.x * side > best) { best = a.x * side; furthest = a; }
+                    if (b.x * side > best) { best = b.x * side; furthest = b; }
+                }
+                if (best == float.NegativeInfinity)
+                    return false;
+                heightAt70 = World(body, sh, 0, sh.bottom + Mathf.RoundToInt(rows * 0.70f)).y;
+                return true;
+            }
+
+            // The chest's spot across the body in this frame, at chest height (62-78% of the
+            // picture): its middle facing down or up, a pixel inside its front edge facing
+            // sideways, 70% up the picture. Read from the drawn pixels, else from the sprite's
+            // outline vertices. A jump of more than half a unit (the outline caught a sleeve or
+            // a spell) is refused for a few frames, as for the hand.
             private Vector2 lastChest;
             private int chestRefused;
             private float lastChestSide = 99f;
@@ -587,6 +813,13 @@ namespace WoLChaosDepths
                     Sprite sprite = body.sprite;
                     if (sprite == null)
                         return false;
+                    float px0, px1, pxY;
+                    Vector2 unused;
+                    if (PixelBand(body, 0.62f, 0.78f, side, out px0, out px1, out unused, out pxY) && px1 - px0 >= 2f / ppu)
+                    {
+                        float pxX = centred ? (px0 + px1) * 0.5f : (side > 0f ? px1 : px0) - side * 1f / ppu;
+                        return ChestTail(body, centred, side, pxX, pxY, out world);
+                    }
                     Vector2[] verts = sprite.vertices;
                     if (verts == null || verts.Length < 3)
                         return false;
@@ -615,25 +848,30 @@ namespace WoLChaosDepths
                     // Height from this frame's own picture (70% up it), so a lower run frame
                     // carries the pendant down with it instead of leaving it on the hood.
                     float y = bb.min.y + h * 0.70f;
-                    Vector2 pivot = body.transform.position;
-                    var offset = new Vector2(Mathf.Round((x - pivot.x) * ppu) / ppu, Mathf.Round((y - pivot.y) * ppu) / ppu);
-                    float key = centred ? 0f : side;
-                    if (key == lastChestSide && Mathf.Abs(offset.x - lastChest.x) > 0.5f && chestRefused < 6)
-                    {
-                        chestRefused++;
-                        offset = lastChest;
-                    }
-                    else
-                        chestRefused = 0;
-                    lastChest = offset;
-                    lastChestSide = key;
-                    world = pivot + offset;
-                    return true;
+                    return ChestTail(body, centred, side, x, y, out world);
                 }
                 catch
                 {
                     return false;
                 }
+            }
+
+            private bool ChestTail(SpriteRenderer body, bool centred, float side, float x, float y, out Vector2 world)
+            {
+                Vector2 pivot = body.transform.position;
+                var offset = new Vector2(Mathf.Round((x - pivot.x) * ppu) / ppu, Mathf.Round((y - pivot.y) * ppu) / ppu);
+                float key = centred ? 0f : side;
+                if (key == lastChestSide && Mathf.Abs(offset.x - lastChest.x) > 0.5f && chestRefused < 6)
+                {
+                    chestRefused++;
+                    offset = lastChest;
+                }
+                else
+                    chestRefused = 0;
+                lastChest = offset;
+                lastChestSide = key;
+                world = pivot + offset;
+                return true;
             }
 
             // True when the sprite's outline, mirrored, lines up with the renderer's bounds better
@@ -653,6 +891,11 @@ namespace WoLChaosDepths
                 return errB + 0.01f < errA;
             }
 
+            // The hand on this frame of the picture: the drawn pixel furthest along `side` within
+            // the hand's height band (33-52% of the picture), a pixel inside it; the cloak's hem
+            // is below that band and the shoulders above it. When the picture can't be read, the
+            // outline vertex furthest that way, which can lie past the picture (#24: a side run
+            // put the ring out in front of the face). A jump is refused for a few frames.
             private bool HandOnFrame(SpriteRenderer body, Bounds bb, float side, out Vector2 world)
             {
                 world = Vector2.zero;
@@ -661,6 +904,13 @@ namespace WoLChaosDepths
                     Sprite sprite = body.sprite;
                     if (sprite == null)
                         return false;
+                    float minX, maxX, unusedY;
+                    Vector2 edge;
+                    if (PixelBand(body, 0.33f, 0.52f, side, out minX, out maxX, out edge, out unusedY))
+                    {
+                        edge.x -= side * 1f / ppu;
+                        return HandTail(body, side, edge, out world);
+                    }
                     Vector2[] verts = sprite.vertices;
                     if (verts == null || verts.Length < 3)
                         return false;
@@ -688,28 +938,33 @@ namespace WoLChaosDepths
                         return false;
                     // A pixel inside the outline, so the band sits on the hand, not beside it.
                     pick.x -= side * 1.5f / ppu;
-                    // Compared as offsets from the pivot: a world spot went stale as soon as the
-                    // wizard moved (a leap like Thunderhead's then locked the ring off the body).
-                    Vector2 pivot = body.transform.position;
-                    Vector2 offset = new Vector2(Mathf.Round((pick.x - pivot.x) * ppu) / ppu, Mathf.Round((pick.y - pivot.y) * ppu) / ppu);
-                    // Refuse a jump (the outline caught a sleeve or a spell) for a few frames,
-                    // then take the new spot: a long run of jumps means the hand really moved.
-                    if (handTracked && side == lastHandSide && Vector2.Distance(offset, lastHand) > 0.45f && handRefused < 6)
-                    {
-                        handRefused++;
-                        offset = lastHand;
-                    }
-                    else
-                        handRefused = 0;
-                    lastHand = offset;
-                    lastHandSide = side;
-                    world = pivot + offset;
-                    return true;
+                    return HandTail(body, side, pick, out world);
                 }
                 catch
                 {
                     return false;
                 }
+            }
+
+            private bool HandTail(SpriteRenderer body, float side, Vector2 pick, out Vector2 world)
+            {
+                // Compared as offsets from the pivot: a world spot went stale as soon as the
+                // wizard moved (a leap like Thunderhead's then locked the ring off the body).
+                Vector2 pivot = body.transform.position;
+                Vector2 offset = new Vector2(Mathf.Round((pick.x - pivot.x) * ppu) / ppu, Mathf.Round((pick.y - pivot.y) * ppu) / ppu);
+                // Refuse a jump (the outline caught a sleeve or a spell) for a few frames,
+                // then take the new spot: a long run of jumps means the hand really moved.
+                if (handTracked && side == lastHandSide && Vector2.Distance(offset, lastHand) > 0.45f && handRefused < 6)
+                {
+                    handRefused++;
+                    offset = lastHand;
+                }
+                else
+                    handRefused = 0;
+                lastHand = offset;
+                lastHandSide = side;
+                world = pivot + offset;
+                return true;
             }
 
             private Anchors Measure(Bounds bb, Vector3 pivot, bool up, bool down, float side, float fwd, bool settled)
