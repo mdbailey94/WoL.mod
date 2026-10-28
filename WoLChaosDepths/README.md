@@ -530,3 +530,10 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
   so the powers can be tried early. `[Testing] FirstBossUnique` (on) turns it off; the save
   remembers it as `firstBossUnique`, so characters that already beat bosses get one too.
 - Planned next: item tiers and bonus lines, Legendaries included (see `PLAN-tiers.md`).
+
+## 0.15.9: elites drop gear less often (asked for by Matt)
+
+- An elite drops an item 20% of the time at Ascension 0 (was 50%; `[Elites]
+  ItemChanceAtAscension0`), and from Ascension 1 35%, rising 5% a level to 80% at 10 (was
+  always; `ItemChance`, `ItemChancePerAscension`). New setting names, so the lower rates reach
+  config files that already held the old `DropChanceAtAscension0`.

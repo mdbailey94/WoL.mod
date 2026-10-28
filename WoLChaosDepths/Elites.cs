@@ -38,6 +38,7 @@ namespace WoLChaosDepths
 
         private static ConfigEntry<bool> enabled;
         private static ConfigEntry<float> chance, chancePerAscension, healthMultiplier, xpMultiplier, zeroChance, zeroDropChance;
+        private static ConfigEntry<float> itemChance, itemChancePerAscension;
         private static ConfigEntry<float> swiftSpeed, armoredReduction, giantScale, giantHealth;
         private static ConfigEntry<int> dropMinRarity;
         private static ConfigEntry<float> rarityBoostPerAscension;
@@ -62,13 +63,19 @@ namespace WoLChaosDepths
                 "Added to the elite chance per Ascension level (Ascension mod).");
             zeroChance = config.Bind("Elites", "ChanceAtAscension0", 0.04f,
                 new ConfigDescription("Chance an ordinary enemy spawns as an elite at Ascension 0 (from level 1, Ascension's table sets it).", new AcceptableValueRange<float>(0f, 1f)));
-            zeroDropChance = config.Bind("Elites", "DropChanceAtAscension0", 0.5f,
-                new ConfigDescription("At Ascension 0, how often an elite drops an item (from level 1 they always do).", new AcceptableValueRange<float>(0f, 1f)));
+            // New keys in 0.15.9 (the old DropChanceAtAscension0 = 0.5 stays in config files
+            // unused), so the lower rates reach existing installs.
+            zeroDropChance = config.Bind("Elites", "ItemChanceAtAscension0", 0.2f,
+                new ConfigDescription("At Ascension 0, how often an elite drops an item.", new AcceptableValueRange<float>(0f, 1f)));
+            itemChance = config.Bind("Elites", "ItemChance", 0.35f,
+                new ConfigDescription("From Ascension 1, how often an elite drops an item (before 0.15.9 they always did).", new AcceptableValueRange<float>(0f, 1f)));
+            itemChancePerAscension = config.Bind("Elites", "ItemChancePerAscension", 0.05f,
+                "Added to ItemChance per Ascension level above 1 (0.35 at 1 up to 0.8 at 10).");
             healthMultiplier = config.Bind("Elites", "HealthMultiplier", 2.5f, "Elite health, times the enemy's own.");
             xpMultiplier = config.Bind("Elites", "XpMultiplier", 2f,
                 "Extra experience for an elite, on top of the experience from its larger health.");
             dropMinRarity = config.Bind("Elites", "DropMinRarity", 1,
-                "Elites always drop an item of at least this rarity (0 Common, 1 Magic, 2 Rare, 3 Legendary).");
+                "An elite's item is at least this rarity (0 Common, 1 Magic, 2 Rare, 3 Legendary).");
             swiftSpeed = config.Bind("Elites", "SwiftSpeed", 0.4f, "Swift elites move this much faster (0.4 = +40%).");
             armoredReduction = config.Bind("Elites", "ArmoredReduction", 0.4f, "Armored elites take this much less damage (0.4 = -40%).");
             giantScale = config.Bind("Elites", "GiantScale", 1.35f, "Giant elites are drawn this much larger.");
@@ -131,8 +138,15 @@ namespace WoLChaosDepths
             return Mathf.Clamp01(baseChance + Layers.EliteChanceBonus);
         }
 
-        // Ascension 0: an elite drops an item only this often (always from level 1).
-        public static bool DropsItem() => AscensionLevel() > 0 || UnityEngine.Random.value < zeroDropChance.Value;
+        // How often an elite drops an item: 20% at Ascension 0, 35% at 1 rising 5% a level
+        // (Matt, 0.15.9: gear still dropped too often).
+        public static float ItemDropChance()
+        {
+            int level = AscensionLevel();
+            return level <= 0 ? zeroDropChance.Value : Mathf.Clamp01(itemChance.Value + itemChancePerAscension.Value * (level - 1));
+        }
+
+        public static bool DropsItem() => UnityEngine.Random.value < ItemDropChance();
 
         // One affix, or (Ascension 4 and up, 1 in 4 at 4, half at 8, all at 10) two different ones.
         private static Affix[] RollAffixes()
