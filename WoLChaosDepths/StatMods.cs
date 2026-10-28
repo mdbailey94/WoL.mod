@@ -40,6 +40,12 @@ namespace WoLChaosDepths
             int key = player.GetInstanceID();
             if (applied.TryGetValue(key, out before) && before == signature)
                 return;
+            // A new level or new gear doesn't heal (Matt, 0.15.2): a wizard at full health stays
+            // full under the new maximum (a run's start), anyone else keeps the health they had.
+            // Up to 0.15.1 the health mod filled to the new maximum on every change.
+            Health h = player.health;
+            int hpBefore = h != null && h.healthStat != null ? h.CurrentHealthValue : 0;
+            bool wasFull = h == null || h.healthStat == null || hpBefore >= (int)h.healthStat.ModifiedValue;
             Remove(player);
 
             try
@@ -52,7 +58,9 @@ namespace WoLChaosDepths
                 Health health = player.health;
                 if (health != null)
                 {
-                    Stat(health.healthStat, "Health", Get(totals, "Health") + levelHealth, VarStatModType.Multiplicative, true);
+                    Stat(health.healthStat, "Health", Get(totals, "Health") + levelHealth, VarStatModType.Multiplicative, wasFull);
+                    if (!wasFull && health.healthStat != null && hpBefore > 0)
+                        health.CurrentHealthValue = Mathf.Min(hpBefore, (int)health.healthStat.ModifiedValue);
                     Stat(health.healModifierStat, "Healing", Get(totals, "Healing"), VarStatModType.Multiplicative, false);
                     Stat(health.damageTakenStat, "DamageTaken", Get(totals, "DamageTaken"), VarStatModType.Multiplicative, false);
                     Stat(health.evadeStat, "Evade", Get(totals, "Evade"), VarStatModType.Additive, false);

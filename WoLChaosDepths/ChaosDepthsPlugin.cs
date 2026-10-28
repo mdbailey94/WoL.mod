@@ -20,14 +20,19 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.15.1";
+        public const string PluginVersion = "0.15.2";
 
 
         private static BepInEx.Logging.ManualLogSource log;
         private static ConfigEntry<bool> modEnabled;
-        private static ConfigEntry<float> healthPerLevel, xpPerHealth, bossXpMultiplier, dropChance, freshDropChance;
+        private static ConfigEntry<float> healthPerLevel, xpPerHealth, bossXpMultiplier, dropChance, freshDropChance, freshDropChanceZero;
+
+        // An ordinary kill's chance of an item: the save slots' balanced rate (lower again at
+        // Ascension 0), or the Debugging save's own.
+        private static float KillDropChance() => !ProfileSave.Fresh ? dropChance.Value
+            : AscensionLink.Level <= 0 ? freshDropChanceZero.Value : freshDropChance.Value;
         private static ConfigEntry<int> levelCap, bossDropRarity, floorBossDropRarity;
-        private static ConfigEntry<float> floorBossXpMultiplier;
+        private static ConfigEntry<float> floorBossXpMultiplier, xpToLevelScale;
         private static ConfigEntry<bool> autoEquip, logKills;
         private static ConfigEntry<string> panelKey, panelButton;
         private static ConfigEntry<bool> diveEnabled, debugEnabled;
@@ -72,6 +77,8 @@ namespace WoLChaosDepths
             bossXpMultiplier = Config.Bind("Progression", "BossXpMultiplier", 10f,
                 new ConfigDescription("Bosses give this many times the experience their health would.", new AcceptableValueRange<float>(1f, 50f)));
             levelCap = Config.Bind("Progression", "LevelCap", 50, new ConfigDescription("Highest level.", new AcceptableValueRange<int>(2, 99)));
+            xpToLevelScale = Config.Bind("Progression", "XpToLevelScale", 2f,
+                new ConfigDescription("Experience each level takes, times the base curve (1 = the old pace; 2 = levels about half as often).", new AcceptableValueRange<float>(0.25f, 10f)));
             floorBossXpMultiplier = Config.Bind("Progression", "FloorBossXpMultiplier", 4f,
                 "Experience multiplier for the floor boss summoned at the skull altar (realm bosses use BossXpMultiplier).");
             floorBossDropRarity = Config.Bind("Loot", "FloorBossDropMinRarity", 1,
@@ -80,6 +87,8 @@ namespace WoLChaosDepths
                 new ConfigDescription("Chance a kill drops an item (bosses always do).", new AcceptableValueRange<float>(0f, 1f)));
             freshDropChance = Config.Bind("Loot", "FreshDropChance", 0.06f,
                 new ConfigDescription("DropChance in the profile's fresh save (WoL Player's balanced rates, #31); DropChance is used in the Debugging save.", new AcceptableValueRange<float>(0f, 1f)));
+            freshDropChanceZero = Config.Bind("Loot", "FreshDropChanceAtAscension0", 0.03f,
+                new ConfigDescription("FreshDropChance at Ascension 0 (Matt: the game on its own comes first; from level 1, FreshDropChance).", new AcceptableValueRange<float>(0f, 1f)));
             bossDropRarity = Config.Bind("Loot", "BossDropMinRarity", 2,
                 new ConfigDescription("A boss drop is at least this rarity (0 Common, 1 Magic, 2 Rare, 3 Legendary).", new AcceptableValueRange<int>(0, 3)));
             autoEquip = Config.Bind("Loot", "AutoEquip", true,
@@ -623,8 +632,11 @@ namespace WoLChaosDepths
                 else if (floorBoss)
                     Drop(player, save, floorBossDropRarity.Value, entity.transform.position);
                 else if (elite != null)
-                    Drop(player, save, Elites.DropMinRarity, entity.transform.position);
-                else if (UnityEngine.Random.value < (ProfileSave.Fresh ? freshDropChance.Value : dropChance.Value))
+                {
+                    if (Elites.DropsItem())
+                        Drop(player, save, Elites.DropMinRarity, entity.transform.position);
+                }
+                else if (UnityEngine.Random.value < KillDropChance())
                     Drop(player, save, 0, entity.transform.position);
                 if (boss)
                     SaveStore.Save(player.playerID, save);
@@ -755,7 +767,9 @@ namespace WoLChaosDepths
 
         // ---- Experience and levels ----
 
-        public static int XpToNext(int level) => Mathf.RoundToInt(60f * Mathf.Pow(Mathf.Max(1, level), 1.4f));
+        // Experience for the next level: 60 x level^1.4, times XpToLevelScale (2 since 0.15.2, so
+        // levels come about half as often as before; Matt).
+        public static int XpToNext(int level) => Mathf.RoundToInt(60f * (xpToLevelScale != null ? xpToLevelScale.Value : 1f) * Mathf.Pow(Mathf.Max(1, level), 1.4f));
 
         private void AddXp(Player player, CharacterSave save, int xp)
         {

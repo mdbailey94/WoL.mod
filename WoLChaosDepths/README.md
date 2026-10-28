@@ -483,3 +483,16 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
   Ascension 0.7.5, its own unlocked Ascension level starting at 0. All slots use the fresh-save
   drop rates and buy mod arcana in the shop.
 - `[Profile] SaveSlots` (3) sets how many slots there are (up to 9).
+
+## 0.15.2: Ascension 0 lets the game lead (asked for by Matt)
+
+- At **Ascension 0**: 4% of enemies are elites (was 8%; `[Elites] ChanceAtAscension0`), an elite
+  drops an item half the time (was always; `[Elites] DropChanceAtAscension0`), and in the save
+  slots an ordinary kill drops an item 3% of the time (was 6%; `[Loot]
+  FreshDropChanceAtAscension0`). From Ascension 1 the approved table and rates apply as before.
+- **Levels come about half as often**: each level takes twice the experience
+  (`[Progression] XpToLevelScale`, 2; 1 = the old pace).
+- **Levelling up no longer heals you to full** (nor does putting on gear with health): a wizard
+  at full health stays full under the new maximum, anyone else keeps the health they had.
+- `[Debug] GearLog` (from 0.15.1, on for now) logs where the ring and pendant are put while
+  running, to find why they drift off the body.

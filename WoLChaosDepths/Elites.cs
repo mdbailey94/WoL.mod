@@ -37,7 +37,7 @@ namespace WoLChaosDepths
         private const string Prefix = "ChaosDepthsElite_";
 
         private static ConfigEntry<bool> enabled;
-        private static ConfigEntry<float> chance, chancePerAscension, healthMultiplier, xpMultiplier;
+        private static ConfigEntry<float> chance, chancePerAscension, healthMultiplier, xpMultiplier, zeroChance, zeroDropChance;
         private static ConfigEntry<float> swiftSpeed, armoredReduction, giantScale, giantHealth;
         private static ConfigEntry<int> dropMinRarity;
         private static ConfigEntry<float> rarityBoostPerAscension;
@@ -60,6 +60,10 @@ namespace WoLChaosDepths
                 new ConfigDescription("Chance an ordinary enemy spawns as an elite.", new AcceptableValueRange<float>(0f, 1f)));
             chancePerAscension = config.Bind("Elites", "ChancePerAscension", 0.01f,
                 "Added to the elite chance per Ascension level (Ascension mod).");
+            zeroChance = config.Bind("Elites", "ChanceAtAscension0", 0.04f,
+                new ConfigDescription("Chance an ordinary enemy spawns as an elite at Ascension 0 (from level 1, Ascension's table sets it).", new AcceptableValueRange<float>(0f, 1f)));
+            zeroDropChance = config.Bind("Elites", "DropChanceAtAscension0", 0.5f,
+                new ConfigDescription("At Ascension 0, how often an elite drops an item (from level 1 they always do).", new AcceptableValueRange<float>(0f, 1f)));
             healthMultiplier = config.Bind("Elites", "HealthMultiplier", 2.5f, "Elite health, times the enemy's own.");
             xpMultiplier = config.Bind("Elites", "XpMultiplier", 2f,
                 "Extra experience for an elite, on top of the experience from its larger health.");
@@ -120,9 +124,15 @@ namespace WoLChaosDepths
         public static float Chance()
         {
             float table = AscensionLink.EliteChance;
-            float baseChance = table > 0f ? table : chance.Value + chancePerAscension.Value * AscensionLevel();
+            int level = AscensionLevel();
+            // Ascension 0 is the game as it is, with Chaos Depths on top: fewer elites (Matt,
+            // 0.15.2), so the new systems don't take over before you choose them.
+            float baseChance = table > 0f ? table : level <= 0 ? zeroChance.Value : chance.Value + chancePerAscension.Value * level;
             return Mathf.Clamp01(baseChance + Layers.EliteChanceBonus);
         }
+
+        // Ascension 0: an elite drops an item only this often (always from level 1).
+        public static bool DropsItem() => AscensionLevel() > 0 || UnityEngine.Random.value < zeroDropChance.Value;
 
         // One affix, or (Ascension 4 and up, 1 in 4 at 4, half at 8, all at 10) two different ones.
         private static Affix[] RollAffixes()
