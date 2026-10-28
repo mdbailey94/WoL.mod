@@ -421,3 +421,13 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
   the face in every frame: on the row 7 pixels below the top of the wizard's drawn picture, in
   its middle facing down, one eye two pixels in from the front edge facing sideways, hidden
   facing up. Placed on the wizard's own pixel grid; with the foot aura from 0.13.5.
+
+## 0.14.3: the inventory in WoL Art's pieces (task sheet #16)
+
+- The inventory panel is drawn with WoL Art's pieces on the layout of her mockup
+  (`inventory_mockup_1x.png`, 232 x 168): 9-slice panel and insets, tabs, chevrons, rarity slot
+  frames, the selection cursor, empty-slot silhouettes and the Chaos Dust icon. Every position
+  is in the mockup's pixels times a whole number, so the pieces stay crisp (x3 in a 1280x720
+  window, x5 at 1080p). Added to the mockup: the character's level beside the title, its
+  experience along the title's rule, and the list's item count in the tab row.
+- `[Panel] Look = Coded` brings back the code-drawn panel.

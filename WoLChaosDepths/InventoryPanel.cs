@@ -12,7 +12,7 @@ namespace WoLChaosDepths
     //
     // Drawn with IMGUI in the pixel style of the Ascension altar prompt (PixelUI), in whole pixel
     // units so it stays crisp at any resolution.
-    public class InventoryPanel
+    public partial class InventoryPanel
     {
         private const float RepeatFirst = 0.3f, RepeatNext = 0.11f, SalvageHold = 0.7f;
         private float nextDepthRepeat;
@@ -391,6 +391,10 @@ namespace WoLChaosDepths
         public void Draw()
         {
             if (!Open || save == null)
+                return;
+            // WoL Art's pieces on the mockup's layout (InventoryPanelArt.cs, #16), unless they
+            // can't be had or [Panel] Look says Coded.
+            if (DrawnLook && DrawArt())
                 return;
             Matrix4x4 previousMatrix = GUI.matrix;
             Color previousColor = GUI.color;
