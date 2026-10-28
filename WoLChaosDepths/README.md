@@ -357,3 +357,9 @@ Laid out after WoL Art's mockup (`inventory_mockup_1x.png`):
   the feet, from the first unique worn (amulet, then ring, then charm); it hides with the rest
   of the gear while riding or levitating. The glowing eyes come later (they need a face point
   found in every frame).
+
+## 0.13.6 (task sheet #30)
+
+- Two players: each opens their own inventory. The keyboard key belongs to the wizard playing on
+  the keyboard and a pad's button to the wizard playing on that pad; before, a press went to the
+  first wizard free to open it, so player 2 got player 1's inventory unless player 1 was busy.

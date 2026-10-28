@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.13.5";
+        public const string PluginVersion = "0.13.6";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -272,22 +272,27 @@ namespace WoLChaosDepths
             {
                 if (TimeScaleController.paused)
                     return null;
-                // A key press mid-dash or mid-attack waits up to 0.75 s for the wizard to be free.
+                // Each press opens only its own wizard's inventory (#30): the keyboard key belongs
+                // to the wizard on the keyboard, a pad's button to the wizard whose pad it is. Up to
+                // 0.13.5 both went to the first wizard free to open it, so player 2's press opened
+                // player 1's inventory unless player 1 was busy (e.g. up on Thunderhead's cloud).
+                // A key press mid-dash or mid-attack waits up to 0.75 s for its wizard to be free.
                 if (OpenKeyPressed())
+                {
                     keyOpenUntil = Time.unscaledTime + 0.75f;
+                    keyOwner = KeyboardPlayer(players);
+                }
                 if (keyOpenUntil > 0f)
                 {
-                    foreach (Player player in players)
-                        if (player != null && CanOpen(player))
-                        {
-                            keyOpenUntil = 0f;
-                            return player;
-                        }
+                    if (keyOwner != null && CanOpen(keyOwner))
+                    {
+                        keyOpenUntil = 0f;
+                        return keyOwner;
+                    }
                     if (Time.unscaledTime > keyOpenUntil)
                     {
                         keyOpenUntil = 0f;
-                        Player first = players.Length > 0 ? players[0] : null;
-                        Log($"Inventory: not opened, the wizard was busy ({(first != null && first.fsm != null ? first.fsm.currentStateName : "?")})");
+                        Log($"Inventory: not opened, the wizard was busy ({(keyOwner != null && keyOwner.fsm != null ? keyOwner.fsm.currentStateName : "?")})");
                     }
                     return null;
                 }
@@ -299,8 +304,10 @@ namespace WoLChaosDepths
                         continue;
                     foreach (Joystick joystick in player.inputDevice.rewiredPlayer.controllers.Joysticks)
                     {
-                        if (ButtonJustPressed(joystick) && CanOpen(player))
-                            return player;
+                        if (!ButtonJustPressed(joystick))
+                            continue;
+                        Player owner = PadOwner(players, joystick);
+                        return owner != null && CanOpen(owner) ? owner : null;
                     }
                 }
             }
@@ -309,6 +316,53 @@ namespace WoLChaosDepths
                 LogError($"open check: {e.Message}");
             }
             return null;
+        }
+
+        private Player keyOwner;
+
+        // The wizard playing on the keyboard: the one whose input is set to it, else the one
+        // whose controls include the keyboard, else the first.
+        private static Player KeyboardPlayer(Player[] players)
+        {
+            foreach (Player p in players)
+                if (p != null && p.inputDevice != null && p.inputDevice.inputScheme == ChaosInputDevice.InputScheme.Keyboard)
+                    return p;
+            foreach (Player p in players)
+                if (p != null && p.inputDevice != null && p.inputDevice.rewiredPlayer != null && p.inputDevice.rewiredPlayer.controllers.hasKeyboard)
+                    return p;
+            return players.Length > 0 ? players[0] : null;
+        }
+
+        // The wizard a pad belongs to: the one playing on it (their primary controller), else the
+        // only one whose controls list it, else the one who used it last.
+        private static Player PadOwner(Player[] players, Joystick joystick)
+        {
+            Player listed = null;
+            int listedCount = 0;
+            foreach (Player p in players)
+            {
+                if (p == null || p.inputDevice == null)
+                    continue;
+                Controller primary = p.inputDevice.primaryController;
+                if (primary != null && primary.type == ControllerType.Joystick && primary.id == joystick.id)
+                    return p;
+                Rewired.Player rp = p.inputDevice.rewiredPlayer;
+                if (rp != null && rp.controllers.ContainsController(joystick))
+                {
+                    listed = listed ?? p;
+                    listedCount++;
+                }
+            }
+            if (listedCount <= 1)
+                return listed;
+            foreach (Player p in players)
+            {
+                Rewired.Player rp = p != null && p.inputDevice != null ? p.inputDevice.rewiredPlayer : null;
+                Controller last = rp != null ? rp.controllers.GetLastActiveController() : null;
+                if (last != null && last.type == ControllerType.Joystick && last.id == joystick.id)
+                    return p;
+            }
+            return listed;
         }
 
         private static bool CanOpen(Player player)
