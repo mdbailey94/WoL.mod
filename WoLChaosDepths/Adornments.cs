@@ -446,6 +446,10 @@ namespace WoLChaosDepths
             private Sprite lastBodySprite;
             private int bodyFrames;
             private SpriteRenderer pendant, glint;
+            // A worn unique's foot aura (WoL Art's unique_aura_<name>.png, #5): 6 frames of 24x10
+            // looping at 8 fps behind the wizard, centred under the feet.
+            private SpriteRenderer aura;
+            private Sprite[] auraFrames;
             // The charm's stones floating round the wizard (one per rarity tier above Common).
             private readonly List<SpriteRenderer> orbs = new List<SpriteRenderer>();
             private float orbitPhase, nextTrail;
@@ -517,6 +521,22 @@ namespace WoLChaosDepths
                     charmTrail = charmDesign != null && charmTier >= 3 ? ItemArt.Frames(charmDesign + "_trail", 4, Centre, ppu) : null;
                     pendant = Part(pendant, amulet, amulet != null ? PendantSprite("down", 0, -1, -1) : null);
                     glint = Part(glint, ring, ring != null ? Ring(ringDesign, ColourOf(ring), ringTier, 0, ppu) : null);
+                    // The aura of the first unique worn (amulet, then ring, then charm).
+                    ItemData auraOf = null;
+                    auraFrames = null;
+                    foreach (ItemData worn in new[] { amulet, ring, charm })
+                    {
+                        string art;
+                        if (worn == null || string.IsNullOrEmpty(worn.unique) || !UniqueArt.TryGetValue(worn.unique, out art))
+                            continue;
+                        auraFrames = ItemArt.Frames("unique_aura_" + art, 6, Centre, ppu);
+                        if (auraFrames != null)
+                        {
+                            auraOf = worn;
+                            break;
+                        }
+                    }
+                    aura = Part(aura, auraOf, auraFrames != null ? auraFrames[0] : null);
                     // A drawn charm is one orb, its size set by its rarity; the code-drawn
                     // stones are one per rarity tier.
                     int stones = charm == null ? 0 : charmDesign != null ? 1 : charmTier + 1;
@@ -608,7 +628,8 @@ namespace WoLChaosDepths
                 foreach (SpriteRenderer o in orbs)
                     if (o == null)
                         orbGone = true;
-                if ((amulet != null && pendant == null) || (ring != null && glint == null) || (charm != null && (orbs.Count == 0 || orbGone)))
+                if ((amulet != null && pendant == null) || (ring != null && glint == null) || (charm != null && (orbs.Count == 0 || orbGone))
+                    || (auraFrames != null && aura == null))
                     Rebuild();
                 Show(true);
                 Vector3 feet = player.transform.position;
@@ -617,6 +638,13 @@ namespace WoLChaosDepths
                 bool right = facing == FacingDirection.Right || (facing != FacingDirection.Left && player.isFacingRight);
                 float side = right ? 1f : -1f;
                 int front = body.sortingOrder + 1, back = body.sortingOrder - 1;
+                if (aura != null && auraFrames != null)
+                {
+                    aura.sprite = auraFrames[(int)(Time.time * 8f) % auraFrames.Length];
+                    aura.transform.position = new Vector3(Mathf.Round(feet.x * ppu) / ppu, Mathf.Round(feet.y * ppu) / ppu, feet.z);
+                    aura.sortingLayerID = body.sortingLayerID;
+                    aura.sortingOrder = body.sortingOrder - 2;
+                }
                 int key = down ? 0 : up ? 1 : 2;
                 float fwd = key == 2 ? side : 1f;
 
@@ -1044,6 +1072,7 @@ namespace WoLChaosDepths
             {
                 if (pendant != null) pendant.enabled = on;
                 if (glint != null) glint.enabled = on;
+                if (aura != null) aura.enabled = on;
                 foreach (SpriteRenderer o in orbs)
                     if (o != null) o.enabled = on;
             }
@@ -1053,6 +1082,7 @@ namespace WoLChaosDepths
             {
                 if (pendant != null) Destroy(pendant.gameObject);
                 if (glint != null) Destroy(glint.gameObject);
+                if (aura != null) Destroy(aura.gameObject);
                 foreach (SpriteRenderer o in orbs)
                     if (o != null) Destroy(o.gameObject);
                 orbs.Clear();

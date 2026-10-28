@@ -347,3 +347,13 @@ Laid out after WoL Art's mockup (`inventory_mockup_1x.png`):
 - Less garbage every frame: the worn gear's pictures were looked up under a text key built
   (with numbers formatted) for every part on every frame; the key is now a plain value. The
   names over dropped items are made once per item instead of on every redraw.
+
+## 0.13.5 (task sheet #18, #5)
+
+- Dropped items sit on WoL Art's floor glow: a ring in the rarity's colour, with a light pillar
+  on Rare and a tall pillar and sparkles on Legendary, pulsing at 6 fps (`drop_glow_<rarity>`;
+  the code-drawn halo stays as the fallback).
+- A worn unique gives the wizard its foot aura (`unique_aura_<name>`, 6 frames at 8 fps) behind
+  the feet, from the first unique worn (amulet, then ring, then charm); it hides with the rest
+  of the gear while riding or levitating. The glowing eyes come later (they need a face point
+  found in every frame).

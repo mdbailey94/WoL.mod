@@ -367,6 +367,7 @@ namespace WoLChaosDepths
             public ItemData item;
             public string label; // the name shown over it, made once
             private SpriteRenderer gem, halo;
+            private Sprite[] glowFrames; // WoL Art's drop_glow_<rarity>.png (#18), when there is one
             private float born, phase;
             private bool taken, prompted;
             private OverheadPrompt prompt;
@@ -399,12 +400,25 @@ namespace WoLChaosDepths
                     gem.sortingLayerID = like.sortingLayerID;
                     gem.sortingOrder = like.sortingOrder - 1;
                 }
+                // WoL Art's floor glow (#18): a ring in the rarity's colour, a light pillar from
+                // Rare up, at true pixel size; the ring's centre (x 12, 6 up from the bottom of
+                // the 24x24 frame) is on the drop's spot, so the item sits on it.
+                glowFrames = ItemArt.Frames("drop_glow_" + ItemArt.RarityName(Tier(item)), 4, new Vector2(0.5f, 6f / 24f), ppu);
+                if (glowFrames != null)
+                {
+                    halo.sprite = glowFrames[0];
+                    halo.color = Color.white;
+                    return;
+                }
                 // The picture is the item's own artwork (ItemArt, 14 px); the glow grows with rarity.
                 float scale = item.rarity == "Legendary" ? 1.4f : item.rarity == "Rare" ? 1.2f : item.rarity == "Magic" ? 1.05f : 0.9f;
                 haloGo.transform.localScale = Vector3.one * scale;
                 if (item.rarity == "Common")
                     halo.color = new Color(c.r, c.g, c.b, 0.35f);
             }
+
+            private static int Tier(ItemData item) =>
+                item.rarity == "Legendary" ? 3 : item.rarity == "Rare" ? 2 : item.rarity == "Magic" ? 1 : 0;
 
             private void Update()
             {
@@ -416,7 +430,12 @@ namespace WoLChaosDepths
                 float bob = 0.08f + 0.06f * Mathf.Sin(t * 3f + phase);
                 if (gem != null)
                     gem.transform.localPosition = new Vector3(0f, hop + bob, 0f);
-                if (halo != null)
+                if (halo != null && glowFrames != null)
+                {
+                    // dim, normal, bright, normal at 6 fps; each drop starts at its own point
+                    halo.sprite = glowFrames[(int)(t * 6f + phase) % glowFrames.Length];
+                }
+                else if (halo != null)
                 {
                     Color c = halo.color;
                     bool legendary = item.rarity == "Legendary";
