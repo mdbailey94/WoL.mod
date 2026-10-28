@@ -13,6 +13,23 @@ A new Air arcana, added with [LegendAPI](https://github.com/yekoc/LegendAPI).
 | Cooldown | 5 s |
 | Bursts | 3 (4 when enhanced) |
 
+## 0.5.0: a cinematic signature (asked for by Matt)
+
+Rolling Gale has a **signature version** now (the spellbook's Signature page; unlocked along with
+the arcana, `[General] SignatureUnlocksWithArcana`):
+
+1. **Fan**: six bursts sweep out across 80 degrees, from one side of your aim to the other, each
+   further out (2.5 to 7.5), bigger and harder (12 each, pulling harder) and echoing the one
+   before. Each lands with a 2-frame hit-stop and a shake. The camera pulls back 18% and the
+   room darkens to 60%.
+2. **Gather**: a breath where the room dims further and the air rushes into the fan's middle.
+3. **Final gale**: a huge burst (scale 7) at the fan's middle drags everything in for 45, with a
+   5-frame hit-stop, a white flash, a heavy shake and a moment of near-frozen time. Then the
+   camera and light ease back.
+
+An enemy dragged through all of it takes about 130. A dash cancels it; the camera and light
+always go back (`Rolling Gale: signature restored (...)`).
+
 Each burst lands further out along your aim and is a little larger than the last, then pulses
 again a moment later. Bursts pull enemies inward, like Gust Burst does, and each one can grab an
 enemy again, so they get dragged along the whole line.

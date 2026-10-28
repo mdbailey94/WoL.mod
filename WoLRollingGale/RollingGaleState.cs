@@ -5,9 +5,31 @@ namespace WoLRollingGale
 {
     // Fires a line of wind bursts that step forward along the aim direction, each a little
     // further out and a little larger, and each pulsing a second time a moment later. Built on the same calls as SillySkills' Gale Burst.
+    //
+    // Signature (0.5.0; isUltimate, the game's flag for a signature cast): six bursts sweep out in
+    // a fan from one side of the aim to the other, each further out, bigger and harder (level 3),
+    // each landing with a short hit-stop; then a gathering beat and a huge seventh burst at the
+    // fan's middle (level 4) that drags everything in, with a hit-stop, a flash, a heavy shake
+    // and a moment of near-frozen time. The camera pulls back and the room darkens throughout
+    // (Cinematic, always put back).
     public class RollingGaleState : Player.SkillState
     {
         public new static string staticID = "RollingGale";
+        // The signature fan.
+        private const int FanBursts = 6;
+        private const float FanSpread = 40f;          // degrees either side of the aim
+        private const float FanStart = 0.1f, FanStep = 0.13f;
+        private const float FanFirstDistance = 2.5f, FanDistanceStep = 1f;
+        private const float FanFirstScale = 2.6f, FanScaleStep = 0.35f;
+        private const float GatherTime = 0.3f;        // the beat before the final gale
+        private const float FinalDistance = 5.5f, FinalScale = 7f;
+        private const float SigZoom = 0.18f, SigDim = 0.6f;
+        private const int FanHitStopFrames = 2, FinalHitStopFrames = 5;
+        private const float FinalFlash = 1.7f, FinalShake = 2f, FinalSlowMoTime = 0.35f, FinalSlowMoScale = 0.05f, EaseBack = 0.8f;
+        private bool signature, finalDone, gathered;
+        private float sigTime;
+        private int fanFired;
+        private int cinematic;
 
         private const float FirstBurstDistance = 2.5f;
         private const float BurstSpacing = 3f;
@@ -26,6 +48,9 @@ namespace WoLRollingGale
         public RollingGaleState(FSM newFSM, Player newEnt) : base(staticID, newFSM, newEnt)
         {
             applyStopElementStatus = true;
+            // Lets the arcana into the signature slot (the spellbook's Signature page); see
+            // SignatureUnlock.cs for when that's unlocked.
+            hasSignatureVariant = true;
             SetAnimTimes(
                 0.1f,  // start
                 0.15f, // hold
@@ -57,12 +82,35 @@ namespace WoLRollingGale
             parent.FaceTarget(origin + direction);
             parent.anim.PlayDirectional(parent.GSlamAnimStr, -1, animExecTime);
             GaleLook.Cast(parent, origin, direction);
+
+            signature = isUltimate;
+            sigTime = 0f;
+            fanFired = 0;
+            finalDone = gathered = false;
+            cinematic = 0;
+            if (signature)
+            {
+                cinematic = Cinematic.Begin();
+                RollingGalePlugin.Log($"Rolling Gale: signature: a fan of {FanBursts} bursts across {FanSpread * 2f:0} degrees, then a final gale x{FinalScale:0.#}");
+            }
+        }
+
+        public override void OnExit()
+        {
+            if (signature)
+                Cinematic.EaseOut(cinematic, 0.5f, finalDone ? "cast over" : "cut short before the final gale");
+            base.OnExit();
         }
 
         public override void ExecuteSkill()
         {
             if (CancelToDash(false))
                 return;
+            if (signature)
+            {
+                SignatureTick();
+                return;
+            }
 
             switch (ChaosStopwatch.CheckInterval(stopwatchID, true))
             {
@@ -77,6 +125,132 @@ namespace WoLRollingGale
                         CreateBurst(burstsFired, false);
                     burstsFired++;
                     break;
+            }
+        }
+
+        // ---- The signature ----
+
+        private Vector2 FanSpot(int i)
+        {
+            float t = FanBursts > 1 ? i / (float)(FanBursts - 1) : 0.5f;
+            Vector2 dir = Quaternion.Euler(0f, 0f, Mathf.Lerp(-FanSpread, FanSpread, t)) * (Vector3)direction;
+            return origin + dir * (FanFirstDistance + FanDistanceStep * i);
+        }
+
+        private float FanScale(int i) => FanFirstScale + FanScaleStep * i;
+
+        private void SignatureTick()
+        {
+            sigTime += Time.deltaTime;
+            float settle = Mathf.Clamp01(sigTime / 0.3f);
+            float eased = settle * settle * (3f - 2f * settle);
+            if (!finalDone)
+                Cinematic.Set(cinematic, SigZoom * eased, Mathf.Lerp(1f, SigDim, eased));
+            parent.anim.PlayDirectional(parent.GSlamAnimStr, -1, animExecTime);
+
+            // The fan: each burst echoes the one before as it lands.
+            while (fanFired < FanBursts && sigTime >= FanStart + FanStep * fanFired)
+            {
+                if (fanFired > 0)
+                    Echo(FanSpot(fanFired - 1), FanScale(fanFired - 1));
+                FanBurst(fanFired);
+                fanFired++;
+            }
+            float finalAt = FanStart + FanStep * FanBursts + GatherTime;
+            if (fanFired >= FanBursts && !gathered && sigTime >= finalAt - GatherTime)
+            {
+                gathered = true;
+                Echo(FanSpot(FanBursts - 1), FanScale(FanBursts - 1));
+                Gather();
+            }
+            if (!finalDone && sigTime >= finalAt)
+            {
+                finalDone = true;
+                FinalGale();
+            }
+            if (finalDone && sigTime >= finalAt + 0.25f)
+                base.ExecuteSkill();
+        }
+
+        private void FanBurst(int i)
+        {
+            Vector2 position = FanSpot(i);
+            float scale = FanScale(i);
+            WindBurst burst = WindBurst.CreateBurst(position, parent.skillCategory, skillID, 3, scale);
+            if (burst != null)
+                burst.emitParticles = false;
+            Try(() =>
+            {
+                var vortex = new ParticleSystemOverride { startSize = new float?(2.4f * scale), startLifetime = new float?(0.6f) };
+                PoolManager.GetPoolItem<ParticleEffect>("AirVortex").Emit(new int?(1), new Vector3?(position), vortex,
+                    new Vector3?(new Vector3(0f, 0f, Random.Range(0f, 360f))), 0f, null, null);
+            });
+            Vector2 previous = i == 0 ? origin : FanSpot(i - 1);
+            Vector2 heading = (position - previous).sqrMagnitude > 0.01f ? (position - previous).normalized : direction;
+            GaleLook.Burst(position, scale, false, heading);
+            GaleLook.Roll(previous, position, heading);
+            Try(() => PoolManager.GetPoolItem<ParticleEffect>("WindBurstEffect").Emit(new int?(2), new Vector3?(position), null, null, 0f, null, null));
+            Try(() => PoolManager.GetPoolItem<DustEmitter>().EmitCircle(60, 1.5f, -8f, -1f, new Vector3?(position), null));
+            Try(() => TimeScaleController.FreezeForFrames(FanHitStopFrames, false));
+            Try(() => CameraController.ShakeCamera(0.35f + 0.08f * i, false));
+            SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(position), null, 24f, -1f, 1.0f + 0.08f * i, false);
+        }
+
+        private void Echo(Vector2 position, float scale)
+        {
+            WindBurst burst = WindBurst.CreateBurst(position, parent.skillCategory, skillID, 2, scale * EchoScale);
+            if (burst != null)
+                burst.emitParticles = false;
+            GaleLook.Burst(position, scale * EchoScale, true, direction);
+        }
+
+        // The beat before the final gale: the air rushes in to the fan's middle.
+        private void Gather()
+        {
+            Vector2 at = origin + direction * FinalDistance;
+            Try(() => PoolManager.GetPoolItem<DustSuctionEffect>().Emit(new int?(40), new Vector3?(at), null, null, 0f, null, null));
+            Try(() => PoolManager.GetPoolItem<ParticleEffect>("WindTwirlEffect").Emit(new int?(1), new Vector3?(at), null, null, 0f, null, null));
+            Try(() => CameraController.ShakeCamera(0.6f, false));
+            Cinematic.Flash(cinematic, 0.4f, 0.12f);   // the room dims further for a breath
+            RollingGalePlugin.Log("Rolling Gale: signature gather");
+        }
+
+        // The final gale: a huge burst at the fan's middle dragging everything in.
+        private void FinalGale()
+        {
+            Vector2 at = origin + direction * FinalDistance;
+            WindBurst.CreateBurst(at, parent.skillCategory, skillID, 4, FinalScale);
+            Try(() =>
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    var vortex = new ParticleSystemOverride { startSize = new float?(2.4f * FinalScale * (1f + 0.3f * i)), startLifetime = new float?(0.5f + 0.15f * i) };
+                    PoolManager.GetPoolItem<ParticleEffect>("AirVortex").Emit(new int?(1), new Vector3?(at), vortex,
+                        new Vector3?(new Vector3(0f, 0f, Random.Range(0f, 360f))), 0.06f * i, null, null);
+                }
+            });
+            GaleLook.Burst(at, FinalScale, false, direction);
+            GaleLook.End(at);
+            Try(() => PoolManager.GetPoolItem<ParticleEffect>("WindBurstEffect").Emit(new int?(6), new Vector3?(at), null, null, 0f, null, null));
+            Try(() => PoolManager.GetPoolItem<DustEmitter>().EmitCircle(140, FinalScale * 0.5f, -8f, -1f, new Vector3?(at), null));
+            Try(() => TimeScaleController.FreezeForFrames(FinalHitStopFrames, false));
+            Cinematic.Flash(cinematic, FinalFlash, 0.1f);
+            Try(() => CameraController.ShakeCamera(FinalShake, true));
+            Try(() => TimeScaleController.SetTimeScaleDelayOverRealTime(FinalSlowMoTime, FinalSlowMoScale, true, true));
+            Cinematic.EaseOut(cinematic, EaseBack, "final gale finished");
+            SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(at), null, 24f, -1f, 0.7f, false);
+            RollingGalePlugin.Log($"Rolling Gale: signature final gale x{FinalScale:0.#}: hit-stop {FinalHitStopFrames} frames, flash x{FinalFlash:0.0}, " +
+                $"shake {FinalShake:0.0}, slow motion {FinalSlowMoTime:0.00} s, easing back over {EaseBack:0.0} s");
+        }
+
+        private static void Try(System.Action effect)
+        {
+            try
+            {
+                effect();
+            }
+            catch
+            {
             }
         }
 
