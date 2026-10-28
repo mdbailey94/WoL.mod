@@ -259,3 +259,22 @@ animation, follow the facing, and sit behind the body when facing up. `[Look] Sh
 - The Magic pendant on the wizard is WoL Art's slim test amulet (task sheet #1): a thin V chain
   with a drop stone, front view 5x4 and side view 2x4 (`worn_pendant_magic_down/side.png`),
   for review in-game. The other rarities keep the 0.11.4 pendants until the set is approved.
+
+## Inventory tabs and sorting (0.12.0, task sheet #7)
+
+Laid out after WoL Art's mockup (`inventory_mockup_1x.png`):
+
+- **Tabs** under the header: ALL, amulet, ring, charm, cycled with left / right (the chosen tab
+  is lighter with a gold underline). In the Hub the depth picker moved to Y + left / right on a
+  pad or Q / E on the keyboard, since left / right now change the tab.
+- **Sort** (top right): Rarity, Level, Slot or Newest, cycled with Y (Interact) or Tab; equipped
+  items always come first.
+- **Rows** are two lines: the icon in a rarity-coloured frame, the name in its rarity colour
+  with a green E when equipped, then the level and rarity. The chosen row is lighter with a gold
+  bar on its left. As many rows as fit above the detail box.
+- **Equipped** column: each slot an icon in its rarity frame with the item's name and level, or
+  a faint silhouette and EMPTY. Totals below, when there's room.
+- **Detail box**: name and type, the description over up to two lines, then VS EQUIPPED with
+  each gain in green and each loss in red (and the unique power gained or lost).
+- The panel's own frame, slot frames, dust icon and chevrons are still drawn in code until the
+  pieces from task #16 arrive.

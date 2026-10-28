@@ -16,8 +16,16 @@ namespace WoLChaosDepths
     {
         private const float RepeatFirst = 0.3f, RepeatNext = 0.11f, SalvageHold = 0.7f;
         private float nextDepthRepeat;
-        private const int Rows = 9;
         private static readonly int[] DustByRarity = { 1, 3, 8, 20 };
+        // The list is a filtered, sorted view of the inventory (task sheet #7): a tab per item
+        // type and a sort order, equipped items first.
+        private static readonly string[] TabNames = { "All", "Amulet", "Ring", "Charm" };
+        private static readonly string[] SortNames = { "Rarity", "Level", "Slot", "Newest" };
+        private int tab, sortMode;
+        private readonly List<ItemData> view = new List<ItemData>();
+        private int rows = 4;   // rows that fit, set while drawing
+        private float nextTabRepeat;
+        private static readonly Color Gain = new Color32(0x6f, 0xe0, 0x7a, 0xff), Loss = new Color32(0xff, 0x6a, 0x6a, 0xff), EquippedMark = new Color32(0x6f, 0xe0, 0x7a, 0xff);
 
         public bool Open { get; private set; }
         private Player player;
@@ -46,6 +54,7 @@ namespace WoLChaosDepths
             confirmHeldSince = -1f;
             confirmConsumed = true; // the press that opened it isn't an equip
             Open = true;
+            Rebuild();
             try
             {
                 if (!TimeScaleController.paused)
@@ -116,41 +125,69 @@ namespace WoLChaosDepths
                 return;
             }
 
-            // Left and right, in the Hub: the depth the next dive starts at.
-            if (Depth.Enabled && !ChaosDepthsPlugin.InTrialsNow())
+            Rebuild();
+
+            // Left and right: the item-type tab (All / Amulet / Ring / Charm). In the Hub, with
+            // Interact (Y) held, or Q / E on the keyboard: the depth the next dive starts at.
+            float horizontal = 0f;
+            if (Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A))
+                horizontal = -1f;
+            else if (Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D))
+                horizontal = 1f;
+            else if (pad != null)
             {
-                float horizontal = 0f;
-                if (Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A))
-                    horizontal = -1f;
-                else if (Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D))
-                    horizontal = 1f;
-                else if (pad != null)
+                try
                 {
-                    try
+                    horizontal = pad.GetAxis("MoveHorizontal");
+                }
+                catch
+                {
+                }
+            }
+            bool depthKeys = Input.GetKey(KeyCode.Q) || Input.GetKey(KeyCode.E);
+            bool depthModifier = Held(pad, "Interact") || depthKeys;
+            bool inHub = Depth.Enabled && !ChaosDepthsPlugin.InTrialsNow();
+            if (depthKeys)
+                horizontal = Input.GetKey(KeyCode.E) ? 1f : -1f;
+            if (Mathf.Abs(horizontal) > 0.5f && inHub && depthModifier)
+            {
+                if (Time.unscaledTime >= nextDepthRepeat)
+                {
+                    bool first = nextDepthRepeat == 0f;
+                    nextDepthRepeat = Time.unscaledTime + (first ? RepeatFirst : RepeatNext);
+                    int before = save.depthChosen;
+                    save.depthChosen = Mathf.Clamp(save.depthChosen + (horizontal > 0f ? 1 : -1), 1, Mathf.Max(1, save.depthReached));
+                    if (save.depthChosen != before)
                     {
-                        horizontal = pad.GetAxis("MoveHorizontal");
-                    }
-                    catch
-                    {
+                        ChaosDepthsPlugin.Log($"Next dive starts at depth {save.depthChosen} (waypoint {save.depthReached})");
+                        onChanged(player, save);
                     }
                 }
-                if (Mathf.Abs(horizontal) > 0.5f)
+            }
+            else
+                nextDepthRepeat = 0f;
+            if (Mathf.Abs(horizontal) > 0.5f && !depthModifier)
+            {
+                if (Time.unscaledTime >= nextTabRepeat)
                 {
-                    if (Time.unscaledTime >= nextDepthRepeat)
-                    {
-                        bool first = nextDepthRepeat == 0f;
-                        nextDepthRepeat = Time.unscaledTime + (first ? RepeatFirst : RepeatNext);
-                        int before = save.depthChosen;
-                        save.depthChosen = Mathf.Clamp(save.depthChosen + (horizontal > 0f ? 1 : -1), 1, Mathf.Max(1, save.depthReached));
-                        if (save.depthChosen != before)
-                        {
-                            ChaosDepthsPlugin.Log($"Next dive starts at depth {save.depthChosen} (waypoint {save.depthReached})");
-                            onChanged(player, save);
-                        }
-                    }
+                    bool first = nextTabRepeat == 0f;
+                    nextTabRepeat = Time.unscaledTime + (first ? RepeatFirst : RepeatNext * 2f);
+                    tab = (tab + (horizontal > 0f ? 1 : TabNames.Length - 1)) % TabNames.Length;
+                    selected = 0;
+                    scroll = 0;
+                    Rebuild();
                 }
-                else
-                    nextDepthRepeat = 0f;
+            }
+            else
+                nextTabRepeat = 0f;
+
+            // Interact (Y) tapped, or Tab: the next sort order.
+            if ((Pressed(pad, "Interact") && Mathf.Abs(horizontal) <= 0.5f) || Input.GetKeyDown(KeyCode.Tab))
+            {
+                sortMode = (sortMode + 1) % SortNames.Length;
+                selected = 0;
+                scroll = 0;
+                Rebuild();
             }
 
             // Up and down with repeat.
@@ -169,7 +206,7 @@ namespace WoLChaosDepths
                 {
                 }
             }
-            int count = Mathf.Max(1, save.inventory.Count);
+            int count = Mathf.Max(1, view.Count);
             if (Mathf.Abs(vertical) > 0.5f)
             {
                 if (Time.unscaledTime >= nextRepeat)
@@ -179,8 +216,8 @@ namespace WoLChaosDepths
                     selected = (selected + (vertical < 0f ? 1 : count - 1)) % count;
                     if (selected < scroll)
                         scroll = selected;
-                    if (selected >= scroll + Rows)
-                        scroll = selected - Rows + 1;
+                    if (selected >= scroll + rows)
+                        scroll = selected - rows + 1;
                 }
             }
             else
@@ -235,7 +272,58 @@ namespace WoLChaosDepths
 
         // ---- Actions ----
 
-        private ItemData Selected => save.inventory.Count == 0 ? null : save.inventory[Mathf.Clamp(selected, 0, save.inventory.Count - 1)];
+        private ItemData Selected => view.Count == 0 ? null : view[Mathf.Clamp(selected, 0, view.Count - 1)];
+
+        // The list as shown: the tab's items, equipped ones first, then by the sort order.
+        private void Rebuild()
+        {
+            ItemData keep = Selected;
+            view.Clear();
+            foreach (ItemData item in save.inventory)
+                if (tab == 0 || item.slot == TabNames[tab])
+                    view.Add(item);
+            var order = new Dictionary<ItemData, int>();
+            for (int i = 0; i < save.inventory.Count; i++)
+                order[save.inventory[i]] = i;
+            view.Sort((a, b) =>
+            {
+                int c = IsEquipped(b).CompareTo(IsEquipped(a));
+                if (c != 0)
+                    return c;
+                switch (sortMode)
+                {
+                    case 1: // Level
+                        c = b.itemLevel.CompareTo(a.itemLevel);
+                        if (c == 0) c = LootTable.RarityIndex(b.rarity).CompareTo(LootTable.RarityIndex(a.rarity));
+                        break;
+                    case 2: // Slot
+                        c = SlotOf(a).CompareTo(SlotOf(b));
+                        if (c == 0) c = LootTable.RarityIndex(b.rarity).CompareTo(LootTable.RarityIndex(a.rarity));
+                        if (c == 0) c = b.itemLevel.CompareTo(a.itemLevel);
+                        break;
+                    case 3: // Newest
+                        c = order[b].CompareTo(order[a]);
+                        break;
+                    default: // Rarity
+                        c = LootTable.RarityIndex(b.rarity).CompareTo(LootTable.RarityIndex(a.rarity));
+                        if (c == 0) c = SlotOf(a).CompareTo(SlotOf(b));
+                        if (c == 0) c = b.itemLevel.CompareTo(a.itemLevel);
+                        break;
+                }
+                return c != 0 ? c : order[a].CompareTo(order[b]);
+            });
+            if (keep != null)
+            {
+                int at = view.IndexOf(keep);
+                if (at >= 0)
+                    selected = at;
+            }
+            selected = Mathf.Clamp(selected, 0, Mathf.Max(0, view.Count - 1));
+            if (selected < scroll)
+                scroll = selected;
+            if (selected >= scroll + rows)
+                scroll = Mathf.Max(0, selected - rows + 1);
+        }
 
         private int SlotOf(ItemData item) => Array.IndexOf(LootTable.Slots, item.slot);
 
@@ -255,6 +343,7 @@ namespace WoLChaosDepths
                 return;
             save.equipped[slot] = IsEquipped(item) ? "" : item.id;
             ChaosDepthsPlugin.Log($"{(IsEquipped(item) ? "Equipped" : "Unequipped")} {item.rarity} {item.name}");
+            Rebuild();
             onChanged(player, save);
         }
 
@@ -272,8 +361,7 @@ namespace WoLChaosDepths
             int rarity = Mathf.Clamp(LootTable.RarityIndex(item.rarity), 0, DustByRarity.Length - 1);
             save.dust += DustByRarity[rarity];
             save.inventory.Remove(item);
-            if (selected >= save.inventory.Count)
-                selected = Mathf.Max(0, save.inventory.Count - 1);
+            Rebuild();
             ChaosDepthsPlugin.Log($"Salvaged {item.rarity} {item.name} for {DustByRarity[rarity]} dust ({save.dust} in all)");
             onChanged(player, save);
         }
@@ -319,11 +407,12 @@ namespace WoLChaosDepths
                 Label(new Rect(x, y - 3 * u, w - 10 * u, lineH), "CHAOS DEPTHS", PixelUI.Style(Mathf.Max(10, 3 * u), PixelUI.Accent, TextAnchor.UpperCenter));
                 Label(new Rect(x, y, w - 10 * u, lineH), $"Chaos Dust {save.dust}   Kills {save.kills}", right);
                 y += lineH;
+                bool inHubNow = Depth.Enabled && !ChaosDepthsPlugin.InTrialsNow();
                 if (Depth.Enabled)
                 {
-                    string depthText = ChaosDepthsPlugin.InTrialsNow()
+                    string depthText = !inHubNow
                         ? $"Depth {Depth.Current}   Waypoint {save.depthReached}"
-                        : $"Next dive: depth < {save.depthChosen} >   Waypoint {save.depthReached}   (left / right)";
+                        : $"Next dive: depth < {save.depthChosen} >   Waypoint {save.depthReached}   (Y + left / right, or Q / E)";
                     Label(new Rect(x, y, w, lineH), depthText, dim);
                     y += lineH;
                 }
@@ -336,112 +425,149 @@ namespace WoLChaosDepths
                 PixelUI.Fill(new Rect(x, y, barW, u), PixelUI.InnerLine);
                 y += 2 * u;
 
-                // Left: equipped slots.  Right: inventory list.
-                float leftW = 58 * u, listX = x + leftW + 4 * u, listW = barW - leftW - 4 * u;
+                // Tab row (WoL Art's mockup): < ALL amulet ring charm >, the chosen tab lighter
+                // with a gold underline; the sort order on the right.
+                float tabH = 8 * u;
+                float tx = x + 4 * u;
+                PixelUI.Arrow(x, y + tabH * 0.5f, 2 * u, false, PixelUI.Dim, u);
+                for (int i = 0; i < TabNames.Length; i++)
+                {
+                    float tw = i == 0 ? 12 * u : 9 * u;
+                    var tr = new Rect(tx, y, tw, tabH - u);
+                    PixelUI.Fill(tr, i == tab ? new Color(1f, 1f, 1f, 0.14f) : new Color(1f, 1f, 1f, 0.05f));
+                    if (i == tab)
+                        PixelUI.Fill(new Rect(tr.x, tr.yMax, tr.width, u), PixelUI.Border);
+                    if (i == 0)
+                        Label(new Rect(tr.x, tr.y + u, tr.width, lineH), "ALL", PixelUI.Style(font, i == tab ? PixelUI.Text : PixelUI.Dim, TextAnchor.UpperCenter));
+                    else
+                    {
+                        float ip = 5 * u;
+                        Icon(new ItemData { slot = TabNames[i], rarity = i == tab ? "Rare" : "Common" }, new Rect(tr.x + (tw - ip) / 2f, tr.y + (tr.height - ip) / 2f, ip, ip));
+                    }
+                    tx += tw + u;
+                }
+                PixelUI.Arrow(tx + u, y + tabH * 0.5f, 2 * u, true, PixelUI.Dim, u);
+                Label(new Rect(x, y, barW, lineH), $"SORT: {SortNames[sortMode].ToUpperInvariant()}", PixelUI.Style(font, PixelUI.Text, TextAnchor.UpperRight));
+                Label(new Rect(x, y + lineH - u, barW, lineH), "(Y / Tab) CHANGE", right);
+                y += tabH + u;
+
+                // Left: the equipped slots, each an icon in its rarity frame with the slot's name.
+                // Right: the list, two lines a row (name, then the level), equipped first.
+                float leftW = 50 * u, listX = x + leftW + 3 * u, listW = barW - leftW - 3 * u;
+                float detailY = panel.yMax - 32 * u;
                 float top = y;
-                Label(new Rect(x, y, leftW, lineH), "Equipped", dim);
+                Label(new Rect(x, y, leftW, lineH), "EQUIPPED", dim);
                 y += lineH;
+                float slotPx = 12 * u;
                 for (int i = 0; i < LootTable.Slots.Length; i++)
                 {
                     ItemData item = StatMods.FindItem(save, save.equipped[i]);
-                    Label(new Rect(x, y, leftW, lineH), LootTable.Slots[i], dim);
-                    y += lineH;
-                    float iconPx = 4 * u;
+                    var box = new Rect(x, y, slotPx, slotPx);
+                    Frame(box, item != null ? RarityColour(item) : PixelUI.InnerLine, u);
                     if (item != null)
-                        Icon(item, new Rect(x + u, y + (lineH - iconPx) / 2f, iconPx, iconPx));
-                    Label(new Rect(x + (item != null ? 6 * u : 2 * u), y, leftW, lineH), item != null ? item.name : "-", Rarity(item, font));
-                    y += lineH;
-                    if (item != null)
-                    {
-                        // Two lines per slot at most, so three uniques (long descriptions) still
-                        // fit above the detail lines; a unique shows its power, the rest is in
-                        // the detail line when it's selected.
-                        // One line per slot (a unique shows its power), shortened to the column,
-                        // so the Totals fit below with three items worn; the full text is in the
-                        // detail line when the item is selected.
-                        string power = Uniques.PowerText(item);
-                        Label(new Rect(x + 2 * u, y, leftW, lineH), Fit(power ?? LootTable.Describe(item), dim, leftW - 2 * u), dim);
-                        y += lineH;
-                    }
-                    y += u;
+                        Icon(item, new Rect(box.x + 2 * u, box.y + 2 * u, slotPx - 4 * u, slotPx - 4 * u));
+                    else
+                        Icon(new ItemData { slot = LootTable.Slots[i], rarity = "Common" }, new Rect(box.x + 2 * u, box.y + 2 * u, slotPx - 4 * u, slotPx - 4 * u), 0.25f);
+                    Label(new Rect(box.xMax + 2 * u, y + u, leftW - slotPx - 2 * u, lineH), item != null ? Fit(item.name, Rarity(item, font), leftW - slotPx - 2 * u) : LootTable.Slots[i].ToUpperInvariant(), item != null ? Rarity(item, font) : dim);
+                    Label(new Rect(box.xMax + 2 * u, y + u + lineH - u, leftW - slotPx - 2 * u, lineH), item != null ? $"LV {item.itemLevel}" : "EMPTY", dim);
+                    y += slotPx + 2 * u;
                 }
-                // What it all adds up to.
-                // Only in the room left above the detail area (the 0.10.0 block ran over it).
+                // What it all adds up to, in the room left above the detail box.
                 List<string> totals = Totals(save);
-                float totalsBottom = panel.yMax - 34 * u;
+                float totalsBottom = detailY - 3 * u;
                 if (totals.Count > 0 && y + 2 * u + 2 * lineH <= totalsBottom)
                 {
                     PixelUI.Fill(new Rect(x, y, leftW, u), PixelUI.InnerLine);
                     y += 2 * u;
-                    Label(new Rect(x, y, leftW, lineH), "Totals", dim);
+                    Label(new Rect(x, y, leftW, lineH), "TOTALS", dim);
                     y += lineH;
-                    // As many lines as fit; the last one carries the rest, shortened.
                     int room = Mathf.Max(1, Mathf.FloorToInt((totalsBottom - y) / lineH));
                     for (int i = 0; i < totals.Count && i < room; i++)
                     {
                         string line = totals[i];
                         if (i == room - 1 && totals.Count > room)
                             line = string.Join(", ", totals.GetRange(i, totals.Count - i).ToArray());
-                        Label(new Rect(x + 2 * u, y, leftW, lineH), Fit(line, text, leftW - 2 * u), text);
+                        Label(new Rect(x + u, y, leftW - u, lineH), Fit(line, text, leftW - u), text);
                         y += lineH;
                     }
                 }
 
                 y = top;
-                Label(new Rect(listX, y, listW, lineH), $"Inventory ({save.inventory.Count})", dim);
+                float rowH = 11 * u;
+                rows = Mathf.Max(1, Mathf.FloorToInt((detailY - 3 * u - y - lineH) / rowH));
+                if (selected >= scroll + rows)
+                    scroll = Mathf.Max(0, selected - rows + 1);
+                Label(new Rect(listX, y, listW, lineH), $"{TabNames[tab].ToUpperInvariant()} ({view.Count})", dim);
+                if (view.Count > rows)
+                    Label(new Rect(listX, y, listW - u, lineH), $"{scroll + 1}-{Mathf.Min(scroll + rows, view.Count)} of {view.Count}", right);
                 y += lineH;
-                if (save.inventory.Count == 0)
-                    Label(new Rect(listX, y, listW, lineH), "Nothing yet. Items drop from enemies in the trials.", dim);
-                for (int row = 0; row < Rows; row++)
+                if (view.Count == 0)
+                    Label(new Rect(listX, y, listW, lineH), save.inventory.Count == 0 ? "Nothing yet. Items drop from enemies in the trials." : "Nothing of this type.", dim);
+                for (int row = 0; row < rows; row++)
                 {
                     int index = scroll + row;
-                    if (index >= save.inventory.Count)
+                    if (index >= view.Count)
                         break;
-                    ItemData item = save.inventory[index];
-                    var line = new Rect(listX, y, listW, lineH);
+                    ItemData item = view[index];
+                    var line = new Rect(listX, y, listW, rowH - u);
                     if (index == selected)
+                    {
                         PixelUI.Fill(line, new Color(1f, 1f, 1f, 0.12f));
-                    float rowIcon = 4 * u;
-                    Icon(item, new Rect(listX + u, y + (lineH - rowIcon) / 2f, rowIcon, rowIcon));
-                    string mark = IsEquipped(item) ? "* " : "";
-                    Label(new Rect(listX + 6 * u, y, listW, lineH), mark + item.name, Rarity(item, font));
-                    Label(new Rect(listX, y, listW - u, lineH), item.rarity, Rarity(item, font, TextAnchor.UpperRight));
-                    y += lineH;
+                        PixelUI.Fill(new Rect(line.x, line.y, u, line.height), PixelUI.Border);
+                    }
+                    float rowIcon = 9 * u;
+                    var box = new Rect(listX + 2 * u, y + (rowH - u - rowIcon) / 2f, rowIcon, rowIcon);
+                    Frame(box, RarityColour(item), u);
+                    Icon(item, new Rect(box.x + u, box.y + u, rowIcon - 2 * u, rowIcon - 2 * u));
+                    float nameX = box.xMax + 2 * u, nameW = listW - (nameX - listX) - 5 * u;
+                    Label(new Rect(nameX, y + u, nameW, lineH), Fit(item.name, Rarity(item, font), nameW), Rarity(item, font));
+                    Label(new Rect(nameX, y + u + lineH - u, nameW, lineH), $"LV {item.itemLevel}   {item.rarity}", dim);
+                    if (IsEquipped(item))
+                        Label(new Rect(listX, y + u, listW - 2 * u, lineH), "E", PixelUI.Style(font, EquippedMark, TextAnchor.UpperRight));
+                    y += rowH;
                 }
-                if (save.inventory.Count > Rows)
-                    Label(new Rect(listX, y, listW, lineH), $"{scroll + 1}-{Mathf.Min(scroll + Rows, save.inventory.Count)} of {save.inventory.Count}", dim);
 
-                // Selected item's details, and the equipped one for its slot: the name on one
-                // line, the description wrapped over up to two, the comparison over what's left
-                // (the 0.11.9 one-line version cut long descriptions off).
-                float detailY = panel.yMax - 32 * u;
+                // The detail box: the chosen item's name and type, its description over up to two
+                // lines, and what equipping it changes against the worn item (gains green,
+                // losses red); the salvage hold bar under it.
                 PixelUI.Fill(new Rect(x, detailY - 2 * u, barW, u), PixelUI.InnerLine);
                 ItemData chosen = Selected;
                 if (chosen != null)
                 {
                     GUIStyle chosenStyle = Rarity(chosen, font);
-                    float bigIcon = 10 * u;
-                    Icon(chosen, new Rect(x, detailY, bigIcon, bigIcon));
-                    float textX = x + bigIcon + 2 * u, textW = barW - bigIcon - 2 * u;
                     float ty = detailY;
-                    float textBottom = panel.yMax - 10 * u;   // above the salvage bar and the key hints
-                    Label(new Rect(textX, ty, textW, lineH), Fit($"{chosen.rarity} {chosen.name}   item level {chosen.itemLevel}", chosenStyle, textW), chosenStyle);
+                    float textBottom = panel.yMax - 10 * u;
+                    string kind = (string.IsNullOrEmpty(chosen.unique) ? chosen.rarity : "Unique") + " " + chosen.slot;
+                    Label(new Rect(x, ty, barW, lineH), Fit($"{chosen.name}   ({kind}, item level {chosen.itemLevel})", chosenStyle, barW), chosenStyle);
                     ty += lineH;
-                    foreach (string line in Wrap(LootTable.Describe(chosen), text, textW, 2))
+                    foreach (string line in Wrap(LootTable.Describe(chosen), text, barW, 2))
                     {
-                        Label(new Rect(textX, ty, textW, lineH), line, text);
+                        Label(new Rect(x, ty, barW, lineH), line, text);
                         ty += lineH;
                     }
                     int slot = SlotOf(chosen);
                     ItemData worn = slot >= 0 ? StatMods.FindItem(save, save.equipped[slot]) : null;
-                    string compare = worn == null ? "Slot empty"
-                        : worn == chosen ? "Equipped"
-                        : $"Equipped {worn.rarity} {worn.name}: {LootTable.Describe(worn)}";
-                    int room = Mathf.Max(1, Mathf.FloorToInt((textBottom - ty) / lineH));
-                    foreach (string line in Wrap(compare, dim, textW, room))
+                    if (ty + lineH <= textBottom)
                     {
-                        Label(new Rect(textX, ty, textW, lineH), line, dim);
-                        ty += lineH;
+                        if (worn == null)
+                            Label(new Rect(x, ty, barW, lineH), "VS EQUIPPED:  slot empty, all of it is a gain", dim);
+                        else if (worn == chosen)
+                            Label(new Rect(x, ty, barW, lineH), "EQUIPPED", dim);
+                        else
+                        {
+                            float cx = x;
+                            Label(new Rect(cx, ty, barW, lineH), "VS EQUIPPED: ", dim);
+                            cx += dim.CalcSize(new GUIContent("VS EQUIPPED: ")).x;
+                            foreach (KeyValuePair<string, bool> part in Compare(chosen, worn))
+                            {
+                                GUIStyle st = PixelUI.Style(font, part.Value ? Gain : Loss);
+                                float pw = st.CalcSize(new GUIContent(part.Key + "   ")).x;
+                                if (cx + pw > x + barW)
+                                    break;
+                                Label(new Rect(cx, ty, pw, lineH), part.Key, st);
+                                cx += pw;
+                            }
+                        }
                     }
                     if (confirmHeldSince >= 0f && !confirmConsumed)
                     {
@@ -450,7 +576,7 @@ namespace WoLChaosDepths
                     }
                 }
                 Label(new Rect(x, panel.yMax - 8 * u, barW, lineH),
-                    "A / Enter: equip or unequip    hold A / Delete: salvage    B / Esc: close", dim);
+                    inHubNow ? "(A) EQUIP   (HOLD A) SALVAGE   (B) BACK   < > TAB   (Y) SORT   (Y + < >, Q / E) DEPTH" : "(A) EQUIP   (HOLD A) SALVAGE   (B) BACK   < > TAB   (Y / Tab) SORT", dim);
             }
             catch (Exception e)
             {
@@ -464,18 +590,77 @@ namespace WoLChaosDepths
         }
 
         // A label with a one-pixel dark shadow, so the game's thin font reads on the panel.
-        // The item's picture (ItemArt), point-sampled so its pixels stay crisp.
-        private static void Icon(ItemData item, Rect rect)
+        // The item's picture (ItemArt), point-sampled so its pixels stay crisp; alpha < 1 draws
+        // it faint (an empty slot's silhouette).
+        private static void Icon(ItemData item, Rect rect, float alpha = 1f)
         {
             try
             {
                 Texture2D tex = ItemArt.Texture(item);
-                if (tex != null)
-                    GUI.DrawTexture(rect, tex, ScaleMode.StretchToFill, true);
+                if (tex == null)
+                    return;
+                Color was = GUI.color;
+                GUI.color = new Color(1f, 1f, 1f, alpha);
+                GUI.DrawTexture(rect, tex, ScaleMode.StretchToFill, true);
+                GUI.color = was;
             }
             catch
             {
             }
+        }
+
+        // A one-unit frame round a rect.
+        private static void Frame(Rect r, Color colour, int u)
+        {
+            PixelUI.Fill(new Rect(r.x, r.y, r.width, u), colour);
+            PixelUI.Fill(new Rect(r.x, r.yMax - u, r.width, u), colour);
+            PixelUI.Fill(new Rect(r.x, r.y, u, r.height), colour);
+            PixelUI.Fill(new Rect(r.xMax - u, r.y, u, r.height), colour);
+        }
+
+        private static Color RarityColour(ItemData item)
+        {
+            switch (item != null ? item.rarity : null)
+            {
+                case "Magic": return new Color32(0x6f, 0xa8, 0xff, 0xff);
+                case "Rare": return new Color32(0xff, 0xe0, 0x66, 0xff);
+                case "Legendary": return new Color32(0xff, 0x8a, 0x3d, 0xff);
+                default: return PixelUI.Dim;
+            }
+        }
+
+        // What equipping `chosen` in place of `worn` changes: one part per affix (and the unique
+        // power), "+12% dmg" / "-4% crit", true = a gain.
+        private static List<KeyValuePair<string, bool>> Compare(ItemData chosen, ItemData worn)
+        {
+            var parts = new List<KeyValuePair<string, bool>>();
+            var keys = new List<string>();
+            foreach (AffixData a in chosen.affixes) if (!keys.Contains(a.key)) keys.Add(a.key);
+            foreach (AffixData a in worn.affixes) if (!keys.Contains(a.key)) keys.Add(a.key);
+            foreach (string key in keys)
+            {
+                float mine = 0f, theirs = 0f;
+                foreach (AffixData a in chosen.affixes) if (a.key == key) mine += a.value;
+                foreach (AffixData a in worn.affixes) if (a.key == key) theirs += a.value;
+                float diff = mine - theirs;
+                if (Mathf.Abs(diff) < 0.0001f)
+                    continue;
+                LootTable.AffixDef def = LootTable.Affix(key);
+                bool percent = def == null || def.percent;
+                string value = percent ? Mathf.RoundToInt(diff * 100f) + "%" : diff.ToString("0.##");
+                if (diff > 0f) value = "+" + value;
+                // Taking less damage is the gain for a negative affix.
+                bool gain = key == "DamageTaken" ? diff < 0f : diff > 0f;
+                parts.Add(new KeyValuePair<string, bool>(value + " " + Short(key), gain));
+            }
+            string power = Uniques.PowerText(chosen), wornPower = Uniques.PowerText(worn);
+            if (power != null && wornPower == null)
+                parts.Insert(0, new KeyValuePair<string, bool>("+ " + chosen.name + "'s power", true));
+            else if (power == null && wornPower != null)
+                parts.Add(new KeyValuePair<string, bool>("- " + worn.name + "'s power", false));
+            if (parts.Count == 0)
+                parts.Add(new KeyValuePair<string, bool>("no change", true));
+            return parts;
         }
 
         // The equipped items' bonuses added up, as a few short lines.
