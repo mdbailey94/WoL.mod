@@ -253,3 +253,9 @@ animation, follow the facing, and sit behind the body when facing up. `[Look] Sh
 - Pendant art per view: `worn_pendant_<rarity>_down.png`, `_side.png` (drawn facing right,
   flipped for left) and `_up.png` (the chain at the back of the neck, behind the body) are used
   when present, else the one `worn_pendant_<rarity>.png` for every view (task sheet #2).
+
+## 0.11.11
+
+- The Magic pendant on the wizard is WoL Art's slim test amulet (task sheet #1): a thin V chain
+  with a drop stone, front view 5x4 and side view 2x4 (`worn_pendant_magic_down/side.png`),
+  for review in-game. The other rarities keep the 0.11.4 pendants until the set is approved.
