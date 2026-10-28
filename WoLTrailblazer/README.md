@@ -111,6 +111,13 @@ settings after restarting the game.
 they're still in your .cfg they're ignored. Older `Damage`, `Knockback` and `BurnChance` values
 carry over unchanged, but now mean the level-1 numbers under the new scaling.
 
+### Changes in 0.9.2
+
+- Faster trail (task sheet #26, frame-rate drops): each patch used to copy Searing Rush's fire
+  column afresh and strip it down (several searches of its parts and a component removal each),
+  15 to 20 times a second at a sprint. The stripped columns are now kept and lit again for later
+  patches, so the trail looks the same for a fraction of the work.
+
 ### Changes in 0.7.0
 
 - **Fixed: no damage at high speed.** The game only keeps five stat levels per arcana and cut the
