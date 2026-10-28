@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.15.3";
+        public const string PluginVersion = "0.15.4";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -620,12 +620,14 @@ namespace WoLChaosDepths
                     // Ascension 10: the realm boss drops a Legendary (#27).
                     if (AscensionLink.RealmBossDropsLegendary)
                         min = LootTable.RarityIndex("Legendary");
-                    // The first time a character beats the final boss, it drops a Legendary.
-                    else if (!save.firstFinalLegendary && DiveDirector.IsFinalBoss(DiveDirector.CurrentScene()) && !OtherBossAlive(entity))
+                    // The first time a character beats the final boss at each Ascension level, it
+                    // drops a Legendary.
+                    else if (DiveDirector.IsFinalBoss(DiveDirector.CurrentScene()) && !OtherBossAlive(entity)
+                        && !save.finalLegendaryAt.Contains(AscensionLink.Level))
                     {
-                        save.firstFinalLegendary = true;
+                        save.finalLegendaryAt.Add(AscensionLink.Level);
                         min = LootTable.RarityIndex("Legendary");
-                        Log($"Player {player.playerID + 1}'s first final boss win: a guaranteed Legendary");
+                        Log($"Player {player.playerID + 1}'s first final boss win at Ascension {AscensionLink.Level}: a guaranteed Legendary");
                     }
                     Drop(player, save, min, entity.transform.position);
                 }

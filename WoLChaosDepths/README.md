@@ -504,6 +504,7 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
   rolled like any other: realm and layer bosses from Rare up (`[Loot] BossDropMinRarity`), the
   floor boss from Magic up. Layer bosses and each character's first realm boss no longer
   promise a Legendary.
-- **The first time a character beats the final boss**, its drop is a guaranteed Legendary (the
-  last boss of the fight to fall; remembered in the save as `firstFinalLegendary`).
+- **The first time a character beats the final boss at each Ascension level**, its drop is a
+  guaranteed Legendary (the last boss of the fight to fall; 0.15.4 made it once per level
+  rather than once ever, remembered in the save as `finalLegendaryAt`).
 - Ascension 10's realm boss Legendary (#27) is unchanged.
