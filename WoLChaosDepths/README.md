@@ -278,3 +278,11 @@ Laid out after WoL Art's mockup (`inventory_mockup_1x.png`):
   each gain in green and each loss in red (and the unique power gained or lost).
 - The panel's own frame, slot frames, dust icon and chevrons are still drawn in code until the
   pieces from task #16 arrive.
+
+## 0.12.1
+
+- The slim pendant set (task sheet #1, WoL Art): `worn_pendant_<rarity>_<down|side|up>.png`,
+  all four rarities, the back view a chain at the nape drawn behind the body.
+- The pendant follows the chest across the body in every frame, read from the picture's
+  outline at chest height, so the run's forward lean no longer leaves it at the back of the
+  neck; the height still comes from the standing anchor plus the run's bob.

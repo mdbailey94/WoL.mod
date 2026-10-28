@@ -482,6 +482,12 @@ namespace WoLChaosDepths
                     // back of the neck), behind the body.
                     string view = down ? "down" : up ? "up" : "side";
                     Place(pendant, body, pivot, a.chest, fwd, bob);
+                    // Across the body the pendant follows the chest in every frame, read from
+                    // the picture's outline at chest height (the run leans the torso forward,
+                    // which left it at the back of the neck when it kept its standing spot).
+                    Vector2 chestWorld;
+                    if (ChestOnFrame(body, bb, down || up, side, out chestWorld))
+                        pendant.transform.position = new Vector3(chestWorld.x, pendant.transform.position.y, pivot.z);
                     Sort(pendant, body, up ? back : front);
                     pendant.enabled = !up || HasPendantView(amuletTier, "up");
                     pendant.flipX = view == "side" && side < 0f && HasPendantView(amuletTier, "side");
@@ -566,6 +572,64 @@ namespace WoLChaosDepths
             // furthest along `side` within the hand's height band (33-52% of the picture). The
             // cloak's hem is below that band and the shoulders above it. False when the outline
             // isn't there or the point is too far from where the hand should be.
+            // The chest's spot across the body in this frame, from the outline's vertices at
+            // chest height (62-78% of the picture): its middle facing down or up, a pixel and a
+            // half inside its front edge facing sideways. A jump of more than half a unit (the
+            // outline caught a sleeve or a spell) is refused for a few frames, as for the hand.
+            private Vector2 lastChest;
+            private int chestRefused;
+            private float lastChestSide = 99f;
+            private bool ChestOnFrame(SpriteRenderer body, Bounds bb, bool centred, float side, out Vector2 world)
+            {
+                world = Vector2.zero;
+                try
+                {
+                    Sprite sprite = body.sprite;
+                    if (sprite == null)
+                        return false;
+                    Vector2[] verts = sprite.vertices;
+                    if (verts == null || verts.Length < 3)
+                        return false;
+                    float h = Mathf.Max(0.6f, bb.size.y);
+                    float lo = bb.min.y + h * 0.62f, hi = bb.min.y + h * 0.78f;
+                    float minX = float.PositiveInfinity, maxX = float.NegativeInfinity;
+                    float yAt = 0f;
+                    int n = 0;
+                    foreach (Vector2 v in verts)
+                    {
+                        Vector2 local = body.flipX ? new Vector2(-v.x, v.y) : v;
+                        Vector2 w = body.transform.TransformPoint(local);
+                        if (w.y < lo || w.y > hi)
+                            continue;
+                        minX = Mathf.Min(minX, w.x);
+                        maxX = Mathf.Max(maxX, w.x);
+                        yAt += w.y;
+                        n++;
+                    }
+                    if (n < 2 || maxX - minX < 2f / ppu)
+                        return false;
+                    float x = centred ? (minX + maxX) * 0.5f : (side > 0f ? maxX : minX) - side * 1.5f / ppu;
+                    Vector2 pivot = body.transform.position;
+                    var offset = new Vector2(Mathf.Round((x - pivot.x) * ppu) / ppu, Mathf.Round((yAt / n - pivot.y) * ppu) / ppu);
+                    float key = centred ? 0f : side;
+                    if (key == lastChestSide && Mathf.Abs(offset.x - lastChest.x) > 0.5f && chestRefused < 6)
+                    {
+                        chestRefused++;
+                        offset = lastChest;
+                    }
+                    else
+                        chestRefused = 0;
+                    lastChest = offset;
+                    lastChestSide = key;
+                    world = pivot + offset;
+                    return true;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
             private bool HandOnFrame(SpriteRenderer body, Bounds bb, float side, out Vector2 world)
             {
                 world = Vector2.zero;
