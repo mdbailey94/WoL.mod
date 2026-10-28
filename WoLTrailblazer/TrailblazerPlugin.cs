@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
@@ -13,12 +13,22 @@ namespace WoLTrailblazer
     {
         public const string PluginGuid = "mdbailey94.wol.trailblazer";
         public const string PluginName = "Trailblazer";
-        public const string PluginVersion = "0.9.3";
+        public const string PluginVersion = "0.10.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
+        private ConfigEntry<bool> signatureWithArcana;
+        private static ConfigEntry<float> sigDuration, eruptionMultiplier, finalMultiplier;
+        // The signature comet (0.10.0).
+        public static float SignatureDuration => Get(sigDuration, 5f, 1f, 20f);
+        public static float EruptionMultiplier => Get(eruptionMultiplier, 2f, 0.5f, 10f);
+        public static float FinalMultiplier => Get(finalMultiplier, 4f, 0.5f, 20f);
 
         public static void Log(string message) => log?.LogInfo(message);
+
+        // The signature's flashes and ease-back run on real time, and its watchdog never leaves
+        // the camera or light changed for long (Cinematic.cs).
+        private void Update() => Cinematic.Tick();
 
         // ---- Settings (BepInEx\config\mdbailey94.wol.trailblazer.cfg) ----
         // [Trail] and [Look] apply straight away; [Balance] after restarting the game.
@@ -58,6 +68,10 @@ namespace WoLTrailblazer
                 "Offer Trailblazer in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
             BindSettings();
+            // The signature version only shows up in the spellbook's Signature list once it's
+            // unlocked; see SignatureUnlock.cs.
+            SignatureUnlock.Install(new HarmonyLib.Harmony(PluginGuid), TrailblazerState.staticID,
+                () => signatureWithArcana.Value, message => Log("Trailblazer: " + message));
 
             // One stat level only: these are the level-1 numbers (running at base speed), and
             // FlameTrail scales each hit by its speed level (1-10) as it's made. The game keeps at
@@ -68,7 +82,8 @@ namespace WoLTrailblazer
                 ID = TrailblazerState.staticID,
                 displayName = "Trailblazer",
                 description = "Set yourself ablaze! For a few seconds a ring of fire scorches any enemy you touch, and running, dashing and movement arcana leave a burning trail behind you. The faster you are, the bigger it burns!",
-                enhancedDescription = "Lasts longer and burns bigger and hotter!",
+                // The game shows this one text on the card for both the enhanced and the signature.
+                enhancedDescription = "Lasts longer and burns bigger and hotter! Signature: become a comet whose trail erupts in pillars of fire!",
                 icon = LoadIcon("icon.png"),
                 tier = 2,
                 stateType = typeof(TrailblazerState),
@@ -98,6 +113,14 @@ namespace WoLTrailblazer
 
         private void BindSettings()
         {
+            signatureWithArcana = Config.Bind("General", "SignatureUnlocksWithArcana", true,
+                "Unlock Trailblazer's signature version along with the arcana itself, so it can go in the signature slot as soon as " +
+                "you have it. Off: its Signature drop has to be found in a run, as for the game's own arcana.");
+            sigDuration = Float("Signature", "Duration", 5f, 1f, 20f, "Seconds the signature comet burns before its trail erupts.");
+            eruptionMultiplier = Float("Signature", "EruptionMultiplier", 2f, 0.5f, 10f,
+                "Each pillar of the eruption hits for this many times a level-10 hit of the fire.");
+            finalMultiplier = Float("Signature", "FinalMultiplier", 4f, 0.5f, 20f,
+                "The final blast round you hits for this many times a level-10 hit.");
             duration = Float("Trail", "Duration", 6f, 1f, 30f, "Seconds your feet stay ablaze after casting it.");
             enhancedDuration = Float("Trail", "EnhancedDuration", 9f, 1f, 30f, "Duration when enhanced.");
             auraSize = Float("Trail", "AuraSize", 2f, 0.5f, 6f, "Size of the ring of fire round the wizard that hurts enemies who touch it.");

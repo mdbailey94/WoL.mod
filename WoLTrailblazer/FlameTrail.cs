@@ -21,9 +21,29 @@ namespace WoLTrailblazer
     // On top of the game's flames, the drawn fire (BlazeLook): flames licking up round the wizard,
     // embers, the ring of fire on the floor, flames and char marks on the trail, and a flare-up as
     // it burns out.
+    //
+    // The signature comet (0.10.0, the signature cast): for SignatureDuration the room darkens to
+    // embers and the camera pulls back (Cinematic, always put back), the fire burns three levels
+    // hotter (the enhanced level and two more), its patches hit twice as wide and its flames are
+    // half again as big. When it burns out, every patch still burning erupts in a pillar of fire,
+    // oldest first, then a blast goes off round the wizard with a hit-stop, a flash, a heavy shake
+    // and a moment of near-frozen time.
     public class FlameTrail : MonoBehaviour
     {
         private const int MaxPatches = 40;
+        // The signature comet.
+        private const int CometLevels = 2;               // on top of the enhanced level
+        private const float CometHitWide = 2f, CometFire = 1.6f, CometRing = 1.5f;
+        private const float CometZoom = 0.15f, CometDim = 0.5f, CometSettle = 0.6f;
+        private const float PillarStep = 0.04f, FinalDelay = 0.25f;
+        private const float PillarScale = 2.2f, FinalRadius = 3f;
+        private const int FinalHitStopFrames = 5;
+        private const float FinalFlash = 1.9f, FinalShake = 2.2f, FinalSlowMoTime = 0.35f, FinalSlowMoScale = 0.05f, EaseBack = 1f;
+        private bool comet;
+        private int cinematic;
+        private float litAt;
+        private float HitWide => comet ? CometHitWide : 1f;
+        private float FireScale => comet ? CometFire : 1f;
 
         // Ten levels by speed. The hits' numbers are the arcana's level-1 stats (the Balance
         // settings, with the wizard's own damage bonuses) scaled by the level: damage up to
@@ -62,7 +82,7 @@ namespace WoLTrailblazer
         private static string lastBurstError;
 
         // Sets (or re-sets) the wizard alight for this long.
-        public static void Light(Player player, Player.SkillState skill, float duration)
+        public static void Light(Player player, Player.SkillState skill, float duration, bool signature = false)
         {
             if (player == null)
                 return;
@@ -72,6 +92,12 @@ namespace WoLTrailblazer
             trail.player = player;
             trail.skill = skill;
             trail.litUntil = Time.time + duration;
+            trail.litAt = Time.time;
+            trail.comet = signature;
+            trail.cinematic = signature ? Cinematic.Begin() : 0;
+            if (signature)
+                TrailblazerPlugin.Log($"Trailblazer: signature comet for {duration:0.#} s: {CometLevels} levels hotter, patches x{CometHitWide:0.#} wide, " +
+                    $"flames x{CometFire:0.#}; the trail erupts when it burns out");
             trail.hasLast = false;
             trail.travelled = 0f;
             trail.nextAura = 0f;
@@ -107,6 +133,14 @@ namespace WoLTrailblazer
                     Flames(player.transform.position, 6, 0.8f);
                     litUntil = 0f;
                     look?.BurntOut(player.transform.position, lookLevel);
+                    if (comet)
+                    {
+                        comet = false;
+                        var spots = new List<Vector2>();
+                        foreach (Patch p in patches)
+                            spots.Add(p.position);
+                        StartCoroutine(Erupt(spots));
+                    }
                 }
                 lookLit = false;
                 if (patches.Count == 0)
@@ -121,13 +155,20 @@ namespace WoLTrailblazer
             float size = SizeOf(level);
             lookLit = true;
             lookLevel = level;
-            lookRing = TrailblazerPlugin.AuraSize * HitScale(size); // the ring's hit radius (a burst's scale is its radius)
+            float ring = TrailblazerPlugin.AuraSize * HitScale(size) * (comet ? CometRing : 1f);
+            lookRing = ring; // the ring's hit radius (a burst's scale is its radius)
+            if (comet)
+            {
+                float t = Mathf.Clamp01((now - litAt) / CometSettle);
+                float eased = t * t * (3f - 2f * t);
+                Cinematic.Set(cinematic, CometZoom * eased, Mathf.Lerp(1f, CometDim, eased));
+            }
 
             // The ring round the wizard.
             if (now >= nextAura)
             {
                 nextAura = now + TrailblazerPlugin.AuraInterval;
-                Burst(position, level, TrailblazerPlugin.AuraSize * HitScale(size), false);
+                Burst(position, level, ring, false);
             }
             // Burning feet: small flames licking up right at the wizard's feet (the ring's hit has
             // no look of its own).
@@ -175,7 +216,7 @@ namespace WoLTrailblazer
                 nextFlame = now,
                 level = level,
                 column = TrailblazerPlugin.SearingFire
-                    ? SearingLook.Light(position, ColumnScale(level), player != null ? player.spriteRenderer : null)
+                    ? SearingLook.Light(position, ColumnScale(level) * FireScale, player != null ? player.spriteRenderer : null)
                     : null
             };
             patch.look = look?.Patch(position, level, patch.until - now, patch.column != null);
@@ -196,7 +237,7 @@ namespace WoLTrailblazer
             bool empowered = skill != null && skill.IsEmpowered;
             int level = Level(speed, empowered);
             float size = SizeOf(level);
-            float hitRadius = TrailblazerPlugin.TrailHitSize * HitScale(size);
+            float hitRadius = TrailblazerPlugin.TrailHitSize * HitScale(size) * HitWide;
             for (int i = patches.Count - 1; i >= 0; i--)
             {
                 Patch patch = patches[i];
@@ -214,7 +255,7 @@ namespace WoLTrailblazer
                     patch.nextFlame = now + 0.1f;
                     float spread = 0.08f + 0.05f * patch.level;
                     int count = Mathf.Max(1, Mathf.RoundToInt(TrailblazerPlugin.FlameAmount * (0.4f + 0.15f * patch.level)));
-                    Flames(patch.position + Random.insideUnitCircle * spread, count, FlameScale(patch.level));
+                    Flames(patch.position + Random.insideUnitCircle * spread * FireScale, count, FlameScale(patch.level) * FireScale);
                 }
                 if (now >= patch.nextHit)
                 {
@@ -262,7 +303,7 @@ namespace WoLTrailblazer
         private int Level(float speed, bool empowered)
         {
             int level = 1 + Mathf.FloorToInt((speed - 1f) / LevelStep() + 0.001f);
-            level = Mathf.Clamp(level + (empowered ? 1 : 0), 1, MaxLevel);
+            level = Mathf.Clamp(level + (empowered ? 1 : 0) + (comet ? CometLevels : 0), 1, MaxLevel);
             lastSpeed = speed;
             return level;
         }
@@ -302,8 +343,59 @@ namespace WoLTrailblazer
             look?.Off();
         }
 
+        // The comet's end: each patch erupts in a pillar of fire in turn, then a blast round the
+        // wizard; the camera and light ease back after it.
+        private System.Collections.IEnumerator Erupt(List<Vector2> spots)
+        {
+            int token = cinematic;
+            var columns = new List<GameObject>();
+            TrailblazerPlugin.Log($"Trailblazer: signature eruption: {spots.Count} pillar(s) of fire, then the blast");
+            foreach (Vector2 spot in spots)
+            {
+                Burst(spot, MaxLevel, TrailblazerPlugin.TrailHitSize * CometHitWide, true, TrailblazerPlugin.EruptionMultiplier);
+                if (TrailblazerPlugin.SearingFire)
+                    columns.Add(SearingLook.Light(spot, PillarScale, player != null ? player.spriteRenderer : null));
+                Flames(spot, 6, PillarScale * 0.7f);
+                Try(() => PoolManager.GetPoolItem<FireBurst>()?.EmitSingle(new int?(4), new Vector3?(spot)));
+                Try(() => CameraController.ShakeCamera(0.25f, false));
+                yield return new WaitForSeconds(PillarStep);
+            }
+            yield return new WaitForSeconds(FinalDelay);
+            if (player != null)
+            {
+                Vector2 at = player.transform.position;
+                Burst(at, MaxLevel, FinalRadius, true, TrailblazerPlugin.FinalMultiplier);
+                Flames(at, 20, 2f);
+                Try(() => PoolManager.GetPoolItem<FireBurst>()?.EmitSingle(new int?(20), new Vector3?(at)));
+                Try(() => TimeScaleController.FreezeForFrames(FinalHitStopFrames, false));
+                Cinematic.Flash(token, FinalFlash, 0.12f);
+                Try(() => CameraController.ShakeCamera(FinalShake, true));
+                Try(() => TimeScaleController.SetTimeScaleDelayOverRealTime(FinalSlowMoTime, FinalSlowMoScale, true, true));
+                SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(at), null, 24f, -1f, 0.6f, false);
+                TrailblazerPlugin.Log($"Trailblazer: signature blast: hit-stop {FinalHitStopFrames} frames, flash x{FinalFlash:0.0}, shake {FinalShake:0.0}, " +
+                    $"slow motion {FinalSlowMoTime:0.00} s, easing back over {EaseBack:0.0} s");
+            }
+            Cinematic.EaseOut(token, EaseBack, "eruption finished");
+            yield return new WaitForSeconds(0.5f);
+            foreach (GameObject c in columns)
+                SearingLook.PutOut(c);
+        }
+
+        private static void Try(System.Action effect)
+        {
+            try
+            {
+                effect();
+            }
+            catch
+            {
+            }
+        }
+
         private void OnDestroy()
         {
+            if (cinematic != 0)
+                Cinematic.EaseOut(cinematic, 0.5f, "the fire went with the wizard");
             foreach (Patch patch in patches)
             {
                 SearingLook.PutOut(patch.column);
@@ -319,7 +411,7 @@ namespace WoLTrailblazer
         // stat level 1 and its damage, knockback and burn chance are scaled by the level here,
         // before the hit's collider gets to touch anything. All hits share the level-1 attack key,
         // so the stats' sameTargetImmunityTime limits how often one enemy is hit by any of them.
-        private void Burst(Vector2 position, int level, float scale, bool effects)
+        private void Burst(Vector2 position, int level, float scale, bool effects, float extra = 1f)
         {
             try
             {
@@ -328,7 +420,7 @@ namespace WoLTrailblazer
                 AttackInfo info = burst != null && burst.attack != null ? burst.attack.atkInfo : null;
                 if (info == null)
                     throw new System.Exception("the burst has no attack info");
-                info.damage = Mathf.Max(1, Mathf.RoundToInt(info.damage * DamageScale(level)));
+                info.damage = Mathf.Max(1, Mathf.RoundToInt(info.damage * DamageScale(level) * extra));
                 info.knockbackMultiplier *= KnockbackScale(level);
                 info.burnChance = Mathf.Clamp01(info.burnChance + BurnBonus(level));
                 if (level != lastLoggedLevel)

@@ -20,6 +20,10 @@ namespace WoLTrailblazer
         public TrailblazerState(FSM newFSM, Player newEnt) : base(staticID, newFSM, newEnt)
         {
             applyStopElementStatus = true;
+            // Lets the arcana into the signature slot (the spellbook's Signature page); see
+            // SignatureUnlock.cs for when that's unlocked. The signature cast (isUltimate) is the
+            // comet: FlameTrail's.
+            hasSignatureVariant = true;
             SetAnimTimes(
                 0.05f, // start
                 0.1f,  // hold
@@ -66,8 +70,8 @@ namespace WoLTrailblazer
         private void Ignite()
         {
             Vector2 position = parent.transform.position;
-            float duration = IsEmpowered ? TrailblazerPlugin.EnhancedDuration : TrailblazerPlugin.Duration;
-            FlameTrail.Light(parent, this, duration);
+            float duration = isUltimate ? TrailblazerPlugin.SignatureDuration : IsEmpowered ? TrailblazerPlugin.EnhancedDuration : TrailblazerPlugin.Duration;
+            FlameTrail.Light(parent, this, duration, isUltimate);
             try
             {
                 // The hit is wide, but its visible burst small, so it doesn't blind.
