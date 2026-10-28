@@ -28,6 +28,13 @@ A ride like Aero Ring's, with Tearing Whirlwind's rolling hit:
   the game's slide, like Tearing Whirlwind. Cooldown 7 seconds (from the cast).
 - **Enhanced**: 4.5 seconds on the ball, and the biggest ball is radius 3.
 
+## 0.4.1
+
+- The signature storm ball **carries enemies with it** (Matt): every enemy it hits, up to 8
+  (bosses and the floor boss excepted), is swept along inside it, through the leap, until the
+  slam lands on them. One a wall catches behind is let go. The slam's log line says how many it
+  carried.
+
 ## 0.4.0: a cinematic signature (asked for by Matt)
 
 Gale Rider has a **signature version** now (the spellbook's Signature page; unlocked along with

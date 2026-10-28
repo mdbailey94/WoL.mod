@@ -40,6 +40,9 @@ namespace WoLGaleRider
         private bool signature, leaping, topSlowMoDone;
         private float leapTime, leapBase;
         private int cinematic;
+        // Signature (0.4.1, Matt): enemies the storm ball hits are swept along in it.
+        private const float CarryMargin = 1.2f;      // let go when further than the ball's radius plus this
+        private readonly Carrier carrier = new Carrier();
 
         public const int MaxLevel = 10;                 // levels of the log's speed read, 1 at x1.0, 10 at the peak
         private const string RideSpeedModID = "GaleRider_Ride";
@@ -229,6 +232,7 @@ namespace WoLGaleRider
             leaping = false;
             topSlowMoDone = false;
             cinematic = 0;
+            carrier.Clear();
             if (signature)
             {
                 // The storm ball: the enhanced ball (the signature slot is always empowered)
@@ -287,6 +291,8 @@ namespace WoLGaleRider
             }
             if (leaping)
             {
+                // Still carrying them through the leap, so the slam lands on them.
+                carrier.Move(parent.transform.position, parent.transform.position, currentSize + CarryMargin + 1f);
                 Leap();
                 return;
             }
@@ -307,6 +313,7 @@ namespace WoLGaleRider
                 float t = Mathf.Clamp01(time / SigSettleTime);
                 float eased = t * t * (3f - 2f * t);
                 Cinematic.Set(cinematic, SigZoom * eased, Mathf.Lerp(1f, SigDim, eased));
+                carrier.Move(parent.transform.position, parent.transform.position, currentSize + CarryMargin);
             }
 
             bool hopOff = GaleRiderPlugin.HopOffOnPress && time >= GaleRiderPlugin.MinRideTime && skillSlot >= 0
@@ -348,6 +355,7 @@ namespace WoLGaleRider
             if (signature)
                 Cinematic.EaseOut(cinematic, 0.5f, leaping ? "cut short in the leap" : "ride ended without a slam");
             leaping = false;
+            carrier.Clear();
             base.OnExit();
         }
 
@@ -416,6 +424,8 @@ namespace WoLGaleRider
             leaping = false;
             done = true;
             velocity = Vector2.zero;
+            int carried = carrier.Grabbed;
+            carrier.Clear();
             if (rider != null)
                 rider.height = 0f;
             Vector2 spot = parent.transform.position;
@@ -439,7 +449,7 @@ namespace WoLGaleRider
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(spot), null, 24f, -1f, 0.7f, false);
             parent.anim?.PlayDirectional(parent.GSlamAnimStr, -1, 0.5f);
             endReason += ", leapt and slammed down";
-            GaleRiderPlugin.Log($"Gale Rider: signature slam: blast x{SlamScale:0.#}, hit-stop {SlamHitStopFrames} frames, flash x{SlamFlash:0.0}, " +
+            GaleRiderPlugin.Log($"Gale Rider: signature slam after carrying {carried} enem{(carried == 1 ? "y" : "ies")}: blast x{SlamScale:0.#}, hit-stop {SlamHitStopFrames} frames, flash x{SlamFlash:0.0}, " +
                 $"shake {SlamShake:0.0}, easing back over {SlamEaseBack:0.0} s");
         }
 
@@ -675,6 +685,8 @@ namespace WoLGaleRider
         private void OnHit(Entity hit)
         {
             hits++;
+            if (signature && !leaping)
+                carrier.Grab(hit);
             if (currentKnockback > biggestKnockback)
                 biggestKnockback = currentKnockback;
             try

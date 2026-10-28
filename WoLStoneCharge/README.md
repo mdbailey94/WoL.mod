@@ -20,6 +20,26 @@ A new **Earth standard arcana**, added with [LegendAPI](https://github.com/yekoc
 | Rush | 2.5 units in 0.12 s; crash radius 2 (enhanced 2.5) a unit ahead of where you stop |
 | Cooldown | 6 s, counting from the crash (or a cancel) |
 
+## 0.5.0: a cinematic signature (asked for by Matt)
+
+Stone Charge has a **signature version** now (the spellbook's Signature page; unlocked along
+with the arcana, `[General] SignatureUnlocksWithArcana`):
+
+1. **Full force at once**: the shield goes up fully charged (runes burning, rocks circling), and
+   the camera pulls back 15% as the room darkens.
+2. **Carry**: running the shield into enemies doesn't crash; it **grabs them** and carries them
+   along in front of it, up to 8 (bosses and the floor boss excepted; one a wall catches behind
+   is let go). Press again or let the time run out to unload.
+3. **Earthquake**: the crash reaches twice the enhanced radius (`[Signature] CrashScale`) for
+   42 (`[Balance] SignatureCrashDamage` 7 at full force) with a 6-frame hit-stop, a flash, a
+   heavy shake and half a second of near-frozen time.
+4. **Aftershock**: 0.3 s later the ground erupts again in a ring 1.7x further out, with its
+   own rock spikes, for 15 more (`SignatureAftershockDamage`), throwing enemies outward; then
+   the camera and light ease back.
+
+An enemy carried into it takes about 70 (the bash, the earthquake and the aftershock). The
+camera and light always go back (`Stone Charge: signature restored (...)`).
+
 **Cast** it and your wizard slams the ground and a slab of stone (the game's own Aegis Charge
 shield) rises a unit in front of them, shoving back whatever's standing there. Then, for up to
 **4 seconds**, you run about freely behind it (it turns to face the way you run) and **every moment

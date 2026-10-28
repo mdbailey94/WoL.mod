@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
@@ -13,12 +13,21 @@ namespace WoLStoneCharge
     {
         public const string PluginGuid = "mdbailey94.wol.stonecharge";
         public const string PluginName = "Stone Charge";
-        public const string PluginVersion = "0.4.1";
+        public const string PluginVersion = "0.5.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
+        private ConfigEntry<bool> signatureWithArcana;
+        private static ConfigEntry<int> sigCrashDamage, aftershockDamage;
+        private static ConfigEntry<float> sigCrashRadius;
+        // The signature's earthquake (0.5.0): its crash radius, times the enhanced one's.
+        public static float SignatureCrashScale => Get(sigCrashRadius, 2f, 1f, 4f);
 
         public static void Log(string message) => log?.LogInfo(message);
+
+        // The signature's flashes and ease-back run on real time, and its watchdog never leaves
+        // the camera or light changed for long (Cinematic.cs).
+        private void Update() => Cinematic.Tick();
 
         // ---- Settings (BepInEx\config\mdbailey94.wol.stonecharge.cfg) ----
         // [Charge] and [Crash] apply the next time you cast it; [Balance] after restarting the game.
@@ -61,6 +70,10 @@ namespace WoLStoneCharge
                 "Offer Stone Charge in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
             BindSettings();
+            // The signature version only shows up in the spellbook's Signature list once it's
+            // unlocked; see SignatureUnlock.cs.
+            SignatureUnlock.Install(new HarmonyLib.Harmony(PluginGuid), StoneChargeState.staticID,
+                () => signatureWithArcana.Value, message => Log("Stone Charge: " + message));
 
             Skills.Register(new SkillInfo
             {
@@ -68,7 +81,8 @@ namespace WoLStoneCharge
                 displayName = "Stone Charge",
                 description = "Raise a stone bulwark and keep running: the faster you move, the more force it stores, " +
                     "and dashing keeps it up. Run or dash into a foe or press again to crash forward and unload all of it!",
-                enhancedDescription = "Stores force faster and crashes wider!",
+                // The game shows this one text on the card for both the enhanced and the signature.
+                enhancedDescription = "Stores force faster and crashes wider! Signature: charge at full force, carry foes and crash in an earthquake!",
                 icon = LoadIcon("icon.png"),
                 // Same tier and price as Aegis Charge and Terra Ring, the vanilla Earth arcana it's
                 // closest to (Aegis Charge: a shielded rush, 5.75 s cooldown, price 6).
@@ -88,23 +102,30 @@ namespace WoLStoneCharge
                     // you when you cast takes the shove (3) as well. Full force needs 4 s of
                     // running at base speed (less the faster you are), and the crash is telegraphed
                     // by a 2.5 u rush, so the big number has a real cost. All from [Balance].
+                    // Levels 4 and 5 (0.5.0) are the signature's earthquake crash (scaled by the
+                    // force like the crash, always full in the signature: 7 x 6 = 42) and its
+                    // aftershock further out (15, not scaled): with the bash about 70 to an enemy
+                    // carried into it, about what the game's earth signatures do.
                     damage = new[]
                     {
                         Mathf.Clamp(raiseDamage.Value, 0, 100),
                         Mathf.Clamp(bashDamage.Value, 0, 100),
-                        Mathf.Clamp(crashDamage.Value, 0, 200)
+                        Mathf.Clamp(crashDamage.Value, 0, 200),
+                        Mathf.Clamp(sigCrashDamage.Value, 0, 200),
+                        Mathf.Clamp(aftershockDamage.Value, 0, 200)
                     },
                     cooldown = new[] { Mathf.Clamp(cooldown.Value, 1f, 60f) },
                     // Every hit shoves along the way you're facing (knockbackOverwrite), not away
                     // from the burst's centre. The bash and crash knockback is set by the force as
                     // each hit is made ([Crash] Knockback -> FullKnockback); these are placeholders.
-                    knockbackMultiplier = new[] { Mathf.Clamp(raiseKnockback.Value, 0f, 100f), Knockback, Knockback },
-                    knockbackOverwrite = new[] { true, true, true },
+                    // The aftershock throws outward from the crash.
+                    knockbackMultiplier = new[] { Mathf.Clamp(raiseKnockback.Value, 0f, 100f), Knockback, Knockback, Knockback, 40f },
+                    knockbackOverwrite = new[] { true, true, true, true, false },
                     // The crash stuns longer at high force (StunMultiplier), set as the hit is made.
-                    hitStunDurationModifier = new[] { 1f, 1f, 1f },
+                    hitStunDurationModifier = new[] { 1f, 1f, 1f, 1f, 1.5f },
                     // Two bash bursts overlap during the rush: one bash per enemy.
-                    sameTargetImmunityTime = new[] { 0.5f, 0.5f, 0.5f },
-                    shakeCamera = new[] { false, false, true }
+                    sameTargetImmunityTime = new[] { 0.5f, 0.5f, 0.5f, 0.5f, 0.5f },
+                    shakeCamera = new[] { false, false, true, true, true }
                 },
                 priceMultiplier = 6,
                 // LegendAPI rerolls a shop offer when this returns false.
@@ -156,7 +177,18 @@ namespace WoLStoneCharge
                 "glowing cracks and a rune in the shield, stone chunks circling you, floor cracks, embers, dust rings, a crater, " +
                 "rock spikes and flung stones. Off = the 0.3.0 look. Cosmetic only; applies on the next cast.");
 
+            signatureWithArcana = Config.Bind("General", "SignatureUnlocksWithArcana", true,
+                "Unlock Stone Charge's signature version along with the arcana itself, so it can go in the signature slot as soon as " +
+                "you have it. Off: its Signature drop has to be found in a run, as for the game's own arcana.");
+            sigCrashRadius = Float("Signature", "CrashScale", 2f, 1f, 4f,
+                "The signature earthquake's crash radius, times the enhanced crash's (the aftershock reaches 1.7x further).");
+
             const string restart = " Applies after restarting the game.";
+            sigCrashDamage = Config.Bind("Balance", "SignatureCrashDamage", 7,
+                new ConfigDescription("Base damage of the signature's earthquake crash (x FullMultiplier, always full force)." + restart,
+                    new AcceptableValueRange<int>(0, 200)));
+            aftershockDamage = Config.Bind("Balance", "SignatureAftershockDamage", 15,
+                new ConfigDescription("Damage of the signature's aftershock ring further out." + restart, new AcceptableValueRange<int>(0, 200)));
             raiseDamage = Config.Bind("Balance", "RaiseDamage", 3,
                 new ConfigDescription("Damage of the shove as the shield forms in front of you." + restart, new AcceptableValueRange<int>(0, 100)));
             raiseKnockback = Float("Balance", "RaiseKnockback", 8f, 0f, 100f, "Knockback of that shove." + restart);

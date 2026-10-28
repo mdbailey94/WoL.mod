@@ -24,9 +24,28 @@ namespace WoLStoneCharge
     // shoving along your way. Their damage and knockback scale with the stored force, 1x at none up
     // to FullMultiplier at full, and the crash stuns longer from StunEnergy up. An instant crash
     // is weak; a crash after a long sprint is not.
+    //
+    // Signature (0.5.0; isUltimate, the game's flag for a signature cast): the shield goes up at
+    // full force, and running it into enemies doesn't crash: it grabs them (Carrier), and they're
+    // carried along in front of it, up to 8, until the crash. The crash is an earthquake: twice
+    // the enhanced radius (level 4, full force), a hit-stop, a flash, a heavy shake and slowed
+    // time, then an aftershock ring further out (level 5) with its own spikes. The camera pulls
+    // back and the room darkens while you charge (Cinematic, always put back).
     public class StoneChargeState : Player.SkillState
     {
         public new static string staticID = "StoneCharge";
+        // The signature.
+        private const int SigCrashLevel = 4, AftershockLevel = 5;
+        private const float AftershockReach = 1.7f, AftershockAt = 0.3f, SigRecoverTime = 0.55f;
+        private const float CarryKeep = 2.6f;         // a carried enemy further than this from the shield is let go
+        private const float SigZoom = 0.15f, SigDim = 0.7f;
+        private const int SigHitStopFrames = 6;
+        private const float SigFlash = 1.6f, SigShake = 2.6f, SigSlowMoTime = 0.5f, SigSlowMoScale = 0.05f, SigEaseBack = 1f;
+        private bool signature, aftershockDone;
+        private int cinematic;
+        private Vector2 crashAt;
+        private float crashRadius;
+        private readonly Carrier carrier = new Carrier();
 
         // Stat levels of the three hits (see the plugin's skillStats).
         private const int RaiseLevel = 1;
@@ -147,6 +166,9 @@ namespace WoLStoneCharge
             applyStopElementStatus = true;
             // The cooldown counts from the end (the crash or a cancel), like the Charge arcana's.
             startCooldownOnEnter = false;
+            // Lets the arcana into the signature slot (the spellbook's Signature page); see
+            // SignatureUnlock.cs for when that's unlocked.
+            hasSignatureVariant = true;
             SetAnimTimes(
                 0.1f,  // start
                 0.15f, // hold
@@ -190,6 +212,15 @@ namespace WoLStoneCharge
             if (aim == Vector2.zero)
                 aim = Vector2.right;
             parent.movement.EndMovement();
+            signature = isUltimate;
+            aftershockDone = false;
+            carrier.Clear();
+            cinematic = 0;
+            if (signature)
+            {
+                energy = 100f;
+                cinematic = Cinematic.Begin();
+            }
         }
 
         // The base Update runs ExecuteSkill once the animation passes its execute time; while the
@@ -250,6 +281,9 @@ namespace WoLStoneCharge
 
         public override void OnExit()
         {
+            if (signature)
+                Cinematic.EaseOut(cinematic, 0.5f, unloaded ? "cast over" : "shield dropped before the crash");
+            carrier.Clear();
             EndDash();
             StopSprint();
             SetArmour(false);
@@ -382,7 +416,7 @@ namespace WoLStoneCharge
                     lastSpeed = SpeedFactor();
                     peakSpeed = Mathf.Max(peakSpeed, lastSpeed);
                     float rate = StoneChargePlugin.EnergyPerSecond * (IsEmpowered ? 1f + StoneChargePlugin.EnhancedEnergyBonus / 100f : 1f);
-                    energy = Mathf.Min(100f, energy + dt * rate * lastSpeed);
+                    energy = signature ? 100f : Mathf.Min(100f, energy + dt * rate * lastSpeed);
                 }
                 else
                 {
@@ -399,11 +433,23 @@ namespace WoLStoneCharge
             Milestones();
             ChargeEffects(moving);
 
+            // The signature: enemies the shield runs into are grabbed and carried along with it.
+            if (signature)
+            {
+                float settle = Mathf.Clamp01(time / 0.5f);
+                float eased = settle * settle * (3f - 2f * settle);
+                Cinematic.Set(cinematic, SigZoom * eased, Mathf.Lerp(1f, SigDim, eased));
+                Vector2 shieldSpot = (Vector2)here + aim * BashOffset;
+                if (moving)
+                    GrabAt(shieldSpot);
+                carrier.Move(here, shieldSpot, CarryKeep);
+            }
+
             // A dash covers most of a unit a frame: check halfway from last frame's spot as well.
             Enemy struck;
             if (time >= StoneChargePlugin.MinPressTime && skillSlot >= 0 && parent.inputDevice.GetButtonDown("Skill" + skillSlot))
                 Unload("press");
-            else if (moving && time >= StoneChargePlugin.MinPressTime &&
+            else if (!signature && moving && time >= StoneChargePlugin.MinPressTime &&
                 (ShieldTouches(here, out struck) || (dashing && ShieldTouches(((Vector2)here + lastHere) * 0.5f, out struck))))
                 Unload((dashing ? "dashed into " : "ran into ") + struck.name);
             else if (time >= StoneChargePlugin.ChargeTime)
@@ -608,6 +654,30 @@ namespace WoLStoneCharge
             catch (System.Exception e)
             {
                 LogOnce("airborne", $"couldn't set the dash's airborne status: {e.Message}");
+            }
+        }
+
+        // The signature: every live enemy (not an ally) at the shield is grabbed to be carried.
+        private void GrabAt(Vector2 spot)
+        {
+            try
+            {
+                int before = carrier.Grabbed;
+                foreach (Collider2D col in Physics2D.OverlapCircleAll(spot, ContactRadius))
+                {
+                    Enemy enemy = col != null ? col.GetComponentInParent<Enemy>() : null;
+                    if (enemy == null || !enemy.gameObject.activeInHierarchy || enemy.health == null || enemy.health.CurrentHealthValue <= 0)
+                        continue;
+                    if (GameController.allies != null && GameController.allies.Contains(enemy.gameObject))
+                        continue;
+                    carrier.Grab(enemy);
+                }
+                if (carrier.Grabbed > before)
+                    Effect("grab dust", () => PoolManager.GetPoolItem<DustEmitter>().EmitCircle(12, 0.5f, -3f, -1f, new Vector3?(spot), null));
+            }
+            catch (System.Exception e)
+            {
+                LogOnce("grab", $"couldn't grab enemies at the shield: {e.Message}");
             }
         }
 
@@ -1005,6 +1075,8 @@ namespace WoLStoneCharge
             rushTime += Time.deltaTime;
             if (parent.rigidbody2D != null)
                 parent.rigidbody2D.velocity = rushDir * rushSpeed;
+            if (signature)
+                carrier.Move(parent.transform.position, (Vector2)parent.transform.position + rushDir * BashOffset, CarryKeep + 1f);
             if (!bashedMid && rushTime >= StoneChargePlugin.RushTime * 0.5f)
             {
                 bashedMid = true;
@@ -1044,11 +1116,18 @@ namespace WoLStoneCharge
             phase = Phase.Recovering;
             recoverTime = 0f;
             parent.movement.EndMovement();
-            float radius = IsEmpowered ? StoneChargePlugin.EnhancedCrashRadius : StoneChargePlugin.CrashRadius;
+            float radius = IsEmpowered || signature ? StoneChargePlugin.EnhancedCrashRadius : StoneChargePlugin.CrashRadius;
+            if (signature)
+                radius *= StoneChargePlugin.SignatureCrashScale;
             Vector2 at = (Vector2)parent.attackOriginTrans.position + rushDir * CrashOffset;
+            crashAt = at;
+            crashRadius = radius;
+            if (signature)
+                Earthquake(carrier.Grabbed);
+            carrier.Clear();
             try
             {
-                EarthBurst burst = EarthBurst.CreateBurst(at, parent.skillCategory, skillID, CrashLevel, radius);
+                EarthBurst burst = EarthBurst.CreateBurst(at, parent.skillCategory, skillID, signature ? SigCrashLevel : CrashLevel, radius);
                 Scale(burst.attack, true);
                 crashDamage = burst.attack.atkInfo != null ? burst.attack.atkInfo.damage : 0;
                 burst.attack.entityCollisionEventHandlers += OnCrashHit;
@@ -1180,12 +1259,51 @@ namespace WoLStoneCharge
             }
         }
 
+        // The signature crash's beats: time all but stops on a hit-stop, the room flashes, the
+        // ground heaves.
+        private void Earthquake(int carried)
+        {
+            Effect("hit-stop", () => TimeScaleController.FreezeForFrames(SigHitStopFrames, false));
+            Cinematic.Flash(cinematic, SigFlash, 0.1f);
+            Effect("quake", () => CameraController.ShakeCamera(SigShake, true));
+            Effect("slow motion", () => TimeScaleController.SetTimeScaleDelayOverRealTime(SigSlowMoTime, SigSlowMoScale, true, true));
+            Log($"signature earthquake: crash radius {crashRadius:0.0} carrying {carried} enem{(carried == 1 ? "y" : "ies")}, hit-stop {SigHitStopFrames} frames, " +
+                $"flash x{SigFlash:0.0}, shake {SigShake:0.0}, slow motion {SigSlowMoTime:0.00} s; aftershock {AftershockAt:0.0} s later at x{AftershockReach:0.0}");
+        }
+
+        // The aftershock: a ring of the ground erupting further out from the crash.
+        private void Aftershock()
+        {
+            aftershockDone = true;
+            float radius = crashRadius * AftershockReach;
+            Vector2 at = crashAt;
+            try
+            {
+                EarthBurst burst = EarthBurst.CreateBurst(at, parent.skillCategory, skillID, AftershockLevel, radius);
+                burst.skipParticleEmit = true;
+            }
+            catch (System.Exception e)
+            {
+                LogOnce("aftershock", $"couldn't make the aftershock: {e.Message}");
+            }
+            if (StoneChargePlugin.DrawnEffects)
+                Effect("rock spikes", () => SpikeRing(at, radius));
+            Effect("dust", () => PoolManager.GetPoolItem<DustEmitter>().EmitCircle(80, radius * 0.6f, -6f, -1f, new Vector3?(at), null));
+            Effect("debris", () => PoolManager.GetPoolItem<RockDebrisEmitter>().EmitSingle(RockDebrisType.Default, new int?(14),
+                new Vector3?(at), RockDebrisEmitter.FloorExplosionOverrideR1p5, null, 0f, null));
+            Effect("shake", () => CameraController.ShakeCamera(1.3f, true));
+            Effect("sound", () => SoundManager.PlayAudioWithDistance("EarthExplosion", new Vector2?(at), null, 24f, -1f, 0.8f, false));
+            Cinematic.EaseOut(cinematic, SigEaseBack, "aftershock finished");
+        }
+
         private void Recover()
         {
             recoverTime += Time.deltaTime;
             if (parent.rigidbody2D != null)
                 parent.rigidbody2D.velocity = Vector2.zero;
-            if (recoverTime < RecoverTime)
+            if (signature && !aftershockDone && recoverTime >= AftershockAt)
+                Aftershock();
+            if (recoverTime < (signature ? SigRecoverTime : RecoverTime))
                 return;
             phase = Phase.Done;
             LogHits();
