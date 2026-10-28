@@ -17,7 +17,7 @@ namespace WoLAscension
     {
         public const string PluginGuid = "mdbailey94.wol.ascension";
         public const string PluginName = "Ascension";
-        public const string PluginVersion = "0.7.2";
+        public const string PluginVersion = "0.7.3";
 
         private const string PlayerDamageTakenMod = "Ascension_DamageTaken";
         private const string PlayerHealingMod = "Ascension_Healing";
@@ -232,6 +232,7 @@ namespace WoLAscension
                 Logger.LogInfo("Left the trials - Ascension modifiers off");
                 runLevel = -1;
                 gemCarry = 0f;
+                animSped.Clear();
                 RemovePlayerMods();
             }
             if (Time.unscaledTime >= nextTrialCheck)
@@ -340,8 +341,31 @@ namespace WoLAscension
                     EnsureMod(enemy.health.healthStat, EnemyHealthMod, health, true);
                 if (enemy.movement != null)
                     EnsureMod(enemy.movement.moveSpeedStat, EnemySpeedMod, speed, false);
+                // "Move and attack faster" (the table, 0.7.3): their animations, which pace their
+                // wind-ups and swings, run faster by the same amount, the way the game's own
+                // attack-speed relic speeds up the wizard. Once per enemy, so it never stacks.
+                if (speed > 1f && enemy.animSpeedHandler != null && animSped.Add(enemy.GetInstanceID()))
+                {
+                    try
+                    {
+                        enemy.animSpeedHandler.Modify(new NumVarStatMod(EnemyAnimMod, speed - 1f, 10, VarStatModType.Multiplicative, false), true);
+                    }
+                    catch (Exception e)
+                    {
+                        if (!loggedAnimError)
+                        {
+                            loggedAnimError = true;
+                            Logger.LogWarning($"Enemy attack speed: {e.Message}");
+                        }
+                    }
+                }
             }
         }
+
+        private const string EnemyAnimMod = "Ascension_EnemyAnimSpeed";
+        // Enemies whose animations were sped up (instance ids; the ids aren't reused within a run).
+        private readonly HashSet<int> animSped = new HashSet<int>();
+        private bool loggedAnimError;
 
         private static bool AnyEnemy() => FindObjectOfType<Enemy>() != null;
 

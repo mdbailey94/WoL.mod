@@ -47,11 +47,11 @@ namespace WoLAscension
             {
                 case 1: return "Elites 12%";
                 case 2: return "Your healing -25%";
-                case 3: return "Enemies 10% faster";
+                case 3: return "Enemies move and attack 10% faster";
                 case 4: return "1 in 4 elites has two affixes";
                 case 5: return "Bosses +30% health and an elite affix; elites drop Rare+";
                 case 6: return "Your max health -15%";
-                case 7: return "Enemies 20% faster; rifts 40%";
+                case 7: return "Enemies move and attack 20% faster; rifts 40%";
                 case 8: return "Healing -50%; half of elites have two affixes";
                 case 9: return "Elites come in pairs; bosses +60% health";
                 case 10: return "Every elite and realm boss has two affixes; realm boss drops a Legendary";
@@ -82,7 +82,7 @@ namespace WoLAscension
             lines.Add($"Elites {UnityEngine.Mathf.RoundToInt(EliteChance(level) * 100f)}% of enemies");
             Add(lines, EnemyHealth(level), "Enemies have {0} health");
             Add(lines, EnemyDamage(level), "Enemies deal {0} damage");
-            Add(lines, EnemySpeed(level), "Enemies move {0} faster");
+            Add(lines, EnemySpeed(level), "Enemies move and attack {0} faster");
             Add(lines, BossHealth(level), "Bosses have {0} more health");
             Add(lines, Healing(level), "Your healing {0}");
             Add(lines, PlayerMaxHealth(level), "Your max health {0}");

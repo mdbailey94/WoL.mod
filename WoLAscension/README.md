@@ -23,8 +23,7 @@ this table; without Chaos Depths only the health, damage, speed and healing part
 **The rewards**, per level: +5% chaos gems and +5% experience, Magic-and-better rarity weight
 +15%, item level +2. Gold drops are no longer cut (0.6.x had −20% from level 5).
 
-Not in yet: the enemies' attack speed (only their movement is faster at 3 and 7) and level 10's
-Chaos Surge look (waiting on art, #29). Bosses with an affix roll Swift or Armored (a Giant boss
+Not in yet: level 10's Chaos Surge look (waiting on art, #29). (Attack speed is in since 0.7.3.) Bosses with an affix roll Swift or Armored (a Giant boss
 would be scaled up inside its arena).
 
 ## Choosing a level: the Ascension altar
@@ -56,6 +55,12 @@ or lists the level loaders it saw. If the altar is in an awkward spot, move it w
 `BepInEx/config/mdbailey94.wol.ascension.cfg` (game units from the portal; default 3.5 to the left,
 level with it). If a run starts some way that skips the portal, the altar's level is applied as soon as
 the first enemies appear.
+
+## Changes in 0.7.3
+
+- Enemies now also **attack** faster at levels 3 (+10%) and 7 (+20%), as the table says: their
+  animations, which pace their wind-ups and swings, are sped up the way the game's own
+  attack-speed relic speeds up the wizard.
 
 ## Changes in 0.7.2
 
