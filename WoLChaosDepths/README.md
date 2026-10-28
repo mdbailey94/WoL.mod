@@ -508,3 +508,12 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
   guaranteed Legendary (the last boss of the fight to fall; 0.15.4 made it once per level
   rather than once ever, remembered in the save as `finalLegendaryAt`).
 - Ascension 10's realm boss Legendary (#27) is unchanged.
+
+## 0.15.5: ring and pendant stay on the body while running
+
+- The gear probe showed every run frame of the wizard's sheet reading as fully drawn (all 48
+  rows, every column), so the chest and hand were found at the frame's front edge, about 22 px
+  ahead of the body. A sheet that reads fully opaque now has its background colour (the frame's
+  corner) counted as empty. The log says, once per sheet, how many pixels of its first frame
+  count as drawn, and when it switched to the background colour.
+- `[Debug] GearLog` stays on until a run confirms the fix.

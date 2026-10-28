@@ -66,6 +66,7 @@ namespace WoLChaosDepths
                 if (t == null)
                     texels.Remove(t);
             unreadable.RemoveWhere(t => t == null);
+            keyedSheets.RemoveWhere(t => t == null);
             foreach (Sprite s in new List<Sprite>(shapes.Keys))
                 if (s == null)
                     shapes.Remove(s);
@@ -86,16 +87,50 @@ namespace WoLChaosDepths
             if (w <= 0 || h <= 0 || x0 < 0 || y0 < 0 || x0 + w > tex.width || y0 + h > tex.height)
                 return null;
             var shape = new Shape { minX = new int[h], maxX = new int[h], bottom = -1, top = -1, ppu = sprite.pixelsPerUnit };
+            bool keyed = keyedSheets.Contains(tex);
+            Color32 key = px[y0 * tex.width + x0];
+            int solid = ScanRows(shape, px, tex.width, x0, y0, w, h, keyed, key);
+            // The wizard's sheet can come back from the copy with every pixel opaque, so each
+            // row spanned the whole frame and the pendant and ring sat at its front edge while
+            // running (0.15.5). Then the frame's corner colour is its background.
+            if (!keyed && solid == w * h)
+            {
+                keyedSheets.Add(tex);
+                ChaosDepthsPlugin.Log($"adornments: {tex.name} reads fully opaque; using its background colour ({key.r},{key.g},{key.b},{key.a}) as empty");
+                solid = ScanRows(shape, px, tex.width, x0, y0, w, h, true, key);
+            }
+            if (loggedSheets.Add(tex))
+                ChaosDepthsPlugin.Log($"adornments: {tex.name} frame {sprite.name}: {solid} of {w * h} pixels drawn, rows {shape.bottom}-{shape.top}");
+            if (shape.bottom < 0 || solid == w * h)
+                return null;
+            // The pivot is in pixels from the sprite's full rect; the texture rect may be offset
+            // inside it.
+            shape.origin = sprite.textureRectOffset - sprite.pivot;
+            return shape;
+        }
+
+        // Sheets whose empty pixels are told by the background colour, not by alpha.
+        private static readonly HashSet<Texture2D> keyedSheets = new HashSet<Texture2D>(), loggedSheets = new HashSet<Texture2D>();
+
+        // Fills the shape's row spans; returns how many pixels counted as drawn.
+        private static int ScanRows(Shape shape, Color32[] px, int texWidth, int x0, int y0, int w, int h, bool keyed, Color32 key)
+        {
+            int count = 0;
+            shape.bottom = shape.top = -1;
             for (int y = 0; y < h; y++)
             {
-                int lo = -1, hi = -1, row = (y0 + y) * tex.width + x0;
+                int lo = -1, hi = -1, row = (y0 + y) * texWidth + x0;
                 for (int x = 0; x < w; x++)
-                    if (px[row + x].a > 127)
-                    {
-                        if (lo < 0)
-                            lo = x;
-                        hi = x;
-                    }
+                {
+                    Color32 c = px[row + x];
+                    bool drawn = keyed ? c.a > 127 && (c.r != key.r || c.g != key.g || c.b != key.b) : c.a > 127;
+                    if (!drawn)
+                        continue;
+                    count++;
+                    if (lo < 0)
+                        lo = x;
+                    hi = x;
+                }
                 shape.minX[y] = lo;
                 shape.maxX[y] = hi;
                 if (lo >= 0)
@@ -105,12 +140,7 @@ namespace WoLChaosDepths
                     shape.top = y;
                 }
             }
-            if (shape.bottom < 0)
-                return null;
-            // The pivot is in pixels from the sprite's full rect; the texture rect may be offset
-            // inside it.
-            shape.origin = sprite.textureRectOffset - sprite.pivot;
-            return shape;
+            return count;
         }
 
         private static Color32[] Texels(Texture2D tex)
