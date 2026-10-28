@@ -87,17 +87,25 @@ namespace WoLGaleRider
         // The game's animation for a ride pose name ([Look] RidePose); null = the run, not held.
         private string PoseAnim(string name)
         {
-            switch (name)
+            switch ((name ?? "").Trim().ToLowerInvariant())
             {
-                case "Slide": return parent.SlideAnimStr;
-                case "GSlam": return parent.GSlamAnimStr;
-                case "Jump": return parent.JumpAnimStr;
-                case "Fall": return parent.FallAnimStr;
-                case "Charge": return parent.ChargeAnimStr;
-                case "Dash": return parent.DashAnimStr;
-                default: return null;
+                case "slide": return parent.SlideAnimStr;
+                case "gslam": return parent.GSlamAnimStr;
+                case "jump": return parent.JumpAnimStr;
+                case "fall": return parent.FallAnimStr;
+                case "charge": return parent.ChargeAnimStr;
+                case "dash": return parent.DashAnimStr;
+                case "run": return null;
+                default:
+                    if (!warnedPose)
+                    {
+                        warnedPose = true;
+                        GaleRiderPlugin.Log($"Gale Rider: [Look] RidePose '{name}' isn't one of Slide, GSlam, Jump, Fall, Charge, Dash, Run; using Slide");
+                    }
+                    return parent.SlideAnimStr;
             }
         }
+        private static bool warnedPose;
         private float nextStreak, nextWake, nextTrail, lastPuff;
         private int streaks, puffs;
         private float lastBallWidth;

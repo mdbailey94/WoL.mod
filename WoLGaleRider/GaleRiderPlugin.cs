@@ -13,7 +13,7 @@ namespace WoLGaleRider
     {
         public const string PluginGuid = "mdbailey94.wol.galerider";
         public const string PluginName = "Gale Rider";
-        public const string PluginVersion = "0.3.3";
+        public const string PluginVersion = "0.3.4";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -129,9 +129,11 @@ namespace WoLGaleRider
             vortexSize = Float("Look", "VortexSize", 1f, 0.3f, 3f, "Size of the swirling wind drawn round you, relative to the ball.");
             rideOnTop = Config.Bind("Look", "RideOnTop", true,
                 "Crouch on top of the wind ball as it rolls under you: a crouched pose, held still, your feet on its top (RidePose, RidePoseFrame, RideSeat). Off: ride inside it as before.");
+            // No AcceptableValueList here: BepInEx resets a value that isn't listed exactly (a
+            // different case included) to the default on load, which looks like the edit vanishing.
+            // The name is matched ignoring case in the state; an unknown one falls back to Slide.
             ridePose = Config.Bind("Look", "RidePose", "Slide",
-                new ConfigDescription("The wizard's pose while riding, one of the game's own animations held on one frame: Slide (crouched low), GSlam (crouched, fist down), Jump (legs tucked), Fall, Charge, Dash, Run (not held).",
-                    new AcceptableValueList<string>("Slide", "GSlam", "Jump", "Fall", "Charge", "Dash", "Run")));
+                "The wizard's pose while riding, one of the game's own animations held on one frame: Slide (crouched low), GSlam (crouched, fist down), Jump (legs tucked), Fall, Charge, Dash, or Run (not held). Case doesn't matter; an unknown name means Slide.");
             ridePoseFrame = Float("Look", "RidePoseFrame", 0.5f, 0f, 1f,
                 "Which moment of the pose's animation is held, 0 = its first frame, 1 = its last. Try a few: 0.5 of Slide is the full crouch.");
             rideSeat = Float("Look", "RideSeat", 0.9f, 0f, 1f,
