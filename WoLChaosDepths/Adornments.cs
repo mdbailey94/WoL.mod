@@ -190,6 +190,29 @@ namespace WoLChaosDepths
             return null;
         }
 
+        // The eyes facing sideways: one eye, the left 3 columns of each of the strip's 4 frames
+        // (its eye pixel in the middle), centred like the full frames.
+        private static readonly Dictionary<string, Sprite[]> oneEye = new Dictionary<string, Sprite[]>();
+
+        private static Sprite[] OneEye(string name, float ppu)
+        {
+            string key = name + "|" + ppu;
+            Sprite[] frames;
+            if (oneEye.TryGetValue(key, out frames))
+                return frames;
+            frames = null;
+            Texture2D tex = ItemArt.LoadPng(name);
+            if (tex != null && tex.width % 4 == 0 && tex.width / 4 >= 3)
+            {
+                int w = tex.width / 4;
+                frames = new Sprite[4];
+                for (int i = 0; i < 4; i++)
+                    frames[i] = Sprite.Create(tex, new Rect(i * w, 0, 3, tex.height), new Vector2(0.5f, 0.5f), ppu);
+            }
+            oneEye[key] = frames;
+            return frames;
+        }
+
         private static bool HasPendantView(string[] designs, string view)
         {
             foreach (string d in designs)
@@ -450,6 +473,12 @@ namespace WoLChaosDepths
             // looping at 8 fps behind the wizard, centred under the feet.
             private SpriteRenderer aura;
             private Sprite[] auraFrames;
+            // Its glowing eyes (unique_eyes_<name>.png, #5): 4 frames of 5x3 looping at 6 fps over
+            // the face, found in every frame from the picture; one eye facing sideways, none
+            // facing up.
+            private SpriteRenderer eyes;
+            private Sprite[] eyeFrames, eyeSide;
+            private const int EyeRowsDown = 7;   // the eye row below the top of the picture (WoL Art)
             // The charm's stones floating round the wizard (one per rarity tier above Common).
             private readonly List<SpriteRenderer> orbs = new List<SpriteRenderer>();
             private float orbitPhase, nextTrail;
@@ -537,6 +566,23 @@ namespace WoLChaosDepths
                         }
                     }
                     aura = Part(aura, auraOf, auraFrames != null ? auraFrames[0] : null);
+                    // The eyes of the first unique worn that has them.
+                    ItemData eyesOf = null;
+                    eyeFrames = eyeSide = null;
+                    foreach (ItemData worn in new[] { amulet, ring, charm })
+                    {
+                        string art;
+                        if (worn == null || string.IsNullOrEmpty(worn.unique) || !UniqueArt.TryGetValue(worn.unique, out art))
+                            continue;
+                        eyeFrames = ItemArt.Frames("unique_eyes_" + art, 4, Centre, ppu);
+                        if (eyeFrames != null)
+                        {
+                            eyeSide = OneEye("unique_eyes_" + art, ppu);
+                            eyesOf = worn;
+                            break;
+                        }
+                    }
+                    eyes = Part(eyes, eyesOf, eyeFrames != null ? eyeFrames[0] : null);
                     // A drawn charm is one orb, its size set by its rarity; the code-drawn
                     // stones are one per rarity tier.
                     int stones = charm == null ? 0 : charmDesign != null ? 1 : charmTier + 1;
@@ -629,7 +675,7 @@ namespace WoLChaosDepths
                     if (o == null)
                         orbGone = true;
                 if ((amulet != null && pendant == null) || (ring != null && glint == null) || (charm != null && (orbs.Count == 0 || orbGone))
-                    || (auraFrames != null && aura == null))
+                    || (auraFrames != null && aura == null) || (eyeFrames != null && eyes == null))
                     Rebuild();
                 Show(true);
                 Vector3 feet = player.transform.position;
@@ -716,6 +762,19 @@ namespace WoLChaosDepths
                     glint.enabled = !up; // the hand is behind the body facing up
                     glint.sprite = Ring(ringDesign, ColourOf(ring), ringTier, Twinkle(1, ringTier), ppu);
                 }
+                if (eyes != null && eyeFrames != null)
+                {
+                    Vector2 eyesWorld = Vector2.zero;
+                    bool shown = !up && EyesOnFrame(body, down, side, out eyesWorld);
+                    eyes.enabled = shown;
+                    if (shown)
+                    {
+                        int f = (int)(Time.time * 6f) & 3;   // dim, normal, bright, normal
+                        eyes.sprite = down || eyeSide == null ? eyeFrames[f] : eyeSide[f];
+                        eyes.transform.position = new Vector3(eyesWorld.x, eyesWorld.y, pivot.z);
+                        Sort(eyes, body, front + 1);
+                    }
+                }
                 if (orbs.Count > 0)
                 {
                     // The charm's stones circle the wizard at chest height: a flat ellipse (seen
@@ -773,6 +832,37 @@ namespace WoLChaosDepths
                         var pick = parts[UnityEngine.Random.Range(0, parts.Count)];
                         Mote.Shed(pick.Key, ColourOf(pick.Value), body, ppu);
                     }
+                }
+            }
+
+            // Where the eyes go in this frame: on the row EyeRowsDown below the top of the drawn
+            // picture, its middle facing down, two pixels in from the front edge facing sideways.
+            // A body pixel's own centre, so the eye pixels land on the wizard's pixel grid.
+            private bool EyesOnFrame(SpriteRenderer body, bool down, float side, out Vector2 world)
+            {
+                world = Vector2.zero;
+                try
+                {
+                    BodyPixels.Shape sh = BodyPixels.Of(body.sprite);
+                    if (sh == null || body.flipY || sh.top - sh.bottom < 16)
+                        return false;
+                    int y = sh.top - EyeRowsDown, l, r;
+                    if (!sh.Row(y, out l, out r) || r - l < 4)
+                        return false;
+                    int px;
+                    if (down)
+                        px = l + (r - l) / 2;
+                    else
+                    {
+                        bool rightIsFront = World(body, sh, r, y).x * side >= World(body, sh, l, y).x * side;
+                        px = rightIsFront ? r - 2 : l + 2;
+                    }
+                    world = World(body, sh, px, y);
+                    return true;
+                }
+                catch
+                {
+                    return false;
                 }
             }
 
@@ -1073,6 +1163,7 @@ namespace WoLChaosDepths
                 if (pendant != null) pendant.enabled = on;
                 if (glint != null) glint.enabled = on;
                 if (aura != null) aura.enabled = on;
+                if (eyes != null) eyes.enabled = on;
                 foreach (SpriteRenderer o in orbs)
                     if (o != null) o.enabled = on;
             }
@@ -1083,6 +1174,7 @@ namespace WoLChaosDepths
                 if (pendant != null) Destroy(pendant.gameObject);
                 if (glint != null) Destroy(glint.gameObject);
                 if (aura != null) Destroy(aura.gameObject);
+                if (eyes != null) Destroy(eyes.gameObject);
                 foreach (SpriteRenderer o in orbs)
                     if (o != null) Destroy(o.gameObject);
                 orbs.Clear();

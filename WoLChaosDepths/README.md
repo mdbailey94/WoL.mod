@@ -414,3 +414,10 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
 
 - A completed dive (its final boss, or its last realm boss with `[Dive] RealmsPerDive`) is
   reported to Ascension 0.7.1, which unlocks the next level in the fresh save.
+
+## 0.14.2 (task sheet #5)
+
+- A worn unique's **glowing eyes** (WoL Art's `unique_eyes_<name>`, 4 frames at 6 fps) sit on
+  the face in every frame: on the row 7 pixels below the top of the wizard's drawn picture, in
+  its middle facing down, one eye two pixels in from the front edge facing sideways, hidden
+  facing up. Placed on the wizard's own pixel grid; with the foot aura from 0.13.5.
