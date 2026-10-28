@@ -35,6 +35,29 @@ the ring and the pendant have their own art but no power. Proposed, kept mild:
 The trade-offs: 15 uniques instead of 9, so each is rarer, and plain Legendary rings and
 pendants would lose these looks (as the charms did in 0.15.12).
 
+## Cinematic signatures for more mod arcana (proposed, waiting on Matt's order)
+
+Asked for on 2026-10-28. Cinematic signatures already exist for Thunderhead, Tidal Wall, Bramble
+Ring and Feint Swap: a gather, the camera pulling back, the room darkening, hit-stops,
+slow motion and a flash. Each new one would reuse that kit (Tidal Wall's `Cinematic.cs`).
+
+- **Cyclone / Twister** (has a signature since 0.5.0, not cinematic yet). The room darkens
+  and the camera pulls back as it grows, with lightning flickering inside the storm. Thrown
+  enemies hang for a beat of slow motion at the top of their arc, and the burst brings a
+  flash, a hit-stop and a heavy shake.
+- **Gale Rider**. A storm-sized ball you ride for 6 s, flattening everything in its path. It
+  ends in a leap and a ground-slam shockwave, with slow motion at the top of the leap.
+- **Rolling Gale**. Seven bursts rolling out in a fan instead of one line, the last one huge,
+  with a hit-stop per burst and the camera tracking the line.
+- **Stone Charge**. Starts fully charged with a heavier bulwark. Every enemy you hit on the run
+  is carried along, and the crash is an earthquake: the screen shakes, rock spikes ring out
+  and the time slows.
+- **Trailblazer**. You become a comet: the room darkens to embers for 5 s, your trail is
+  twice as wide and erupts in pillars of fire when it ends.
+- **Vacuum Fist, Blazing Kick, Vine Slingshot and Charged Leap** (Slingshot Dash). Each gets a
+  bigger, slower-motion version of its finisher, like Feint Swap's signature: the rush or pull
+  in normal time, then the punch, kick or fling in slow motion with a flash.
+
 ## Item tiers and bonus lines
 
 See `PLAN-tiers.md`. Matt wants changes to the plan before it's built and hasn't said which
