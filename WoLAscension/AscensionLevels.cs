@@ -45,7 +45,7 @@ namespace WoLAscension
         {
             switch (level)
             {
-                case 1: return "Elites 12%, enemies +20% health, +10% damage taken";
+                case 1: return "Elites 12%";
                 case 2: return "Your healing -25%";
                 case 3: return "Enemies 10% faster";
                 case 4: return "1 in 4 elites has two affixes";
@@ -65,7 +65,7 @@ namespace WoLAscension
             if (level <= 0)
                 return "Off: the normal game";
             int bonus = UnityEngine.Mathf.RoundToInt((Gems(level) - 1f) * 100f);
-            return $"Adds: {Added(level)}. Enemies +{Pct(EnemyHealth(level))} health, +{Pct(EnemyDamage(level))} damage. Gems and xp +{bonus}%";
+            return $"Adds: {Added(level)}. Enemies +{Pct(EnemyHealth(level))}% health, +{Pct(EnemyDamage(level))}% damage. Gems and xp +{bonus}%";
         }
 
         private static int Pct(float multiplier) => UnityEngine.Mathf.RoundToInt((multiplier - 1f) * 100f);

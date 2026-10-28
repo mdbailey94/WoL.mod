@@ -54,7 +54,8 @@ namespace WoLChaosDepths
                 // A rect in the mockup's pixels.
                 Func<float, float, float, float, Rect> R = (x, y, rw, rh) => new Rect(left + x * s, top + y * s, rw * s, rh * s);
 
-                int font = Mathf.Max(10, 6 * s);
+                // 7 a mockup pixel: about the mockup's 5-px capitals (6 read small in game).
+                int font = Mathf.Max(10, 7 * s);
                 GUIStyle text = PixelUI.Style(font, PixelUI.Text);
                 GUIStyle dim = PixelUI.Style(font, PixelUI.Dim);
                 GUIStyle dimRight = PixelUI.Style(font, PixelUI.Dim, TextAnchor.UpperRight);

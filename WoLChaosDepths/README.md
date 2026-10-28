@@ -438,3 +438,9 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
   elites overlap, only the one over the elite nearest a wizard shows (an elite's own two
   markers always show side by side).
 - The log no longer says "at depth N" for rifts.
+
+## 0.14.5
+
+- The inventory's text a size larger, nearer the mockup's (from WoL Player's first screenshot).
+- `[Debug] PortalLog` only logs presses within 3 units of a portal (the Ascension altar beside
+  the trials portal filled the log).

@@ -14,6 +14,9 @@ namespace WoLChaosDepths
     public static class PortalProbe
     {
         private static ConfigEntry<bool> on;
+        // About twice a portal's trigger (#33 found it catches a wizard within 1.2-1.5 u), so a
+        // press at the Ascension altar beside the portal (4.2 u) isn't logged.
+        private const float Reach = 3f;
         private static readonly FieldInfo loaderPlayer = AccessTools.Field(typeof(NextLevelLoader), "player");
         private static readonly FieldInfo loaderEntered = AccessTools.Field(typeof(NextLevelLoader), "portalEntered");
 
@@ -60,7 +63,7 @@ namespace WoLChaosDepths
                     if (loader == null)
                         continue;
                     float d = Vector2.Distance(at, loader.transform.position);
-                    if (d > 5f)
+                    if (d > Reach)
                         continue;
                     found++;
                     object caught = loaderPlayer != null ? loaderPlayer.GetValue(loader) : null;
@@ -70,8 +73,6 @@ namespace WoLChaosDepths
                         $"{((caught as Player) != null && (caught as Player) != p ? " (another one)" : "")}, entered {entered}); " +
                         $"wizard state '{state}', available {p.IsAvailable}, paused {TimeScaleController.paused}, at ({at.x:0.0}, {at.y:0.0})");
                 }
-                if (found == 0)
-                    ChaosDepthsPlugin.Log($"Portal probe: player {p.playerID + 1} pressed Interact at ({at.x:0.0}, {at.y:0.0}) in state '{state}' with no level loader within 5 u");
             }
             catch (Exception e)
             {

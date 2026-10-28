@@ -57,6 +57,10 @@ or lists the level loaders it saw. If the altar is in an awkward spot, move it w
 level with it). If a run starts some way that skips the portal, the altar's level is applied as soon as
 the first enemies appear.
 
+## Changes in 0.7.2
+
+- The level 1 notice no longer lists the health and damage twice (and shows its percent signs).
+
 ## Changes in 0.7.1
 
 - Levels unlock in order (task sheet #32). In Chaos Depths' **fresh save** the altar starts with
