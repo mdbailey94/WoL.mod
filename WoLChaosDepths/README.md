@@ -444,3 +444,10 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
 - The inventory's text a size larger, nearer the mockup's (from WoL Player's first screenshot).
 - `[Debug] PortalLog` only logs presses within 3 units of a portal (the Ascension altar beside
   the trials portal filled the log).
+
+## 0.14.6 (task sheet #26)
+
+- `[Display] FrameCap` (0 = off): caps the frame rate. The game never caps it itself, so with
+  its vsync option off it runs at 500-1400 fps, and the frame probe showed a ~100 ms stall every
+  few seconds even on the title screen with no mod code behind it. Try 60 or 120 (or the game's
+  vsync) if the game stutters.

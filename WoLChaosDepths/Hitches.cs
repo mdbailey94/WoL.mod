@@ -32,6 +32,24 @@ namespace WoLChaosDepths
             hitchMs = config.Bind("Debug", "HitchMs", 34f,
                 "A frame at least this long (milliseconds) is logged by HitchLog. 34 = two frames at 60 fps.");
             SceneManager.activeSceneChanged += (from, to) => quietUntil = Time.unscaledTime + 2f;
+            // The 0.13.x probe showed 500-1400 fps uncapped with a ~100 ms stall every few
+            // seconds even on the title screen, which looks like the GPU's queue rather than any
+            // mod's code; a cap tests that (and is gentler on the machine either way).
+            frameCap = config.Bind("Display", "FrameCap", 0,
+                new ConfigDescription("Cap the frame rate at this many frames a second (0 = the game's own setting). Only applies with vsync off.",
+                    new AcceptableValueRange<int>(0, 500)));
+            ApplyFrameCap();
+            frameCap.SettingChanged += (s, e) => ApplyFrameCap();
+        }
+
+        private static ConfigEntry<int> frameCap;
+
+        private static void ApplyFrameCap()
+        {
+            if (frameCap == null || frameCap.Value <= 0)
+                return;
+            Application.targetFrameRate = frameCap.Value;
+            ChaosDepthsPlugin.Log($"Frame rate capped at {frameCap.Value} fps (vsync count {QualitySettings.vSyncCount}; a cap only applies with vsync off)");
         }
 
         // First thing in the plugin's Update: the frame that just ended.
