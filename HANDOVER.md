@@ -1,4 +1,4 @@
-# Handover brief: Wizard of Legend mods
+﻿# Handover brief: Wizard of Legend mods
 
 This brief is for a new Claude Code session that continues the work of the cloud session
 "WoL Modder". Read it first, then the README of whichever mod you're touching.
@@ -25,10 +25,16 @@ This brief is for a new Claude Code session that continues the work of the cloud
 - **Master WoL task sheet** (Google Sheets `1OjZRfxg4HKvsv6V9r_rNqyZ27qZjAByavjx694gJ8qE`) is
   where the WoL Manager assigns work. Rows 1-4 set the CHECK-IN STATUS (open hours, shutdowns,
   Eastern time) and the cadence: read them before anything else, every time. Columns: ID, Date,
-  Task, Category, Reported By, Assigned To, Priority, Status (H), Notes (I, newest first,
-  "YYYY-MM-DD WoL Modder: ..."), Date Done (J), File Link (K). Rows are added and removed, so
-  find a task by its ID, never by a remembered row number.
-- **As of 2026-10-27 9:31pm ET the team is shut down until Monday 2026-11-02, 8:00am ET.**
+  Task, Category, Reported By, Assigned To, Priority, Status (H), Notes ARCHIVE (I, read-only),
+  Date Done (J), File Link (K), Latest update (L, filled from the logs). Rows are added, removed
+  and IDs reused, so match a task by its text as well as its ID.
+- **Writing rule (Matt, 2026-10-28 12:15pm):** each bot writes only in its own tab ('Log -
+  Modder' for you): append a row (Date/Time ET | Task # | Note | File Link), never edit old rows
+  or other tabs. On Sheet1 change only the Status cell of your own tasks; new problems go in your
+  log with Task # 'NEW' and the Manager adds them.
+- WoL Player is reachable as the local session "WOL - player" (SendMessage); it tests each build
+  in the profile and reports in 'Log - Player'. Install into the profile only while the game is
+  closed (it locks the DLLs; check `Get-Process wizardoflegend`).
 - **WoL Modder** (you) builds the mods; tasks with Assigned To "WoL Modder" are yours.
 - **WoL Player** is a Claude session on Matt's PC that runs the game, reads logs, takes
   screenshots, and reports on the sheet. It has the decompiled game at
@@ -41,15 +47,26 @@ This brief is for a new Claude Code session that continues the work of the cloud
 
 ## Since the handover (2026-10-28, local session as WoL Modder)
 
-All pushed and installed (base game, and the Chaos Depths profile's copies); none tested in game
-yet, WoL Player retests from Monday. Notes are on each task row.
+The evening of 2026-10-28 (Modder + Player open until 10pm, goal: a fresh Chaos Depths save):
+
+- Chaos Depths 0.13.6-0.14.8, Ascension 0.7.0-0.7.3, Unlock Mod Content 0.2.1, Mod Menu 0.1.5:
+  #30 each player opens their own inventory (needs Matt for a two-player test); #31 Fresh and
+  Debugging saves picked on the title screen (Tab / LB), fresh-save drop rates; #27 depths gone
+  and the approved Ascension 1-10 table (Ascension holds it, Chaos Depths reads it through
+  `AscensionLink`); #32 levels unlock in order in the fresh save; #16 the inventory drawn with
+  WoL Art's pieces on her mockup (`InventoryPanelArt.cs`, `[Panel] Look = Coded` for the old
+  one); #5 foot auras and glowing eyes; #26 the stalls were the uncapped frame rate, fixed by
+  Mod Menu's `[Display] FrameCap` (120). WoL Player passed #27 at A10, #16, #5, #26, #33 (not a
+  bug: the trials portal only catches a wizard within ~1.5 u of its centre).
+- Still waiting: Matt's two-player fresh-save run (#30, #31 drops and first-boss Legendary, #32
+  unlocking); #23 and #29 art (WoL Art is off until Monday).
+
+Earlier that day:
 
 - Chaos Depths 0.13.1 (#25: pickup no longer fires the basic attack), 0.13.2 (#26: `[Debug]
   HitchLog` frame probe, cached text styles), 0.13.3 (#17: WoL Art's elite affix markers),
   0.13.4 (#26: no per-frame string keys for worn gear), 0.13.5 (#18 drop glows, #5 foot auras).
 - Trailblazer 0.9.3 (#26: trail hits only near enemies; one shared texture search).
-- Still to hook up: #5 glowing eyes (needs a per-frame face point), #16 the panel pieces (re-lay
-  the panel out on the mockup's 232x168 grid at a whole-number scale first).
 - Slingshot Dash 0.25.5 (#24: Feint Swap signature fan at full range, 52 degrees), 0.25.6 (#26:
   slingshot HUD icon no longer rewritten every frame).
 - Trailblazer 0.9.2, Ascension 0.6.1, Mod Menu 0.1.4 (#26: pooled trail columns, cached styles,
@@ -59,11 +76,12 @@ yet, WoL Player retests from Monday. Notes are on each task row.
 - To build without deploying, point `-GameDir` at a copy holding only `BepInEx\core` and
   `WizardOfLegend_Data\Managed` (no `plugins` folder, so nothing is copied).
 
-## Chaos Depths (the main project, `WoLChaosDepths`, 0.13.5)
+## Chaos Depths (the main project, `WoLChaosDepths`, 0.14.8)
 
 A Diablo-like loot layer on Wizard of Legend: character level and XP, items in three slots
 (Amulet, Ring, Charm) at four rarities with rolled affixes, six unique legendaries with powers,
-elites, depth and waypoints, layer bosses, rifts, physical drops picked up with Interact, gear
+elites (difficulty from Ascension's table; depths and layer bosses removed in 0.14.0), rifts,
+physical drops picked up with Interact, gear
 drawn on the wizard, and an inventory panel (I key / right stick). Design doc: Claude Doc
 https://claude.ai/artifact/9ygkyb3WgVeYYtpFDpSGxM.
 
@@ -114,7 +132,7 @@ https://claude.ai/artifact/9ygkyb3WgVeYYtpFDpSGxM.
 | Slingshot Dash | 0.25.6 | Holds Vacuum Fist, Blazing Kick, Feint Swap, Vine Slingshot, Charged Leap; drawn icons. |
 | Rolling Gale | 0.4.2 | Drawn icon. |
 | Stone Charge | 0.4.1 | |
-| Ascension | 0.6.1 | Chaos Depths reads its level for loot. |
+| Ascension | 0.7.3 | Chaos Depths reads its level for loot. |
 | Others | | Camera Zoom, Cloak Upgrades, Custom Paintings, Damage Meter, Duelist's Cloak, Extended Stats, Mod Menu, Potion Price, Relic Pack, Unlock Mod Content. |
 
 Matt's base-game loadout is Stone Shot / Charged Leap / Trailblazer / Feint Swap. Restore it if
