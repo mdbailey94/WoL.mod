@@ -20,6 +20,11 @@ A new **Air standard arcana**, added with [LegendAPI](https://github.com/yekoc/L
 - **Enhanced**: full size in 3 seconds (bursting at 4), and a wider burst.
 - Dash to cancel at any time. Cooldown 5 seconds.
 
+## 0.5.1
+
+- The signature twister is **2.5x** the enhanced one's width (was 1.8x; `[Signature] Width`, now
+  up to 4). A config file still holding 0.5.0's 1.8 is moved to 2.5 once.
+
 ## 0.5.0: three tiers and a signature (asked for by Matt)
 
 - **Standard**: as before, but the wind carries only dust and rocks, no leaves.

@@ -14,13 +14,18 @@ a **signature version**, so it can go in the signature slot.
 | Tier | 2 |
 | Price | 6 |
 | Cooldown | 6 s (Tidal Blast 6, Whirlpool 7) |
-| Wall | 5 water columns, 4.5 wide, rises 2 in front of you, stands 0.2 s, then rolls 6 at 6/s |
-| Enhanced | 7 columns (6.3 wide), rolls 7.8 |
-| Damage | 4 per push (a push every 0.35 s while it rolls), 6 for the crash: **18** for an enemy carried the whole way (22 enhanced) |
-| Knockback | 20 per push, 40 for the crash, always straight along your aim |
+| Wall | 5 water columns, 3.5 wide, rises 2 in front of you, stands 0.2 s, then rolls 4.8 at 6/s |
+| Enhanced | 7 columns (4.9 wide), rolls 6.3 |
+| Damage | 4 per push (a push every 0.35 s while it rolls), 6 for the crash: **14** for an enemy carried the whole way (18 enhanced) |
+| Knockback | 10 per push, 20 for the crash, always straight along your aim |
 | Freeze | none |
 | Projectiles | enemy projectiles that touch the wall are stopped (or bounced back) |
-| Signature | 8 columns (10 enhanced) 1.7x as tall, 10.4 wide (13), rushes 15 (18) at 12/s, 10 per push every 0.25 s and **60** for the crash, which **freezes** everything for 2.5 s: up to 110 per enemy (120), about what the game's water signatures do to one enemy (0.3.1 trimmed the crash from 70) |
+| Signature | 8 columns (10 enhanced) 1.7x as tall, 8 wide (10), rushes 12 (14.4) at 12/s, 10 per push every 0.25 s and **60** for the crash, which **freezes** everything for 2.5 s: up to 100 per enemy (about 105 enhanced); knockback 15 per push, 30 for the crash |
+
+0.4.4 (Matt: too wide, pushes too far) narrows every level by about a quarter (columns 0.7
+apart, 1.0 in the signature, from 0.9 and 1.3), shortens every roll by a fifth and halves all
+the knockback (was 20 / 40, signature 30 / 60). A shorter roll means one push fewer, so a
+carried enemy takes a little less damage.
 
 A single wall of water rises across your aim a short way in front of you, stands for a moment, then
 rolls slowly forward as one front. Everything it touches is shoved along with it, pushed again

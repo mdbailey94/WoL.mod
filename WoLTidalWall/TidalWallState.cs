@@ -31,22 +31,24 @@ namespace WoLTidalWall
         // The standing wall.
         private const int Columns = 5;                  // water columns side by side (Water Wall's own count)
         private const int EnhancedExtraColumns = 2;     // enhanced: wider
-        private const float ColumnSpacing = 0.9f;       // so 4.5 wide, 6.3 enhanced
+        // 0.4.4 (Matt: too wide, pushes too far): a quarter narrower and a fifth shorter at every
+        // level, and half the knockback (TidalWallPlugin).
+        private const float ColumnSpacing = 0.7f;       // so 3.5 wide, 4.9 enhanced (0.9: 4.5 / 6.3)
         private const float WallDepth = 1.4f;           // thickness of its hit area along the aim
         private const float HoldTime = 0.2f;            // seconds it stands before rolling
         private const float RollSpeed = 6f;             // slow: it carries enemies rather than smashing them
-        private const float RollTime = 1f;              // 6 units
-        private const float EnhancedRollTime = 1.3f;    // 7.8 units
+        private const float RollTime = 0.8f;            // 4.8 units (was 6)
+        private const float EnhancedRollTime = 1.05f;   // 6.3 units (was 7.8)
         private const float TickInterval = 0.35f;       // a push every this many seconds while rolling
         // The signature tidal wave.
         private const int SignatureColumns = 8;         // 10 when also enhanced
-        private const float SignatureColumnSpacing = 1.3f; // 10.4 wide, 13 when also enhanced
+        private const float SignatureColumnSpacing = 1f;   // 8 wide, 10 when also enhanced (1.3: 10.4 / 13)
         private const float SignatureColumnScale = 1.7f;   // the columns tower over the wizard
         private const float SignatureDepth = 2.4f;
         private const float SignatureHoldTime = 0.1f;
         private const float SignatureSpeed = 12f;
-        private const float SignatureRollTime = 1.25f;  // 15 units
-        private const float EnhancedSignatureRollTime = 1.5f; // 18 units
+        private const float SignatureRollTime = 1f;     // 12 units (was 15)
+        private const float EnhancedSignatureRollTime = 1.2f; // 14.4 units (was 18)
         private const float SignatureTickInterval = 0.25f;
         // Skill levels (SkillStats in the plugin).
         private const int TickLevel = 1;

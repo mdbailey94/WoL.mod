@@ -13,7 +13,7 @@ namespace WoLCyclone
     {
         public const string PluginGuid = "mdbailey94.wol.cyclone";
         public const string PluginName = "Cyclone";
-        public const string PluginVersion = "0.5.0";
+        public const string PluginVersion = "0.5.1";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -22,7 +22,7 @@ namespace WoLCyclone
         private ConfigEntry<bool> signatureWithArcana;
         private static ConfigEntry<float> signatureWidth, tossHeight;
         private static ConfigEntry<int> tossDamage;
-        public static float SignatureWidth => Mathf.Clamp(signatureWidth?.Value ?? 1.8f, 1f, 3f);
+        public static float SignatureWidth => Mathf.Clamp(signatureWidth?.Value ?? 2.5f, 1f, 4f);
         public static float TossHeight => Mathf.Clamp(tossHeight?.Value ?? 2.5f, 0.5f, 6f);
         public static int TossDamage => Mathf.Clamp(tossDamage?.Value ?? 12, 0, 200);
 
@@ -41,8 +41,11 @@ namespace WoLCyclone
             signatureWithArcana = Config.Bind("General", "SignatureUnlocksWithArcana", true,
                 "Unlock Cyclone's signature version along with the arcana itself, so it can go in the signature slot as soon as " +
                 "you have it. Off: its Signature drop has to be found in a run, as for the game's own arcana.");
-            signatureWidth = Config.Bind("Signature", "Width", 1.8f,
-                new ConfigDescription("The signature twister's hit area and look, times the enhanced one's. Applies to the next cast.", new AcceptableValueRange<float>(1f, 3f)));
+            // 0.5.1: 2.5 (Matt: wider; was 1.8). An old 1.8 left in the config file is moved up once.
+            signatureWidth = Config.Bind("Signature", "Width", 2.5f,
+                new ConfigDescription("The signature twister's hit area and look, times the enhanced one's. Applies to the next cast.", new AcceptableValueRange<float>(1f, 4f)));
+            if (Mathf.Approximately(signatureWidth.Value, 1.8f))
+                signatureWidth.Value = 2.5f;
             tossHeight = Config.Bind("Signature", "TossHeight", 2.5f,
                 new ConfigDescription("How high the signature throws enemies (units). Applies to the next cast.", new AcceptableValueRange<float>(0.5f, 6f)));
             tossDamage = Config.Bind("Signature", "TossDamage", 12,

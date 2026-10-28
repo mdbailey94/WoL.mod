@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
@@ -14,7 +14,7 @@ namespace WoLTidalWall
     {
         public const string PluginGuid = "mdbailey94.wol.tidalwall";
         public const string PluginName = "Tidal Wall";
-        public const string PluginVersion = "0.4.3";
+        public const string PluginVersion = "0.4.4";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -72,7 +72,8 @@ namespace WoLTidalWall
                     // everything the same way; the pushes are light so enemies stay in front of it
                     // and get carried, the crash throws them. Tidal Blast's blast is 50, the
                     // ice wave's (SummonIceWave) 25.
-                    knockbackMultiplier = new[] { 20f, 40f, 30f, 60f },
+                    // 0.4.4 halved them all (Matt: it pushed too far; was 20, 40, 30, 60).
+                    knockbackMultiplier = new[] { 10f, 20f, 15f, 30f },
                     knockbackOverwrite = new[] { true },
                     hitStunDurationModifier = new[] { 1.5f, 1.5f, 2f, 2f },
                     // Water's status in this game is Freeze (Air's is Slow). The wall doesn't
