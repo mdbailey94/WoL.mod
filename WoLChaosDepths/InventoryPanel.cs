@@ -189,8 +189,9 @@ namespace WoLChaosDepths
             else
                 nextTabRepeat = 0f;
 
-            // Interact (Y / F) or Tab: the next sort order.
-            if (Pressed(pad, "Interact") || KeyDown(KeyCode.Tab))
+            // Y (Triangle), Interact or Tab: the next sort order. Y is read off the pad itself,
+            // since the game doesn't put Interact on it.
+            if (PadY(pad) || Pressed(pad, "Interact") || KeyDown(KeyCode.Tab))
             {
                 sortMode = (sortMode + 1) % SortNames.Length;
                 selected = 0;
@@ -268,6 +269,23 @@ namespace WoLChaosDepths
             }
             if (KeyDown(KeyCode.Delete))
                 Salvage();
+        }
+
+        private static readonly string[] YNames = { "y", "y button", "triangle" };
+
+        private static bool PadY(Rewired.Player pad)
+        {
+            try
+            {
+                if (pad != null)
+                    foreach (Rewired.Joystick joystick in pad.controllers.Joysticks)
+                        if (ChaosDepthsPlugin.PadButtonJustPressed(joystick, 3, YNames))
+                            return true;
+            }
+            catch
+            {
+            }
+            return false;
         }
 
         private static bool Pressed(Rewired.Player pad, string action)

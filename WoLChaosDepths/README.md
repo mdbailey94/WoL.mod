@@ -267,7 +267,7 @@ Laid out after WoL Art's mockup (`inventory_mockup_1x.png`):
 - **Tabs** under the header: ALL, amulet, ring, charm, cycled with left / right (the chosen tab
   is lighter with a gold underline). In the Hub the depth picker moved to Y + left / right on a
   pad or Q / E on the keyboard, since left / right now change the tab.
-- **Sort** (top right): Rarity, Level, Slot or Newest, cycled with Y (Interact) or Tab; equipped
+- **Sort** (top right): Rarity, Level, Slot or Newest, cycled with Y (Triangle) or Tab; equipped
   items always come first.
 - **Rows** are two lines: the icon in a rarity-coloured frame, the name in its rarity colour
   with a green E when equipped, then the level and rarity. The chosen row is lighter with a gold
@@ -518,3 +518,8 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
   count as drawn, and when it switched to the background colour.
 - The sheet's background turned out to be solid red (255,0,0), not transparent. Matt confirmed
   the fix in a run, and 0.15.6 removed the gear probe and `[Debug] GearLog`.
+
+## 0.15.7: Y sorts the inventory on a controller
+
+- Y (Triangle) now cycles the sort, read straight off the pad like the button that opens the
+  inventory: the sort listened for the game's Interact, which isn't on Y, so only Tab worked.

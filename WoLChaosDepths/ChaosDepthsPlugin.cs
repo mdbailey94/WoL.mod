@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.15.6";
+        public const string PluginVersion = "0.15.7";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -440,6 +440,15 @@ namespace WoLChaosDepths
                 case "none": return false;
                 default: index = 9; names = new[] { "right stick button", "r3", "rs", "right stick" }; break;
             }
+            return PadButtonJustPressed(joystick, index, names);
+        }
+
+        // A face or stick button just pressed on this pad: by its XInput index on a generic pad
+        // (buttons named "Button N"), by name on a recognised one.
+        public static bool PadButtonJustPressed(Joystick joystick, int index, string[] names)
+        {
+            if (joystick == null || joystick.Buttons == null)
+                return false;
             bool generic = true;
             foreach (Rewired.Controller.Button button in joystick.Buttons)
             {
