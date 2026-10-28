@@ -15,7 +15,7 @@ namespace WoLModMenu
     {
         public const string PluginGuid = "mdbailey94.wol.modmenu";
         public const string PluginName = "Mod Menu";
-        public const string PluginVersion = "0.1.3";
+        public const string PluginVersion = "0.1.4";
 
         private const string ModGuidPrefix = "mdbailey94.wol.";
         private const float ReferenceHeight = 1080f;
@@ -122,16 +122,18 @@ namespace WoLModMenu
         // True outside a run (no active players), i.e. the title screen and other front-end menus,
         // except while the game's own Options screen is open. Finding the title screen itself is
         // only needed to pause its input while our panel is open.
+        // In a run the title screen isn't searched for at all (0.1.4: the search of every loaded
+        // object ran once a second for good, and the status line was built on every call).
         private bool OnTitleMenu()
         {
-            if (Time.unscaledTime >= nextTitleSearch)
+            bool inRun = AnyActivePlayer();
+            if (!inRun && Time.unscaledTime >= nextTitleSearch)
             {
                 nextTitleSearch = Time.unscaledTime + FindTitleInterval;
                 titleScreen = FindTitleScreen();
             }
 
-            bool inRun = AnyActivePlayer();
-            bool inOptions = titleScreen != null && titleScreen.gameObject.activeInHierarchy
+            bool inOptions = !inRun && titleScreen != null && titleScreen.gameObject.activeInHierarchy
                 && titleScreen.currentState == TitleScreen.TitleScreenState.Options;
             bool onTitle = !inRun && !inOptions;
             LogTitleStatus(inRun, onTitle);
@@ -167,8 +169,26 @@ namespace WoLModMenu
         }
 
         // Logs only when something changes, so a log shows why the panel did or didn't appear.
+        // The line is only built when one of its parts changed.
+        private bool loggedInRun, loggedOnTitle, loggedFound, loggedActive, loggedEnabled;
+        private TitleScreen.TitleScreenState loggedState;
+        private int loggedMods = -1;
+
         private void LogTitleStatus(bool inRun, bool onTitle)
         {
+            bool found = titleScreen != null;
+            bool active = found && titleScreen.gameObject.activeInHierarchy, enabledNow = found && titleScreen.enabled;
+            TitleScreen.TitleScreenState state = found ? titleScreen.currentState : default(TitleScreen.TitleScreenState);
+            if (loggedMods >= 0 && inRun == loggedInRun && onTitle == loggedOnTitle && found == loggedFound && active == loggedActive
+                && enabledNow == loggedEnabled && state == loggedState && mods.Count == loggedMods)
+                return;
+            loggedInRun = inRun;
+            loggedOnTitle = onTitle;
+            loggedFound = found;
+            loggedActive = active;
+            loggedEnabled = enabledNow;
+            loggedState = state;
+            loggedMods = mods.Count;
             string title = titleScreen == null
                 ? "not found"
                 : $"active={titleScreen.gameObject.activeInHierarchy} enabled={titleScreen.enabled} state={titleScreen.currentState}";

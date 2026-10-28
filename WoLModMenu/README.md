@@ -20,6 +20,12 @@ What "off" means:
 Each switch is the mod's own `[General] Enabled` setting, so you can also change it in that mod's
 file in `BepInEx\config`.
 
+## Changes in 0.1.4
+
+- Lighter during a run (task sheet #26, frame-rate drops): the title screen is no longer searched
+  for once a second all game long, and the status line it logs is only built when something
+  changed, not several times a frame.
+
 ## Install
 
 Download `WoLModMenu.zip` from the [latest release](https://github.com/mdbailey94/wol.mod/releases/tag/latest)

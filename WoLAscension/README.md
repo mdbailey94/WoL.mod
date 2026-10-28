@@ -50,6 +50,11 @@ or lists the level loaders it saw. If the altar is in an awkward spot, move it w
 level with it). If a run starts some way that skips the portal, the altar's level is applied as soon as
 the first enemies appear.
 
+## Changes in 0.6.1
+
+- The level panel's text style is made once and kept instead of anew several times a frame (task
+  sheet #26, frame-rate drops).
+
 ## Install
 
 Download `WoLAscension.zip` from the [latest release](https://github.com/mdbailey94/wol.mod/releases/tag/latest)
