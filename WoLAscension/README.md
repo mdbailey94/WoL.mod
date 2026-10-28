@@ -56,6 +56,13 @@ or lists the level loaders it saw. If the altar is in an awkward spot, move it w
 level with it). If a run starts some way that skips the portal, the altar's level is applied as soon as
 the first enemies appear.
 
+## Changes in 0.7.4
+
+- Chaos Depths' fresh save starts at **Ascension 0** (off) with nothing unlocked: beat a run at 0
+  to unlock 1, beat 1 to unlock 2, and so on up to 10 (asked for by Matt). The setting is now
+  `[Unlocks] FreshSaveHighest` (0 to start); the old `FreshSave` key, which started at 1, is no
+  longer read.
+
 ## Changes in 0.7.3
 
 - Enemies now also **attack** faster at levels 3 (+10%) and 7 (+20%), as the table says: their

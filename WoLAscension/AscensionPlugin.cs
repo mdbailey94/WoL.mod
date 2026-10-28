@@ -17,7 +17,7 @@ namespace WoLAscension
     {
         public const string PluginGuid = "mdbailey94.wol.ascension";
         public const string PluginName = "Ascension";
-        public const string PluginVersion = "0.7.3";
+        public const string PluginVersion = "0.7.4";
 
         private const string PlayerDamageTakenMod = "Ascension_DamageTaken";
         private const string PlayerHealingMod = "Ascension_Healing";
@@ -65,9 +65,11 @@ namespace WoLAscension
                     new AcceptableValueRange<int>(0, AscensionLevels.Max)));
             showInRun = Config.Bind("General", "ShowLevelInRun", true,
                 "Show a small 'ASCENSION n' tag in the corner during a run.");
-            unlockedFresh = Config.Bind("Unlocks", "FreshSave", 1,
-                new ConfigDescription("Chaos Depths' fresh save: the highest level the altar offers. It starts at 1, and beating a run at the highest level unlocks the next (#32).",
-                    new AcceptableValueRange<int>(1, AscensionLevels.Max)));
+            // A new key (0.7.4): the fresh save now starts at 0 (Ascension off) and the old
+            // FreshSave key started at 1, so it isn't carried over.
+            unlockedFresh = Config.Bind("Unlocks", "FreshSaveHighest", 0,
+                new ConfigDescription("Chaos Depths' fresh save: the highest level the altar offers. It starts at 0 (off): beating a run at 0 unlocks 1, beating 1 unlocks 2, and so on (#32).",
+                    new AcceptableValueRange<int>(0, AscensionLevels.Max)));
             unlockedOther = Config.Bind("Unlocks", "OtherSaves", AscensionLevels.Max,
                 new ConfigDescription("Every other save (the base game, Chaos Depths' Debugging save): the highest level the altar offers.",
                     new AcceptableValueRange<int>(1, AscensionLevels.Max)));
@@ -173,7 +175,7 @@ namespace WoLAscension
 
         // The highest level the altar offers in this save.
         public static int Unlocked => instance == null || instance.UnlockedEntry == null
-            ? AscensionLevels.Max : Mathf.Clamp(instance.UnlockedEntry.Value, 1, AscensionLevels.Max);
+            ? AscensionLevels.Max : Mathf.Clamp(instance.UnlockedEntry.Value, 0, AscensionLevels.Max);
 
         // Called by Chaos Depths when a dive is complete (its final boss, or its last realm boss).
         public static void ReportRunBeaten() => instance?.RunBeaten("Chaos Depths: dive complete");
@@ -187,7 +189,7 @@ namespace WoLAscension
                 return;
             runBeatenLogged = true;
             ConfigEntry<int> entry = UnlockedEntry;
-            int next = Mathf.Min(AscensionLevels.Max, Mathf.Max(1, runLevel + 1));
+            int next = Mathf.Min(AscensionLevels.Max, runLevel + 1);
             Logger.LogInfo($"Run beaten at Ascension {runLevel} ({why})");
             if (entry == null || next <= entry.Value)
                 return;

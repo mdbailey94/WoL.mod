@@ -545,6 +545,13 @@ namespace WoLAscension
             // conversation or paused.
             if (InteractPressed(near) && CanInteract(near))
             {
+                // Nothing unlocked yet (a fresh save before its first win): the notice says
+                // "Off ... Beat it to unlock 1"; the level stays at 0.
+                if (AscensionPlugin.Unlocked <= 0)
+                {
+                    Announce(null);
+                    return;
+                }
                 int from = Level;
                 level.Value = Level >= AscensionPlugin.Unlocked ? 0 : Level + 1;
                 ShowLevel();
