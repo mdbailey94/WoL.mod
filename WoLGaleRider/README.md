@@ -28,6 +28,24 @@ A ride like Aero Ring's, with Tearing Whirlwind's rolling hit:
   the game's slide, like Tearing Whirlwind. Cooldown 7 seconds (from the cast).
 - **Enhanced**: 4.5 seconds on the ball, and the biggest ball is radius 3.
 
+## 0.4.0: a cinematic signature (asked for by Matt)
+
+Gale Rider has a **signature version** now (the spellbook's Signature page; unlocked along with
+the arcana, `[General] SignatureUnlocksWithArcana`):
+
+1. **Storm ball**: the enhanced ball made **twice the size** (hit and look; `[Signature]
+   BallSize`), hitting for 8 (`[Balance] SignatureDamage`) with half again the shove, ridden for
+   **6 s** (`RideTime`). The camera pulls back 20% and the room darkens as you set off.
+2. **Leap**: when the time is up, or you press the button again, the ball comes apart under
+   you and you spring **3 units up** (`LeapHeight`), hanging at the top in **slow motion**.
+3. **Slam**: you come down in a wind blast round where you land that throws everything outward
+   for 40 (`SignatureSlamDamage`), with the game's shockwave, a spinning burst and a ring of
+   dust, a 5-frame hit-stop, a white flash, a heavy shake and a moment of near-frozen time.
+   Then the camera and light ease back.
+
+A dash still cuts the ride short, with no slam. The camera and light always go back, also
+when the cast is cut short and in any case after 9 s (`Gale Rider: signature restored (...)`).
+
 ## 0.3.8
 
 - **Facing the way you ride**: the ride set the wizard's facing without the game's left/right

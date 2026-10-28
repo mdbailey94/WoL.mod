@@ -18,9 +18,28 @@ namespace WoLGaleRider
     // the wizard (Tearing Whirlwind), its collider pulsing to hit again (Aero Ring), its knockback
     // overridden as it goes (Rushing Typhoon); the speed bonus is a multiplicative move-speed mod
     // put on at the start and always taken off at the end, however the ride ends.
+    //
+    // Signature (0.4.0; isUltimate, the game's flag for a signature cast): a storm ball twice the
+    // size that hits harder (skill level 2), ridden for 6 s with the camera pulled back and the
+    // room darkened (Cinematic). When the time is up, or the button is pressed again, you leap
+    // off it, hang at the top in slow motion, and slam down: a wind blast round where you land
+    // (level 3, thrown outward) with a hit-stop, a flash and a heavy shake. A dash still cuts
+    // it short, with no slam.
     public class GaleRiderState : Player.SkillState
     {
         public new static string staticID = "GaleRider";
+        // The signature.
+        private const float SigKnockbackScale = 1.5f;
+        private const float SigZoom = 0.2f, SigDim = 0.65f, SigSettleTime = 0.6f;
+        private const float LeapUpTime = 0.35f, LeapDownTime = 0.2f;
+        private const float LeapCarry = 0.35f;              // of the ride speed, carried into the leap
+        private const float TopSlowMoTime = 0.35f, TopSlowMoScale = 0.15f;
+        private const float SlamScale = 4.5f;               // the wind blast's size where you land
+        private const int SlamHitStopFrames = 5;
+        private const float SlamFlash = 1.8f, SlamShake = 2.2f, SlamSlowMoTime = 0.3f, SlamSlowMoScale = 0.05f, SlamEaseBack = 0.8f;
+        private bool signature, leaping, topSlowMoDone;
+        private float leapTime, leapBase;
+        private int cinematic;
 
         public const int MaxLevel = 10;                 // levels of the log's speed read, 1 at x1.0, 10 at the peak
         private const string RideSpeedModID = "GaleRider_Ride";
@@ -170,6 +189,9 @@ namespace WoLGaleRider
             isMovementSkill = true;
             isMeleeSkill = true;
             applyStopElementStatus = true;
+            // Lets the arcana into the signature slot (the spellbook's Signature page); see
+            // SignatureUnlock.cs for when that's unlocked.
+            hasSignatureVariant = true;
             SetAnimTimes(
                 0.05f, // start
                 0.1f,  // hold
@@ -203,6 +225,23 @@ namespace WoLGaleRider
             HitInterval = GaleRiderPlugin.HitInterval;
             Knockback = GaleRiderPlugin.Knockback;
             PeakKnockback = GaleRiderPlugin.PeakKnockback;
+            signature = isUltimate;
+            leaping = false;
+            topSlowMoDone = false;
+            cinematic = 0;
+            if (signature)
+            {
+                // The storm ball: the enhanced ball (the signature slot is always empowered)
+                // made bigger, shoving harder, ridden longer.
+                RideTimeNow = GaleRiderPlugin.SignatureRideTime;
+                MinSize *= GaleRiderPlugin.SignatureBallSize;
+                MaxSize *= GaleRiderPlugin.SignatureBallSize;
+                Knockback *= SigKnockbackScale;
+                PeakKnockback *= SigKnockbackScale;
+                cinematic = Cinematic.Begin();
+                GaleRiderPlugin.Log($"Gale Rider: signature storm ball: {RideTimeNow:0.#} s, ball radius {MinSize:0.0} to {MaxSize:0.0}, " +
+                    $"then a {GaleRiderPlugin.SignatureLeapHeight:0.#} u leap and a slam");
+            }
             // Set off the way the stick points (or the way they face), with the move stick, not the aim.
             direction = GetInputVector(true, false, true);
             if (direction == Vector2.zero)
@@ -246,6 +285,11 @@ namespace WoLGaleRider
                 riding = true;
                 Mount();
             }
+            if (leaping)
+            {
+                Leap();
+                return;
+            }
             // Dashing hops off at any time (OnExit takes everything back off).
             if (CancelToDash(false))
             {
@@ -258,12 +302,23 @@ namespace WoLGaleRider
             UpdateBall();
             Effects();
             KeepHittable();
+            if (signature)
+            {
+                float t = Mathf.Clamp01(time / SigSettleTime);
+                float eased = t * t * (3f - 2f * t);
+                Cinematic.Set(cinematic, SigZoom * eased, Mathf.Lerp(1f, SigDim, eased));
+            }
 
             bool hopOff = GaleRiderPlugin.HopOffOnPress && time >= GaleRiderPlugin.MinRideTime && skillSlot >= 0
                 && parent.inputDevice != null && parent.inputDevice.GetButtonDown("Skill" + skillSlot);
             if (time >= RideTimeNow || hopOff)
             {
                 endReason = hopOff ? "hopped off" : "ride over";
+                if (signature)
+                {
+                    StartLeap();
+                    return;
+                }
                 done = true;
                 Finish();
             }
@@ -290,7 +345,113 @@ namespace WoLGaleRider
         public override void OnExit()
         {
             Dismount();
+            if (signature)
+                Cinematic.EaseOut(cinematic, 0.5f, leaping ? "cut short in the leap" : "ride ended without a slam");
+            leaping = false;
             base.OnExit();
+        }
+
+        // ---- The signature's leap and slam ----
+
+        // Off the storm ball: it comes apart under you and you spring up.
+        private void StartLeap()
+        {
+            leaping = true;
+            leapTime = 0f;
+            if (ballCol != null)
+                ballCol.enabled = false;
+            velocity = direction * (parent.movement != null ? parent.movement.moveSpeedStat.CurrentValue : 0f) * LeapCarry;
+            if (rider == null)
+                rider = Rider.On(parent);
+            leapBase = rider != null ? rider.height : 0f;
+            if (windBall != null)
+            {
+                lastBallWidth = windBall.Width;
+                WindBall gone = windBall;
+                Effect("wind ball", () => gone.Stop());
+                windBall = null;
+            }
+            Vector2 spot = parent.transform.position;
+            Effect("unravel", () => Unravel(spot));
+            Dust(spot, 40, 0.4f);
+            SoundManager.PlayAudioWithDistance("WindBlastSharp", new Vector2?(spot), null, 24f, -1f, 0.8f, false);
+            GaleRiderPlugin.Log($"Gale Rider: signature leap ({endReason} after {time:0.00}s, {hits} hit(s))");
+        }
+
+        // Up (easing out), a moment of slow motion at the top, then down fast into the slam.
+        private void Leap()
+        {
+            leapTime += Time.deltaTime;
+            float h;
+            if (leapTime < LeapUpTime)
+            {
+                float t = leapTime / LeapUpTime;
+                h = 1f - (1f - t) * (1f - t);
+                parent.anim?.PlayDirectional(parent.JumpAnimStr, -1, 0.5f);
+            }
+            else
+            {
+                if (!topSlowMoDone)
+                {
+                    topSlowMoDone = true;
+                    Try(() => TimeScaleController.SetTimeScaleDelayOverRealTime(TopSlowMoTime, TopSlowMoScale, true, true));
+                }
+                float t = Mathf.Clamp01((leapTime - LeapUpTime) / LeapDownTime);
+                h = 1f - t * t;
+                parent.anim?.PlayDirectional(parent.FallAnimStr, -1, 0.5f);
+                if (t >= 1f)
+                {
+                    Slam();
+                    return;
+                }
+            }
+            if (rider != null)
+                rider.height = Mathf.Lerp(0f, leapBase, 1f - Mathf.Clamp01(leapTime / (LeapUpTime + LeapDownTime))) + GaleRiderPlugin.SignatureLeapHeight * h;
+        }
+
+        // The landing: a wind blast round you that throws everything outward, with the game's
+        // shockwave, spinning burst and a ring of dust, a hit-stop, a flash and a heavy shake.
+        private void Slam()
+        {
+            leaping = false;
+            done = true;
+            velocity = Vector2.zero;
+            if (rider != null)
+                rider.height = 0f;
+            Vector2 spot = parent.transform.position;
+            try
+            {
+                WindBurst.CreateBurst(spot, parent.skillCategory, skillID, 3, SlamScale);
+            }
+            catch (System.Exception e)
+            {
+                GaleRiderPlugin.Log($"Gale Rider: the slam's blast failed: {e.Message}");
+            }
+            Effect("slam shockwave", () => PoolManager.GetPoolItem<ParticleEffect>("AirWaveShockwave").Emit(new int?(1), new Vector3?(spot), null, null, 0f, null, null));
+            Effect("slam burst", () => PoolManager.GetPoolItem<ParticleEffect>("SpinningAirBurst").Emit(new int?(1), new Vector3?(spot), null, null, 0f, null, null));
+            Effect("slam gusts", () => PoolManager.GetPoolItem<ParticleEffect>("WindBurstEffect").Emit(new int?(6), new Vector3?(spot), null, null, 0f, null, null));
+            Dust(spot, 120, SlamScale * 0.4f);
+            Try(() => TimeScaleController.FreezeForFrames(SlamHitStopFrames, false));
+            Cinematic.Flash(cinematic, SlamFlash, 0.1f);
+            Try(() => CameraController.ShakeCamera(SlamShake, true));
+            Try(() => TimeScaleController.SetTimeScaleDelayOverRealTime(SlamSlowMoTime, SlamSlowMoScale, true, true));
+            Cinematic.EaseOut(cinematic, SlamEaseBack, "slam finished");
+            SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(spot), null, 24f, -1f, 0.7f, false);
+            parent.anim?.PlayDirectional(parent.GSlamAnimStr, -1, 0.5f);
+            endReason += ", leapt and slammed down";
+            GaleRiderPlugin.Log($"Gale Rider: signature slam: blast x{SlamScale:0.#}, hit-stop {SlamHitStopFrames} frames, flash x{SlamFlash:0.0}, " +
+                $"shake {SlamShake:0.0}, easing back over {SlamEaseBack:0.0} s");
+        }
+
+        private static void Try(System.Action effect)
+        {
+            try
+            {
+                effect();
+            }
+            catch
+            {
+            }
         }
 
         // ---- Riding ----
@@ -493,7 +654,7 @@ namespace WoLGaleRider
             {
                 ballObj = Object.Instantiate(Attack.CirclePrefab, parent.attackOriginTrans.position, Quaternion.identity, parent.attackOriginTrans);
                 ball = ballObj.GetComponent<Attack>();
-                ball.SetAttackInfo(parent.skillCategory, skillID, 1, isUltimate);
+                ball.SetAttackInfo(parent.skillCategory, skillID, signature ? 2 : 1, isUltimate);
                 ballCol = ball.collider as CircleCollider2D ?? ballObj.GetComponent<CircleCollider2D>();
                 if (ballCol != null)
                     ballCol.radius = MinSize;

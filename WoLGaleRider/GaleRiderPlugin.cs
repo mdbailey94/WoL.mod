@@ -13,7 +13,7 @@ namespace WoLGaleRider
     {
         public const string PluginGuid = "mdbailey94.wol.galerider";
         public const string PluginName = "Gale Rider";
-        public const string PluginVersion = "0.3.8";
+        public const string PluginVersion = "0.4.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -33,6 +33,13 @@ namespace WoLGaleRider
         private static ConfigEntry<int> damage;
         private static ConfigEntry<bool> hittable;
         private static ConfigEntry<float> knockback, peakKnockback, hitInterval, cooldown;
+        private ConfigEntry<bool> signatureWithArcana;
+        private static ConfigEntry<float> sigRideTime, sigBallSize, sigLeapHeight;
+        private static ConfigEntry<int> sigBallDamage, sigSlamDamage;
+        // The signature storm ball (0.4.0).
+        public static float SignatureRideTime => Get(sigRideTime, 6f, 1f, 15f);
+        public static float SignatureBallSize => Get(sigBallSize, 2f, 1f, 4f);
+        public static float SignatureLeapHeight => Get(sigLeapHeight, 3f, 0.5f, 8f);
 
         public static float RideTime => Get(rideTime, 3f, 0.5f, 10f);
         public static float EnhancedRideTime => Get(enhancedRideTime, 4.5f, 0.5f, 12f);
@@ -67,6 +74,10 @@ namespace WoLGaleRider
                 "Offer Gale Rider in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
             BindSettings();
+            // The signature version only shows up in the spellbook's Signature list once it's
+            // unlocked; see SignatureUnlock.cs.
+            SignatureUnlock.Install(new HarmonyLib.Harmony(PluginGuid), GaleRiderState.staticID,
+                () => signatureWithArcana.Value, message => Log("Gale Rider: " + message));
 
             Skills.Register(new SkillInfo
             {
@@ -74,7 +85,8 @@ namespace WoLGaleRider
                 displayName = "Gale Rider",
                 description = "Summon a ball of wind and ride it! Steer with the stick at a boosted pace while the ball rolls over enemies, " +
                     "shoving them away in the direction you're heading. The faster you go, the bigger the ball and the harder the shove!",
-                enhancedDescription = "Ride longer and the ball grows even larger!",
+                // The game shows this one text on the card for both the enhanced and the signature.
+                enhancedDescription = "Ride longer and the ball grows even larger! Signature: ride a raging storm, then leap off and slam down!",
                 icon = LoadIcon("icon.png"),
                 // Between Tearing Whirlwind (tier 2) and Aero Ring / Rushing Typhoon (tier 4), the
                 // vanilla Air rides it's built on.
@@ -86,20 +98,22 @@ namespace WoLGaleRider
                     elementType = new[] { "Air" },
                     subElementType = new[] { "Air" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
-                    // One stat level: the ball's hit. Small damage (it's displacement and mobility),
-                    // at most one hit every HitInterval per enemy, about 12 a second at the default.
-                    damage = new[] { Mathf.Clamp(damage.Value, 0, 100) },
+                    // Level 1: the ball's hit. Small damage (it's displacement and mobility), at
+                    // most one hit every HitInterval per enemy, about 12 a second at the default.
+                    // Level 2 (0.4.0): the signature storm ball's hit; level 3 its landing slam,
+                    // which throws everything outward from where you land.
+                    damage = new[] { Mathf.Clamp(damage.Value, 0, 100), Mathf.Clamp(sigBallDamage.Value, 0, 200), Mathf.Clamp(sigSlamDamage.Value, 0, 500) },
                     cooldown = new[] { Mathf.Clamp(cooldown.Value, 0.5f, 60f) },
                     // The walking-pace knockback; the state raises it with your speed, up to
                     // PeakKnockback, by overriding it on the ball every frame.
-                    knockbackMultiplier = new[] { Mathf.Clamp(knockback.Value, 0f, 200f) },
+                    knockbackMultiplier = new[] { Mathf.Clamp(knockback.Value, 0f, 200f), Mathf.Clamp(knockback.Value, 0f, 200f), 60f },
                     // Shove in the direction you're riding (the state sets the ball's vector), not
-                    // outward from the ball's centre.
-                    knockbackOverwrite = new[] { true },
-                    hitStunDurationModifier = new[] { 1f },
+                    // outward from the ball's centre; the slam throws outward.
+                    knockbackOverwrite = new[] { true, true, false },
+                    hitStunDurationModifier = new[] { 1f, 1f, 1.5f },
                     // Same-target: the ball is one attack object whose collider pulses to hit again,
                     // so this is what caps how often one enemy is hit.
-                    sameTargetImmunityTime = new[] { Mathf.Clamp(hitInterval.Value, 0.1f, 2f) }
+                    sameTargetImmunityTime = new[] { Mathf.Clamp(hitInterval.Value, 0.1f, 2f), Mathf.Clamp(hitInterval.Value, 0.1f, 2f), 0.1f }
                 },
                 // Aero Ring and Rushing Typhoon are 6, Tearing Whirlwind 7.
                 priceMultiplier = 6,
@@ -142,6 +156,9 @@ namespace WoLGaleRider
 
         private void Update()
         {
+            // The signature's flashes and ease-back run on real time, and its watchdog never
+            // leaves the camera or light changed for long (Cinematic.cs).
+            Cinematic.Tick();
             if (Time.unscaledTime < nextConfigCheck)
                 return;
             nextConfigCheck = Time.unscaledTime + 2f;
@@ -203,7 +220,18 @@ namespace WoLGaleRider
                 "Add the wind ball, floor ring, streaks, gust puffs and gather/unravel on top of the game's wind effects (0.2.0; " +
                 "0.2.1 plays the game's own wind sprites for them where loaded). Off = the 0.1.0 look. Cosmetic only.");
 
+            signatureWithArcana = Config.Bind("General", "SignatureUnlocksWithArcana", true,
+                "Unlock Gale Rider's signature version along with the arcana itself, so it can go in the signature slot as soon as " +
+                "you have it. Off: its Signature drop has to be found in a run, as for the game's own arcana.");
+            sigRideTime = Float("Signature", "RideTime", 6f, 1f, 15f, "Seconds on the signature storm ball before you leap off.");
+            sigBallSize = Float("Signature", "BallSize", 2f, 1f, 4f, "The storm ball's size (hit and look), times the enhanced ball's.");
+            sigLeapHeight = Float("Signature", "LeapHeight", 3f, 0.5f, 8f, "How high you leap off the storm ball before the slam (units).");
+
             const string restart = " Applies after restarting the game.";
+            sigBallDamage = Config.Bind("Balance", "SignatureDamage", 8,
+                new ConfigDescription("Damage of each hit of the signature storm ball." + restart, new AcceptableValueRange<int>(0, 200)));
+            sigSlamDamage = Config.Bind("Balance", "SignatureSlamDamage", 40,
+                new ConfigDescription("Damage of the signature's landing slam." + restart, new AcceptableValueRange<int>(0, 500)));
             hittable = Config.Bind("Balance", "HittableWhileRiding", true,
                 "Enemies can hurt you while you ride. The mod never made you invulnerable itself; with this on it also clears any invulnerability the game puts on a riding wizard, and logs once if it found any.");
             damage = Config.Bind("Balance", "Damage", 4,
