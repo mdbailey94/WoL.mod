@@ -229,3 +229,10 @@ animation, follow the facing, and sit behind the body when facing up. `[Look] Sh
   true-size PNGs into the mod's save folder under `dump\`, with a `sprites.txt` index of the
   sprites on each sheet, for reference art. `[Debug] ShowcaseEnemy` suggests GhoulLarge for
   status-effect screenshots.
+
+## 0.11.8
+
+- The profile installer's default folder is `%USERPROFILE%\ChaosDepths\profile`, outside
+  `AppData`: a packaged app (the Claude desktop app, for one) redirects `AppData` writes into its
+  own storage, which left the desktop shortcut launching the base game. It copies an older
+  `%APPDATA%` profile across and warns when run from a sandbox. See `Profile/README.md`.

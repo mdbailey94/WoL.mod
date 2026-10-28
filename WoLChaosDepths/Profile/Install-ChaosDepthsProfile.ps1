@@ -19,7 +19,7 @@
   Run this once (and again after updating WoLChaosDepths.dll):
     powershell -ExecutionPolicy Bypass -File .\Install-ChaosDepthsProfile.ps1
   Optional:  -GameDir "D:\Steam\steamapps\common\Wizard of Legend"
-             -ProfileDir "D:\ChaosDepths"
+             -ProfileDir "D:\ChaosDepths"   (default: %USERPROFILE%\ChaosDepths\profile)
              -PluginZip ".\WoLChaosDepths.zip"   (a downloaded build to install from)
 
 .NOTES
@@ -30,7 +30,10 @@
 #>
 param(
     [string]$GameDir = "C:\Program Files (x86)\Steam\steamapps\common\Wizard of Legend",
-    [string]$ProfileDir = "$env:APPDATA\ChaosDepths\profile",
+    # Not under AppData: a packaged (MSIX) app such as the Claude desktop app redirects AppData
+    # writes into its own private storage, so a profile made there is invisible to a double-click
+    # on the desktop shortcut, and the launcher silently runs the base game.
+    [string]$ProfileDir = "$env:USERPROFILE\ChaosDepths\profile",
     [string]$PluginZip = ""
 )
 
@@ -53,6 +56,14 @@ if (-not (Test-Path (Join-Path $baseBepInEx "core\BepInEx.Preloader.dll"))) {
 }
 Say "Game:    $($exe.FullName)"
 Say "Profile: $ProfileDir"
+if ($ProfileDir -like "*\AppData\*") {
+    Say "Note: the profile is under AppData. If this script is running inside a packaged app (the Claude desktop app, for one),"
+    Say "      Windows redirects AppData writes into that app's private storage and the desktop shortcut won't find the profile."
+    Say "      Use the default (-ProfileDir left out) or a folder outside AppData if that happens."
+}
+if ((Resolve-Path $PWD).Path -like "*\AppData\Local\Packages\*") {
+    Say "Warning: running from a packaged app's sandbox ($PWD); keep the profile outside AppData (the default does)."
+}
 
 # ---- steam_appid.txt ----
 # Started directly, the game asks Steam to relaunch it (SteamAPI_RestartAppIfNecessary, exit
@@ -62,6 +73,14 @@ $appIdFile = Join-Path $GameDir "steam_appid.txt"
 if (-not (Test-Path $appIdFile)) {
     Set-Content -Path $appIdFile -Value "445980" -Encoding ASCII
     Say "Wrote steam_appid.txt (445980) so the launcher starts the game directly"
+}
+
+# ---- Move an older profile from the previous default (%APPDATA%\ChaosDepths\profile) ----
+$oldDefault = Join-Path $env:APPDATA "ChaosDepths\profile"
+if ((Test-Path (Join-Path $oldDefault "BepInEx\plugins")) -and -not (Test-Path (Join-Path $ProfileDir "BepInEx\plugins")) -and ($oldDefault -ne $ProfileDir)) {
+    New-Item -ItemType Directory -Force -Path (Split-Path $ProfileDir) | Out-Null
+    Copy-Item $oldDefault $ProfileDir -Recurse -Force
+    Say "Copied the older profile from $oldDefault (its config and character saves come along)"
 }
 
 # ---- Make the profile folder ----

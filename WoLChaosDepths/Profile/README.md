@@ -25,7 +25,7 @@ it copies the base save in as its starting point, so nothing has to be unlocked 
 
    Leave out `-PluginZip` to move the plugin that is already in the base game. Pass `-GameDir`
    if the game isn't in the default Steam folder, and `-ProfileDir` to put the profile somewhere
-   other than `%APPDATA%\ChaosDepths\profile`.
+   other than `%USERPROFILE%\ChaosDepths\profile` (keep it outside `AppData`, see below).
 
 3. The script writes `steam_appid.txt` beside the game (so the launcher can start it directly
    without Steam asking about the arguments), copies BepInEx's core into the profile, puts the plugin (and any existing Chaos
@@ -42,6 +42,16 @@ BepInEx's loader (UnityDoorstop) accepts `--doorstop-target <preloader>` on the 
 The launcher points it at the profile's copy of `BepInEx.Preloader.dll`, and BepInEx then uses
 that profile's `plugins` and `config` folders (the same mechanism mod managers use for profiles).
 Launched without the argument, the game uses its own `doorstop_config.ini` and the base folder.
+
+## If the shortcut launches the normal game
+
+The launcher only works if the profile folder exists where the shortcut's command line says. A
+script run from inside a **packaged app** (the Claude desktop app is one) has its `AppData` writes
+redirected into that app's private storage, so a profile made under `%APPDATA%` is invisible to a
+double-click on the desktop, Doorstop finds no profile, and the base game runs. Since 0.11.8 the
+default profile folder is `%USERPROFILE%\ChaosDepths\profile`, outside `AppData`; re-run the
+installer and it copies an older `%APPDATA%` profile across. To check which profile ran, see which
+`BepInEx\LogOutput.log` (profile or game folder) was just written.
 
 ## Known limits
 
