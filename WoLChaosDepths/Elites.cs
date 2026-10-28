@@ -238,6 +238,7 @@ namespace WoLChaosDepths
                     entity.transform.localScale = entity.transform.localScale * giantScale.Value;
                 if (entity.spriteRenderer != null)
                     entity.spriteRenderer.color = affix.tint;
+                EliteMarkers.Attach(entity, affix.name);
                 int id = entity.GetInstanceID();
                 rolled.Add(id);
                 elites[id] = affix;

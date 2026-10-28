@@ -334,3 +334,10 @@ Laid out after WoL Art's mockup (`inventory_mockup_1x.png`):
   loads are left out. Turn it on, play where the drops happen, then read `BepInEx\LogOutput.log`.
 - On-screen text (drop names, the rift timer, the inventory) no longer makes a new text style
   for every label several times a frame; each style is made once and kept.
+
+## 0.13.3 (task sheet #17)
+
+- Elites wear WoL Art's affix marker over their heads: a double chevron for Swift, a shield for
+  Armored, a double up-chevron for Giant, pulsing at 7 fps at true pixel size. It sits above the
+  game's own head point (where hats go), or the top of the picture when an enemy has none, keeps
+  its size on a Giant and doesn't flip when the enemy turns. `[Elites] Markers` turns them off.
