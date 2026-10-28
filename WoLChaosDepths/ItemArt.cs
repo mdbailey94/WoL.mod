@@ -106,11 +106,25 @@ namespace WoLChaosDepths
 
         // A sprite sheet by name (frames side by side, all the same width), as sprites with the
         // given pivot; null when there is no such PNG. Cached per name, pivot and ppu.
-        private static readonly Dictionary<string, Sprite[]> sheets = new Dictionary<string, Sprite[]>();
+        // The worn gear asks for its frames every frame, so the key is a struct, not a string
+        // built (with the pivot and ppu formatted as text) on every call (0.13.4, #26).
+        private struct SheetKey : IEquatable<SheetKey>
+        {
+            public string name;
+            public int frameCount;
+            public Vector2 pivot;
+            public float ppu;
+
+            public bool Equals(SheetKey o) => frameCount == o.frameCount && pivot == o.pivot && ppu == o.ppu && name == o.name;
+            public override bool Equals(object obj) => obj is SheetKey && Equals((SheetKey)obj);
+            public override int GetHashCode() => ((name != null ? name.GetHashCode() : 0) * 31 + frameCount) * 31 + pivot.GetHashCode() ^ ppu.GetHashCode();
+        }
+
+        private static readonly Dictionary<SheetKey, Sprite[]> sheets = new Dictionary<SheetKey, Sprite[]>();
 
         public static Sprite[] Frames(string name, int frameCount, Vector2 pivot, float ppu)
         {
-            string key = name + "|" + frameCount + "|" + pivot + "|" + ppu;
+            var key = new SheetKey { name = name, frameCount = frameCount, pivot = pivot, ppu = ppu };
             Sprite[] result;
             if (sheets.TryGetValue(key, out result))
                 return result;

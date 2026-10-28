@@ -211,6 +211,9 @@ namespace WoLChaosDepths
 
         // ---- Names over nearby items (IMGUI, from the plugin's OnGUI) ----
 
+        // Reused for measuring each name (OnGUI runs several times a frame; #26).
+        private static readonly GUIContent labelContent = new GUIContent();
+
         public static void Draw()
         {
             if (live.Count == 0)
@@ -236,9 +239,10 @@ namespace WoLChaosDepths
                 Vector3 screen = cam.WorldToScreenPoint(p.transform.position + new Vector3(0f, 0.9f, 0f));
                 if (screen.z < 0f)
                     continue;
-                string text = (string.IsNullOrEmpty(p.item.unique) ? "" : "* ") + p.item.name;
+                string text = p.label ?? (p.label = (string.IsNullOrEmpty(p.item.unique) ? "" : "* ") + p.item.name);
                 GUIStyle style = PixelUI.Style(font, Colour(p.item), TextAnchor.MiddleCenter);
-                var size = style.CalcSize(new GUIContent(text));
+                labelContent.text = text;
+                var size = style.CalcSize(labelContent);
                 var rect = new Rect(screen.x - size.x / 2f - u, Screen.height - screen.y - size.y / 2f, size.x + 2 * u, size.y);
                 PixelUI.Fill(rect, new Color(0f, 0f, 0f, 0.55f));
                 GUI.Label(rect, text, style);
@@ -361,6 +365,7 @@ namespace WoLChaosDepths
         {
             public Player owner;
             public ItemData item;
+            public string label; // the name shown over it, made once
             private SpriteRenderer gem, halo;
             private float born, phase;
             private bool taken, prompted;

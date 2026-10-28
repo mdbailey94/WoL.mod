@@ -341,3 +341,9 @@ Laid out after WoL Art's mockup (`inventory_mockup_1x.png`):
   Armored, a double up-chevron for Giant, pulsing at 7 fps at true pixel size. It sits above the
   game's own head point (where hats go), or the top of the picture when an enemy has none, keeps
   its size on a Giant and doesn't flip when the enemy turns. `[Elites] Markers` turns them off.
+
+## 0.13.4 (task sheet #26)
+
+- Less garbage every frame: the worn gear's pictures were looked up under a text key built
+  (with numbers formatted) for every part on every frame; the key is now a plain value. The
+  names over dropped items are made once per item instead of on every redraw.
