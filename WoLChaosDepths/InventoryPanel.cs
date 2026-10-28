@@ -121,9 +121,13 @@ namespace WoLChaosDepths
                 Close();
                 return;
             }
-            Rewired.Player pad = player.inputDevice != null ? player.inputDevice.rewiredPlayer : null;
+            // Only the owner's inputs drive the panel when two wizards play (#30).
+            ChaosDepthsPlugin.PanelInputs(player, out bool useKeys, out bool usePad);
+            Rewired.Player pad = usePad && player.inputDevice != null ? player.inputDevice.rewiredPlayer : null;
+            bool Key(KeyCode k) => useKeys && Input.GetKey(k);
+            bool KeyDown(KeyCode k) => useKeys && Input.GetKeyDown(k);
 
-            if (Pressed(pad, "Cancel") || Input.GetKeyDown(KeyCode.Escape) || ChaosDepthsPlugin.OpenKeyPressed())
+            if (Pressed(pad, "Cancel") || KeyDown(KeyCode.Escape) || (useKeys && ChaosDepthsPlugin.OpenKeyPressed()))
             {
                 Close();
                 return;
@@ -134,9 +138,9 @@ namespace WoLChaosDepths
             // Left and right: the item-type tab (All / Amulet / Ring / Charm). In the Hub, with
             // Interact (Y) held, or Q / E on the keyboard: the depth the next dive starts at.
             float horizontal = 0f;
-            if (Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A))
+            if (Key(KeyCode.LeftArrow) || Key(KeyCode.A))
                 horizontal = -1f;
-            else if (Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D))
+            else if (Key(KeyCode.RightArrow) || Key(KeyCode.D))
                 horizontal = 1f;
             else if (pad != null)
             {
@@ -148,11 +152,11 @@ namespace WoLChaosDepths
                 {
                 }
             }
-            bool depthKeys = Input.GetKey(KeyCode.Q) || Input.GetKey(KeyCode.E);
+            bool depthKeys = Key(KeyCode.Q) || Key(KeyCode.E);
             bool inHub = Depth.Enabled && !ChaosDepthsPlugin.InTrialsNow();
             if (!inHub)
                 depthFocus = false;
-            float depthMove = depthKeys ? (Input.GetKey(KeyCode.E) ? 1f : -1f) : depthFocus ? horizontal : 0f;
+            float depthMove = depthKeys ? (Key(KeyCode.E) ? 1f : -1f) : depthFocus ? horizontal : 0f;
             if (Mathf.Abs(depthMove) > 0.5f && inHub)
             {
                 if (Time.unscaledTime >= nextDepthRepeat)
@@ -186,7 +190,7 @@ namespace WoLChaosDepths
                 nextTabRepeat = 0f;
 
             // Interact (Y / F) or Tab: the next sort order.
-            if (Pressed(pad, "Interact") || Input.GetKeyDown(KeyCode.Tab))
+            if (Pressed(pad, "Interact") || KeyDown(KeyCode.Tab))
             {
                 sortMode = (sortMode + 1) % SortNames.Length;
                 selected = 0;
@@ -196,9 +200,9 @@ namespace WoLChaosDepths
 
             // Up and down with repeat.
             float vertical = 0f;
-            if (Input.GetKey(KeyCode.DownArrow) || Input.GetKey(KeyCode.S))
+            if (Key(KeyCode.DownArrow) || Key(KeyCode.S))
                 vertical = -1f;
-            else if (Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.W))
+            else if (Key(KeyCode.UpArrow) || Key(KeyCode.W))
                 vertical = 1f;
             else if (pad != null)
             {
@@ -240,7 +244,7 @@ namespace WoLChaosDepths
                 nextRepeat = 0f;
 
             // Confirm: tap equips, hold salvages.
-            bool confirmDown = Held(pad, "Confirm") || Input.GetKey(KeyCode.Return) || Input.GetKey(KeyCode.Space);
+            bool confirmDown = Held(pad, "Confirm") || Key(KeyCode.Return) || Key(KeyCode.Space);
             if (confirmDown && depthFocus)
             {
                 confirmConsumed = true;   // Confirm on the depth line does nothing
@@ -262,7 +266,7 @@ namespace WoLChaosDepths
                 confirmHeldSince = -1f;
                 confirmConsumed = false;
             }
-            if (Input.GetKeyDown(KeyCode.Delete))
+            if (KeyDown(KeyCode.Delete))
                 Salvage();
         }
 

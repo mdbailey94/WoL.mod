@@ -462,3 +462,12 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
 
 - The frame cap from 0.14.6 moved to Mod Menu 0.1.5 (`[Display] FrameCap`, 120 by default), so
   it also works in the base game; at 120 the stalls WoL Player measured were gone.
+
+## 0.14.9 (task sheet #30)
+
+- Two players: an open inventory now reads only its owner's controls. The keyboard drives only
+  the keyboard wizard's inventory, and a pad wizard's inventory reads only that wizard's own
+  controller. Before, the panel read the whole keyboard whoever had it open, so player 1 walking
+  or pressing Space, Delete or Escape moved through, equipped, salvaged in or closed player 2's
+  inventory; and a pad that Rewired lists under both players could move player 1's. With one
+  wizard nothing changes: keyboard and pad both work.

@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.14.8";
+        public const string PluginVersion = "0.14.9";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -325,6 +325,36 @@ namespace WoLChaosDepths
         }
 
         private Player keyOwner;
+
+        // Which inputs drive an open inventory (#30). With one wizard, all of them (the keyboard and
+        // any pad), as before. With two or more, the keyboard drives only the keyboard wizard's
+        // panel and a pad wizard's panel reads only that wizard's own controller: up to 0.14.8 the
+        // panel read the whole keyboard whoever owned it, so player 1 walking or pressing Space,
+        // Delete or Escape moved, equipped, salvaged in or closed player 2's inventory.
+        internal static void PanelInputs(Player owner, out bool keyboard, out bool pad)
+        {
+            keyboard = true;
+            pad = true;
+            try
+            {
+                Player[] players = GameController.activePlayers;
+                if (players == null || owner == null)
+                    return;
+                int count = 0;
+                foreach (Player p in players)
+                    if (p != null && p.gameObject != null && p.gameObject.activeInHierarchy)
+                        count++;
+                if (count < 2)
+                    return;
+                bool ownerOnKeyboard = KeyboardPlayer(players) == owner;
+                keyboard = ownerOnKeyboard;
+                pad = !ownerOnKeyboard;
+            }
+            catch (Exception e)
+            {
+                LogError($"panel inputs: {e.Message}");
+            }
+        }
 
         // The wizard playing on the keyboard: the one whose input is set to it, else the one
         // whose controls include the keyboard, else the first.
