@@ -431,3 +431,10 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
   window, x5 at 1080p). Added to the mockup: the character's level beside the title, its
   experience along the title's rule, and the list's item count in the tab row.
 - `[Panel] Look = Coded` brings back the code-drawn panel.
+
+## 0.14.4
+
+- A pack of elites no longer piles its markers into one cluster: where markers of different
+  elites overlap, only the one over the elite nearest a wizard shows (an elite's own two
+  markers always show side by side).
+- The log no longer says "at depth N" for rifts.

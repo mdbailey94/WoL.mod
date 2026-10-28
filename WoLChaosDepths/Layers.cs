@@ -97,6 +97,9 @@ namespace WoLChaosDepths
 
         // ---- Rifts ----
 
+        // " at depth N" in the log while depths exist (they're gone since 0.14.0).
+        private static string Where(int depth) => Depth.Enabled ? $" at depth {depth}" : "";
+
         public static bool RiftOpen => riftOpen && Time.time < riftEndsAt;
         public static float RiftSecondsLeft => RiftOpen ? riftEndsAt - Time.time : 0f;
         public static float EliteChanceBonus => RiftOpen ? riftEliteBonus.Value : 0f;
@@ -124,7 +127,7 @@ namespace WoLChaosDepths
             riftOpen = false;
             if (!inTime)
             {
-                ChaosDepthsPlugin.Log($"Rift at depth {riftDepth}: collapsed before the floor was cleared; no reward");
+                ChaosDepthsPlugin.Log($"Rift{Where(riftDepth)}: collapsed before the floor was cleared; no reward");
                 return;
             }
             int rewarded = 0;
@@ -136,7 +139,7 @@ namespace WoLChaosDepths
                     reward(p, riftRewardMinRarity.Value);
                     rewarded++;
                 }
-            ChaosDepthsPlugin.Log($"Rift at depth {riftDepth}: cleared with {riftEndsAt - Time.time:0} s to spare; {rewarded} reward(s)");
+            ChaosDepthsPlugin.Log($"Rift{Where(riftDepth)}: cleared with {riftEndsAt - Time.time:0} s to spare; {rewarded} reward(s)");
             ChaosDepthsPlugin.Notice("Rift cleared!", 3f);
         }
 
@@ -151,7 +154,7 @@ namespace WoLChaosDepths
             riftOpen = true;
             riftDepth = depth;
             riftEndsAt = Time.time + riftSeconds.Value;
-            ChaosDepthsPlugin.Log($"Rift {how} at depth {depth}: {riftSeconds.Value:0} s, elite chance +{riftEliteBonus.Value:P0}, rarity +{riftRarityBonus.Value:P0}");
+            ChaosDepthsPlugin.Log($"Rift {how}{Where(depth)}: {riftSeconds.Value:0} s, elite chance +{riftEliteBonus.Value:P0}, rarity +{riftRarityBonus.Value:P0}");
             ChaosDepthsPlugin.Notice($"A rift opens! Clear the floor in {Mathf.RoundToInt(riftSeconds.Value / 60f)} min", 4f);
         }
 
@@ -164,7 +167,7 @@ namespace WoLChaosDepths
             if (riftOpen && Time.time >= riftEndsAt)
             {
                 riftOpen = false;
-                ChaosDepthsPlugin.Log($"Rift at depth {riftDepth}: collapsed");
+                ChaosDepthsPlugin.Log($"Rift{Where(riftDepth)}: collapsed");
                 ChaosDepthsPlugin.Notice("The rift collapses", 3f);
             }
         }

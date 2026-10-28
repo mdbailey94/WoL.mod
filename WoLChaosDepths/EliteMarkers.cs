@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using BepInEx.Configuration;
 using UnityEngine;
 
@@ -14,6 +15,7 @@ namespace WoLChaosDepths
         private const int GapPixels = 2;     // between the top of the enemy's picture and the marker
         private const int HeadGapPixels = 6; // between the game's head point and the marker
         private const int SidePixels = 15;   // between two markers' centres (16 px wide, 1 px apart, trimmed edges)
+        private const int OverlapXPixels = 13, OverlapYPixels = 12;   // markers of different elites closer than this overlap
 
         private static ConfigEntry<bool> enabled;
         private static Material material;
@@ -64,6 +66,15 @@ namespace WoLChaosDepths
             public SpriteRenderer r;
             public float ppu, born, sideways;
 
+            // Every marker in the scene, so a pack of elites doesn't pile its markers into one
+            // unreadable cluster (#27 retest): where markers of different elites overlap, only the
+            // one over the elite nearest a wizard shows.
+            private static readonly List<Marker> live = new List<Marker>();
+            private float nearest; // this elite's distance to the nearest wizard, this frame
+
+            private void OnEnable() => live.Add(this);
+            private void OnDisable() => live.Remove(this);
+
             private void LateUpdate()
             {
                 if (entity == null || body == null || entity.health == null || entity.health.CurrentHealthValue <= 0f)
@@ -72,11 +83,43 @@ namespace WoLChaosDepths
                     return;
                 }
                 bool shown = entity.gameObject.activeInHierarchy && body.enabled;
+                if (shown)
+                {
+                    r.sprite = frames[(int)((Time.time - born) * Fps) % frames.Length];
+                    Follow();
+                    nearest = NearestWizard(transform.position);
+                    shown = !Covered();
+                }
                 r.enabled = shown;
-                if (!shown)
-                    return;
-                r.sprite = frames[(int)((Time.time - born) * Fps) % frames.Length];
-                Follow();
+            }
+
+            // Another elite's marker overlaps this one and that elite is nearer a wizard.
+            private bool Covered()
+            {
+                Vector2 at = transform.position;
+                float dx = OverlapXPixels / ppu, dy = OverlapYPixels / ppu;
+                foreach (Marker other in live)
+                {
+                    if (other == this || other == null || other.entity == entity || other.entity == null)
+                        continue;
+                    Vector2 o = other.transform.position;
+                    if (Mathf.Abs(o.x - at.x) >= dx || Mathf.Abs(o.y - at.y) >= dy)
+                        continue;
+                    if (other.nearest < nearest || (other.nearest == nearest && other.GetInstanceID() < GetInstanceID()))
+                        return true;
+                }
+                return false;
+            }
+
+            private static float NearestWizard(Vector2 at)
+            {
+                float best = float.MaxValue;
+                Player[] players = GameController.activePlayers;
+                if (players != null)
+                    foreach (Player p in players)
+                        if (p != null)
+                            best = Mathf.Min(best, ((Vector2)p.transform.position - at).sqrMagnitude);
+                return best;
             }
 
             // Over the enemy's head, snapped to the pixel grid: the game's own head point (where it
