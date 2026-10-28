@@ -39,9 +39,9 @@ them, so they match its art exactly:
   it**: the ball rolls on the ground under you and your picture rides it, turning with the ball,
   while your shadow stays on the ground (`[Look] RideOnTop`; off, you ride inside it as before,
   behind you with its lower half see-through in front). From 0.3.2 the pose is a **crouch held
-  still** (the game's slide, `[Look] RidePose`, at the moment `RidePoseFrame` picks) with your
-  feet partway up the ball (`RideSeat`, 0.4 = seated with your legs in its see-through top,
-  0 = on the ground, 1 = standing on top), rather than the jump pose lifted onto its top. It's sized to the ball's hit area and spins
+  still** (the game's slide, `[Look] RidePose`, at the moment `RidePoseFrame` picks); from 0.3.3
+  you crouch **on top** of the ball, feet just into its surface (`RideSeat` 0.9; 1 = right on
+  top, 0.4 = legs inside its top, 0 = on the ground), rather than the jump pose. It's sized to the ball's hit area and spins
   faster the faster you go; from speed level 3 a faint copy spins behind it, brighter each level.
   Three thin wind arcs chase round on the floor under it.
 - **Travel**: the game's wind wisps (`WindTrail` sheet) flick off the back of the ball, more often

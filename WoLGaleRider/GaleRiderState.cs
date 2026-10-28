@@ -250,9 +250,9 @@ namespace WoLGaleRider
                 parent.rigidbody2D.velocity = velocity;
             if (rider != null)
             {
-                // Sitting on the ball: a crouched pose held on one frame (the game's slide by
-                // default), turned with the ball; the picture is raised so the feet sit partway
-                // up the ball ([Look] RideSeat), its see-through front half over the legs.
+                // Crouched on top of the ball: a crouched pose held on one frame (the game's
+                // slide by default), turned with the ball; the picture is raised so the feet sit
+                // on the ball's top ([Look] RideSeat, 0.9 = just into its surface).
                 FacingDirection facing = Mathf.Abs(direction.x) >= Mathf.Abs(direction.y)
                     ? (direction.x >= 0f ? FacingDirection.Right : FacingDirection.Left)
                     : (direction.y >= 0f ? FacingDirection.Up : FacingDirection.Down);

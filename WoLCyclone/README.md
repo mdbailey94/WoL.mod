@@ -24,11 +24,13 @@ A new **Air standard arcana**, added with [LegendAPI](https://github.com/yekoc/L
 
 The twister is pixel art in the game's own wind style, at the game's pixel size:
 
-- **Funnel**: 3 to 7 stacked bands, each drawn like the game's spinning gust ring (brushed strokes
-  going round, the dark inner wall across the mouth, tails flicking off; its three wind tones, no
-  outline; 6-frame spin loops), that flare wider, grow taller and darken in two steps from the
-  game's wind teal to gale grey to storm slate as it grows, swaying like a snaking tornado, with the
-  game's wind wisps peeling off its sides.
+- **Funnel** (0.4.3): one tapered twister, narrow at the ground and flaring open at the top, its
+  body wound with spiral stripes that wrap round it and scroll (a 6-frame loop), lit from the
+  upper left with its right side in shade and the dark throat showing in the open mouth; the
+  game's three wind tones, no outline. It grows taller and wider and darkens in two steps from the
+  game's wind teal to gale grey to storm slate, sways like a snaking tornado (the picture is cut
+  into slices that lean with it), with the game's wind wisps peeling off its sides. Up to 0.4.2
+  it was a stack of spinning gust rings.
 - **Debris**: the game's dust puffs and rocks, and leaves in its leaf green, orbiting it, more and
   faster as it grows, at a radius that grows with it, passing behind it and in front.
 - **Dust ring**: a ring of dust puffs churning round its base.
