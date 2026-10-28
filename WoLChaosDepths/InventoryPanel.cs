@@ -25,6 +25,7 @@ namespace WoLChaosDepths
         private readonly List<ItemData> view = new List<ItemData>();
         private int rows = 4;   // rows that fit, set while drawing
         private float nextTabRepeat;
+        private bool interactWasHeld, interactUsedForDepth;
         private static readonly Color Gain = new Color32(0x6f, 0xe0, 0x7a, 0xff), Loss = new Color32(0xff, 0x6a, 0x6a, 0xff), EquippedMark = new Color32(0x6f, 0xe0, 0x7a, 0xff);
 
         public bool Open { get; private set; }
@@ -145,12 +146,15 @@ namespace WoLChaosDepths
                 }
             }
             bool depthKeys = Input.GetKey(KeyCode.Q) || Input.GetKey(KeyCode.E);
-            bool depthModifier = Held(pad, "Interact") || depthKeys;
+            bool interactHeld = Held(pad, "Interact") || Input.GetKey(KeyCode.F);
+            bool depthModifier = interactHeld || depthKeys;
             bool inHub = Depth.Enabled && !ChaosDepthsPlugin.InTrialsNow();
             if (depthKeys)
                 horizontal = Input.GetKey(KeyCode.E) ? 1f : -1f;
             if (Mathf.Abs(horizontal) > 0.5f && inHub && depthModifier)
             {
+                if (interactHeld)
+                    interactUsedForDepth = true;
                 if (Time.unscaledTime >= nextDepthRepeat)
                 {
                     bool first = nextDepthRepeat == 0f;
@@ -181,8 +185,19 @@ namespace WoLChaosDepths
             else
                 nextTabRepeat = 0f;
 
-            // Interact (Y) tapped, or Tab: the next sort order.
-            if ((Pressed(pad, "Interact") && Mathf.Abs(horizontal) <= 0.5f) || Input.GetKeyDown(KeyCode.Tab))
+            // Interact (Y / F) tapped and released without left / right, or Tab: the next sort
+            // order. (On press it fired before a held Y + right could pick the depth.)
+            bool sortNow = Input.GetKeyDown(KeyCode.Tab);
+            if (interactHeld)
+                interactWasHeld = true;
+            else if (interactWasHeld)
+            {
+                if (!interactUsedForDepth)
+                    sortNow = true;
+                interactWasHeld = false;
+                interactUsedForDepth = false;
+            }
+            if (sortNow)
             {
                 sortMode = (sortMode + 1) % SortNames.Length;
                 selected = 0;
@@ -429,7 +444,7 @@ namespace WoLChaosDepths
                 // with a gold underline; the sort order on the right.
                 float tabH = 8 * u;
                 float tx = x + 4 * u;
-                PixelUI.Arrow(x, y + tabH * 0.5f, 2 * u, false, PixelUI.Dim, u);
+                PixelUI.Arrow(x, y + tabH * 0.5f, 5, false, PixelUI.Dim, u);
                 for (int i = 0; i < TabNames.Length; i++)
                 {
                     float tw = i == 0 ? 12 * u : 9 * u;
@@ -446,7 +461,7 @@ namespace WoLChaosDepths
                     }
                     tx += tw + u;
                 }
-                PixelUI.Arrow(tx + u, y + tabH * 0.5f, 2 * u, true, PixelUI.Dim, u);
+                PixelUI.Arrow(tx + u, y + tabH * 0.5f, 5, true, PixelUI.Dim, u);
                 Label(new Rect(x, y, barW, lineH), $"SORT: {SortNames[sortMode].ToUpperInvariant()}", PixelUI.Style(font, PixelUI.Text, TextAnchor.UpperRight));
                 Label(new Rect(x, y + lineH - u, barW, lineH), "(Y / Tab) CHANGE", right);
                 y += tabH + u;
@@ -576,7 +591,7 @@ namespace WoLChaosDepths
                     }
                 }
                 Label(new Rect(x, panel.yMax - 8 * u, barW, lineH),
-                    inHubNow ? "(A) EQUIP   (HOLD A) SALVAGE   (B) BACK   < > TAB   (Y) SORT   (Y + < >, Q / E) DEPTH" : "(A) EQUIP   (HOLD A) SALVAGE   (B) BACK   < > TAB   (Y / Tab) SORT", dim);
+                    inHubNow ? "(A) EQUIP   (HOLD A) SALVAGE   (B) BACK   < > TAB   (Y) SORT   (HOLD Y + < >, Q / E) DEPTH" : "(A) EQUIP   (HOLD A) SALVAGE   (B) BACK   < > TAB   (Y / Tab) SORT", dim);
             }
             catch (Exception e)
             {
@@ -649,8 +664,9 @@ namespace WoLChaosDepths
                 bool percent = def == null || def.percent;
                 string value = percent ? Mathf.RoundToInt(diff * 100f) + "%" : diff.ToString("0.##");
                 if (diff > 0f) value = "+" + value;
-                // Taking less damage is the gain for a negative affix.
-                bool gain = key == "DamageTaken" ? diff < 0f : diff > 0f;
+                // Lower is better for an affix that rolls negative (cooldowns, damage taken).
+                bool lowerIsBetter = key == "DamageTaken" || key == "Cooldown" || (def != null && def.max < 0f);
+                bool gain = lowerIsBetter ? diff < 0f : diff > 0f;
                 parts.Add(new KeyValuePair<string, bool>(value + " " + Short(key), gain));
             }
             string power = Uniques.PowerText(chosen), wornPower = Uniques.PowerText(worn);

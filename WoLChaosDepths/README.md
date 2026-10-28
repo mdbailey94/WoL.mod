@@ -286,3 +286,10 @@ Laid out after WoL Art's mockup (`inventory_mockup_1x.png`):
 - The pendant follows the chest across the body in every frame, read from the picture's
   outline at chest height, so the run's forward lean no longer leaves it at the back of the
   neck; the height still comes from the standing anchor plus the run's bob.
+
+## 0.12.2
+
+- Inventory fixes from the first in-game check of 0.12.0: the tab row's chevrons were drawn
+  several times too big; VS EQUIPPED showed a better cooldown in red (lower is now better for
+  cooldowns as for damage taken); holding Y (or F) with left / right now picks the depth in the
+  Hub, since a tap of Y changes the sort only on release.
