@@ -89,9 +89,11 @@ Not a dash any more: it goes in a normal arcana slot, and your dash stays your d
 
 **Signature** (0.24.0; put Feint Swap in the signature slot and cast it with the gauge full):
 
-- **Fan throw**: hold and release as usual, and **six feints** fly out at once in a **fan 70
-  degrees wide** centred on your aim, three quarters as far as the normal throw at that charge
-  (each stopping short of walls; 0.25.1 drew them in from 110 degrees at the full distance), each bursting through the enemies on its way (3 damage a burst, and the six
+- **Fan throw**: hold and release as usual, and **six feints** fly out at once in a **fan 52
+  degrees wide** centred on your aim, as far as the normal throw at that charge (each stopping
+  short of walls; 0.25.1 drew them in from 110 degrees at the full distance to 70 degrees at
+  three quarters of it, and 0.25.5 gave them the full distance back with the fan narrowed so its
+  ends are as far apart as before), each bursting through the enemies on its way (3 damage a burst, and the six
   can't stack on one enemy: one burst every 0.15 s at most). A frosty flash, the room dims a
   little and the camera pulls back to show the fan.
 - **Wait**: they stand for 2 seconds, or until you press again / cast again (same rules as the

@@ -26,8 +26,9 @@ namespace WoLSlingshotDash
     public partial class FeintSwapState
     {
         private const int FanCount = 6;
-        private const float FanSpread = 70f;            // degrees across the fan, centred on the aim (0.24.0: 110, too spread out)
-        private const float FanDistanceScale = 0.75f;   // the feints fly this share of the normal throw's distance (0.24.0: all of it)
+        private const float FanSpread = 52f;            // degrees across the fan, centred on the aim (0.24.0: 110, too spread out; 0.25.1: 70)
+        private const float FanDistanceScale = 1f;      // the feints fly this share of the normal throw's distance (0.25.1-0.25.4: 0.75; 0.25.5 is back to the
+                                                        // full throw, as the owner asked, with the fan narrowed so its ends sit as far apart as 70 degrees at 0.75 did)
         private const float SigPathHitInterval = 0.075f; // each feint bursts this often in flight (the normal one every 0.05 s)...
         private const float SigPathHitScale = 1f;       // ...a little smaller than the normal one's (1.1), six at once
         private const float SwapInterval = 0.2f;        // between one swap and the next
