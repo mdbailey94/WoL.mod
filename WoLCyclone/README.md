@@ -20,6 +20,23 @@ A new **Air standard arcana**, added with [LegendAPI](https://github.com/yekoc/L
 - **Enhanced**: full size in 3 seconds (bursting at 4), and a wider burst.
 - Dash to cancel at any time. Cooldown 5 seconds.
 
+## 0.5.2: a cinematic signature (asked for by Matt)
+
+The signature twister now plays out like the other mods' signatures (Thunderhead, Tidal Wall):
+
+1. **Cast**: the game's own signature freeze and burst as the gauge is spent.
+2. **Storm builds**: as it grows, the camera pulls back up to 25% and the room darkens to half
+   its light. From a third of the way in, **lightning flickers** in the storm: the room flashes
+   for a moment with a small shake, more often as it grows.
+3. **Throw**: the first enemy it throws hangs at the top of its arc in a moment of **slow
+   motion** (0.35 s, once per cast).
+4. **Burst**: a 5-frame hit-stop, a white flash, a heavy shake and time all but stopping
+   (0.45 s), then the camera and light ease back over 0.9 s. Let go early and they ease back
+   over 0.5 s.
+
+The camera and light always go back: when it ends, when it's cut short (a dash, a hit, a
+level load), and in any case after 9 s (logged as `Cyclone: signature restored (...)`).
+
 ## 0.5.1
 
 - The signature twister is **2.5x** the enhanced one's width (was 1.8x; `[Signature] Width`, now

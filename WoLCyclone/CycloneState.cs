@@ -33,6 +33,15 @@ namespace WoLCyclone
         private const float TossReach = 0.6f;      // throws enemies within this times the hit scale
         private const float TossTime = 0.9f;       // seconds up and down
         private const float TossAgain = 0.5f;      // an enemy can be thrown again this long after landing
+        // The signature's cinematic (0.5.2; the camera and light are Cinematic's, always put back).
+        private const float SigZoom = 0.25f;       // the camera pulls back this much as it grows
+        private const float SigDim = 0.5f;         // the room darkens to this
+        private const float BoltFrom = 0.35f;      // lightning flickers in the storm from here on
+        private const float BoltFlash = 1.4f;      // the room light jumps to this for a flicker
+        private const float TossSlowMoTime = 0.35f, TossSlowMoScale = 0.2f;   // the first throw's peak
+        private const int BurstHitStopFrames = 5;
+        private const float BurstFlash = 1.8f, BurstShake = 2.4f, BurstSlowMoTime = 0.45f, BurstSlowMoScale = 0.04f;
+        private const float BurstEaseBack = 0.9f, LetGoEaseBack = 0.5f;
         private const float MinTime = 0.35f;       // a tap still gives a brief twister
         private const float Distance = 4f;         // starts about three tiles in front of the wizard
         private const float SteerSpeed = 3.5f;     // how fast you can move it when it's small...
@@ -56,6 +65,9 @@ namespace WoLCyclone
         private CycloneLook look;
         private bool signature;
         private int tossed;
+        private int cinematic;
+        private float nextBolt, firstTossAt;
+        private bool tossSlowMoDone;
         private readonly System.Collections.Generic.Dictionary<Entity, float> landedAt = new System.Collections.Generic.Dictionary<Entity, float>();
 
         public CycloneState(FSM newFSM, Player newEnt) : base(staticID, newFSM, newEnt)
@@ -85,6 +97,10 @@ namespace WoLCyclone
             signature = isUltimate;
             tossed = 0;
             landedAt.Clear();
+            firstTossAt = 0f;
+            tossSlowMoDone = false;
+            nextBolt = 0f;
+            cinematic = signature ? Cinematic.Begin() : 0;
             held = 0f;
             nextHit = 0f;
             nextSwirl = 0f;
@@ -130,6 +146,8 @@ namespace WoLCyclone
             parent.anim?.PlayDirectional(parent.ChargeAnimStr, -1, 0.5f);
 
             look?.Update(center, progress);
+            if (signature)
+                SignatureBeats(progress);
             if (Time.time >= nextHit)
             {
                 nextHit = Time.time + Mathf.Lerp(SlowHit, FastHit, progress);
@@ -158,7 +176,31 @@ namespace WoLCyclone
         public override void OnExit()
         {
             RemoveLook();
+            // Cut short (a dash, a hit, a level load): the camera and light still ease back.
+            if (signature)
+                Cinematic.EaseOut(cinematic, LetGoEaseBack, "cast cut short");
             base.OnExit();
+        }
+
+        // While the signature twister grows: the camera pulls back and the room darkens with it,
+        // lightning flickers in the storm, and the first enemy thrown hangs at the top of its arc
+        // in a moment of slow motion.
+        private void SignatureBeats(float progress)
+        {
+            float eased = progress * progress * (3f - 2f * progress);
+            Cinematic.Set(cinematic, SigZoom * eased, Mathf.Lerp(1f, SigDim, eased));
+            if (progress >= BoltFrom && Time.unscaledTime >= nextBolt)
+            {
+                nextBolt = Time.unscaledTime + Random.Range(0.45f, 1.1f) * (1.2f - 0.5f * progress);
+                Cinematic.Flash(cinematic, BoltFlash, 0.06f);
+                Try(() => CameraController.ShakeCamera(0.25f + 0.35f * progress, false));
+            }
+            if (!tossSlowMoDone && firstTossAt > 0f && Time.time >= firstTossAt + TossTime * 0.5f)
+            {
+                tossSlowMoDone = true;
+                Try(() => TimeScaleController.SetTimeScaleDelayOverRealTime(TossSlowMoTime, TossSlowMoScale, true, true));
+                CyclonePlugin.Log($"Cyclone: signature beat: the first throw's peak, slow motion {TossSlowMoTime:0.00} s from x{TossSlowMoScale:0.00}");
+            }
         }
 
         private void Finish()
@@ -199,6 +241,8 @@ namespace WoLCyclone
                     landedAt[e] = Time.time + TossTime + TossAgain;
                     Toss.Launch(e, parent, CyclonePlugin.TossHeight, TossTime, CyclonePlugin.TossDamage, skillID);
                     tossed++;
+                    if (firstTossAt <= 0f)
+                        firstTossAt = Time.time;
                 }
             }
             catch (System.Exception ex)
@@ -318,7 +362,17 @@ namespace WoLCyclone
         {
             float scale = EndHitScale * Wide * (EnhancedTier ? EnhancedBurstScale : BurstScale);
             if (signature)
-                CyclonePlugin.Log($"Cyclone: signature burst after throwing {tossed} enem{(tossed == 1 ? "y" : "ies")}");
+            {
+                // The burst: a hit-stop, the room flashing white, a heavy shake and time all but
+                // stopping, then the camera and light easing back.
+                Try(() => TimeScaleController.FreezeForFrames(BurstHitStopFrames, false));
+                Cinematic.Flash(cinematic, BurstFlash, 0.1f);
+                Try(() => CameraController.ShakeCamera(BurstShake, true));
+                Try(() => TimeScaleController.SetTimeScaleDelayOverRealTime(BurstSlowMoTime, BurstSlowMoScale, true, true));
+                Cinematic.EaseOut(cinematic, BurstEaseBack, "burst finished");
+                CyclonePlugin.Log($"Cyclone: signature burst after throwing {tossed} enem{(tossed == 1 ? "y" : "ies")}: hit-stop {BurstHitStopFrames} frames, " +
+                    $"flash x{BurstFlash:0.0}, shake {BurstShake:0.0}, slow motion {BurstSlowMoTime:0.00} s, easing back over {BurstEaseBack:0.0} s");
+            }
             WindBurst.CreateBurst(center, parent.skillCategory, skillID, 5, scale);
             // The drawn funnel blows apart in a gust ring the size of the burst (its own try/catch).
             look?.Burst(scale);
@@ -350,7 +404,10 @@ namespace WoLCyclone
         private void DieDown()
         {
             if (signature)
+            {
+                Cinematic.EaseOut(cinematic, LetGoEaseBack, "let go");
                 CyclonePlugin.Log($"Cyclone: signature let go after throwing {tossed} enem{(tossed == 1 ? "y" : "ies")}");
+            }
             look?.DieDown();
             try
             {

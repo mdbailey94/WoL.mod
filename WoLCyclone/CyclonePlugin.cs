@@ -13,7 +13,7 @@ namespace WoLCyclone
     {
         public const string PluginGuid = "mdbailey94.wol.cyclone";
         public const string PluginName = "Cyclone";
-        public const string PluginVersion = "0.5.1";
+        public const string PluginVersion = "0.5.2";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -27,6 +27,10 @@ namespace WoLCyclone
         public static int TossDamage => Mathf.Clamp(tossDamage?.Value ?? 12, 0, 200);
 
         public static void Log(string message) => log?.LogInfo(message);
+
+        // The signature's flashes and ease-back run on real time here, and its watchdog
+        // (Cinematic.cs) never leaves the camera or light changed for long.
+        private void Update() => Cinematic.Tick();
 
         private void Awake()
         {
