@@ -56,6 +56,12 @@ or lists the level loaders it saw. If the altar is in an awkward spot, move it w
 level with it). If a run starts some way that skips the portal, the altar's level is applied as soon as
 the first enemies appear.
 
+## Changes in 0.7.5
+
+- Each of Chaos Depths' save slots (0.15.0) keeps its own unlocked Ascension level, starting at
+  0: Save 1 in `[Unlocks] FreshSaveHighest`, Save 2 in `Save2Highest`, and so on. The Debugging
+  save and the base game keep all ten (`OtherSaves`).
+
 ## Changes in 0.7.4
 
 - Chaos Depths' fresh save starts at **Ascension 0** (off) with nothing unlocked: beat a run at 0

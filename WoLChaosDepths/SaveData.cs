@@ -57,10 +57,11 @@ namespace WoLChaosDepths
 
     public static class SaveStore
     {
-        // The fresh save's characters live in a folder of their own; the Debugging save's (and
-        // outside the profile, the only save's) where they always were (#31).
-        public static string Folder => ProfileSave.Fresh
-            ? Path.Combine(Path.Combine(BepInEx.Paths.ConfigPath, "ChaosDepths"), "Fresh")
+        // Each save slot's characters live in a folder of their own (Fresh for Save 1, Save2,
+        // Save3...); the Debugging save's (and outside the profile, the only save's) where they
+        // always were (#31, slots 0.15.0).
+        public static string Folder => ProfileSave.CharacterFolder != null
+            ? Path.Combine(Path.Combine(BepInEx.Paths.ConfigPath, "ChaosDepths"), ProfileSave.CharacterFolder)
             : Path.Combine(BepInEx.Paths.ConfigPath, "ChaosDepths");
 
         public static string PathFor(int playerIndex) => Path.Combine(Folder, $"character{playerIndex + 1}.json");

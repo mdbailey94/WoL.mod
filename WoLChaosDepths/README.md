@@ -471,3 +471,15 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
   or pressing Space, Delete or Escape moved through, equipped, salvaged in or closed player 2's
   inventory; and a pad that Rewired lists under both players could move player 1's. With one
   wizard nothing changes: keyboard and pad both work.
+
+## 0.15.0: save slots (asked for by Matt)
+
+- The title screen offers **SAVE 1, SAVE 2, SAVE 3** and the **DEBUGGING SAVE**; **Tab** (keyboard)
+  or **LB** (pad) steps to the next one, the corner tag shows which is on (with "(NEW)" on an
+  empty slot, which starts a brand-new game), and the choice is remembered (`[Profile] Save`).
+- Each slot is a game of its own: its own game save (`ChaosDepthsFresh` for Save 1, as the single
+  fresh save had, `ChaosDepthsSave2`, `ChaosDepthsSave3` beside the game's save folder), its own
+  characters (`BepInEx\config\ChaosDepths\Fresh`, `Save2`, `Save3`), its own loot table, and, with
+  Ascension 0.7.5, its own unlocked Ascension level starting at 0. All slots use the fresh-save
+  drop rates and buy mod arcana in the shop.
+- `[Profile] SaveSlots` (3) sets how many slots there are (up to 9).

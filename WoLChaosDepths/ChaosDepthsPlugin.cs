@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.14.9";
+        public const string PluginVersion = "0.15.0";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -665,7 +665,7 @@ namespace WoLChaosDepths
                 PixelUI.Fill(new Rect(rect.x - u, rect.y, (saves ? 70 : 36) * u, (onTitle && saves ? 10 : 5) * u), new Color(0f, 0f, 0f, 0.4f));
                 GUI.Label(rect, saves ? "CHAOS DEPTHS  " + ProfileSave.SaveName : "CHAOS DEPTHS", style);
                 if (onTitle && saves)
-                    GUI.Label(new Rect(rect.x, rect.y + 5 * u, rect.width, rect.height), "TAB / LB: SWITCH SAVE",
+                    GUI.Label(new Rect(rect.x, rect.y + 5 * u, rect.width, rect.height), "TAB / LB: NEXT SAVE",
                         PixelUI.Style(Mathf.Max(10, 3 * u), PixelUI.Dim, TextAnchor.UpperLeft));
             }
             catch

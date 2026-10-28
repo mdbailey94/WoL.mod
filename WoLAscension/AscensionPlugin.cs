@@ -17,7 +17,7 @@ namespace WoLAscension
     {
         public const string PluginGuid = "mdbailey94.wol.ascension";
         public const string PluginName = "Ascension";
-        public const string PluginVersion = "0.7.4";
+        public const string PluginVersion = "0.7.5";
 
         private const string PlayerDamageTakenMod = "Ascension_DamageTaken";
         private const string PlayerHealingMod = "Ascension_Healing";
@@ -171,7 +171,50 @@ namespace WoLAscension
             }
         }
 
-        private ConfigEntry<int> UnlockedEntry => FreshSave ? unlockedFresh : unlockedOther;
+        // Chaos Depths' save slot (0 = its Debugging save or no Chaos Depths; 1, 2, 3... its saves).
+        private static int SaveSlot
+        {
+            get
+            {
+                try
+                {
+                    int n;
+                    string v = Environment.GetEnvironmentVariable("CHAOSDEPTHS_SAVE_SLOT");
+                    if (!string.IsNullOrEmpty(v) && int.TryParse(v, out n))
+                        return Mathf.Max(0, n);
+                    return FreshSave ? 1 : 0;   // a Chaos Depths without slots: its one fresh save
+                }
+                catch
+                {
+                    return 0;
+                }
+            }
+        }
+
+        private readonly Dictionary<int, ConfigEntry<int>> unlockedSlots = new Dictionary<int, ConfigEntry<int>>();
+
+        // Each save slot keeps its own highest unlocked level (0.7.5): Save 1's in
+        // FreshSaveHighest, Save 2's in Save2Highest, and so on; every other save in OtherSaves.
+        private ConfigEntry<int> UnlockedEntry
+        {
+            get
+            {
+                int s = SaveSlot;
+                if (s <= 0)
+                    return unlockedOther;
+                if (s == 1)
+                    return unlockedFresh;
+                ConfigEntry<int> entry;
+                if (!unlockedSlots.TryGetValue(s, out entry))
+                {
+                    entry = Config.Bind("Unlocks", $"Save{s}Highest", 0,
+                        new ConfigDescription($"Chaos Depths' save {s}: the highest level the altar offers (starts at 0; beating a run at it unlocks the next).",
+                            new AcceptableValueRange<int>(0, AscensionLevels.Max)));
+                    unlockedSlots[s] = entry;
+                }
+                return entry;
+            }
+        }
 
         // The highest level the altar offers in this save.
         public static int Unlocked => instance == null || instance.UnlockedEntry == null
@@ -194,7 +237,7 @@ namespace WoLAscension
             if (entry == null || next <= entry.Value)
                 return;
             entry.Value = next;
-            Logger.LogInfo($"Ascension {next} unlocked ({(FreshSave ? "fresh save" : "this save")})");
+            Logger.LogInfo($"Ascension {next} unlocked ({(SaveSlot > 0 ? $"Chaos Depths save {SaveSlot}" : "this save")})");
             GameBanner.Show($"ASCENSION {next} UNLOCKED", "Choose it at the altar by the trials portal", AscensionAltar.Icon(next));
         }
 

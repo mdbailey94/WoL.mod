@@ -29,13 +29,16 @@ namespace WoLChaosDepths
     {
         private const string DebugFolder = "ChaosDepths", FreshFolder = "ChaosDepthsFresh";
         private const string SettingsFile = "GameSettings.gs";
-        // Read by Unlock Mod Content, which leaves a fresh save's mod arcana locked.
+        // Read by Unlock Mod Content, which leaves a fresh save's mod arcana locked, and (the slot)
+        // by Ascension, which keeps each save's unlocked levels apart.
         public const string FreshSaveVariable = "CHAOSDEPTHS_FRESH_SAVE";
+        public const string SlotVariable = "CHAOSDEPTHS_SAVE_SLOT";
         private static readonly string[] Files = { "GameData.gd", "GameDataChaos.gd", "GameSettings.gs", "GameVars.gv" };
 
         private static ConfigEntry<bool> separate;
         private static ConfigEntry<bool> seed;
         private static ConfigEntry<string> slot;
+        private static ConfigEntry<int> slots;
         private static ManualLogSource log;
         private static FieldInfo basePath;
         private static string baseRoot;   // the game's own save root, with trailing slash
@@ -44,14 +47,65 @@ namespace WoLChaosDepths
 
         public static bool Active { get; private set; }
 
-        // The fresh save is in use (only ever in the profile).
-        public static bool Fresh => Active && IsFresh(slot.Value);
+        // Save slots (0.15.0, asked for by Matt): SAVE 1..N, each a game of its own, and the
+        // Debugging save. Slot 0 = Debugging. Slot 1 keeps the folders the single fresh save had.
+        public static int SlotCount => Mathf.Clamp(slots != null ? slots.Value : 3, 1, 9);
 
-        public static string SaveName => Fresh ? "FRESH SAVE" : "DEBUGGING SAVE";
+        public static int Slot => Active ? Mathf.Min(SlotOf(slot.Value), SlotCount) : 0;
 
-        private static bool IsFresh(string value) => !string.Equals((value ?? "").Trim(), "Debugging", StringComparison.OrdinalIgnoreCase);
+        private static int SlotOf(string value)
+        {
+            string v = (value ?? "").Trim();
+            if (string.Equals(v, "Debugging", StringComparison.OrdinalIgnoreCase))
+                return 0;
+            if (string.Equals(v, "Fresh", StringComparison.OrdinalIgnoreCase))
+                return 1;   // the one fresh save before slots
+            int n;
+            string digits = v.StartsWith("Save", StringComparison.OrdinalIgnoreCase) ? v.Substring(4).Trim() : v;
+            return int.TryParse(digits, out n) ? Mathf.Clamp(n, 1, 9) : 1;
+        }
 
-        private static string RootFor(bool fresh) => baseRoot + (fresh ? FreshFolder : DebugFolder) + "/";
+        private static string SlotValue(int n) => n <= 0 ? "Debugging" : "Save " + n;
+
+        // A fresh save (any slot) is in use (only ever in the profile).
+        public static bool Fresh => Slot > 0;
+
+        // Drawn on screen every frame, so the "(NEW)" check (a file lookup) is refreshed every 2 s.
+        public static string SaveName
+        {
+            get
+            {
+                if (cachedName == null || Time.unscaledTime >= nameRefreshAt)
+                {
+                    cachedName = NameOf(Slot);
+                    nameRefreshAt = Time.unscaledTime + 2f;
+                }
+                return cachedName;
+            }
+        }
+
+        private static string cachedName;
+        private static float nameRefreshAt;
+
+        private static string NameOf(int n) => n <= 0 ? "DEBUGGING SAVE" : $"SAVE {n}{(IsEmpty(n) ? " (NEW)" : "")}";
+
+        // No game save in the slot yet: picking it starts a new game.
+        private static bool IsEmpty(int n)
+        {
+            try
+            {
+                return n > 0 && baseRoot != null && !File.Exists(RootFor(n) + (GameDataManager.steamIDStr ?? "") + "GameData.gd");
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static string RootFor(int n) => baseRoot + (n <= 0 ? DebugFolder : n == 1 ? FreshFolder : "ChaosDepthsSave" + n) + "/";
+
+        // The Chaos Depths characters' folder name for a slot (inside BepInEx\config\ChaosDepths).
+        public static string CharacterFolder => Slot <= 0 ? null : Slot == 1 ? "Fresh" : "Save" + Slot;
 
         public static void Bind(ConfigFile config)
         {
@@ -59,8 +113,10 @@ namespace WoLChaosDepths
                 "In the profile, keep the game's own save (unlocks, loadout, gold, gems, settings) in its own folder, so a profile session never changes the base game's save. The folder is ChaosDepths beside the game's save folder.");
             seed = config.Bind("Profile", "SeedFromBaseSave", true,
                 "The first time the profile runs, copy the base game's save into the profile's folder as its starting point (the Debugging save only).");
-            slot = config.Bind("Profile", "Save", "Fresh",
-                "Which save the profile plays: Fresh (a new save, arcana bought in the shop, its own characters) or Debugging (the save used for testing). Switched on the title screen with Tab or LB; remembered here.");
+            slot = config.Bind("Profile", "Save", "Save 1",
+                "Which save the profile plays: Save 1, Save 2, ... (each a game of its own: arcana bought in the shop, its own characters and Ascension levels) or Debugging (the save used for testing). Switched on the title screen with Tab or LB; remembered here.");
+            slots = config.Bind("Profile", "SaveSlots", 3,
+                new ConfigDescription("How many save slots the title screen offers besides the Debugging save.", new AcceptableValueRange<int>(1, 9)));
         }
 
         /// <summary>Called from Awake, before the game touches its save. Only acts in the profile.</summary>
@@ -71,7 +127,7 @@ namespace WoLChaosDepths
             try
             {
                 baseRoot = Application.persistentDataPath + "/";
-                profileRoot = RootFor(IsFresh(slot.Value));
+                profileRoot = RootFor(Mathf.Min(SlotOf(slot.Value), SlotCount));   // Active isn't set yet, so not Slot
                 var field = AccessTools.Field(typeof(GameDataManager), "basePathStr");
                 if (field == null)
                 {
@@ -104,12 +160,14 @@ namespace WoLChaosDepths
             }
         }
 
-        // Tells Unlock Mod Content (through the process's environment) whether the fresh save is on.
+        // Tells Unlock Mod Content and Ascension (through the process's environment) whether a
+        // fresh save is on, and which.
         private static void MarkFresh()
         {
             try
             {
                 Environment.SetEnvironmentVariable(FreshSaveVariable, Fresh ? "1" : null);
+                Environment.SetEnvironmentVariable(SlotVariable, Slot.ToString());
             }
             catch
             {
@@ -117,9 +175,10 @@ namespace WoLChaosDepths
         }
 
         /// <summary>
-        /// On the title screen: switch to the other save. The game reads every save file through
-        /// basePathStr, so pointing it at the other folder and running the game's own first load
-        /// again loads that save, as if the game had started with it.
+        /// On the title screen: switch to the next save (Save 1, Save 2, ..., Debugging, Save 1).
+        /// The game reads every save file through basePathStr, so pointing it at the other folder
+        /// and running the game's own first load again loads that save, as if the game had
+        /// started with it.
         /// </summary>
         public static bool Switch()
         {
@@ -127,16 +186,18 @@ namespace WoLChaosDepths
                 return false;
             try
             {
-                bool toFresh = !Fresh;
-                profileRoot = RootFor(toFresh);
+                int current = Slot;
+                int next = current <= 0 ? 1 : current >= SlotCount ? 0 : current + 1;
+                profileRoot = RootFor(next);
                 Directory.CreateDirectory(profileRoot);
-                if (toFresh)
-                    PrepareFresh(GameDataManager.steamIDStr ?? "");
+                if (next > 0)
+                    PrepareFresh(next, GameDataManager.steamIDStr ?? "");
                 basePath.SetValue(null, profileRoot);
-                slot.Value = toFresh ? "Fresh" : "Debugging";
+                slot.Value = SlotValue(next);
                 MarkFresh();
                 GameDataManager.LoadInitial(true);
-                log.LogInfo($"Profile save: switched to the {SaveName.ToLowerInvariant()} ({profileRoot})");
+                cachedName = null;
+                log.LogInfo($"Profile save: switched to {NameOf(next).ToLowerInvariant()} ({profileRoot})");
                 return true;
             }
             catch (Exception e)
@@ -148,12 +209,12 @@ namespace WoLChaosDepths
 
         // A new fresh save takes only the settings (controls, screen, sound) from the Debugging
         // save, or the base game's; everything else starts as on a new game.
-        private static void PrepareFresh(string id)
+        private static void PrepareFresh(int n, string id)
         {
-            var dst = RootFor(true) + id;
+            var dst = RootFor(n) + id;
             if (File.Exists(dst + SettingsFile))
                 return;
-            foreach (var src in new[] { RootFor(false) + id, baseRoot + id })
+            foreach (var src in new[] { RootFor(0) + id, baseRoot + id })
             {
                 if (!File.Exists(src + SettingsFile))
                     continue;
@@ -172,8 +233,8 @@ namespace WoLChaosDepths
             {
                 try
                 {
-                    PrepareFresh(GameDataManager.steamIDStr ?? "");
-                    log.LogInfo($"Profile save: playing the fresh save ({profileRoot})");
+                    PrepareFresh(Slot, GameDataManager.steamIDStr ?? "");
+                    log.LogInfo($"Profile save: playing {SaveName.ToLowerInvariant()} ({profileRoot})");
                 }
                 catch (Exception e)
                 {
