@@ -45,7 +45,11 @@ All pushed and installed (base game, and the Chaos Depths profile's copies); non
 yet, WoL Player retests from Monday. Notes are on each task row.
 
 - Chaos Depths 0.13.1 (#25: pickup no longer fires the basic attack), 0.13.2 (#26: `[Debug]
-  HitchLog` frame probe, cached text styles), 0.13.3 (#17: WoL Art's elite affix markers).
+  HitchLog` frame probe, cached text styles), 0.13.3 (#17: WoL Art's elite affix markers),
+  0.13.4 (#26: no per-frame string keys for worn gear), 0.13.5 (#18 drop glows, #5 foot auras).
+- Trailblazer 0.9.3 (#26: trail hits only near enemies; one shared texture search).
+- Still to hook up: #5 glowing eyes (needs a per-frame face point), #16 the panel pieces (re-lay
+  the panel out on the mockup's 232x168 grid at a whole-number scale first).
 - Slingshot Dash 0.25.5 (#24: Feint Swap signature fan at full range, 52 degrees), 0.25.6 (#26:
   slingshot HUD icon no longer rewritten every frame).
 - Trailblazer 0.9.2, Ascension 0.6.1, Mod Menu 0.1.4 (#26: pooled trail columns, cached styles,
@@ -55,7 +59,7 @@ yet, WoL Player retests from Monday. Notes are on each task row.
 - To build without deploying, point `-GameDir` at a copy holding only `BepInEx\core` and
   `WizardOfLegend_Data\Managed` (no `plugins` folder, so nothing is copied).
 
-## Chaos Depths (the main project, `WoLChaosDepths`, 0.13.3)
+## Chaos Depths (the main project, `WoLChaosDepths`, 0.13.5)
 
 A Diablo-like loot layer on Wizard of Legend: character level and XP, items in three slots
 (Amulet, Ring, Charm) at four rarities with rolled affixes, six unique legendaries with powers,
@@ -106,7 +110,7 @@ https://claude.ai/artifact/9ygkyb3WgVeYYtpFDpSGxM.
 | Bramble Ring | 0.5.2 | Standard thicket drawn in (rows 0.8 / 1.5). |
 | Thunderhead | 0.9.4 | Drawn icon; crackling strike cracks. |
 | Tidal Wall | 0.4.3 | Drawn icon; larger crest that keeps its throw angle. |
-| Trailblazer | 0.9.2 | Flames at the feet, no ring. |
+| Trailblazer | 0.9.3 | Flames at the feet, no ring. |
 | Slingshot Dash | 0.25.6 | Holds Vacuum Fist, Blazing Kick, Feint Swap, Vine Slingshot, Charged Leap; drawn icons. |
 | Rolling Gale | 0.4.2 | Drawn icon. |
 | Stone Charge | 0.4.1 | |
