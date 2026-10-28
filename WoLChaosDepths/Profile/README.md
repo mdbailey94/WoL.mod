@@ -6,7 +6,9 @@ and the arcana and relic mods that live there.
 - **Steam** launches the base game as always: the base `BepInEx` folder with all the ability and
   relic mods, and no Chaos Depths.
 - **The "Chaos Depths" shortcut** launches the same install with a second BepInEx profile folder
-  that holds only Chaos Depths: its plugin, its config, its character saves.
+  that holds Chaos Depths (its plugin, its config, its character saves) and, since 0.11.9,
+  **copies** of the base game's other mods (arcana, relics, menus, and LegendAPI), so a dive
+  plays with your arcana. Pass `-OnlyChaosDepths` to the installer to leave them out.
 
 Both use the same game executable, but each has its own game save. The profile keeps its unlocks,
 loadout, gold, gems and settings in a `ChaosDepths` folder beside the game's save folder, so a
@@ -28,9 +30,12 @@ it copies the base save in as its starting point, so nothing has to be unlocked 
    other than `%USERPROFILE%\ChaosDepths\profile` (keep it outside `AppData`, see below).
 
 3. The script writes `steam_appid.txt` beside the game (so the launcher can start it directly
-   without Steam asking about the arguments), copies BepInEx's core into the profile, puts the plugin (and any existing Chaos
-   Depths config and saves) there, **moves the plugin out of the base game** into
-   `BepInEx\plugins.disabled`, and writes `Launch Chaos Depths.bat` plus a desktop shortcut.
+   without Steam asking about the arguments), copies BepInEx's core into the profile, puts the
+   plugin (and any existing Chaos Depths config and saves) there, copies the base game's other
+   plugins, patchers and configs in (a config already in the profile is kept), **moves the Chaos
+   Depths plugin out of the base game** into `BepInEx\plugins.disabled`, and writes
+   `Launch Chaos Depths.bat` plus a desktop shortcut. Run it again after updating any mod in the
+   base game to refresh the copies.
 4. Launch from the shortcut (Steam must be running). The profile's `BepInEx\LogOutput.log` says
    `Chaos Depths ... loaded (profile)`, and the Hub shows a small "CHAOS DEPTHS" tag.
 

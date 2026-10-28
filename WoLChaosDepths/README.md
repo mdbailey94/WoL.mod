@@ -236,3 +236,9 @@ animation, follow the facing, and sit behind the body when facing up. `[Look] Sh
   `AppData`: a packaged app (the Claude desktop app, for one) redirects `AppData` writes into its
   own storage, which left the desktop shortcut launching the base game. It copies an older
   `%APPDATA%` profile across and warns when run from a sandbox. See `Profile/README.md`.
+
+## 0.11.9
+
+- The profile installer copies the base game's other mods (arcana, relics, menus, LegendAPI,
+  patchers, and their configs) into the profile, so a dive plays with them; the base game keeps
+  its own copies and still never loads Chaos Depths. `-OnlyChaosDepths` leaves them out.

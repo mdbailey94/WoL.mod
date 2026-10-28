@@ -4,9 +4,11 @@
 
 .DESCRIPTION
   Wizard of Legend keeps running from the same install, but with a second BepInEx profile
-  folder that holds ONLY Chaos Depths (its plugin, its config, its character saves). The base
-  game's own BepInEx folder, with all the arcana and relic mods, is left as it is, and the
-  Chaos Depths plugin is moved OUT of it, so the two never run together.
+  folder that holds Chaos Depths (its plugin, its config, its character saves) plus COPIES of
+  the base game's other mods (arcana, relics, menus) so a dive plays with them too. The base
+  game's own BepInEx folder is left as it is, and the Chaos Depths plugin is moved OUT of it,
+  so Chaos Depths never runs in the base game. Pass -OnlyChaosDepths to leave the other mods
+  out of the profile.
 
   How it works: BepInEx's loader (Doorstop) takes a --doorstop-target argument naming the
   preloader to run. Pointing it at the profile's copy makes BepInEx use the profile folder for
@@ -34,7 +36,8 @@ param(
     # writes into its own private storage, so a profile made there is invisible to a double-click
     # on the desktop shortcut, and the launcher silently runs the base game.
     [string]$ProfileDir = "$env:USERPROFILE\ChaosDepths\profile",
-    [string]$PluginZip = ""
+    [string]$PluginZip = "",
+    [switch]$OnlyChaosDepths
 )
 
 $ErrorActionPreference = "Stop"
@@ -130,6 +133,33 @@ if (-not $installed -and -not (Test-Path (Join-Path $profPlugin "$PluginName.dll
     throw "No $PluginName.dll found: pass -PluginZip with a downloaded build, or install the plugin in the base game first."
 }
 
+# ---- The base game's other mods: copied into the profile (the base game keeps its own) ----
+# Arcana, relic and menu mods, LegendAPI they depend on, any patchers, and their configs (a
+# config already in the profile is kept, so the profile can be tuned separately). Re-running the
+# script refreshes the copies, so an updated mod in the base game reaches the profile too.
+if (-not $OnlyChaosDepths) {
+    $copied = 0
+    foreach ($item in Get-ChildItem (Join-Path $baseBepInEx "plugins") -ErrorAction SilentlyContinue) {
+        if ($item.Name -eq $PluginName) { continue }
+        Copy-Item $item.FullName (Join-Path $profBepInEx "plugins") -Recurse -Force
+        $copied++
+    }
+    $basePatchers = Join-Path $baseBepInEx "patchers"
+    if (Test-Path $basePatchers) {
+        foreach ($item in Get-ChildItem $basePatchers) {
+            Copy-Item $item.FullName (Join-Path $profBepInEx "patchers") -Recurse -Force
+        }
+    }
+    $cfgCopied = 0
+    foreach ($cfg in Get-ChildItem (Join-Path $baseBepInEx "config") -Filter *.cfg -ErrorAction SilentlyContinue) {
+        $target = Join-Path $profBepInEx ("config\" + $cfg.Name)
+        if (-not (Test-Path $target)) { Copy-Item $cfg.FullName $target; $cfgCopied++ }
+    }
+    Say "Other mods: $copied plugin(s) copied from the base game into the profile ($cfgCopied new config file(s)); the base game keeps its own"
+} else {
+    Say "Other mods: left out of the profile (-OnlyChaosDepths)"
+}
+
 # Chaos Depths' own config and saves move with it, if they were in the base game.
 $baseCdCfg = Join-Path $baseBepInEx "config\mdbailey94.wol.chaosdepths.cfg"
 $profCdCfg = Join-Path $profBepInEx "config\mdbailey94.wol.chaosdepths.cfg"
@@ -169,5 +199,6 @@ try {
 
 Say ""
 Say "Done. Steam launches the base game (its arcana and relic mods, no Chaos Depths);"
-Say "the Chaos Depths shortcut launches the same game with only Chaos Depths."
+if ($OnlyChaosDepths) { Say "the Chaos Depths shortcut launches the same game with only Chaos Depths." }
+else { Say "the Chaos Depths shortcut launches the same game with Chaos Depths and copies of those mods." }
 Say "Check the profile's BepInEx\LogOutput.log for 'Chaos Depths ... loaded (profile)'."
