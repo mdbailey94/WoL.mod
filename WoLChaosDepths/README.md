@@ -516,4 +516,5 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
   ahead of the body. A sheet that reads fully opaque now has its background colour (the frame's
   corner) counted as empty. The log says, once per sheet, how many pixels of its first frame
   count as drawn, and when it switched to the background colour.
-- `[Debug] GearLog` stays on until a run confirms the fix.
+- The sheet's background turned out to be solid red (255,0,0), not transparent. Matt confirmed
+  the fix in a run, and 0.15.6 removed the gear probe and `[Debug] GearLog`.

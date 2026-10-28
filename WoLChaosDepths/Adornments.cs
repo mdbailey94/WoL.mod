@@ -14,7 +14,7 @@ namespace WoLChaosDepths
     // down, left or right, and hidden behind it facing up.
     public static class Adornments
     {
-        private static ConfigEntry<bool> enabled, uniqueSparks, gearLog;
+        private static ConfigEntry<bool> enabled, uniqueSparks;
         private static ConfigEntry<float> legendaryCharmScale, charmOrbitHeight;
         private static readonly Dictionary<int, Adorn> adorns = new Dictionary<int, Adorn>();
         private static readonly Dictionary<string, Sprite> sprites = new Dictionary<string, Sprite>();
@@ -26,8 +26,6 @@ namespace WoLChaosDepths
             uniqueSparks = config.Bind("Look", "UniqueSparks", true, "Unique legendaries worn give off small sparks.");
             charmOrbitHeight = config.Bind("Look", "CharmOrbitHeight", 0.45f,
                 new ConfigDescription("How high the charm's stones circle, as a fraction of the wizard's height: 0.6 was chest height (0.11.9 and before), 0.45 the waist, 0.3 the hips.", new AcceptableValueRange<float>(0.1f, 0.9f)));
-            gearLog = config.Bind("Debug", "GearLog", true,
-                "Log where the ring and pendant are put while running (twice a second, the first 20 s of running in a scene), to find why they drift off the body.");
             legendaryCharmScale = config.Bind("Look", "LegendaryCharmScale", 0.6f,
                 new ConfigDescription("Size of the four stones a Legendary (or unique) charm floats round the wizard, as a fraction of the drawn 7x7 stone. 1 = full size.", new AcceptableValueRange<float>(0.4f, 1f)));
         }
@@ -743,7 +741,6 @@ namespace WoLChaosDepths
                     pendant.flipX = view == "side" && side < 0f && HasPendantView(amuletDesigns, "side");
                     pendant.sprite = PendantSprite(view, Twinkle(0, amuletTier), swing, flicker);
                 }
-                GearProbe(body, bb, pivot, moving);
                 if (glint != null)
                 {
                     // On the hand in every frame if the picture's outline gives it away: the
@@ -818,7 +815,6 @@ namespace WoLChaosDepths
                     }
                 }
                 lastPos = feet;
-                GearProbeAfter(pivot);
 
                 // Uniques shed a single pixel-sized mote every 1.5-2.5 s, other Legendaries every
                 // 3-4.5 s, drifting up and fading.
@@ -1123,53 +1119,6 @@ namespace WoLChaosDepths
 
             // Hang the part on the body (so it moves with it whatever else moves the body this
             // frame) at the offset from the pivot.
-            // ---- Diagnosis: the ring and pendant drift off the body while running (Matt, 0.15.0) ----
-            // Twice a second while running, for the first 20 s of running in a scene: the body
-            // frame's picture as read (BodyPixels), the renderer's bounds, where the pendant and
-            // ring were left last frame against the body (did something move them after us?),
-            // and where they are being put now. [Debug] GearLog turns it off.
-            private float gearLogNext, gearLogUsed;
-            private Vector3 pendantSet, glintSet, bodyAtSet;
-
-            private void GearProbe(SpriteRenderer body, Bounds bb, Vector3 pivot, bool moving)
-            {
-                if (!gearLog.Value || !moving || gearLogUsed > 20f)
-                    return;
-                gearLogUsed += Time.deltaTime;
-                if (Time.unscaledTime < gearLogNext)
-                    return;
-                gearLogNext = Time.unscaledTime + 0.5f;
-                try
-                {
-                    Sprite s = body.sprite;
-                    BodyPixels.Shape sh = BodyPixels.Of(s);
-                    string shape = sh == null ? "unreadable" : $"rows {sh.bottom}-{sh.top}, origin ({sh.origin.x:0.#},{sh.origin.y:0.#})";
-                    string drift = "";
-                    if (pendant != null)
-                        drift += $" pendant moved since placed by ({(pendant.transform.position - pendantSet).x:0.00},{(pendant.transform.position - pendantSet).y:0.00}) while the body moved ({(pivot - bodyAtSet).x:0.00},{(pivot - bodyAtSet).y:0.00});";
-                    ChaosDepthsPlugin.Log($"Gear probe: sprite '{(s != null ? s.name : "-")}' tex '{(s != null && s.texture != null ? s.texture.name : "-")}' " +
-                        $"rect {(s != null ? s.rect.ToString() : "-")} texRect {(s != null ? s.textureRect.ToString() : "-")} offset {(s != null ? s.textureRectOffset.ToString() : "-")} pivot {(s != null ? s.pivot.ToString() : "-")} packed {(s != null && s.packed)}; " +
-                        $"{shape}; body at ({pivot.x:0.00},{pivot.y:0.00}) scale {body.transform.lossyScale.x:0.##} flipX {body.flipX}; bounds ({bb.min.x:0.00}..{bb.max.x:0.00}, {bb.min.y:0.00}..{bb.max.y:0.00});" +
-                        drift +
-                        (pendant != null ? $" pendant now ({pendant.transform.position.x:0.00},{pendant.transform.position.y:0.00})" : "") +
-                        (glint != null ? $" ring now ({glint.transform.position.x:0.00},{glint.transform.position.y:0.00}), ring parent '{(glint.transform.parent != null ? glint.transform.parent.name : "-")}'" : ""));
-                }
-                catch (Exception e)
-                {
-                    ChaosDepthsPlugin.Log($"Gear probe: {e.Message}");
-                }
-            }
-
-            // After the parts are placed this frame (end of LateUpdate): remember where.
-            private void GearProbeAfter(Vector3 pivot)
-            {
-                if (pendant != null)
-                    pendantSet = pendant.transform.position;
-                if (glint != null)
-                    glintSet = glint.transform.position;
-                bodyAtSet = pivot;
-            }
-
             private static void Place(SpriteRenderer part, SpriteRenderer body, Vector3 pivot, Vector2 offset, float fwd, float bob)
             {
                 if (part.transform.parent != body.transform)
