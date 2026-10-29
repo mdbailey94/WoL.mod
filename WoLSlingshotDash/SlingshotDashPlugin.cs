@@ -329,7 +329,7 @@ namespace WoLSlingshotDash
                 displayName = "Feint Swap",
                 description = "Hold to charge, then release to hurl an ice feint through your foes; press again to swap places with it, and it explodes in a freezing blast!",
                 // The game shows this one text for both the enhanced and the signature version.
-                enhancedDescription = "Faster charge; leaves an exploding feint behind. Signature: hurl 6 feints, then chain-swap through them all!",
+                enhancedDescription = "Faster charge; leaves an exploding feint behind you can swap back to. Signature: hurl 9 feints, then chain-swap through them all!",
                 icon = LoadIcon("icon_ice.png"),
                 tier = 2,
                 stateType = typeof(FeintSwapState),
