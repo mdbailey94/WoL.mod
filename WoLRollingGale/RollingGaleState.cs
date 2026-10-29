@@ -15,29 +15,38 @@ namespace WoLRollingGale
     public class RollingGaleState : Player.SkillState
     {
         public new static string staticID = "RollingGale";
-        // The signature fan.
-        private const int FanBursts = 6;
-        private const float FanSpread = 40f;          // degrees either side of the aim
-        private const float FanStart = 0.1f, FanStep = 0.13f;
-        private const float FanFirstDistance = 2.5f, FanDistanceStep = 1f;
-        private const float FanFirstScale = 2.6f, FanScaleStep = 0.35f;
-        private const float GatherTime = 0.3f;        // the beat before the final gale
-        private const float FinalDistance = 5.5f, FinalScale = 7f;
+        // The signature fan. The gameplay numbers are settings ([Signature], RollingGalePlugin.cs);
+        // the camera pull-back, darkening, flash and shake stay fixed here.
+        private static int FanBursts => RollingGalePlugin.FanBursts;
+        private static float FanSpread => RollingGalePlugin.FanSpread;          // degrees either side of the aim
+        private static float FanStart => RollingGalePlugin.FanDelay;
+        private static float FanStep => RollingGalePlugin.FanInterval;
+        private static float FanFirstDistance => RollingGalePlugin.FanFirstDistance;
+        private static float FanDistanceStep => RollingGalePlugin.FanDistanceStep;
+        private static float FanFirstScale => RollingGalePlugin.FanFirstScale;
+        private static float FanScaleStep => RollingGalePlugin.FanScaleStep;
+        private static float GatherTime => RollingGalePlugin.GatherTime;        // the beat before the final gale
+        private static float FinalDistance => RollingGalePlugin.FinalDistance;
+        private static float FinalScale => RollingGalePlugin.FinalScale;
         private const float SigZoom = 0.18f, SigDim = 0.6f;
-        private const int FanHitStopFrames = 2, FinalHitStopFrames = 5;
-        private const float FinalFlash = 1.7f, FinalShake = 2f, FinalSlowMoTime = 0.35f, FinalSlowMoScale = 0.05f, EaseBack = 0.8f;
+        private static int FanHitStopFrames => RollingGalePlugin.FanHitStopFrames;
+        private static int FinalHitStopFrames => RollingGalePlugin.FinalHitStopFrames;
+        private static float FinalSlowMoTime => RollingGalePlugin.FinalSlowMoTime;
+        private static float FinalSlowMoScale => RollingGalePlugin.FinalSlowMoScale;
+        private const float FinalFlash = 1.7f, FinalShake = 2f, EaseBack = 0.8f;
         private bool signature, finalDone, gathered;
         private float sigTime;
         private int fanFired;
         private int cinematic;
 
-        private const float FirstBurstDistance = 2.5f;
-        private const float BurstSpacing = 3f;
-        private const float FirstBurstScale = 2.5f;
-        private const float BurstScaleGrowth = 0.5f;
-        private const float BurstInterval = 0.12f;
+        // The line ([Cast] and [Enhanced] settings).
+        private static float FirstBurstDistance => RollingGalePlugin.FirstBurstDistance;
+        private static float BurstSpacing => RollingGalePlugin.BurstSpacing;
+        private static float FirstBurstScale => RollingGalePlugin.FirstBurstScale;
+        private static float BurstScaleGrowth => RollingGalePlugin.BurstScaleGrowth;
+        private static float BurstInterval => RollingGalePlugin.BurstInterval;
         // Each burst pulses again one interval later at the same spot, so the pull lasts longer.
-        private const float EchoScale = 0.85f;
+        private static float EchoScale => RollingGalePlugin.EchoScale;
 
         private int stopwatchID;
         private int burstCount;
@@ -70,7 +79,7 @@ namespace WoLRollingGale
                 direction = Vector2.right;
             origin = parent.attackOriginTrans.position;
 
-            burstCount = IsEmpowered ? 4 : 3;
+            burstCount = IsEmpowered ? RollingGalePlugin.EnhancedBurstCount : RollingGalePlugin.BurstCount;
             burstsFired = 0;
             // One extra interval for the last burst's echo.
             stopwatchID = ChaosStopwatch.Begin(

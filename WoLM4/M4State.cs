@@ -46,8 +46,8 @@ namespace WoLM4
         public override void SetEmpowered(bool givenStatus, BoolVarStatMod givenMod)
         {
             base.SetEmpowered(givenStatus, givenMod);
-            roundGap = IsEmpowered ? 0.04f : 0.055f;
-            extraRounds = IsEmpowered ? 1 : 0;
+            roundGap = IsEmpowered ? M4Plugin.EnhancedRoundGap : M4Plugin.RoundGap;
+            extraRounds = IsEmpowered ? M4Plugin.EnhancedExtraRounds : 0;
         }
 
         public override void OnEnter()
@@ -91,7 +91,7 @@ namespace WoLM4
 
         private void FireRound(bool finalBurst)
         {
-            float spread = M4Plugin.Spread * (finalBurst ? 1.6f : 1f);
+            float spread = M4Plugin.Spread * (finalBurst ? M4Plugin.FinalSpread : 1f);
             Vector2 aim = Quaternion.Euler(0f, 0f, Random.Range(-spread, spread)) * inputVector;
             Vector2 muzzle = (Vector2)parent.attackOriginTrans.position + inputVector * 0.6f;
             SoundManager.PlayAudioWithDistance("ArcherArrow", muzzle);

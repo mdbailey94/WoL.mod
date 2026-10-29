@@ -10,12 +10,13 @@ namespace WoLSlingshotDash
     // landed. Runs on the plugin, since it outlives the dash.
     public class VineSpread
     {
-        private const float Radius = 4f;
-        private const int MaxEnemies = 5;
-        private const float LingerTime = 3f;
-        private const float TickInterval = 0.5f;
+        // [Vine Slingshot] settings (0.27.0; the defaults are the values these had in code).
+        private static float Radius => SlingshotDashPlugin.VineSpreadRadius;
+        private static int MaxEnemies => SlingshotDashPlugin.VineSpreadMaxEnemies;
+        private static float LingerTime => SlingshotDashPlugin.VineSpreadLinger;
+        private static float TickInterval => SlingshotDashPlugin.VineSnareInterval;
         private const int SnareLevel = 4;
-        private const float SnareScale = 0.6f;
+        private static float SnareScale => SlingshotDashPlugin.VineSnareSize;
 
         private readonly Player player;
         private readonly string skillCategory;

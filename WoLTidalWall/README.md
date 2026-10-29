@@ -27,6 +27,27 @@ apart, 1.0 in the signature, from 0.9 and 1.3), shortens every roll by a fifth a
 the knockback (was 20 / 40, signature 30 / 60). A shorter roll means one push fewer, so a
 carried enemy takes a little less damage.
 
+### Settings (0.5.0)
+
+0.5.0 puts the arcana's numbers in `BepInEx\config\mdbailey94.wol.tidalwall.cfg` for balancing.
+Every default is today's value, so nothing changes until you edit one.
+
+- `[Cast]` (next cast): `RiseDistance`, `Columns` and `ColumnSpacing` (the width is the two
+  multiplied), `WallDepth`, `HitAreaMargin`, `MaxRiseTime`, `ColumnRiseInterval`, `HoldTime`,
+  `RollSpeed` and `RollTime` (the reach is the two multiplied), `PushInterval`,
+  `CrashDepthMultiplier`, `CrashHitTime`.
+- `[Enhanced]` (next cast): `ExtraColumns`, `RollTime`.
+- `[Signature]` (next cast): `Columns`, `ColumnSpacing`, `ColumnScale`, `Depth`, `HoldTime`,
+  `Speed`, `RollTime`, `EnhancedRollTime`, `PushInterval`, `GatherTime`, and the cinematic's
+  `RiseHitStopFrames`, `PushHitStopFrames`, `RiseShake`, `PushShake`, `CrashShake`,
+  `CrashSlowMotionTime`, `CrashSlowMotionSpeed`, `CrashFlash`, `CameraPullBack`, `RoomDim`,
+  `EaseBackTime`.
+- `[Balance]` (after restarting the game): `PushDamage`, `CrashDamage`, `SignaturePushDamage`,
+  `SignatureCrashDamage`, `WallCooldown`, `PushKnockback`, `CrashKnockback`,
+  `SignaturePushKnockback`, `SignatureCrashKnockback`, `PushHitStun`, `CrashHitStun`,
+  `SignaturePushHitStun`, `SignatureCrashHitStun`, `SignatureCrashFreezeChance`,
+  `SignatureCrashFreezeDuration`, `PushHitImmunity`, `SignaturePushHitImmunity`.
+
 A single wall of water rises across your aim a short way in front of you, stands for a moment, then
 rolls slowly forward as one front. Everything it touches is shoved along with it, pushed again
 every 0.35 s, so enemies get carried rather than smashed, and at the end of its run (or when it
@@ -128,10 +149,10 @@ Unlock Mod Content on).
 
 ## Tuning
 
-Damage, knockback, freeze and cooldown are in `TidalWallPlugin.cs` (`skillStats`; levels 1 and 2 are
-the wall's pushes and crash, 3 and 4 the signature's). Width, speed, distance, timing and the
-signature's gather are the constants at the top of `TidalWallState.cs`; the hit-stops, shakes,
-slow motion, camera pull-back and light are at the top of `WaveFront.cs`.
+Since 0.5.0 the gameplay numbers are settings (see Settings above); their defaults are in
+`TidalWallPlugin.cs`. In `skillStats` levels 1 and 2 are the wall's pushes and crash, 3 and 4 the
+signature's. What's left as constants at the top of `TidalWallState.cs` and `WaveFront.cs` is
+placement, collision and look.
 
 ## Building it yourself
 

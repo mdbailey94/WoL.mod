@@ -15,7 +15,11 @@ A new **Air basic** arcana (asked for by Matt): a rifle.
 - `[General] Enabled`: offer it in the arcana shop.
 - `[Gun] Burst` (3), `FinalBurst` (5): rounds per pull.
 - `[Gun] BulletSpeed` (1.6): times Air Dart's speed.
-- `[Gun] Spread` (3): degrees either side of the aim; the last pull sprays 1.6 times wider.
+- `[Gun] Spread` (3): degrees either side of the aim; the last pull sprays `FinalSpread` (1.6) times wider.
+- `[Gun] RoundGap` (0.055): time between rounds as a share of the attack animation (smaller = faster).
+- `[Enhanced] RoundGap` (0.04), `ExtraRounds` (1).
+- `[Balance] Damage` (5), `FinalDamage` (6), `Knockback` (1), `FinalKnockback` (2) per bullet,
+  after restarting the game (0.2.0; the defaults are 0.1.0's numbers).
 
 ## To test
 

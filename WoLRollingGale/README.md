@@ -13,6 +13,22 @@ A new Air arcana, added with [LegendAPI](https://github.com/yekoc/LegendAPI).
 | Cooldown | 5 s |
 | Bursts | 3 (4 when enhanced) |
 
+## 0.6.0: balance settings (asked for by Matt)
+
+New settings in `BepInEx\config\mdbailey94.wol.rollinggale.cfg` (or the Mods menu). The defaults
+are the values the arcana already had, so nothing changes until you edit them.
+
+- **[Cast]** (next cast): `FirstBurstDistance` 2.5, `BurstSpacing` 3, `FirstBurstScale` 2.5,
+  `BurstScaleGrowth` 0.5, `BurstInterval` 0.12 s, `EchoScale` 0.85, `BurstCount` 3.
+- **[Enhanced]** (next cast): `BurstCount` 4.
+- **[Signature]** (next cast): `FanBursts` 6, `FanSpread` 40 degrees, `FanDelay` 0.1 s,
+  `FanInterval` 0.13 s, `FanFirstDistance` 2.5, `FanDistanceStep` 1, `FanFirstScale` 2.6,
+  `FanScaleStep` 0.35, `FanHitStopFrames` 2, `GatherTime` 0.3 s, `FinalDistance` 5.5,
+  `FinalScale` 7, `FinalHitStopFrames` 5, `FinalSlowMoTime` 0.35 s, `FinalSlowMoSpeed` 0.05.
+- **[Balance]** (after restarting the game): `BurstDamage` 8, `EchoDamage` 3, `FanBurstDamage` 12,
+  `FinalGaleDamage` 45, `GaleCooldown` 5 s, `BurstPull` 22, `FanPull` 26, `FinalPull` 36,
+  `BurstHitStun` 1.1, `FanHitStun` 1.2, `FinalHitStun` 1.6, `RegrabTime` 0.1 s.
+
 ## 0.5.0: a cinematic signature (asked for by Matt)
 
 Rolling Gale has a **signature version** now (the spellbook's Signature page; unlocked along with
@@ -63,8 +79,9 @@ the first time each effect plays, or which one it skipped.
 
 ## Tuning
 
-Damage, cooldown and pull strength are in `RollingGalePlugin.cs` (`skillStats`). Burst spacing,
-size, timing and count are the constants at the top of `RollingGaleState.cs`.
+Damage, cooldown, pull, hit stun, burst spacing, size, timing and count are settings (see 0.6.0
+above; defaults in `RollingGalePlugin.cs`). The look (camera, flash, shake, drawn effects) is the
+constants in `RollingGaleState.cs` and `GaleLook.cs`.
 
 ## Building it yourself
 

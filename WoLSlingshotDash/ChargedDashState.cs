@@ -15,15 +15,16 @@ namespace WoLSlingshotDash
     // boosts the dash speed/duration stats for this one dash.
     public abstract class ChargedDashState : Player.BaseDashState
     {
-        private const float MaxCharge = 1f;
+        // [Charge] settings (0.27.0; the defaults are the values these had in code).
+        private static float MaxCharge => SlingshotDashPlugin.FullChargeTime;
         // A press shorter than this counts as a tap: dash immediately at no extra charge.
-        private const float TapWindow = 0.12f;
+        private static float TapWindow => SlingshotDashPlugin.TapWindow;
         // Bonus at full charge. Mod values are the change: 0.6 = +60%.
-        private const float MaxSpeedBonus = 0.6f;
-        private const float MaxDurationBonus = 0.4f;
+        private static float MaxSpeedBonus => SlingshotDashPlugin.FullChargeSpeedBonus;
+        private static float MaxDurationBonus => SlingshotDashPlugin.FullChargeDurationBonus;
         private const float DustInterval = 0.1f;
         // The backward hop at the start of a charge.
-        private const float HopTime = 0.18f;
+        private static float HopTime => SlingshotDashPlugin.HopTime;
         private const string SpeedModID = "ChargedDash_Speed";
         private const string DurationModID = "ChargedDash_Duration";
 

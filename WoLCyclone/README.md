@@ -20,6 +20,24 @@ A new **Air standard arcana**, added with [LegendAPI](https://github.com/yekoc/L
 - **Enhanced**: full size in 3 seconds (bursting at 4), and a wider burst.
 - Dash to cancel at any time. Cooldown 5 seconds.
 
+## 0.7.0: more settings to balance with (asked for by Matt)
+
+The numbers that were fixed in the code are now settings in
+`BepInEx\config\mdbailey94.wol.cyclone.cfg`. Their defaults are the old values, so nothing plays
+differently until you change one. All are new names; the existing settings are unchanged.
+
+- `[Cast]` (next cast): `GrowTime`, `FullPowerTime`, `MinHoldTime`, `StartDistance`, `SteerSpeed`,
+  `HeavySteerSpeed`, `HeavyAt`, `SteerRange`, `StartHitSize`, `FullHitSize`, `SlowHitInterval`,
+  `FastHitInterval`, `BurstSize`.
+- `[Enhanced]` (next cast): `GrowTime`, `FullPowerTime`, `SteerSpeed`, `HeavySteerSpeed`, `HeavyAt`,
+  `BurstSize`.
+- `[Signature]` (next cast): `TossFrom`, `TossReach`, `TossAgainAfter`, `CameraPullBack`, `RoomDim`,
+  `LightningFrom`, `LightningFlash`, `ThrowSlowMoTime`, `ThrowSlowMoSpeed`, `BurstHitStopFrames`,
+  `BurstFlash`, `BurstShake`, `BurstSlowMoTime`, `BurstSlowMoSpeed`, `BurstEaseBack`, `LetGoEaseBack`.
+- `[Balance]` (after restarting the game): `Stage1Damage` to `Stage4Damage`, `BurstDamage`,
+  `Stage1Knockback` to `Stage4Knockback` (negative pulls in), `BurstKnockback`, `TwisterHitStun`,
+  `BurstHitStun`, `SameAttackImmunity`, `Cooldown`.
+
 ## 0.6.0: higher throws, and the signature no longer refills its own gauge (asked for by Matt)
 
 - The signature throws enemies **11 units** high (was 2.5; `[Signature] TossHeight`, up to 16)

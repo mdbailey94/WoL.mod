@@ -26,37 +26,39 @@ namespace WoLTidalWall
     {
         public new static string staticID = "TidalWall";
 
-        private const float RiseDistance = 2f;          // the wall rises this far in front (Water Wall's 1.75, a little more for width)
+        // The cast's sizes and timings are settings (TidalWallPlugin, [Cast], [Enhanced] and
+        // [Signature]); the comments give their defaults.
+        private static float RiseDistance => TidalWallPlugin.RiseDistance;  // 2 in front (Water Wall's 1.75, a little more for width)
         private const float WallBackoff = 0.4f;         // a wall rising into a level wall stops this far short of it
         // The standing wall.
-        private const int Columns = 5;                  // water columns side by side (Water Wall's own count)
-        private const int EnhancedExtraColumns = 2;     // enhanced: wider
+        private static int Columns => TidalWallPlugin.Columns;              // 5 side by side (Water Wall's own count)
+        private static int EnhancedExtraColumns => TidalWallPlugin.EnhancedExtraColumns; // enhanced: 2 more, wider
         // 0.4.4 (Matt: too wide, pushes too far): a quarter narrower and a fifth shorter at every
         // level, and half the knockback (TidalWallPlugin).
-        private const float ColumnSpacing = 0.7f;       // so 3.5 wide, 4.9 enhanced (0.9: 4.5 / 6.3)
-        private const float WallDepth = 1.4f;           // thickness of its hit area along the aim
-        private const float HoldTime = 0.2f;            // seconds it stands before rolling
-        private const float RollSpeed = 6f;             // slow: it carries enemies rather than smashing them
-        private const float RollTime = 0.8f;            // 4.8 units (was 6)
-        private const float EnhancedRollTime = 1.05f;   // 6.3 units (was 7.8)
-        private const float TickInterval = 0.35f;       // a push every this many seconds while rolling
+        private static float ColumnSpacing => TidalWallPlugin.ColumnSpacing;    // 0.7, so 3.5 wide, 4.9 enhanced (0.9: 4.5 / 6.3)
+        private static float WallDepth => TidalWallPlugin.WallDepth;            // 1.4, thickness of its hit area along the aim
+        private static float HoldTime => TidalWallPlugin.HoldTime;              // 0.2 s it stands before rolling
+        private static float RollSpeed => TidalWallPlugin.RollSpeed;            // 6/s, slow: it carries enemies rather than smashing them
+        private static float RollTime => TidalWallPlugin.RollTime;              // 0.8 s, 4.8 units (was 6)
+        private static float EnhancedRollTime => TidalWallPlugin.EnhancedRollTime; // 1.05 s, 6.3 units (was 7.8)
+        private static float TickInterval => TidalWallPlugin.PushInterval;      // a push every 0.35 s while rolling
         // The signature tidal wave.
-        private const int SignatureColumns = 8;         // 10 when also enhanced
-        private const float SignatureColumnSpacing = 1f;   // 8 wide, 10 when also enhanced (1.3: 10.4 / 13)
-        private const float SignatureColumnScale = 1.7f;   // the columns tower over the wizard
-        private const float SignatureDepth = 2.4f;
-        private const float SignatureHoldTime = 0.1f;
-        private const float SignatureSpeed = 12f;
-        private const float SignatureRollTime = 1f;     // 12 units (was 15)
-        private const float EnhancedSignatureRollTime = 1.2f; // 14.4 units (was 18)
-        private const float SignatureTickInterval = 0.25f;
+        private static int SignatureColumns => TidalWallPlugin.SignatureColumns;    // 8, 10 when also enhanced
+        private static float SignatureColumnSpacing => TidalWallPlugin.SignatureColumnSpacing; // 1: 8 wide, 10 when also enhanced (1.3: 10.4 / 13)
+        private static float SignatureColumnScale => TidalWallPlugin.SignatureColumnScale;     // 1.7: the columns tower over the wizard
+        private static float SignatureDepth => TidalWallPlugin.SignatureDepth;      // 2.4
+        private static float SignatureHoldTime => TidalWallPlugin.SignatureHoldTime; // 0.1 s
+        private static float SignatureSpeed => TidalWallPlugin.SignatureSpeed;      // 12/s
+        private static float SignatureRollTime => TidalWallPlugin.SignatureRollTime; // 1 s, 12 units (was 15)
+        private static float EnhancedSignatureRollTime => TidalWallPlugin.EnhancedSignatureRollTime; // 1.2 s, 14.4 units (was 18)
+        private static float SignatureTickInterval => TidalWallPlugin.SignaturePushInterval; // 0.25 s
         // Skill levels (SkillStats in the plugin).
         private const int TickLevel = 1;
         private const int CrashLevel = 2;
         private const int SignatureTickLevel = 3;
         private const int SignatureCrashLevel = 4;
         // The signature's gather (beat 1).
-        private const float GatherTime = 0.6f;          // seconds the wizard draws the water in
+        private static float GatherTime => TidalWallPlugin.GatherTime; // 0.6 s the wizard draws the water in
         private const float GatherBehind = 1.5f;        // the water gathers this far behind the wizard
         private const float GatherRadius = 3.5f;        // from this far around
         private const float GatherPose = 0.3f;          // the wizard holds the cast pose here (past animExecTime)

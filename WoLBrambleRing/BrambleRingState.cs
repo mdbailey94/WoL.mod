@@ -47,45 +47,48 @@ namespace WoLBrambleRing
         // thicket roughly 0.3 to 2 units out (and enemies right up against you are inside it).
         // 0.4.1 drew the standard thicket in from 1.5/2.5 (and a 3-unit reach), 0.5.2 again from
         // 1.1/1.9 (reach 2.4): a tight thicket round the wizard, the enhanced cast is the wide one.
-        private const float InnerRowRadius = 0.8f;
-        private const float OuterRowRadius = 1.5f;
-        // Enhanced: the third, wider row, and how long after the outer row is knitted it spreads.
-        private const float SpreadRowRadius = 2.9f;
-        private const float SpreadRowDelay = 0.3f;
+        // The gameplay numbers below read the plugin's settings (0.6.0; defaults in brackets are
+        // the old constants), so a change applies to the next cast.
+        // [0.8, 1.5]
+        private static float InnerRowRadius => BrambleRingPlugin.InnerRowRadius;
+        private static float OuterRowRadius => BrambleRingPlugin.OuterRowRadius;
+        // Enhanced: the third, wider row, and how long after the outer row is knitted it spreads. [2.9, 0.3]
+        private static float SpreadRowRadius => BrambleRingPlugin.SpreadRowRadius;
+        private static float SpreadRowDelay => BrambleRingPlugin.SpreadRowDelay;
         // Signature: its three rows erupt a little wider than the enhanced thicket's (reach 4
-        // rather than 3.4). (0.4.2: it shared the enhanced rows, and felt small for the gauge.)
-        private const float SignatureInnerRowRadius = 1.4f;
-        private const float SignatureOuterRowRadius = 2.4f;
-        private const float SignatureSpreadRowRadius = 3.5f;
-        // The thicket reaches this far past its widest row: everything inside is pricked.
-        private const float ThicketMargin = 0.5f;
+        // rather than 3.4). (0.4.2: it shared the enhanced rows, and felt small for the gauge.) [1.4, 2.4, 3.5]
+        private static float SignatureInnerRowRadius => BrambleRingPlugin.SignatureInnerRowRadius;
+        private static float SignatureOuterRowRadius => BrambleRingPlugin.SignatureOuterRowRadius;
+        private static float SignatureSpreadRowRadius => BrambleRingPlugin.SignatureSpreadRowRadius;
+        // The thicket reaches this far past its widest row: everything inside is pricked. [0.5]
+        private static float ThicketMargin => BrambleRingPlugin.ReachPastRows;
         // Distance between neighbouring vines along a row (Rippling Vines spaces its 1.4 apart),
         // and the fewest a row gets.
-        private const float VineSpacing = 1.4f;
+        private static float VineSpacing => BrambleRingPlugin.VineSpacing;
         private const int MinVinesPerRow = 6;
-        // How long the thicket stands, normal, enhanced and signature.
-        private const float RingDuration = 3f;
-        private const float EnhancedRingDuration = 4.5f;
-        private const float SignatureRingDuration = 6f;
+        // How long the thicket stands, normal, enhanced and signature. [3, 4.5, 6]
+        private static float RingDuration => BrambleRingPlugin.Duration;
+        private static float EnhancedRingDuration => BrambleRingPlugin.EnhancedDuration;
+        private static float SignatureRingDuration => BrambleRingPlugin.SignatureDuration;
         // Enemies inside are pricked every TickInterval from the moment it's cast: 6 pricks over
         // 3 s, 9 enhanced, 12 signature. The first prick on an enemy (the catch) is skill level 1,
         // which also carries the slow; every prick after it is level 2. The signature thicket's
-        // catch and pricks are levels 3 and 4.
-        private const float TickInterval = 0.5f;
+        // catch and pricks are levels 3 and 4. [0.5]
+        private static float TickInterval => BrambleRingPlugin.PrickInterval;
         private const int CatchLevel = 1;
         private const int PrickLevel = 2;
         private const int SignatureCatchLevel = 3;
         private const int SignaturePrickLevel = 4;
         // Signature: how far each tick drags a snared enemy toward the centre, how close to the
         // centre the dragging stops, and the clear ground a dragged enemy needs at its new spot
-        // (so it's never pulled into a wall or an obstacle).
-        private const float SignaturePullPerTick = 0.5f;
-        private const float PullStopRadius = 0.5f;
+        // (so it's never pulled into a wall or an obstacle). [0.5, 0.5]
+        private static float SignaturePullPerTick => BrambleRingPlugin.PullPerTick;
+        private static float PullStopRadius => BrambleRingPlugin.PullStopRadius;
         private const float PullClearance = 0.3f;
         // Vines knit, and later wither, one after another this far apart, so the ring runs round.
         private const float VineStagger = 0.02f;
-        // The outer row starts this long after the inner one.
-        private const float RowInterval = 0.12f;
+        // The outer row starts this long after the inner one. [0.12]
+        private static float RowInterval => BrambleRingPlugin.RowDelay;
         // The slam: dust kicked up around the wizard (Rippling Vines' cast dust) and a shake.
         private const int CastDust = 100;
         private const float CastDustScale = 0.25f;
@@ -99,23 +102,25 @@ namespace WoLBrambleRing
         // Windup: the slam is played from the very start (normalized time 0, as Grasping Earth
         // plays it) and held at the raised pose (the hold point, 0.2) this many seconds, with a
         // rumble, a little dust and leaves, a light shake and the camera leaning in to this size.
+        // [0.25, 0.95, 0.3]
         private const float SignatureAnimStart = 0f;
-        private const float SignatureWindup = 0.25f;
-        private const float WindupZoom = 0.95f;
+        private static float SignatureWindup => BrambleRingPlugin.WindupTime;
+        private static float WindupZoom => BrambleRingPlugin.WindupZoom;
         private const int WindupDust = 40;
         private const float WindupDustScale = 0.75f;
         private const float WindupDustSpeed = 4f;
         private const int WindupLeaves = 6;
-        private const float WindupShake = 0.3f;
+        private static float WindupShake => BrambleRingPlugin.WindupShake;
         // Slam: the game's hit-stop for this many frames, then a slow-down from this time scale
         // easing back to full speed over this many real seconds (the eruption ripples out in it).
-        private const int SlamFreezeFrames = 6;
-        private const float SlamSlowTime = 0.4f;
-        private const float SlamSlowScale = 0.35f;
+        // [6, 0.4, 0.35]
+        private static int SlamFreezeFrames => BrambleRingPlugin.SlamFreezeFrames;
+        private static float SlamSlowTime => BrambleRingPlugin.SlamSlowTime;
+        private static float SlamSlowScale => BrambleRingPlugin.SlamSlowScale;
         // A heavy shake (the game's default is 1) and a camera punch-in to this size, in over
-        // SlamZoomIn, held SlamZoomHold, back out over SlamZoomOut (real seconds).
-        private const float SlamShake = 1.5f;
-        private const float SlamZoom = 0.88f;
+        // SlamZoomIn, held SlamZoomHold, back out over SlamZoomOut (real seconds). [1.5, 0.88]
+        private static float SlamShake => BrambleRingPlugin.SlamShake;
+        private static float SlamZoom => BrambleRingPlugin.SlamZoom;
         private const float SlamZoomIn = 0.04f;
         private const float SlamZoomHold = 0.15f;
         private const float SlamZoomOut = 0.45f;
@@ -125,8 +130,8 @@ namespace WoLBrambleRing
         private const float SlamDustSpeed = 25f;
         private const int SlamRocks = 14;
         // Eruption: each row bursts up this long after the one inside it, every vine throwing up
-        // rocks, leaves and an earth wave, each row a ring of dust and its own (smaller) shake.
-        private const float EruptionRowInterval = 0.08f;
+        // rocks, leaves and an earth wave, each row a ring of dust and its own (smaller) shake. [0.08]
+        private static float EruptionRowInterval => BrambleRingPlugin.EruptionRowDelay;
         private const int EruptRocksPerVine = 3;
         private const int EruptLeavesPerVine = 3;
         private const int EruptRowDust = 50;
@@ -141,13 +146,14 @@ namespace WoLBrambleRing
         // Final snap: the vines whip shut, SnapSqueeze later the crush lands (skill level 5, once on
         // everything inside), with a hit-stop and slow-down like the slam's but shorter, a shake, a
         // punch-in and a burst of thorns, leaves and rocks; SnapLinger later the vines wither.
+        // [0.12, 7, 0.25, 0.4, 1.2, 0.92]
         private const int SnapLevel = 5;
-        private const float SnapSqueeze = 0.12f;
-        private const int SnapFreezeFrames = 7;
-        private const float SnapSlowTime = 0.25f;
-        private const float SnapSlowScale = 0.4f;
-        private const float SnapShake = 1.2f;
-        private const float SnapZoom = 0.92f;
+        private static float SnapSqueeze => BrambleRingPlugin.SnapDelay;
+        private static int SnapFreezeFrames => BrambleRingPlugin.SnapFreezeFrames;
+        private static float SnapSlowTime => BrambleRingPlugin.SnapSlowTime;
+        private static float SnapSlowScale => BrambleRingPlugin.SnapSlowScale;
+        private static float SnapShake => BrambleRingPlugin.SnapShake;
+        private static float SnapZoom => BrambleRingPlugin.SnapZoom;
         private const float SnapZoomIn = 0.03f;
         private const float SnapZoomHold = 0.12f;
         private const float SnapZoomOut = 0.4f;
@@ -297,9 +303,11 @@ namespace WoLBrambleRing
                 this.signature = signature;
                 // The signature thicket erupts at its full, widest size straight away.
                 radius = (signature ? SignatureSpreadRowRadius : OuterRowRadius) + ThicketMargin;
+                // Taken from the settings once, so a change mid-stand only affects the next cast.
+                Duration = signature ? SignatureRingDuration : enhanced ? EnhancedRingDuration : RingDuration;
             }
 
-            public float Duration => signature ? SignatureRingDuration : enhanced ? EnhancedRingDuration : RingDuration;
+            public readonly float Duration;
             public int CatchLevel => signature ? SignatureCatchLevel : BrambleRingState.CatchLevel;
             public int PrickLevel => signature ? SignaturePrickLevel : BrambleRingState.PrickLevel;
 
@@ -438,6 +446,7 @@ namespace WoLBrambleRing
             float duration = ring.Duration;
             float end = Time.time + duration;
             float nextTick = Time.time;
+            float interval = TickInterval;
             while (Time.time < end)
             {
                 if (ring.signature)
@@ -453,7 +462,7 @@ namespace WoLBrambleRing
                 }
                 if (Time.time >= nextTick)
                 {
-                    nextTick += TickInterval;
+                    nextTick += interval;
                     Tick(ring);
                 }
                 Look(ring, "drawn coil tend", look => look.Tend());

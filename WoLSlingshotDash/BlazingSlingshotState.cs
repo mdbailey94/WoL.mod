@@ -14,15 +14,16 @@ namespace WoLSlingshotDash
     {
         public new static string staticID = "BlazingSlingshot";
 
-        private const float TrailInterval = 0.1f;
+        // [Blazing Kick Dash] settings (0.27.0; the defaults are the values these had in code).
+        private static float TrailInterval => SlingshotDashPlugin.BlazingDashTrailInterval;
         // Hit area of each trail burst; the visible flames are smaller.
-        private const float TrailHitScale = 2f;
+        private static float TrailHitScale => SlingshotDashPlugin.BlazingDashTrailHitSize;
         // Hit area of the burst where you launch.
-        private const float LaunchHitScale = 3f;
+        private static float LaunchHitScale => SlingshotDashPlugin.BlazingDashLaunchHitSize;
         private const float FlameInterval = 0.03f;
         // The blast where you land.
-        private const float BlastScale = 2f;
-        private const float BlastChargeScale = 1.25f;
+        private static float BlastScale => SlingshotDashPlugin.BlazingDashBlastSize;
+        private static float BlastChargeScale => SlingshotDashPlugin.BlazingDashBlastChargeSize;
 
         private float nextTrail;
         // Enhanced uses the burning copies of the levels (3 and 4).

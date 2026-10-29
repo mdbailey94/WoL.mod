@@ -323,6 +323,57 @@ in a `lib` folder at the repo root, and run
 `dotnet build WoLSlingshotDash/WoLSlingshotDash.csproj -c Release`; if your game is in the
 default Steam folder, the DLL is copied into `BepInEx\plugins` automatically.
 
+## Changes in 0.27.0
+
+More settings to balance with (Matt). Every arcana's gameplay numbers are now in
+`BepInEx\config\mdbailey94.wol.slingshotdash.cfg`, each defaulting to the value it had in code,
+so nothing plays differently until you change one. The `[... Balance]` sections are the skill
+stats (damage, cooldown, knockback, hit stun, freeze and root times) and apply after restarting
+the game; the others apply the next time you cast. Existing settings keep their names and values.
+
+- `[Charge]` (the four dashes): `FullChargeTime`, `TapWindow`, `FullChargeSpeedBonus`,
+  `FullChargeDurationBonus`, `HopTime`.
+- `[Vacuum Fist]`: `DragInterval`, `DragSize`, `LaunchDragSize`, `VacuumPulses`,
+  `VacuumPulseInterval`, `VacuumSize`, `VacuumChargeSize`, `GustInterval`, `GustSize`,
+  `GustRepeatDelay`. `[Vacuum Fist Balance]`: `WindDamage`, `VacuumDamage`, `GustDamage`,
+  `VacuumPull`, `GustKnockback`, `HitStun`.
+- `[Blazing Kick]`: `FullChargeTime`, `MaxHold`, `RushSpeedBonus`, `RushTimeBonus`,
+  `TrailInterval`, `TrailHitSize`, `LaunchHitSize`, `BlastSize`, `BlastChargeSize`,
+  `RecoverTime`. `[Blazing Kick Signature]` (the Inferno Kick): `IgniteTime`, `BlitzTargets`,
+  `BlitzRange`, `BlitzSpeed`, `BlitzOvershoot`, `BlitzPause`, `BlitzMaxTime`, `ImpactSize`,
+  `RiseTime`, `RiseHeight`, `FallTime`, `HangSlowMoTime`, `HangSlowMoScale`, `FinaleSize`,
+  `RingBursts`, `RingRadius`, `RingBurstSize`, and its cinema: `IgniteZoomIn`, `HangZoomIn`,
+  `IgniteLight`, `HangLight`, `ImpactHitStop`, `FinaleHitStop`, `FinaleFlash`, `FinaleShake`,
+  `FinaleSlowMoTime`, `FinaleSlowMoScale`, `EaseBack`. `[Blazing Kick Balance]`: `TrailDamage`,
+  `BlastDamage`, `EnhancedTrailDamage`, `EnhancedBlastDamage`, `SignatureKickDamage`,
+  `Cooldown`, `TrailKnockback`, `BlastKnockback`, `SignatureKickKnockback`, `HitStun`,
+  `SignatureKickHitStun`, `EnhancedBurnChance`.
+- `[Blazing Kick Dash]` and `[Blazing Kick Dash Balance]`: the same for the hidden dash version
+  still in older saves.
+- `[Feint Swap]`: `FullChargeTime`, `EnhancedChargeShare`, `MaxHold`, `ShortestThrow`,
+  `MaxDistance`, `FlightTime`, `PathHitInterval`, `PathHitSize`, `HoverTime`,
+  `ChargeRadiusBonus`, `LeftBehindFuse`, `ThrowTime`. `[Feint Swap Signature]`: `FanCount`,
+  `FanSpread`, `FanDistanceScale`, `PathHitInterval`, `PathHitSize`, `SwapInterval`, `SpinTime`,
+  `SpinRadiusScale`, `FinaleRadiusScale`, `ChainStartHitStop`, and its cinema: `ThrowFlash`,
+  `StandLight`, `StandZoom`, `SpinHitStop`, `SpinShake`, `SpinShakeStep`, `SpinFlash`,
+  `SpinFlashStep`, `ChainStartFlash`, `ChainStartShake`, `FinaleHitStop`, `FinaleShake`,
+  `FinaleFlash`, `FinaleSlowMoTime`, `FinaleSlowMoScale`, `FinaleLight`. `[Feint Swap Balance]`:
+  `ExplosionDamage`, `PathDamage`, `SignaturePathDamage`, `SignatureSpinDamage`,
+  `SignatureFinaleDamage`, `PathKnockback`, `HitStun`, `FreezeDuration`,
+  `SignatureFinaleFreezeDuration`. (Its cooldown stays `[Balance] CooldownSeconds`.)
+- `[Vine Slingshot]`: `Range`, `CatchWidth`, `GripInterval`, `GripSize`, `KickSize`,
+  `BehindDistance`, `BehindSize`, `MinPullSpeed`, and the enhanced spread: `SpreadRadius`,
+  `SpreadMaxEnemies`, `SpreadLinger`, `SnareInterval`, `SnareSize`. `[Vine Slingshot Balance]`:
+  `KickDamage`, `GripDamage`, `SnareDamage`, `KickKnockback`, `KickHitStun`, `GripHitStun`,
+  `SnareHitStun`, `SnareRootDuration`.
+- `[Charged Leap]`: `LaunchSpeed`, `FanDegrees`, `ReflectDamage`, `BurstSize`,
+  `BurstChargeSize`, `EnhancedBurstScale`, and for the stand-in field used without a Mag Sphere:
+  `FieldRadius`, `FieldChargeRadius`, `MaxCaught`. `[Charged Leap Balance]`: `BurstDamage`,
+  `BurstKnockback`, `HitStun`.
+
+Each setting's description in the file says what it does and its unit, and its allowed range.
+The arcana's shop text doesn't change with them (e.g. "9 feints", "3 seconds").
+
 ## Changes in 0.25.6
 
 - Lighter HUD (task sheet #26, frame-rate drops): a slingshot arcana's cooldown icon is now

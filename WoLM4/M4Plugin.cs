@@ -13,12 +13,21 @@ namespace WoLM4
     {
         public const string PluginGuid = "mdbailey94.wol.m4";
         public const string PluginName = "M4";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.2.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
         private static ConfigEntry<int> burst, finalBurst;
         private static ConfigEntry<float> bulletSpeed, spread;
+        private static ConfigEntry<float> roundGap, enhancedRoundGap, finalSpread;
+        private static ConfigEntry<int> enhancedExtraRounds;
+        private static ConfigEntry<int> damage, finalDamage;
+        private static ConfigEntry<float> knockback, finalKnockback;
+        // Animation time between the rounds of a burst (Air Dart's darts are 0.08 apart).
+        public static float RoundGap => Mathf.Clamp(roundGap?.Value ?? 0.055f, 0.02f, 0.2f);
+        public static float EnhancedRoundGap => Mathf.Clamp(enhancedRoundGap?.Value ?? 0.04f, 0.02f, 0.2f);
+        public static int EnhancedExtraRounds => Mathf.Clamp(enhancedExtraRounds?.Value ?? 1, 0, 6);
+        public static float FinalSpread => Mathf.Clamp(finalSpread?.Value ?? 1.6f, 1f, 5f);
         public static int Burst => Mathf.Clamp(burst?.Value ?? 3, 1, 8);
         public static int FinalBurst => Mathf.Clamp(finalBurst?.Value ?? 5, 1, 12);
         public static float BulletSpeed => Mathf.Clamp(bulletSpeed?.Value ?? 1.6f, 0.5f, 4f);
@@ -39,7 +48,24 @@ namespace WoLM4
             bulletSpeed = Config.Bind("Gun", "BulletSpeed", 1.6f,
                 new ConfigDescription("Bullet speed, times the game's Air Dart.", new AcceptableValueRange<float>(0.5f, 4f)));
             spread = Config.Bind("Gun", "Spread", 3f,
-                new ConfigDescription("Random spread either side of the aim, in degrees (the last pull sprays 1.6 times wider).", new AcceptableValueRange<float>(0f, 20f)));
+                new ConfigDescription("Random spread either side of the aim, in degrees (the last pull sprays FinalSpread times wider).", new AcceptableValueRange<float>(0f, 20f)));
+            finalSpread = Config.Bind("Gun", "FinalSpread", 1.6f,
+                new ConfigDescription("How much wider the third pull sprays than Spread.", new AcceptableValueRange<float>(1f, 5f)));
+            roundGap = Config.Bind("Gun", "RoundGap", 0.055f,
+                new ConfigDescription("Time between the rounds of a burst, as a share of the attack animation (smaller = faster fire).", new AcceptableValueRange<float>(0.02f, 0.2f)));
+            enhancedRoundGap = Config.Bind("Enhanced", "RoundGap", 0.04f,
+                new ConfigDescription("RoundGap when enhanced.", new AcceptableValueRange<float>(0.02f, 0.2f)));
+            enhancedExtraRounds = Config.Bind("Enhanced", "ExtraRounds", 1,
+                new ConfigDescription("Rounds added to every burst when enhanced.", new AcceptableValueRange<int>(0, 6)));
+            const string restart = " Applies after restarting the game.";
+            damage = Config.Bind("Balance", "Damage", 5,
+                new ConfigDescription("Damage of each bullet of the first two pulls." + restart, new AcceptableValueRange<int>(0, 100)));
+            finalDamage = Config.Bind("Balance", "FinalDamage", 6,
+                new ConfigDescription("Damage of each bullet of the third pull's spray." + restart, new AcceptableValueRange<int>(0, 100)));
+            knockback = Config.Bind("Balance", "Knockback", 1f,
+                new ConfigDescription("Knockback of each bullet of the first two pulls." + restart, new AcceptableValueRange<float>(0f, 50f)));
+            finalKnockback = Config.Bind("Balance", "FinalKnockback", 2f,
+                new ConfigDescription("Knockback of each bullet of the spray." + restart, new AcceptableValueRange<float>(0f, 50f)));
 
             Skills.Register(new SkillInfo
             {
@@ -58,9 +84,9 @@ namespace WoLM4
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
                     // Per bullet, by trigger pull: about 15 for each of the first two bursts and
                     // 30 for the spray.
-                    damage = new[] { 5, 5, 6 },
+                    damage = new[] { damage.Value, damage.Value, finalDamage.Value },
                     cooldown = new[] { 0f },
-                    knockbackMultiplier = new[] { 1f, 1f, 2f },
+                    knockbackMultiplier = new[] { knockback.Value, knockback.Value, finalKnockback.Value },
                     // Bullets land a few hundredths of a second apart; every one counts.
                     sameAttackImmunityTime = new[] { 0f }
                 },

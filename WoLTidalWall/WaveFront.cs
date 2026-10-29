@@ -46,31 +46,55 @@ namespace WoLTidalWall
     // It runs on its own object, so the wizard is free to move once it's cast.
     public class WaveFront : MonoBehaviour
     {
-        private const float MaxRiseTime = 0.5f;      // the wall rolls after this even if columns are still rising
+        // The timings, sizes and the signature's beats that are settings (TidalWallPlugin) are read
+        // once, when the wave is launched, so a changed setting never takes effect mid-wave.
+        private float MaxRiseTime;                   // the wall rolls after this even if columns are still rising (0.5)
         private const float RiseDelay = 0.05f;       // before the first column (so its attack is off before it shows)
-        private const float RiseInterval = 0.03f;    // between columns rising
-        private const float WidthMargin = 0.6f;      // hit area a little wider than the columns
+        private float RiseInterval;                  // between columns rising (0.03)
+        private float WidthMargin;                   // hit area a little wider than the columns (0.6)
         private const float FrontOffset = 0.35f;     // the wall's front edge, ahead of its middle line
         private const float WallLookahead = 0.3f;    // a level wall this close ahead crashes the wave
-        private const float CrashDepthScale = 1.6f;  // the crash hits a little deeper than the pushes
-        private const float CrashActiveTime = 0.1f;  // seconds the crash's hit area stays on
+        private float CrashDepthScale;               // the crash hits a little deeper than the pushes (1.6)
+        private float CrashActiveTime;               // seconds the crash's hit area stays on (0.1)
         private const float LingerTime = 1.1f;       // seconds after the crash before this object goes (WaterWall breaks in 1)
         private const float SprayInterval = 0.07f;   // spray thrown off the front while rolling
         private const float SignatureSprayInterval = 0.035f;
         private const float WallDestroyDelay = 30f;  // WaterWall's own timer; the crash ends it long before
         // Signature beats (the gather is in TidalWallState).
-        private const int RiseHitStopFrames = 4;     // the wave erupting
-        private const int TickHitStopFrames = 2;     // a push that lands while rushing
-        private const float RiseShake = 1.2f;
-        private const float TickShake = 0.3f;
-        private const float CrashShake = 1.6f;
-        private const float CrashSlowMoTime = 0.45f; // seconds of real time easing back from near-frozen
-        private const float CrashSlowMoScale = 0.03f;
-        private const float CrashFlash = 1.5f;       // the room light flashes to this multiple of normal
+        private int RiseHitStopFrames;               // the wave erupting (4)
+        private int TickHitStopFrames;               // a push that lands while rushing (2)
+        private float RiseShake;                     // 1.2
+        private float TickShake;                     // 0.3
+        private float CrashShake;                    // 1.6
+        private float CrashSlowMoTime;               // seconds of real time easing back from near-frozen (0.45)
+        private float CrashSlowMoScale;              // 0.03
+        private float CrashFlash;                    // the room light flashes to this multiple of normal (1.5)
         private const float FlashTime = 0.08f;       // seconds (real time) the flash holds
-        private const float EaseBackTime = 0.6f;     // seconds (real time) camera and light ease back
-        public const float SignatureZoom = 0.18f;    // camera pulled back by this fraction (shared with the gather)
-        public const float SignatureDim = 0.55f;     // room light dimmed to this multiple
+        private float EaseBackTime;                  // seconds (real time) camera and light ease back (0.6)
+        private float crashZoom;                     // the pull-back the camera eases back from after the crash
+        // Shared with the gather (TidalWallState).
+        public static float SignatureZoom => TidalWallPlugin.CameraPullBack; // camera pulled back by this fraction (0.18)
+        public static float SignatureDim => TidalWallPlugin.RoomDim;         // room light dimmed to this multiple (0.55)
+
+        // Takes this wave's copy of the settings above.
+        private void ReadSettings()
+        {
+            MaxRiseTime = TidalWallPlugin.MaxRiseTime;
+            RiseInterval = TidalWallPlugin.ColumnRiseInterval;
+            WidthMargin = TidalWallPlugin.HitAreaMargin;
+            CrashDepthScale = TidalWallPlugin.CrashDepth;
+            CrashActiveTime = TidalWallPlugin.CrashHitTime;
+            RiseHitStopFrames = TidalWallPlugin.RiseHitStopFrames;
+            TickHitStopFrames = TidalWallPlugin.PushHitStopFrames;
+            RiseShake = TidalWallPlugin.RiseShake;
+            TickShake = TidalWallPlugin.PushShake;
+            CrashShake = TidalWallPlugin.CrashShake;
+            CrashSlowMoTime = TidalWallPlugin.CrashSlowMoTime;
+            CrashSlowMoScale = TidalWallPlugin.CrashSlowMoSpeed;
+            CrashFlash = TidalWallPlugin.CrashFlash;
+            EaseBackTime = TidalWallPlugin.EaseBackTime;
+            crashZoom = SignatureZoom;
+        }
 
         private enum Phase { Rising, Holding, Rolling, Crashed }
 
@@ -137,7 +161,8 @@ namespace WoLTidalWall
         private void Setup(WaveSettings settings)
         {
             s = settings;
-            side = Globals.GetPerpendicular(s.Direction);
+            ReadSettings();
+            side =Globals.GetPerpendicular(s.Direction);
             phase = Phase.Rising;
             phaseTime = 0f;
             MakeWall();
@@ -610,7 +635,7 @@ namespace WoLTidalWall
                     float t = Mathf.Clamp01((easeClock - FlashTime) / EaseBackTime);
                     float eased = t * t * (3f - 2f * t);
                     Cinematic.SetLight(s.CinematicToken, Mathf.Lerp(CrashFlash, 1f, eased));
-                    Cinematic.SetZoom(s.CinematicToken, Mathf.Lerp(SignatureZoom, 0f, eased));
+                    Cinematic.SetZoom(s.CinematicToken, Mathf.Lerp(crashZoom, 0f, eased));
                     if (t >= 1f)
                     {
                         restored = true;

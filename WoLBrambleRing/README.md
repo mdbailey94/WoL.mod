@@ -156,14 +156,33 @@ from the [latest release](https://github.com/mdbailey94/wol.mod/releases/tag/lat
 into your Wizard of Legend folder. It shows up in the arcana shop (or straight away with Unlock
 Mod Content on).
 
+## Settings (0.6.0)
+
+0.6.0 moves the gameplay numbers into `BepInEx\config\mdbailey94.wol.bramblering.cfg`, so they can be
+balanced without rebuilding. Every default is the value the arcana already had, so nothing changes
+until you edit one.
+
+- **[Cast]** (next cast): `Duration` (3 s), `InnerRowRadius` (0.8 units), `OuterRowRadius` (1.5),
+  `ReachPastRows` (0.5 units past the widest row still counts as inside), `PrickInterval` (0.5 s),
+  `VineSpacing` (1.4 units between vines), `RowDelay` (0.12 s before the outer row).
+- **[Enhanced]** (next cast): `Duration` (4.5 s), `SpreadRowRadius` (2.9 units), `SpreadRowDelay` (0.3 s).
+- **[Signature]** (next cast): `Duration` (6 s), `InnerRowRadius` (1.4), `OuterRowRadius` (2.4),
+  `SpreadRowRadius` (3.5), `PullPerTick` (0.5 units a prick), `PullStopRadius` (0.5 units), `WindupTime`
+  (0.25 s), `EruptionRowDelay` (0.08 s), `SnapDelay` (0.12 s), and the cinematic strengths `WindupZoom`
+  (0.95), `WindupShake` (0.3), `SlamFreezeFrames` (6), `SlamSlowTime` (0.4 s), `SlamSlowScale` (0.35),
+  `SlamShake` (1.5), `SlamZoom` (0.88), `SnapFreezeFrames` (7), `SnapSlowTime` (0.25 s), `SnapSlowScale`
+  (0.4), `SnapShake` (1.2), `SnapZoom` (0.92).
+- **[Balance]** (after restarting the game): `CatchDamage` (5), `PrickDamage` (3), `SignatureCatchDamage`
+  (10), `SignaturePrickDamage` (6), `SignatureSnapDamage` (12), `Cooldown` (6 s), `Knockback` (0),
+  `HitStun` (1x), `SnareChance` (1), `SnareDuration` (1 s), `CatchSlowChance` (1).
+
 ## Tuning
 
-Damage, cooldown, the snare and the slow are in `BrambleRingPlugin.cs` (`skillStats`; levels 1 and
-2 are the catch and the pricks, 3 and 4 the signature thicket's, 5 its final crush). The ring sizes,
-how long it stands, the prick interval, the signature pull, the knitting speed and every signature
-beat (windup, hit-stops, slow-downs, shakes, zooms, eruption timing, effect counts) are the
-constants at the top of `BrambleRingState.cs`; the gloom's depth, tint and fades are at the top of
-`BrambleCinematics.cs`; how the vines are raised is in `BrambleVines.cs`.
+Beyond the settings above: the hit levels, which hits flinch and the slow's strength are in
+`BrambleRingPlugin.cs` (`skillStats`; levels 1 and 2 are the catch and the pricks, 3 and 4 the
+signature thicket's, 5 its final crush). The knitting stagger, the zooms' in/hold/out times and the
+effect counts are the constants at the top of `BrambleRingState.cs`; the gloom's depth, tint and
+fades are at the top of `BrambleCinematics.cs`; how the vines are raised is in `BrambleVines.cs`.
 
 ## Building it yourself
 

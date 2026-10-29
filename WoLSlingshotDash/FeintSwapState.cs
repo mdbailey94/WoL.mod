@@ -27,19 +27,24 @@ namespace WoLSlingshotDash
     {
         public new static string staticID = "FeintSwap";
 
-        private const float FullCharge = 1f;
-        private const float MinRangeScale = 1.15f; // the shortest throw, times a plain dash's length
-        private const float MaxDistance = 10.5f;   // at full charge
-        private const float LeftBehindFuse = 2f;   // enhanced: the feint left in your place explodes after this
-        private const float PathHitInterval = 0.05f;
-        private const float PathHitScale = 1.1f;
+        // [Feint Swap] settings (0.27.0; the defaults are the values these had in code).
+        private static float FullCharge => SlingshotDashPlugin.FeintFullCharge;
+        private static float EnhancedChargeShare => SlingshotDashPlugin.FeintEnhancedChargeShare; // enhanced: full range this much sooner
+        private static float MinRangeScale => SlingshotDashPlugin.FeintShortestThrow; // the shortest throw, times a plain dash's length
+        private static float MaxDistance => SlingshotDashPlugin.FeintMaxDistance;     // at full charge
+        private static float FlightTime => SlingshotDashPlugin.FeintFlightTime;       // (0.26.3 and before: FrostSlingshotState's)
+        private static float LeftBehindFuse => SlingshotDashPlugin.FeintLeftBehindFuse; // enhanced: the feint left in your place explodes after this
+        private static float PathHitInterval => SlingshotDashPlugin.FeintPathHitInterval;
+        private static float PathHitScale => SlingshotDashPlugin.FeintPathHitSize;
+        // The explosion grows by this share of FrostFreezeRadius at a full charge.
+        private static float ChargeRadiusBonus => SlingshotDashPlugin.FeintChargeRadiusBonus;
         private const float SettleTime = 0.12f;
-        private const float HoverTime = 2f;        // the feint stands this long after landing, then swaps by itself
+        private static float HoverTime => SlingshotDashPlugin.FeintHoverTime; // the feint stands this long after landing, then swaps by itself
         // The game ends a decoy by itself when its duration runs out (with an ice burst), so the
         // feint gets one it will never reach: it stays until the swap or until enemies break it.
         private const float DecoyLifetime = 3600f;
-        private const float MaxHold = 2f;       // throws by itself
-        private const float ThrowTime = 0.2f;   // the throwing pose, after letting go
+        private static float MaxHold => SlingshotDashPlugin.FeintMaxHold;       // throws by itself
+        private static float ThrowTime => SlingshotDashPlugin.FeintThrowTime;   // the throwing pose, after letting go
         // A press this soon after the throw can't be the swap (the game's own Bolt Claymore waits as
         // long before reading the same button for its detonation). Shorter than the flight, so it
         // never delays a real re-press.
@@ -220,7 +225,7 @@ namespace WoLSlingshotDash
             }
 
             // Hold time 0 -> 0, 1 s -> 1; enhanced, full range in half the charge-up (0.5 s).
-            float span = FullCharge * (IsEmpowered ? 0.5f : 1f);
+            float span = FullCharge * (IsEmpowered ? EnhancedChargeShare : 1f);
             float power = Mathf.Clamp01(held / span);
             Vector2 direction = GetInputVector();
             if (direction.sqrMagnitude < 0.01f)
@@ -249,7 +254,7 @@ namespace WoLSlingshotDash
             outFeint = feint;
             // The swap happens long after this state ends, so it runs on the plugin.
             bool empowered = IsEmpowered;
-            float freezeRadius = SlingshotDashPlugin.FrostFreezeRadius * (1f + 0.5f * power);
+            float freezeRadius = SlingshotDashPlugin.FrostFreezeRadius * (1f + ChargeRadiusBonus * power);
             SlingshotDashPlugin.Log($"Feint Swap: feint thrown after a {held:0.00} s hold (power {power:0.00}, "
                 + $"{distance:0.0} units{(empowered ? ", enhanced" : "")}, button {(ButtonHeld() ? "still held" : "released")}); "
                 + $"it swaps on a re-press, a recast, or by itself after {HoverTime:0} s, unless enemies break it first");
@@ -269,10 +274,11 @@ namespace WoLSlingshotDash
             // Fly out, bursting with ice along the way (the feint can't be hurt until it lands).
             float t = 0f;
             float nextHit = 0f;
-            while (t < FrostSlingshotState.FlightTime)
+            float flightTime = FlightTime;
+            while (t < flightTime)
             {
                 t += Time.deltaTime;
-                Vector2 position = Vector2.Lerp(start, end, Mathf.SmoothStep(0f, 1f, t / FrostSlingshotState.FlightTime));
+                Vector2 position = Vector2.Lerp(start, end, Mathf.SmoothStep(0f, 1f, t / flightTime));
                 FrostSlingshotState.MoveDecoy(decoy, position);
                 if (t >= nextHit)
                 {

@@ -28,22 +28,51 @@ namespace WoLSlingshotDash
     {
         public new static string staticID = "BlazingKick";
 
-        private const float FullCharge = 1f, MaxHold = 2f;
-        private const float RushSpeedBonus = 0.6f, RushTimeBonus = 0.4f;   // at full charge
+        // [Blazing Kick] and [Blazing Kick Signature] settings (0.27.0; the defaults are the values
+        // these had in code).
+        private static float FullCharge => SlingshotDashPlugin.KickFullCharge;
+        private static float MaxHold => SlingshotDashPlugin.KickMaxHold;
+        private static float RushSpeedBonus => SlingshotDashPlugin.KickRushSpeedBonus;   // at full charge
+        private static float RushTimeBonus => SlingshotDashPlugin.KickRushTimeBonus;
         private const float DefaultDashSpeed = 30f, DefaultDashTime = 0.125f;
-        private const float TrailInterval = 0.1f, TrailHitScale = 2f, LaunchHitScale = 3f, FlameInterval = 0.03f;
-        private const float BlastScale = 2f, BlastChargeScale = 1.25f;
-        private const float KickAt = 0.55f, RecoverTime = 0.15f;
+        private static float TrailInterval => SlingshotDashPlugin.KickTrailInterval;
+        private static float TrailHitScale => SlingshotDashPlugin.KickTrailHitSize;
+        private static float LaunchHitScale => SlingshotDashPlugin.KickLaunchHitSize;
+        private const float FlameInterval = 0.03f;
+        private static float BlastScale => SlingshotDashPlugin.KickBlastSize;
+        private static float BlastChargeScale => SlingshotDashPlugin.KickBlastChargeSize;
+        private const float KickAt = 0.55f;
+        private static float RecoverTime => SlingshotDashPlugin.KickRecoverTime;
         // The signature.
-        private const float IgniteTime = 0.6f;
-        private const int BlitzTargets = 3;
-        private const float BlitzRange = 9f, BlitzSpeed = 2.5f, BlitzOvershoot = 1.2f, BlitzPause = 0.08f, BlitzMaxTime = 0.35f;
-        private const float RiseTime = 0.3f, RiseHeight = 3f, HangSlowMoTime = 0.45f, HangSlowMoScale = 0.12f, FallTime = 0.12f;
-        private const float FinaleScale = 5f, RingRadius = 3.5f;
-        private const int RingBursts = 10;
-        private const float IgniteZoom = -0.1f, HangZoom = -0.18f, IgniteDim = 0.3f, HangDim = 0.15f;
-        private const int ImpactHitStopFrames = 3, FinaleHitStopFrames = 7;
-        private const float FinaleFlash = 2.2f, FinaleShake = 3f, FinaleSlowMoTime = 0.6f, FinaleSlowMoScale = 0.04f, EaseBack = 1.2f;
+        private static float IgniteTime => SlingshotDashPlugin.InfernoIgniteTime;
+        private static int BlitzTargets => SlingshotDashPlugin.InfernoBlitzTargets;
+        private static float BlitzRange => SlingshotDashPlugin.InfernoBlitzRange;
+        private static float BlitzSpeed => SlingshotDashPlugin.InfernoBlitzSpeed;
+        private static float BlitzOvershoot => SlingshotDashPlugin.InfernoBlitzOvershoot;
+        private static float BlitzPause => SlingshotDashPlugin.InfernoBlitzPause;
+        private static float BlitzMaxTime => SlingshotDashPlugin.InfernoBlitzMaxTime;
+        private static float ImpactScale => SlingshotDashPlugin.InfernoImpactSize;
+        private static float RiseTime => SlingshotDashPlugin.InfernoRiseTime;
+        private static float RiseHeight => SlingshotDashPlugin.InfernoRiseHeight;
+        private static float HangSlowMoTime => SlingshotDashPlugin.InfernoHangSlowMoTime;
+        private static float HangSlowMoScale => SlingshotDashPlugin.InfernoHangSlowMoScale;
+        private static float FallTime => SlingshotDashPlugin.InfernoFallTime;
+        private static float FinaleScale => SlingshotDashPlugin.InfernoFinaleSize;
+        private static float RingRadius => SlingshotDashPlugin.InfernoRingRadius;
+        private static float RingBurstScale => SlingshotDashPlugin.InfernoRingBurstSize;
+        private static int RingBursts => SlingshotDashPlugin.InfernoRingBursts;
+        // The camera closes in (a negative pull-back) and the room darkens.
+        private static float IgniteZoom => -SlingshotDashPlugin.InfernoIgniteZoomIn;
+        private static float HangZoom => -SlingshotDashPlugin.InfernoHangZoomIn;
+        private static float IgniteDim => SlingshotDashPlugin.InfernoIgniteLight;
+        private static float HangDim => SlingshotDashPlugin.InfernoHangLight;
+        private static int ImpactHitStopFrames => SlingshotDashPlugin.InfernoImpactHitStop;
+        private static int FinaleHitStopFrames => SlingshotDashPlugin.InfernoFinaleHitStop;
+        private static float FinaleFlash => SlingshotDashPlugin.InfernoFinaleFlash;
+        private static float FinaleShake => SlingshotDashPlugin.InfernoFinaleShake;
+        private static float FinaleSlowMoTime => SlingshotDashPlugin.InfernoFinaleSlowMoTime;
+        private static float FinaleSlowMoScale => SlingshotDashPlugin.InfernoFinaleSlowMoScale;
+        private static float EaseBack => SlingshotDashPlugin.InfernoEaseBack;
 
         private enum Phase { Charging, Rushing, Recovering, Igniting, Blitzing, BlitzPause, Rising, Falling, Done }
 
@@ -354,7 +383,7 @@ namespace WoLSlingshotDash
                 ? (Vector2)blitzTarget.transform.position : here;
             if (blitzTarget != null)
                 blitzed.Add(blitzTarget);
-            FlameBurst.CreateBurst(at, parent.skillCategory, skillID, 4, BlastScale, true);
+            FlameBurst.CreateBurst(at, parent.skillCategory, skillID, 4, ImpactScale, true);
             Effects.FireBlast(at, 14);
             Effects.Game("FlameCircleBurstEmitter", 16, at, ParticleEffectOverrides.Radius0p75);
             Effects.Visual("hit-stop", () => TimeScaleController.FreezeForFrames(ImpactHitStopFrames, false));
@@ -436,7 +465,7 @@ namespace WoLSlingshotDash
             {
                 float a = i * Mathf.PI * 2f / RingBursts;
                 Vector2 spot = at + new Vector2(Mathf.Cos(a), Mathf.Sin(a) * 0.6f) * RingRadius;
-                FlameBurst.CreateBurst(spot, parent.skillCategory, skillID, 3, 1.4f, true);
+                FlameBurst.CreateBurst(spot, parent.skillCategory, skillID, 3, RingBurstScale, true);
                 EmitBlitzFlames(spot, 6);
                 Effects.Game("BurnMarkMedEmitter", 1, spot, ParticleEffectOverrides.StartLifeTimeTwo);
             }

@@ -17,16 +17,17 @@ namespace WoLSlingshotDash
         {
         }
 
-        private const float DragInterval = 0.1f;
-        private const float DragScale = 2f;        // hit area of each drag along the dash
-        private const float LaunchDragScale = 3f;  // and where you launch
-        private const int VacuumPulses = 4;
-        private const float VacuumPulseInterval = 0.15f;
+        // [Vacuum Fist] settings (0.27.0; the defaults are the values these had in code).
+        private static float DragInterval => SlingshotDashPlugin.VacuumDragInterval;
+        private static float DragScale => SlingshotDashPlugin.VacuumDragSize;              // hit area of each drag along the dash
+        private static float LaunchDragScale => SlingshotDashPlugin.VacuumLaunchDragSize;  // and where you launch
+        private static int VacuumPulses => SlingshotDashPlugin.VacuumPulses;
+        private static float VacuumPulseInterval => SlingshotDashPlugin.VacuumPulseInterval;
         private const float PunchAt = 0.55f;       // how far into the dash the punch winds up
         private const float GustInterval = 0.035f;
-        private const float TrailInterval = 0.08f;
-        private const float TrailScale = 1.1f;
-        private const float TrailRepeat = 0.35f;
+        private static float TrailInterval => SlingshotDashPlugin.VacuumGustInterval;
+        private static float TrailScale => SlingshotDashPlugin.VacuumGustSize;
+        private static float TrailRepeat => SlingshotDashPlugin.VacuumGustRepeat;
         private float nextGust;
         private float nextTrail;
         private float nextDrag;
@@ -272,7 +273,7 @@ namespace WoLSlingshotDash
         protected override void OnLand(float charge)
         {
             Vector2 position = parent.transform.position;
-            SlingshotDashPlugin.Run(Vacuum(position, 1.75f + 1.25f * charge, parent.skillCategory, skillID));
+            SlingshotDashPlugin.Run(Vacuum(position, SlingshotDashPlugin.VacuumSize + SlingshotDashPlugin.VacuumChargeSize * charge, parent.skillCategory, skillID));
             Effects.WindSwirl(position, 3);
             Effects.DustSuction(position, 30);
             Effects.Shake(0.5f + 0.4f * charge);

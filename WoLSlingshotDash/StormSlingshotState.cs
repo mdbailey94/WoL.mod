@@ -16,14 +16,15 @@ namespace WoLSlingshotDash
         public new static string staticID = "StormSlingshot";
 
         private const float DefaultSphereRadius = 2.5f; // if its collider can't be measured
-        private const int MaxCaught = 20;
-        private const float MinFieldRadius = 2f;
-        private const float ExtraFieldRadius = 1.5f;
+        // [Charged Leap] settings (0.27.0; the defaults are the values these had in code).
+        private static int MaxCaught => SlingshotDashPlugin.LeapMaxCaught;
+        private static float MinFieldRadius => SlingshotDashPlugin.LeapFieldRadius;
+        private static float ExtraFieldRadius => SlingshotDashPlugin.LeapFieldChargeRadius;
         private const float OrbitRadius = 1.3f;
         private const float OrbitSpeed = 4f;
-        private const float LaunchSpeed = 22f;
-        private const float FanDegrees = 8f;
-        private const float ReflectDamage = 1.5f;
+        private static float LaunchSpeed => SlingshotDashPlugin.LeapLaunchSpeed;
+        private static float FanDegrees => SlingshotDashPlugin.LeapFanDegrees;
+        private static float ReflectDamage => SlingshotDashPlugin.LeapReflectDamage;
         private const float ScanInterval = 0.05f;
         private const float CrackleInterval = 0.04f;
         private float nextCrackle;
@@ -387,8 +388,9 @@ namespace WoLSlingshotDash
         {
             Effects.Spark(parent.transform.position, HitSparkType.Large);
             Effects.Shake(0.5f + 0.3f * charge);
-            // Enhanced: half as big again.
-            float scale = (1.2f + 0.4f * charge) * (IsEmpowered ? 1.5f : 1f);
+            // Enhanced: half as big again (by default).
+            float scale = (SlingshotDashPlugin.LeapBurstSize + SlingshotDashPlugin.LeapBurstChargeSize * charge)
+                * (IsEmpowered ? SlingshotDashPlugin.LeapEnhancedBurstScale : 1f);
             LightningBurst.CreateBurst(parent.transform.position, parent.skillCategory, skillID, 1, scale, false);
             LandLook(parent.transform.position, scale);
         }

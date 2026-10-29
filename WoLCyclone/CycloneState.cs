@@ -22,40 +22,46 @@ namespace WoLCyclone
     {
         public new static string staticID = "Cyclone";
 
-        private const float GrowTime = 4f;         // from small twister to full hurricane
-        private const float EnhancedGrowTime = 3f;
-        private const float FullPowerTime = 1f;    // then this long at full power, and it bursts
-        private const float EnhancedFullPowerTime = 0.6f;
-        private const float EnhancedSteerSpeed = 5.5f;      // enhanced: quicker to steer...
-        private const float EnhancedHeavySteerSpeed = 0.8f; // ...still moving when grown...
-        private const float EnhancedHeavyAt = 0.75f;        // ...and heavy only later on
-        private const float TossFrom = 0.15f;      // the signature starts throwing this far into the growth
-        private const float TossReach = 0.6f;      // throws enemies within this times the hit scale
+        // 0.7.0: the gameplay numbers are settings now (CyclonePlugin; defaults as they were).
+        private static float GrowTime => CyclonePlugin.GrowTime;            // from small twister to full hurricane
+        private static float EnhancedGrowTime => CyclonePlugin.EnhancedGrowTime;
+        private static float FullPowerTime => CyclonePlugin.FullPowerTime;  // then this long at full power, and it bursts
+        private static float EnhancedFullPowerTime => CyclonePlugin.EnhancedFullPowerTime;
+        private static float EnhancedSteerSpeed => CyclonePlugin.EnhancedSteerSpeed;           // enhanced: quicker to steer...
+        private static float EnhancedHeavySteerSpeed => CyclonePlugin.EnhancedHeavySteerSpeed; // ...still moving when grown...
+        private static float EnhancedHeavyAt => CyclonePlugin.EnhancedHeavyAt;                 // ...and heavy only later on
+        private static float TossFrom => CyclonePlugin.TossFrom;    // the signature starts throwing this far into the growth
+        private static float TossReach => CyclonePlugin.TossReach;  // throws enemies within this times the hit scale
         // Seconds up and down: 0.9 s for 2.5 units, longer for higher throws (as a fall would).
         private static float TossTime => 0.9f * Mathf.Sqrt(CyclonePlugin.TossHeight / 2.5f);
-        private const float TossAgain = 0.5f;      // an enemy can be thrown again this long after landing
+        private static float TossAgain => CyclonePlugin.TossAgainAfter;  // an enemy can be thrown again this long after landing
         // The signature's cinematic (0.5.2; the camera and light are Cinematic's, always put back).
-        private const float SigZoom = 0.25f;       // the camera pulls back this much as it grows
-        private const float SigDim = 0.5f;         // the room darkens to this
-        private const float BoltFrom = 0.35f;      // lightning flickers in the storm from here on
-        private const float BoltFlash = 1.4f;      // the room light jumps to this for a flicker
-        private const float TossSlowMoTime = 0.35f, TossSlowMoScale = 0.2f;   // the first throw's peak
-        private const int BurstHitStopFrames = 5;
-        private const float BurstFlash = 1.8f, BurstShake = 2.4f, BurstSlowMoTime = 0.45f, BurstSlowMoScale = 0.04f;
-        private const float BurstEaseBack = 0.9f, LetGoEaseBack = 0.5f;
-        private const float MinTime = 0.35f;       // a tap still gives a brief twister
-        private const float Distance = 4f;         // starts about three tiles in front of the wizard
-        private const float SteerSpeed = 3.5f;     // how fast you can move it when it's small...
-        private const float HeavyAt = 0.5f;        // ...slowing until, this far into the growth,
-        private const float HeavySteerSpeed = 0.15f; // it barely moves
-        private const float MaxRange = 9f;         // how far from the wizard it can be steered
-        private const float StartHitScale = 0.9f;  // hit area, small to big
-        private const float EndHitScale = 2.4f;
-        private const float SlowHit = 0.45f;       // seconds between hits, slow to fast
-        private const float FastHit = 0.12f;
-        private const float BurstScale = 1.6f;     // the final burst, times the full hit area
-        private const float EnhancedBurstScale = 2f;
-        private const float SwirlInterval = 0.15f;
+        private static float SigZoom => CyclonePlugin.CameraPullBack;   // the camera pulls back this much as it grows
+        private static float SigDim => CyclonePlugin.RoomDim;           // the room darkens to this
+        private static float BoltFrom => CyclonePlugin.LightningFrom;   // lightning flickers in the storm from here on
+        private static float BoltFlash => CyclonePlugin.LightningFlash; // the room light jumps to this for a flicker
+        private static float TossSlowMoTime => CyclonePlugin.ThrowSlowMoTime;    // the first throw's peak
+        private static float TossSlowMoScale => CyclonePlugin.ThrowSlowMoSpeed;
+        private static int BurstHitStopFrames => CyclonePlugin.BurstHitStopFrames;
+        private static float BurstFlash => CyclonePlugin.BurstFlash;
+        private static float BurstShake => CyclonePlugin.BurstShake;
+        private static float BurstSlowMoTime => CyclonePlugin.BurstSlowMoTime;
+        private static float BurstSlowMoScale => CyclonePlugin.BurstSlowMoSpeed;
+        private static float BurstEaseBack => CyclonePlugin.BurstEaseBack;
+        private static float LetGoEaseBack => CyclonePlugin.LetGoEaseBack;
+        private static float MinTime => CyclonePlugin.MinHoldTime;      // a tap still gives a brief twister
+        private static float Distance => CyclonePlugin.StartDistance;   // starts about three tiles in front of the wizard
+        private static float SteerSpeed => CyclonePlugin.SteerSpeed;    // how fast you can move it when it's small...
+        private static float HeavyAt => CyclonePlugin.HeavyAt;          // ...slowing until, this far into the growth,
+        private static float HeavySteerSpeed => CyclonePlugin.HeavySteerSpeed; // it barely moves
+        private static float MaxRange => CyclonePlugin.SteerRange;      // how far from the wizard it can be steered
+        private static float StartHitScale => CyclonePlugin.StartHitSize;  // hit area, small to big
+        private static float EndHitScale => CyclonePlugin.FullHitSize;
+        private static float SlowHit => CyclonePlugin.SlowHitInterval;  // seconds between hits, slow to fast
+        private static float FastHit => CyclonePlugin.FastHitInterval;
+        private static float BurstScale => CyclonePlugin.BurstSize;     // the final burst, times the full hit area
+        private static float EnhancedBurstScale => CyclonePlugin.EnhancedBurstSize;
+        private const float SwirlInterval = 0.15f;  // the swirling effects' cadence (look only)
 
         private float held;
         private float nextHit;

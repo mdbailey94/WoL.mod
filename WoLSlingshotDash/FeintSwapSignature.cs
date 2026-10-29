@@ -27,21 +27,22 @@ namespace WoLSlingshotDash
     {
         // 0.26.2 (Matt: more clones): nine feints (was six), the fan widened to keep them as far
         // apart as six were across 52 degrees.
-        private const int FanCount = 9;
-        private const float FanSpread = 72f;            // degrees across the fan, centred on the aim (0.24.0: 110, too spread out; 0.25.1: 70; 0.25.5: 52 for six)
-        private const float FanDistanceScale = 1f;      // the feints fly this share of the normal throw's distance (0.25.1-0.25.4: 0.75; 0.25.5 is back to the
-                                                        // full throw, as the owner asked, with the fan narrowed so its ends sit as far apart as 70 degrees at 0.75 did)
-        private const float SigPathHitInterval = 0.075f; // each feint bursts this often in flight (the normal one every 0.05 s)...
-        private const float SigPathHitScale = 1f;       // ...a little smaller than the normal one's (1.1), six at once
+        // 0.27.0: these are [Feint Swap Signature] settings, the defaults the values they had here.
+        private static int FanCount => SlingshotDashPlugin.FeintFanCount;
+        private static float FanSpread => SlingshotDashPlugin.FeintFanSpread;  // degrees across the fan, centred on the aim (0.24.0: 110, too spread out; 0.25.1: 70; 0.25.5: 52 for six)
+        private static float FanDistanceScale => SlingshotDashPlugin.FeintFanDistanceScale; // the feints fly this share of the normal throw's distance (0.25.1-0.25.4:
+                                                        // 0.75; 0.25.5 is back to the full throw, as the owner asked, with the fan narrowed so its ends sit as far apart as 70 degrees at 0.75 did)
+        private static float SigPathHitInterval => SlingshotDashPlugin.FeintSigPathHitInterval; // each feint bursts this often in flight (the normal one every 0.05 s)...
+        private static float SigPathHitScale => SlingshotDashPlugin.FeintSigPathHitSize;       // ...a little smaller than the normal one's (1.1), six at once
         // 0.26.1 (Matt: more cinema, a marker on each feint, swap more rapidly, every burst a large
         // AoE): 0.08 s between swaps (was 0.2), bursts of radius 3 (was 1.75) and 4.2 at the finish
         // (was 2.4), a marker ring under each feint (FeintMarker), a held beat as the chain
         // begins, and FeintCinematic's beats heavier.
-        private const float SwapInterval = 0.08f;       // between one swap and the next
-        private const float SpinTime = 0.12f;           // each icicle ring spins out for this long, then bursts
-        private const float SpinRadiusScale = 3f;       // the spin's burst radius, times FrostFreezeRadius (1 by default)
-        private const float FinaleRadiusScale = 4.2f;   // the last one's
-        private const int ChainStartHitStop = 4;        // frames held as the chain begins
+        private static float SwapInterval => SlingshotDashPlugin.FeintSwapInterval;          // between one swap and the next
+        private static float SpinTime => SlingshotDashPlugin.FeintSpinTime;                  // each icicle ring spins out for this long, then bursts
+        private static float SpinRadiusScale => SlingshotDashPlugin.FeintSpinRadiusScale;    // the spin's burst radius, times FrostFreezeRadius (1 by default)
+        private static float FinaleRadiusScale => SlingshotDashPlugin.FeintFinaleRadiusScale; // the last one's
+        private static int ChainStartHitStop => SlingshotDashPlugin.FeintChainStartHitStop;  // frames held as the chain begins
         private const int SpinIcicles = 8;              // icicles in each ring
         private const int FinaleIcicles = 12;           // and in the last one
         private const float HitCountDelay = 0.1f;       // hits and freezes are counted this long after a burst
@@ -81,10 +82,12 @@ namespace WoLSlingshotDash
             outFeint = feint;
             var shots = new List<FanShot>();
             var spread = new List<string>();
-            for (int i = 0; i < FanCount; i++)
+            int count = FanCount;
+            float fanSpread = FanSpread;
+            for (int i = 0; i < count; i++)
             {
                 // From the fan's left end (anticlockwise of the aim) to its right.
-                float angle = FanSpread * 0.5f - FanSpread * i / (FanCount - 1);
+                float angle = fanSpread * 0.5f - fanSpread * i / (count - 1);
                 Vector2 direction = Quaternion.Euler(0f, 0f, angle) * (Vector3)aim;
                 float d = distance * FanDistanceScale;
                 bool clipped = false;
@@ -131,10 +134,11 @@ namespace WoLSlingshotDash
             // 1. Fly out together, bursting with ice along the way (they can't be hurt until they land).
             float t = 0f;
             float nextHit = 0f;
-            while (t < FrostSlingshotState.FlightTime)
+            float flightTime = FlightTime;
+            while (t < flightTime)
             {
                 t += Time.deltaTime;
-                float k = Mathf.SmoothStep(0f, 1f, t / FrostSlingshotState.FlightTime);
+                float k = Mathf.SmoothStep(0f, 1f, t / flightTime);
                 bool burst = t >= nextHit;
                 if (burst)
                     nextHit = t + SigPathHitInterval;
@@ -443,7 +447,7 @@ namespace WoLSlingshotDash
                 yield break;
             }
             Consume(left);
-            float radius = SlingshotDashPlugin.FrostFreezeRadius * (1f + 0.5f * power);
+            float radius = SlingshotDashPlugin.FrostFreezeRadius * (1f + ChargeRadiusBonus * power);
             var hit = new HashSet<Entity>();
             SignatureNova(here, radius, SigLeftBehindLevel, category, id, hit);
             Effects.Splash(here, radius, 3);

@@ -19,19 +19,22 @@ namespace WoLSlingshotDash
     {
         public new static string staticID = "VineSlingshot";
 
-        private const float Range = 10.1f; // 8, +15% for not being able to turn, then +10%
+        // [Vine Slingshot] settings (0.27.0; the defaults are the values these had in code).
+        private static float Range => SlingshotDashPlugin.VineRange; // 8, +15% for not being able to turn, then +10%
         private const float TapRange = 4.5f;  // a tap's reach if the normal dash length can't be read
         // The kick also hits a little way behind the target, along the kick.
-        private const float BehindDistance = 2.4f;
-        private const float BehindScale = 1.1f;
+        private static float BehindDistance => SlingshotDashPlugin.VineBehindDistance;
+        private static float BehindScale => SlingshotDashPlugin.VineBehindSize;
+        private static float KickScale => SlingshotDashPlugin.VineKickSize;
+        private static float GripScale => SlingshotDashPlugin.VineGripSize;
         private const float TrailInterval = 0.035f;
         private const float SkidTime = 0.45f;
         private const float SkidInterval = 0.05f;
-        private const float CatchRadius = 0.45f;
+        private static float CatchRadius => SlingshotDashPlugin.VineCatchWidth;
         private const float WallMargin = 0.6f;
-        private const float TickInterval = 0.4f;
+        private static float TickInterval => SlingshotDashPlugin.VineGripInterval;
         private const float ArriveDistance = 0.9f;
-        private const float MinPullSpeed = 18f;
+        private static float MinPullSpeed => SlingshotDashPlugin.VineMinPullSpeed;
 
         private Enemy target;          // grabbed enemy, or null when latched to wall/ground
         private Vector2 anchor;        // where the vines hold
@@ -277,7 +280,7 @@ namespace WoLSlingshotDash
             if (target != null && holdTime - MinChargeTime >= nextTick)
             {
                 nextTick += TickInterval;
-                EarthBurst.CreateBurst(anchor, parent.skillCategory, skillID, 2, 0.7f);
+                EarthBurst.CreateBurst(anchor, parent.skillCategory, skillID, 2, GripScale);
             }
         }
 
@@ -374,7 +377,7 @@ namespace WoLSlingshotDash
             direction.Normalize();
             parent.anim?.PlayDirectional(parent.KickAnimStr, -1, 0.5f);
             Vector2 impact = position + direction * 0.6f;
-            EarthBurst burst = EarthBurst.CreateBurst(impact, parent.skillCategory, skillID, 1, 1.3f);
+            EarthBurst burst = EarthBurst.CreateBurst(impact, parent.skillCategory, skillID, 1, KickScale);
             // Knock the target on, away from you.
             if (burst != null && burst.attack != null)
                 burst.attack.knockbackOverwriteVector = direction;
