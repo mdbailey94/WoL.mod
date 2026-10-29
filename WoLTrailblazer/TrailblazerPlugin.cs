@@ -13,7 +13,7 @@ namespace WoLTrailblazer
     {
         public const string PluginGuid = "mdbailey94.wol.trailblazer";
         public const string PluginName = "Trailblazer";
-        public const string PluginVersion = "0.10.2";
+        public const string PluginVersion = "0.10.3";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;

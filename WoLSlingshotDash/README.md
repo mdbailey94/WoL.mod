@@ -141,6 +141,10 @@ Not a dash any more: it goes in a normal arcana slot, and your dash stays your d
   a level load, and by a watchdog if anything ever runs long.
 - The signature is unlocked together with the arcana (`SignatureUnlocksWithArcana`, under
   `[General]`, default on); off, its Signature drop has to be found in a run like the game's own.
+- **0.26.3**: fewer leftovers over a long run. Each feint's icy copy of the wizard now frees its
+  own material when it goes, and the markers, Blazing Kick's lightning crackle and Charged
+  Leap's storm ring share one material instead of making a new one every cast (Unity never
+  frees a material by itself).
 - **0.26.2 (Matt)**: the signature throws **nine feints** (was six) in a fan **72 degrees** wide
   (widened so they stand as far apart as six did across 52), and the chain ends on the middle
   one, thrown along your aim. With the swaps 0.08 s apart, all nine take under a second.

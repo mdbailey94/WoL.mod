@@ -531,6 +531,7 @@ namespace WoLSlingshotDash
                 decoy.isFacingRight = parent.isFacingRight;
                 decoy.spriteRenderer.sprite = parent.spriteRenderer.sprite;
                 decoy.spriteRenderer.material = new Material(parent.spriteRenderer.material);
+                OwnedMaterial.Attach(decoy.gameObject, decoy.spriteRenderer.material);
                 decoy.spriteRenderer.material.SetFloat("_PaletteIndex", IcePalette);
                 decoy.spriteRenderer.material.SetColor("_OutlineColor", Globals.transparentColor);
                 decoy.spriteRenderer.material.SetColor("_FlashColor", Color.white);

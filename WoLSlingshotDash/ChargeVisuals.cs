@@ -143,6 +143,7 @@ namespace WoLSlingshotDash
         private const float Redraw = 0.04f;
         private LineRenderer[] lines;
         private float nextDraw;
+        private static Material sharedMaterial;
 
         public static Crackle Create(Player player)
         {
@@ -151,7 +152,8 @@ namespace WoLSlingshotDash
                 var go = new GameObject("SlingshotCrackle");
                 Crackle crackle = go.AddComponent<Crackle>();
                 crackle.lines = new LineRenderer[Bolts];
-                Material material = new Material(Shader.Find("Sprites/Default"));
+                // One material for every crackle (0.26.3: a new one each charge was never freed).
+                Material material = sharedMaterial != null ? sharedMaterial : (sharedMaterial = new Material(Shader.Find("Sprites/Default")));
                 SpriteRenderer body = player.spriteRenderer;
                 for (int i = 0; i < Bolts; i++)
                 {

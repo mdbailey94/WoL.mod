@@ -20,6 +20,9 @@ namespace WoLChaosDepths
         private static ConfigEntry<bool> enabled;
         private static Material material;
 
+        // For the long-run probe (Hitches).
+        public static int LiveCount => Marker.Count;
+
         public static void Bind(ConfigFile config)
         {
             enabled = config.Bind("Elites", "Markers", true, "Show a marker for the affix (Swift, Armored, Giant) over each elite's head.");
@@ -72,6 +75,7 @@ namespace WoLChaosDepths
             // unreadable cluster (#27 retest): where markers of different elites overlap, only the
             // one over the elite nearest a wizard shows.
             private static readonly List<Marker> live = new List<Marker>();
+            public static int Count => live.Count;
             private float nearest; // this elite's distance to the nearest wizard, this frame
 
             private void OnEnable() => live.Add(this);

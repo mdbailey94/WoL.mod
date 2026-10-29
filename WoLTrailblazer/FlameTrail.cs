@@ -103,6 +103,7 @@ namespace WoLTrailblazer
             trail.skill = skill;
             trail.litUntil = Time.time + duration;
             trail.litAt = Time.time;
+            trail.lastLoggedLevel = 0;
             trail.comet = signature;
             trail.cinematic = signature ? Cinematic.Begin() : 0;
             trail.erupted = 0;
@@ -483,7 +484,10 @@ namespace WoLTrailblazer
                 info.damage = Mathf.Max(1, Mathf.RoundToInt(info.damage * DamageScale(level) * extra));
                 info.knockbackMultiplier *= KnockbackScale(level);
                 info.burnChance = Mathf.Clamp01(info.burnChance + BurnBonus(level));
-                if (level != lastLoggedLevel)
+                // Logged only as the fire reaches a new highest level in a cast (0.10.3: every
+                // change was logged, about 1.4 lines a second while running, three quarters of a
+                // long session's log).
+                if (level > lastLoggedLevel)
                 {
                     lastLoggedLevel = level;
                     TrailblazerPlugin.Log($"Trailblazer: speed x{lastSpeed:0.00} -> level {level} of {MaxLevel}: " +

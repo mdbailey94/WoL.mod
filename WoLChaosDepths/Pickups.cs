@@ -20,6 +20,7 @@ namespace WoLChaosDepths
         private static ConfigEntry<float> pickupRadius, nameRadius;
 
         private static readonly List<Pickup> live = new List<Pickup>();
+        public static int LiveCount => live.Count;   // for the long-run probe (Hitches)
         // Each wizard's nearest item in reach, from the last Update (taken in BeforePlayerUpdate).
         private static readonly Dictionary<Player, Pickup> reachable = new Dictionary<Player, Pickup>();
         private static bool pressHooked;

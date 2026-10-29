@@ -17,6 +17,7 @@ namespace WoLSlingshotDash
         private static readonly Color Rim = new Color32(0xbf, 0xf2, 0xff, 0xff);
         private static readonly Color Fill = new Color32(0x6f, 0xc8, 0xf0, 0x40);
         private static readonly Dictionary<int, Sprite> rings = new Dictionary<int, Sprite>();
+        private static Material material;   // one for every marker
 
         private SpriteRenderer sr;
         private float born, flaredAt = -99f, poppedAt = -1f;
@@ -30,7 +31,7 @@ namespace WoLSlingshotDash
                 var m = go.AddComponent<FeintMarker>();
                 m.sr = go.AddComponent<SpriteRenderer>();
                 m.sr.sprite = Ring(radius);
-                m.sr.material = new Material(Shader.Find("Sprites/Default"));
+                m.sr.material = material != null ? material : (material = new Material(Shader.Find("Sprites/Default")));
                 m.sr.sortingLayerName = HasLayer("TargetLineGround") ? "TargetLineGround" : sortLike != null ? sortLike.sortingLayerName : "Default";
                 m.sr.sortingOrder = 5;
                 m.born = Time.time;
@@ -120,6 +121,26 @@ namespace WoLSlingshotDash
                 if (layer.name == name)
                     return true;
             return false;
+        }
+    }
+
+    // A material made for one object (a feint's own icy copy of the wizard's), freed when the
+    // object goes (0.26.3: Unity never frees a material by itself, so one per feint piled up
+    // over a long run).
+    public class OwnedMaterial : MonoBehaviour
+    {
+        public Material material;
+
+        public static void Attach(GameObject go, Material m)
+        {
+            if (go != null && m != null)
+                go.AddComponent<OwnedMaterial>().material = m;
+        }
+
+        private void OnDestroy()
+        {
+            if (material != null)
+                Destroy(material);
         }
     }
 }

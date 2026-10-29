@@ -647,6 +647,7 @@ namespace WoLSlingshotDash
     {
         private const int Points = 28;
         private LineRenderer line;
+        private static Material sharedMaterial;
 
         public static StaticRing Create(Player player)
         {
@@ -655,7 +656,8 @@ namespace WoLSlingshotDash
                 var go = new GameObject("StormField");
                 StaticRing ring = go.AddComponent<StaticRing>();
                 ring.line = go.AddComponent<LineRenderer>();
-                ring.line.material = new Material(Shader.Find("Sprites/Default"));
+                // One material for every ring (0.26.3: a new one each cast was never freed).
+                ring.line.material = sharedMaterial != null ? sharedMaterial : (sharedMaterial = new Material(Shader.Find("Sprites/Default")));
                 ring.line.positionCount = Points + 1;
                 ring.line.useWorldSpace = true;
                 ring.line.startWidth = ring.line.endWidth = 0.08f;

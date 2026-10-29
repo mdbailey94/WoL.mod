@@ -555,6 +555,13 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
 - In the Debugging save, Unlock Mod Content has already unlocked every mod arcana, so there is
   nothing left to offer; this is for the save slots.
 
+## 0.16.3: a probe for long-run lag
+
+- With `[Debug] HitchLog` on, every floor logs a `Probe N (scene): ...` line two seconds after it
+  loads: the objects in the scene, textures, sprites and materials, the managed heap, Chaos
+  Depths' pickups and elite markers, and the six most common object names. A name whose count
+  keeps climbing from floor to floor is something made and never destroyed.
+
 ## 0.16.2: beating the final boss plays the game's ending again
 
 - After the final boss, Chaos Depths sent every exit straight to the Hub. That skipped the
