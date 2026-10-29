@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.IO;
 using System.Reflection;
 using BepInEx;
@@ -16,7 +16,7 @@ namespace WoLSlingshotDash
     {
         public const string PluginGuid = "mdbailey94.wol.slingshotdash";
         public const string PluginName = "Slingshot Dash";
-        public const string PluginVersion = "0.25.6";
+        public const string PluginVersion = "0.26.0";
 
         private static ManualLogSource log;
         private static ConfigEntry<string> chargeAnimation;
@@ -115,6 +115,9 @@ namespace WoLSlingshotDash
         // The icon recolouring checks in now and then (it hooks nothing in the game).
         private void Update()
         {
+            // The Inferno Kick's flashes and ease-back run on real time, and its watchdog never
+            // leaves the camera or light changed for long (Cinematic.cs).
+            Cinematic.Tick();
             if (Time.unscaledTime < nextIconCheck)
                 return;
             nextIconCheck = Time.unscaledTime + 1f;
@@ -244,6 +247,44 @@ namespace WoLSlingshotDash
                     burnChance = new[] { 0f, 0f, 1f, 1f },
                     burnLevel = new[] { 1 },
                     // Short, so the trail keeps catching enemies and the blast still lands.
+                    sameAttackImmunityTime = new[] { 0.12f }
+                },
+                priceMultiplier = 3,
+                // Replaced by the standard arcana below (0.26.0): kept only so saves that have it
+                // still load.
+                hidden = true,
+                unlockCondition = () => false
+            });
+
+            // Blazing Kick as a standard arcana (0.26.0, Matt): hold its button to charge, let go
+            // to rush and kick; with a signature, the Inferno Kick (BlazingKickState.cs).
+            Skills.Register(new SkillInfo
+            {
+                ID = BlazingKickState.staticID,
+                displayName = "Blazing Kick",
+                description = "Hold to charge, then release to blitz through enemies in a trail of flame, shoving them aside, and finish with a kick that blasts them away!",
+                // The game shows this one text for both the enhanced and the signature version.
+                enhancedDescription = "Sets every enemy it touches on fire! Signature: blitz through your foes, leap and crash down in an inferno!",
+                icon = LoadIcon("icon_fire.png"),
+                tier = 2,
+                stateType = typeof(BlazingKickState),
+                skillStats = new SkillStats
+                {
+                    ID = new[] { BlazingKickState.staticID },
+                    elementType = new[] { "Fire" },
+                    subElementType = new[] { "Fire" },
+                    targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
+                    // As the dash's: level 1 the launch and trail, level 2 the blast (about 18 at
+                    // most per enemy), 3 and 4 the same burning (enhanced). Level 5 is the Inferno
+                    // Kick's axe kick (the game keeps 5 levels at most): with its blitz impacts
+                    // (level 4, 10 and a burn), the burning trail and the ring of fire, about 110
+                    // to an enemy caught in all of it, about what the game's fire signatures do.
+                    damage = new[] { 4, 10, 4, 10, 45 },
+                    cooldown = new[] { 4f },
+                    knockbackMultiplier = new[] { 30f, 60f, 30f, 60f, 80f },
+                    hitStunDurationModifier = new[] { 1.2f, 1.2f, 1.2f, 1.2f, 1.8f },
+                    burnChance = new[] { 0f, 0f, 1f, 1f, 1f },
+                    burnLevel = new[] { 1 },
                     sameAttackImmunityTime = new[] { 0.12f }
                 },
                 priceMultiplier = 3,
@@ -398,7 +439,9 @@ namespace WoLSlingshotDash
             try
             {
                 SignatureUnlock.Install(new Harmony(PluginGuid + ".signature"), FeintSwapState.staticID,
-                    () => signatureWithArcana.Value, message => Log("Feint Swap: " + message));
+                    () => signatureWithArcana.Value, message => Log("Slingshot: " + message));
+                SignatureUnlock.Install(new Harmony(PluginGuid + ".signature"), BlazingKickState.staticID,
+                    () => signatureWithArcana.Value, message => Log("Slingshot: " + message));
             }
             catch (System.Exception e)
             {

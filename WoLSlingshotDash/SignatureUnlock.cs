@@ -12,18 +12,25 @@ namespace WoLSlingshotDash
     // wizard's arcana (GameData.PullSkillData: on load, right after an arcana is unlocked in the
     // shop, and when Unlock Mod Content switches it on), an unlocked arcana gets its signature
     // unlocked too, in the save as well.
+    //
+    // Several arcana of this mod have a signature (Feint Swap, and Blazing Kick since 0.26.0):
+    // Install is called once per arcana and patches the game once.
     public static class SignatureUnlock
     {
-        private static string skillID;
+        private static readonly System.Collections.Generic.List<string> skillIDs = new System.Collections.Generic.List<string>();
         private static Func<bool> enabled;
         private static Action<string> log;
-        private static bool loggedError;
+        private static bool loggedError, patched;
 
         public static void Install(Harmony harmony, string id, Func<bool> isEnabled, Action<string> logger)
         {
-            skillID = id;
+            if (!skillIDs.Contains(id))
+                skillIDs.Add(id);
             enabled = isEnabled;
             log = logger;
+            if (patched)
+                return;
+            patched = true;
             harmony.CreateClassProcessor(typeof(PullPatch)).Patch();
         }
 
@@ -53,12 +60,18 @@ namespace WoLSlingshotDash
             Player[] players = GameController.activePlayers;
             if (players == null)
                 return;
-            foreach (Player player in players)
+            foreach (string skillID in skillIDs)
+                foreach (Player player in players)
+                    Apply(data, player, skillID);
+        }
+
+        private static void Apply(GameData data, Player player, string skillID)
+        {
             {
                 Player.SkillState state;
                 if (player == null || player.skillsDict == null || !player.skillsDict.TryGetValue(skillID, out state)
                     || state == null || !state.isUnlocked || state.signatureUnlocked)
-                    continue;
+                    return;
                 state.signatureUnlocked = true;
                 if (data != null && data.skillDataDictionary != null)
                 {
@@ -70,7 +83,7 @@ namespace WoLSlingshotDash
                     }
                     stored.signatureUnlocked = true;
                 }
-                log?.Invoke("signature unlocked along with the arcana (it's on the spellbook's Signature page now)");
+                log?.Invoke($"{skillID}: signature unlocked along with the arcana (it's on the spellbook's Signature page now)");
             }
         }
     }

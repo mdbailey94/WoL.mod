@@ -40,12 +40,38 @@ in what the launch does.
   wind-trail wisps and pale afterimages, and the punch lands in its air vortex with a wind slash,
   a shockwave ring closing in on the floor (again with each vacuum pulse).
 
-### Blazing Kick (Fire)
+### Blazing Kick (Fire) - a standard arcana since 0.26.0
 
 > **Blazing Kick**: Hold to charge, then release to blitz through enemies in a trail of flame,
 > shoving them aside, and finish with a kick that blasts them away!
 >
-> *Enhanced: Sets every enemy it touches on fire!*
+> *Sets every enemy it touches on fire! Signature: blitz through your foes, leap and crash down in
+> an inferno!* (the game shows this one line for both the enhanced and the signature version)
+
+**0.26.0 (Matt)**: Blazing Kick is a **standard arcana** now, not a dash: hold its button to
+charge (full at 1 s, it goes by itself at 2 s), let go to rush 1x to 2.2x a plain dash's length
+and kick into the blast. Dash to cancel the charge. Cooldown 4 s, from the rush. It's a new
+arcana to the game (`BlazingKick`): buy it in the shop again (or have Unlock Mod Content on).
+The dash version is hidden from the shop but still works in a save or loadout that has it.
+
+**Signature: the Inferno Kick** (unlocked along with the arcana,
+`[General] SignatureUnlocksWithArcana`), in four beats:
+
+1. **Ignite** (0.6 s): the room plunges into firelit dark (30% light) and the camera closes in
+   10% while every flame round your feet roars up, with a heartbeat of three shakes and flame
+   rings.
+2. **Blitz**: you streak at up to **three enemies** in turn (the nearest not yet struck, within
+   9), through each one, leaving the burning trail; each impact is a burning blast (10 and a
+   burn) with a 3-frame hit-stop and a flash.
+3. **Rise**: you spring 3 units into the air; the camera closes in further, the room darkens to
+   15%, and time all but stops at the top.
+4. **Axe kick**: you come down in a **huge blast** (45, scale 5) with a **ring of ten fire
+   bursts** round it (radius 3.5, each burning), a 7-frame hit-stop, a white flash, the heaviest
+   shake and 0.6 s of near-frozen time; then the camera and light ease back.
+
+About 110 to an enemy caught in all of it. The camera and light always go back
+(`Blazing Kick: signature restored (...)`). The rest below describes the dash version, which
+the standard one plays the same way.
 
 - A wide burst where you launch, then you rush forward wrapped in **Blazing Blitz's flame
   trail**, dropping flame bursts that **shove enemies out of your way**.
