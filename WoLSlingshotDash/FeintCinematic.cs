@@ -26,21 +26,26 @@ namespace WoLSlingshotDash
     {
         private const float ThrowFlash = 0.35f;       // the throw's flash strength (0 to 1)...
         private const float ThrowFlashFade = 0.18f;   // ...and fade time
-        private const float StandDarken = 0.8f;       // the stage dims to this times its level while the feints stand...
+        // 0.26.1 (Matt: more cinema): a darker stage and a wider pull-back while the feints stand,
+        // a held beat as the chain begins (ChainStart), heavier hit-stops, shakes and flashes at
+        // each spin, and the finish adds a moment of near-frozen time.
+        private const float StandDarken = 0.55f;      // the stage dims to this times its level while the feints stand (was 0.8)...
         private const float StandDarkenTime = 0.3f;   // ...over this long
-        private const float StandZoom = 1.1f;         // the camera pulls back to this times its size while the fan is out
+        private const float StandZoom = 1.2f;         // the camera pulls back to this times its size while the fan is out (was 1.1)
         private const float StandZoomTime = 0.35f;
-        private const int SpinHitStop = 2;            // frames of hit-stop at each spin
-        private const float SpinShake = 0.5f;         // each spin's shake, rising by ShakeStep with each swap
-        private const float ShakeStep = 0.12f;
-        private const float SpinFlash = 0.12f;        // a faint flash at each spin, rising by SpinFlashStep
-        private const float SpinFlashStep = 0.03f;
+        private const int SpinHitStop = 3;            // frames of hit-stop at each spin (was 2)
+        private const float SpinShake = 0.7f;         // each spin's shake, rising by ShakeStep with each swap (was 0.5)
+        private const float ShakeStep = 0.15f;
+        private const float SpinFlash = 0.2f;         // a flash at each spin, rising by SpinFlashStep (was 0.12)
+        private const float SpinFlashStep = 0.05f;
         private const float SpinFlashFade = 0.1f;
-        private const int FinaleHitStop = 5;          // the last spin: a longer hit-stop...
-        private const float FinaleShake = 1.6f;       // ...a big shake...
-        private const float FinaleFlash = 0.5f;       // ...a strong flash...
-        private const float FinaleFlashFade = 0.3f;
-        private const float FinaleBright = 1.35f;     // ...and the stage lit up to this times its level...
+        private const float ChainStartFlash = 0.3f, ChainStartShake = 0.6f;
+        private const int FinaleHitStop = 8;          // the last spin: a longer hit-stop (was 5)...
+        private const float FinaleShake = 2.6f;       // ...a big shake (was 1.6)...
+        private const float FinaleFlash = 0.8f;       // ...a strong flash (was 0.5)...
+        private const float FinaleFlashFade = 0.35f;
+        private const float FinaleSlowMoTime = 0.45f, FinaleSlowMoScale = 0.05f;   // ...near-frozen time after it...
+        private const float FinaleBright = 1.45f;     // ...and the stage lit up to this times its level...
         private const float LightReturnTime = 0.6f;   // ...settling back over this long
         private const float ZoomReturnTime = 0.5f;    // the pull-back easing off after the last spin
         private const float CutShortReturnTime = 0.3f; // light and zoom easing back when the cast ends early
@@ -122,6 +127,27 @@ namespace WoLSlingshotDash
             return $"frosty flash {ThrowFlash:0.00}, camera pulls back to x{StandZoom:0.00}, {light}";
         }
 
+        // The chain begins: a held beat (a hit-stop), a flash and a shake.
+        public string ChainStart(int frames)
+        {
+            var did = new List<string>();
+            try
+            {
+                TimeScaleController.FreezeForFrames(frames, false);
+                usedTime = true;
+                did.Add($"hit-stop {frames} frames");
+            }
+            catch (System.Exception e)
+            {
+                Fail("hit-stop", e);
+            }
+            if (Flash(ChainStartFlash, frames * FrameTime, 0.15f))
+                did.Add($"flash {ChainStartFlash:0.00}");
+            Effects.Shake(ChainStartShake);
+            did.Add($"shake {ChainStartShake:0.00}");
+            return string.Join(", ", did.ToArray());
+        }
+
         // Keeps the watchdog off while the cast is still running normally.
         public void KeepAlive()
         {
@@ -154,6 +180,16 @@ namespace WoLSlingshotDash
                 did.Add($"flash {strength:0.00}");
             if (finale)
             {
+                try
+                {
+                    TimeScaleController.SetTimeScaleDelayOverRealTime(FinaleSlowMoTime, FinaleSlowMoScale, true, true);
+                    usedTime = true;
+                    did.Add($"slow motion {FinaleSlowMoTime:0.00} s from x{FinaleSlowMoScale:0.00}");
+                }
+                catch (System.Exception e)
+                {
+                    Fail("slow motion", e);
+                }
                 if (lightOwned)
                 {
                     float before = lightLastSet;

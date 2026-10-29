@@ -31,10 +31,15 @@ namespace WoLSlingshotDash
                                                         // full throw, as the owner asked, with the fan narrowed so its ends sit as far apart as 70 degrees at 0.75 did)
         private const float SigPathHitInterval = 0.075f; // each feint bursts this often in flight (the normal one every 0.05 s)...
         private const float SigPathHitScale = 1f;       // ...a little smaller than the normal one's (1.1), six at once
-        private const float SwapInterval = 0.2f;        // between one swap and the next
+        // 0.26.1 (Matt: more cinema, a marker on each feint, swap more rapidly, every burst a large
+        // AoE): 0.08 s between swaps (was 0.2), bursts of radius 3 (was 1.75) and 4.2 at the finish
+        // (was 2.4), a marker ring under each feint (FeintMarker), a held beat as the chain
+        // begins, and FeintCinematic's beats heavier.
+        private const float SwapInterval = 0.08f;       // between one swap and the next
         private const float SpinTime = 0.12f;           // each icicle ring spins out for this long, then bursts
-        private const float SpinRadiusScale = 1.75f;    // the spin's burst radius, times FrostFreezeRadius (1.75 by default)
-        private const float FinaleRadiusScale = 2.4f;   // the last one's
+        private const float SpinRadiusScale = 3f;       // the spin's burst radius, times FrostFreezeRadius (1 by default)
+        private const float FinaleRadiusScale = 4.2f;   // the last one's
+        private const int ChainStartHitStop = 4;        // frames held as the chain begins
         private const int SpinIcicles = 8;              // icicles in each ring
         private const int FinaleIcicles = 12;           // and in the last one
         private const float HitCountDelay = 0.1f;       // hits and freezes are counted this long after a burst
@@ -53,6 +58,7 @@ namespace WoLSlingshotDash
             public Vector2 end;
             public GameObject decoy;
             public bool brokenLogged;
+            public FeintMarker marker;
         }
 
         // What the chain did, for the finish line.
@@ -143,8 +149,14 @@ namespace WoLSlingshotDash
                 Keep(cine);
                 yield return null;
             }
+            // Landed: each feint gets its marker, the size of the burst it will go off in.
+            float markRadius = SlingshotDashPlugin.FrostFreezeRadius * SpinRadiusScale;
             foreach (FanShot shot in shots)
+            {
                 SetVulnerable(shot.decoy, true);
+                if (shot.decoy != null)
+                    shot.marker = FeintMarker.Place(shot.end, markRadius, player.spriteRenderer);
+            }
 
             // 2. Stand there with a slight bob until you press again or the time is up (a moment
             // at least, as the normal feint). If enemies break them all first, that's the end of it.
@@ -160,6 +172,8 @@ namespace WoLSlingshotDash
                         if (!shot.brokenLogged)
                         {
                             shot.brokenLogged = true;
+                            FeintMarker.Remove(shot.marker);
+                            shot.marker = null;
                             SlingshotDashPlugin.Log($"Feint Swap: signature feint {shot.index + 1} of {FanCount} broken by enemies " +
                                 $"{Time.time - feint.thrownAt:0.00} s after the throw");
                         }
@@ -212,6 +226,20 @@ namespace WoLSlingshotDash
                 $"(order {string.Join(", ", orderText.ToArray())}, numbered left to right)");
             if (empowered)
                 SlingshotDashPlugin.Run(LeftBehindSignature(state, origin, power, category, id));
+            // The chain begins: every marker flares, a held beat, a flash and a shake.
+            foreach (FanShot shot in order)
+                if (shot.marker != null)
+                    shot.marker.Flare();
+            string startFx = cine != null ? cine.ChainStart(ChainStartHitStop) : "no cinematic";
+            SlingshotDashPlugin.Log($"Feint Swap: signature chain start beat: {startFx}");
+            {
+                float w = 0f;
+                while (w < ChainStartHitStop * 0.0167f + 0.05f)
+                {
+                    w += Time.unscaledDeltaTime;
+                    yield return null;
+                }
+            }
 
             float lastArrival = Time.time;
             bool waited = false;    // the gap before the next swap has been waited out
@@ -223,6 +251,8 @@ namespace WoLSlingshotDash
                 if (Broken(shot.decoy))
                 {
                     stats.skipped++;
+                    FeintMarker.Remove(shot.marker);
+                    shot.marker = null;
                     SlingshotDashPlugin.Log($"Feint Swap: signature feint {shot.index + 1} of {FanCount} skipped (broken by enemies before its turn)");
                     continue;
                 }
@@ -248,6 +278,8 @@ namespace WoLSlingshotDash
                 if (Broken(shot.decoy))
                 {
                     stats.skipped++;
+                    FeintMarker.Remove(shot.marker);
+                    shot.marker = null;
                     SlingshotDashPlugin.Log($"Feint Swap: signature feint {shot.index + 1} of {FanCount} skipped (broken by enemies while waiting its turn)");
                     continue;
                 }
@@ -268,6 +300,11 @@ namespace WoLSlingshotDash
                 Teleport(player, shot.end);
                 Consume(shot.decoy);
                 shot.decoy = null;
+                if (shot.marker != null)
+                {
+                    shot.marker.Pop();
+                    shot.marker = null;
+                }
                 // Flair only: a frosty streak along the swap.
                 for (int s = 1; s < 4; s++)
                     Effects.Shimmer(Vector2.Lerp(here, shot.end, s / 4f), 1);
@@ -485,6 +522,8 @@ namespace WoLSlingshotDash
                 if (!Broken(shots[i].decoy))
                     Consume(shots[i].decoy);
                 shots[i].decoy = null;
+                FeintMarker.Remove(shots[i].marker);
+                shots[i].marker = null;
             }
         }
 

@@ -141,6 +141,19 @@ Not a dash any more: it goes in a normal arcana slot, and your dash stays your d
   a level load, and by a watchdog if anything ever runs long.
 - The signature is unlocked together with the arcana (`SignatureUnlocksWithArcana`, under
   `[General]`, default on); off, its Signature drop has to be found in a run like the game's own.
+- **0.26.1 (Matt: more cinema, a marker on each feint, swap more rapidly, every burst a large
+  AoE)**:
+  - Each feint that lands gets a **marker**: an ice ring on the floor the size of the burst it
+    will go off in, pulsing while they stand, so the chain's path reads before it plays (drawn in
+    code until Art draws one).
+  - The swaps come **0.08 s apart** (was 0.2), and **every burst is large**: radius **3** (was
+    1.75) and **4.2** for the finish (was 2.4), same damage, so overlapping bursts can catch an
+    enemy more than once.
+  - More cinema: the room darkens to 55% (was 80%) and the camera pulls back 20% (was 10%) while
+    the feints stand; as the chain begins **every marker flares** with a 4-frame held beat, a
+    flash and a shake; each spin's hit-stop (3 frames), shake and flash are heavier and grow
+    with each swap; the finish has an 8-frame hit-stop, a bigger shake and flash, the room lit up
+    and a moment of near-frozen time. Each marker bursts outward as you land on it.
 
 (The old dash version is still in the mod, hidden, so a save that has it equipped still loads;
 the shop offers the new one.)
