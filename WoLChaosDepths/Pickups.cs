@@ -47,7 +47,10 @@ namespace WoLChaosDepths
 
         // ---- Spawning ----
 
-        public static void Spawn(Player owner, ItemData item, Vector3 at)
+        // droppedBy (0.17.0): gear a wizard dropped from their inventory. Anyone can pick it up
+        // (it goes to whoever does, so it can be handed to the other player), and left on the
+        // floor it goes back to the one who dropped it.
+        public static void Spawn(Player owner, ItemData item, Vector3 at, Player droppedBy = null)
         {
             try
             {
@@ -55,6 +58,7 @@ namespace WoLChaosDepths
                 go.transform.position = new Vector3(at.x, at.y, at.z);
                 var pickup = go.AddComponent<Pickup>();
                 pickup.owner = owner;
+                pickup.droppedBy = droppedBy;
                 pickup.item = item;
                 pickup.Build(owner != null ? owner.spriteRenderer : null);
                 live.Add(pickup);
@@ -62,7 +66,7 @@ namespace WoLChaosDepths
             catch (Exception e)
             {
                 ChaosDepthsPlugin.LogError($"pickup spawn: {e.Message}");
-                Collected?.Invoke(owner, item, true); // never lose the item
+                Collected?.Invoke(owner ?? droppedBy, item, true); // never lose the item
             }
         }
 
@@ -186,9 +190,10 @@ namespace WoLChaosDepths
             {
                 if (p == null)
                     continue;
-                if (collectLeftovers.Value && p.item != null)
+                // Dropped gear goes back to the one who dropped it, always (so it's never lost).
+                if ((collectLeftovers.Value || p.droppedBy != null) && p.item != null)
                 {
-                    Collected?.Invoke(p.owner, p.item, true);
+                    Collected?.Invoke(p.droppedBy ?? p.owner, p.item, true);
                     count++;
                 }
                 p.Vanish();
@@ -365,6 +370,7 @@ namespace WoLChaosDepths
         public class Pickup : MonoBehaviour
         {
             public Player owner;
+            public Player droppedBy;   // dropped from an inventory: anyone may take it
             public ItemData item;
             public string label; // the name shown over it, made once
             private SpriteRenderer gem, halo;
@@ -500,7 +506,7 @@ namespace WoLChaosDepths
                 Pickups.Remove(this);
                 try
                 {
-                    Collected?.Invoke(owner ?? taker, item, false);
+                    Collected?.Invoke(droppedBy != null ? taker : owner ?? taker, item, false);
                 }
                 catch (Exception e)
                 {

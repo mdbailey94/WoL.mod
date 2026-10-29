@@ -555,6 +555,19 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
 - In the Debugging save, Unlock Mod Content has already unlocked every mod arcana, so there is
   nothing left to offer; this is for the save slots.
 
+## 0.17.0: drop gear, and both inventories open at once (asked for by Matt)
+
+- **Drop**: X (Square) on the pad, or G on the keyboard, drops the selected item at the wizard's
+  feet as a pickup (taken off first if it's worn). Anyone can pick it up, so this is how to hand
+  gear to the other wizard; whoever walks over it takes it. A dropped item left on the floor
+  still goes back to whoever dropped it when the scene changes (leftover pickups are collected
+  in every scene now, not only in the trials). With `[Loot] PhysicalDrops` off there are no pickups,
+  so dropping is refused with a notice.
+- **Two inventories**: each wizard has their own panel, and both can be open together: player
+  1 on the left, player 2 on the right, each sized to fit half the screen. The game stays
+  paused until the last one closes. Each panel only reads its own wizard's controller (and the
+  keyboard for the keyboard wizard), as since 0.14.9.
+
 ## 0.16.3: a probe for long-run lag
 
 - With `[Debug] HitchLog` on, every floor logs a `Probe N (scene): ...` line two seconds after it

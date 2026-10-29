@@ -82,8 +82,8 @@ namespace WoLChaosDepths
                 {
                     // Before the floor unloads (the load event may come too late for its objects):
                     // items still lying around go to their owners.
-                    if (IsTrial(CurrentScene()))
-                        Pickups.CollectLeftovers();
+                    // Any scene (0.17.0): gear dropped in the Hub has to find its way back too.
+                    Pickups.CollectLeftovers();
                     string chosen = OnDestination(givenLevelName ?? "");
                     if (chosen != null && chosen != givenLevelName)
                         givenLevelName = chosen;

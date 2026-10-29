@@ -39,8 +39,14 @@ namespace WoLChaosDepths
         private float nextRepeat;
         private float confirmHeldSince = -1f;
         private bool confirmConsumed;
-        private bool pausedByUs;
         private float openedAt;
+        // Both wizards can have their inventory open at once (0.17.0, Matt): one panel each, the
+        // game paused while any is open and unpaused when the last one closes.
+        private static int openCount;
+        private static bool pausedByUs;
+        public static int OpenCount => openCount;
+        public static bool PausedByPanels => openCount > 0 && pausedByUs;
+        public int ClosedFrame { get; private set; } = -1;
         private readonly Action<Player, CharacterSave> onChanged;
 
         public InventoryPanel(Action<Player, CharacterSave> onChanged)
@@ -59,7 +65,10 @@ namespace WoLChaosDepths
             confirmHeldSince = -1f;
             confirmConsumed = true; // the press that opened it isn't an equip
             openedAt = Time.unscaledTime;
+            if (Open)
+                return;
             Open = true;
+            openCount++;
             Rebuild();
             try
             {
@@ -91,7 +100,12 @@ namespace WoLChaosDepths
             if (!Open)
                 return;
             Open = false;
-            ChaosDepthsPlugin.Log("Inventory closed");
+            ClosedFrame = Time.frameCount;
+            openCount = Mathf.Max(0, openCount - 1);
+            ChaosDepthsPlugin.Log($"Inventory closed (player {(player != null ? player.playerID + 1 : 0)}{(openCount > 0 ? $", {openCount} still open" : "")})");
+            // The game stays paused while the other wizard's inventory is still open.
+            if (openCount > 0)
+                return;
             try
             {
                 if (pausedByUs)
@@ -275,6 +289,38 @@ namespace WoLChaosDepths
             }
             if (KeyDown(KeyCode.Delete))
                 Salvage();
+            // X (Square) or G: drop the item on the floor (0.17.0).
+            if (PadButton(pad, 2, XNames) || KeyDown(KeyCode.G))
+                Drop();
+        }
+
+        private static readonly string[] XNames = { "x", "x button", "square" };
+
+        // Drops the selected item on the floor at the wizard's feet, a little ahead (taken off
+        // first if it's worn). Anyone can pick it up, so it can be handed to the other wizard; left
+        // there, it comes back when the floor is left (Pickups).
+        private void Drop()
+        {
+            ItemData item = Selected;
+            if (item == null)
+                return;
+            if (!Pickups.Physical)
+            {
+                ChaosDepthsPlugin.Notice("Drops are off ([Loot] PhysicalDrops)");
+                return;
+            }
+            int slot = SlotOf(item);
+            bool worn = IsEquipped(item);
+            if (worn && slot >= 0)
+                save.equipped[slot] = "";
+            save.inventory.Remove(item);
+            Rebuild();
+            onChanged(player, save);
+            Vector2 ahead = Entity.GetFacingDirectionVector(player.facingDirection);
+            Vector3 at = player.transform.position + (Vector3)(ahead * 0.9f);
+            Pickups.Spawn(null, item, at, player);
+            ChaosDepthsPlugin.Notice($"Dropped: {item.rarity} {item.name}", 2f);
+            ChaosDepthsPlugin.Log($"Player {player.playerID + 1} dropped {item.rarity} {item.name}{(worn ? " (taken off first)" : "")}");
         }
 
         private static readonly string[] YNames = { "y", "y button", "triangle" };
@@ -436,10 +482,14 @@ namespace WoLChaosDepths
 
         // ---- Drawing ----
 
-        public void Draw()
+        // The screen behind is dimmed once, by the first panel drawn (two would darken it twice).
+        private bool DimScreen = true;
+
+        public void Draw(bool dimScreen = true)
         {
             if (!Open || save == null)
                 return;
+            DimScreen = dimScreen;
             // WoL Art's pieces on the mockup's layout (InventoryPanelArt.cs, #16), unless they
             // can't be had or [Panel] Look says Coded.
             if (DrawnLook && DrawArt())
@@ -453,6 +503,9 @@ namespace WoLChaosDepths
                 // to read: 5 units and a 20 px font at 720p, 8 and 32 px at 1080p.
                 int unitsTall = Depth.Enabled ? 124 : 118;
                 int u = Mathf.Max(3, Mathf.FloorToInt(Screen.height * 0.92f / unitsTall));
+                // Two open at once (0.17.0): each fits its half of the screen.
+                if (OpenCount > 1)
+                    u = Mathf.Max(2, Mathf.Min(u, Mathf.FloorToInt(Screen.width * 0.48f / 176f)));
                 int font = Mathf.Max(12, 4 * u);
                 float w = 176 * u, h = unitsTall * u;
                 // Two players: on the opening player's side of the screen (player 1 left, player 2 right).
@@ -466,7 +519,8 @@ namespace WoLChaosDepths
                     left = player.playerID == 0 ? 4f * u : Screen.width - w - 4f * u;
                 left = Mathf.Clamp(left, 0f, Mathf.Max(0f, Screen.width - w));
                 var panel = new Rect(left, (Screen.height - h) / 2f, w, h);
-                PixelUI.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.45f));
+                if (DimScreen)
+                    PixelUI.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.45f));
                 PixelUI.Panel(panel, u);
 
                 GUIStyle text = PixelUI.Style(font, PixelUI.Text);
@@ -655,7 +709,7 @@ namespace WoLChaosDepths
                     }
                 }
                 Label(new Rect(x, panel.yMax - 8 * u, barW, lineH),
-                    inHubNow ? "(A) EQUIP   (HOLD A) SALVAGE   (B) BACK   < > TAB   (Y) SORT   UP: DEPTH" : "(A) EQUIP   (HOLD A) SALVAGE   (B) BACK   < > TAB   (Y / Tab) SORT", dim);
+                    inHubNow ? "(A) EQUIP   (HOLD A) SALVAGE   (X) DROP   (B) BACK   < > TAB   (Y) SORT   UP: DEPTH" : "(A) EQUIP   (HOLD A) SALVAGE   (X / G) DROP   (B) BACK   < > TAB   (Y / Tab) SORT", dim);
             }
             catch (Exception e)
             {

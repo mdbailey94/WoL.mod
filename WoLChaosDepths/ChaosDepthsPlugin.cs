@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.16.3";
+        public const string PluginVersion = "0.17.0";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -52,7 +52,27 @@ namespace WoLChaosDepths
         public static int FloorsPerRealm => Mathf.Clamp(floorsPerRealm?.Value ?? 0, 0, 5);
         public static int RealmsPerDive => Mathf.Clamp(realmsPerDive?.Value ?? 0, 0, 6);
         private static KeyCode openKey = KeyCode.I;
-        private InventoryPanel panel;
+        // One inventory panel per wizard, by player ID: both can be open at once (0.17.0).
+        private readonly Dictionary<int, InventoryPanel> panels = new Dictionary<int, InventoryPanel>();
+
+        private InventoryPanel PanelOf(Player player)
+        {
+            InventoryPanel p;
+            if (!panels.TryGetValue(player.playerID, out p))
+                panels[player.playerID] = p = new InventoryPanel(OnInventoryChanged);
+            return p;
+        }
+
+        private bool AnyPanelOpen
+        {
+            get
+            {
+                foreach (InventoryPanel p in panels.Values)
+                    if (p.Open)
+                        return true;
+                return false;
+            }
+        }
 
         public static float HealthPerLevel => Mathf.Clamp(healthPerLevel?.Value ?? 0.02f, 0f, 0.1f);
         public static void Log(string message) => log?.LogInfo(message);
@@ -120,7 +140,6 @@ namespace WoLChaosDepths
             {
                 InProfile = false;
             }
-            panel = new InventoryPanel(OnInventoryChanged);
             InventoryPanel.BindLook(Config);
             diveEnabled = Config.Bind("Dive", "Enabled", true,
                 "Shape the run as a dive (the settings below) and log what the game does with it.");
@@ -193,7 +212,8 @@ namespace WoLChaosDepths
             }
             SceneManager.activeSceneChanged += (from, to) =>
             {
-                panel?.Close();
+                foreach (InventoryPanel p in panels.Values)
+                    p.Close();
                 SaveAll();
                 lastHitBy.Clear();
                 lastKillTime.Clear();
@@ -224,9 +244,23 @@ namespace WoLChaosDepths
             DebugKeys.Update(this);
             DebugKeys.ShieldTick();
             Pickups.Update();
-            if (panel.Open)
+            if (AnyPanelOpen)
             {
-                panel.Update();
+                foreach (InventoryPanel p in new List<InventoryPanel>(panels.Values))
+                    p.Update();
+                if (!AnyPanelOpen)
+                    return;
+                // The other wizard can open theirs alongside (not the one whose panel just shut
+                // this frame: the press that closed it would open it again).
+                Player[] open = GameController.activePlayers;
+                Player another = open != null ? OpenRequested(open) : null;
+                if (another != null)
+                {
+                    InventoryPanel theirs = PanelOf(another);
+                    if (!theirs.Open && theirs.ClosedFrame != Time.frameCount)
+                        theirs.Show(another, CharacterOf(another));
+                }
+                keyOpenUntil = 0f;
                 return;
             }
             TitleSaveSwitch();
@@ -236,9 +270,9 @@ namespace WoLChaosDepths
             if (players == null)
                 return;
             Player opener = OpenRequested(players);
-            if (opener != null)
+            if (opener != null && PanelOf(opener).ClosedFrame != Time.frameCount)
             {
-                panel.Show(opener, CharacterOf(opener));
+                PanelOf(opener).Show(opener, CharacterOf(opener));
                 return;
             }
             if (Time.unscaledTime < nextTick)
@@ -271,8 +305,16 @@ namespace WoLChaosDepths
         {
             if (!modEnabled.Value)
                 return;
-            if (panel != null && panel.Open)
-                panel.Draw();
+            if (AnyPanelOpen)
+            {
+                bool dim = true;
+                foreach (InventoryPanel p in panels.Values)
+                    if (p.Open)
+                    {
+                        p.Draw(dim);
+                        dim = false;
+                    }
+            }
             else if (InTrials())
             {
                 Layers.Draw();
@@ -301,7 +343,8 @@ namespace WoLChaosDepths
         {
             try
             {
-                if (TimeScaleController.paused)
+                // Paused by an inventory that's open is fine: the other wizard may open theirs.
+                if (TimeScaleController.paused && !InventoryPanel.PausedByPanels)
                     return null;
                 // Each press opens only its own wizard's inventory (#30): the keyboard key belongs
                 // to the wizard on the keyboard, a pad's button to the wizard whose pad it is. Up to
@@ -436,6 +479,9 @@ namespace WoLChaosDepths
                 if (!player.gameObject.activeInHierarchy || (GameUI.dialogManager != null && GameUI.dialogManager.IsActive))
                     return false;
                 string state = player.fsm != null ? player.fsm.currentStateName : null;
+                // With an inventory open the wizards are paused (the game's Paused state).
+                if (InventoryPanel.PausedByPanels && state != null && state.Contains("Pause"))
+                    return true;
                 return state == null || state.Contains("Idle") || state.Contains("Run");
             }
             catch

@@ -39,7 +39,9 @@ namespace WoLChaosDepths
             GUI.depth = -100;
             try
             {
-                int s = Mathf.Max(2, Mathf.FloorToInt(Mathf.Min(Screen.height * 0.92f / ArtH, Screen.width * 0.96f / ArtW)));
+                // Two open at once (0.17.0): each fits its half of the screen.
+                float across = OpenCount > 1 ? 0.48f : 0.96f;
+                int s = Mathf.Max(2, Mathf.FloorToInt(Mathf.Min(Screen.height * 0.92f / ArtH, Screen.width * across / ArtW)));
                 float w = ArtW * s, h = ArtH * s;
                 int activePlayers = 0;
                 if (GameController.activePlayers != null)
@@ -61,7 +63,8 @@ namespace WoLChaosDepths
                 GUIStyle dimRight = PixelUI.Style(font, PixelUI.Dim, TextAnchor.UpperRight);
                 GUIStyle textRight = PixelUI.Style(font, PixelUI.Text, TextAnchor.UpperRight);
 
-                PixelUI.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.45f));
+                if (DimScreen)
+                    PixelUI.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.45f));
                 NineSlice(frame, R(0, 0, ArtW, ArtH), s);
 
                 // Header: title, level, dust; the experience along the rule under it.
@@ -206,7 +209,7 @@ namespace WoLChaosDepths
                         PixelUI.Fill(R(8, 151, 217 * held, 1), PixelUI.Accent);
                     }
                 }
-                Label(R(8, 156, 220, 9), "(A) EQUIP   (B) BACK   (HOLD A) SALVAGE   < > TAB   (Y) SORT", dim);
+                Label(R(8, 156, 220, 9), "(A) EQUIP   (B) BACK   (HOLD A) SALVAGE   (X) DROP   < > TAB   (Y) SORT", dim);
             }
             catch (Exception e)
             {
