@@ -13,15 +13,11 @@ namespace WoLStoneCharge
     {
         public const string PluginGuid = "mdbailey94.wol.stonecharge";
         public const string PluginName = "Stone Charge";
-        public const string PluginVersion = "0.5.1";
+        public const string PluginVersion = "0.6.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
         private ConfigEntry<bool> signatureWithArcana;
-        private static ConfigEntry<int> sigCrashDamage, aftershockDamage;
-        private static ConfigEntry<float> sigCrashRadius;
-        // The signature's earthquake (0.5.0): its crash radius, times the enhanced one's.
-        public static float SignatureCrashScale => Get(sigCrashRadius, 2f, 1f, 4f);
 
         public static void Log(string message) => log?.LogInfo(message);
 
@@ -30,35 +26,25 @@ namespace WoLStoneCharge
         private void Update() => Cinematic.Tick();
 
         // ---- Settings (BepInEx\config\mdbailey94.wol.stonecharge.cfg) ----
-        // [Charge] and [Crash] apply the next time you cast it; [Balance] after restarting the game.
-        private static ConfigEntry<float> chargeTime, minPressTime, energyPerSecond, enhancedEnergyBonus, sprintDelay, frontArmour;
-        private static ConfigEntry<bool> brace, drawnEffects;
-        private static ConfigEntry<float> rushDistance, rushTime, bashRadius, crashRadius, enhancedCrashRadius;
-        private static ConfigEntry<float> fullMultiplier, knockback, fullKnockback, stunEnergy, stunMultiplier;
-        private static ConfigEntry<int> raiseDamage, bashDamage, crashDamage;
-        private static ConfigEntry<float> raiseKnockback, cooldown;
+        // [Throw], [Signature] and [Look] apply the next time you cast it; [Balance] after
+        // restarting the game. 0.6.0's are new names: the charge's old ones are left unused.
+        private static ConfigEntry<float> distance, flightTime, slamDelay, shieldSize, slamRadius, enhancedSlamRadius;
+        private static ConfigEntry<float> sigDistance, sigSlamDelay, sigShieldSize, sigSlamRadius;
+        private static ConfigEntry<bool> drawnEffects;
+        private static ConfigEntry<int> raiseDamage, slamDamage, enhancedSlamDamage, sigSlamDamage, shockwaveDamage;
+        private static ConfigEntry<float> raiseKnockback, slamKnockback, cooldown;
 
-        // How long the shield stays up before it crashes by itself.
-        public static float ChargeTime => Get(chargeTime, 4f, 1f, 10f);
-        // The cast's own press mustn't count as the "press again": ignore the button this long.
-        public static float MinPressTime => Get(minPressTime, 0.2f, 0f, 2f);
-        // Percent of full force stored per second of running at base run speed.
-        public static float EnergyPerSecond => Get(energyPerSecond, 25f, 5f, 100f);
-        public static float EnhancedEnergyBonus => Get(enhancedEnergyBonus, 35f, 0f, 200f);
-        public static float SprintDelay => Get(sprintDelay, 1f, 0f, 5f);
-        public static float FrontArmourPercent => Get(frontArmour, 30f, 0f, 90f);
-        public static bool Brace => brace?.Value ?? true;
+        public static float Distance => Get(distance, 5f, 1f, 10f);
+        public static float FlightTime => Get(flightTime, 0.4f, 0.1f, 1.5f);
+        public static float SlamDelay => Get(slamDelay, 0.45f, 0f, 2f);
+        public static float ShieldSize => Get(shieldSize, 1.6f, 0.5f, 4f);
+        public static float SlamRadius => Get(slamRadius, 2.6f, 0.5f, 6f);
+        public static float EnhancedSlamRadius => Get(enhancedSlamRadius, 3.2f, 0.5f, 6f);
+        public static float SignatureDistance => Get(sigDistance, 6.5f, 1f, 12f);
+        public static float SignatureSlamDelay => Get(sigSlamDelay, 0.8f, 0f, 3f);
+        public static float SignatureShieldSize => Get(sigShieldSize, 4.5f, 1f, 8f);
+        public static float SignatureSlamRadius => Get(sigSlamRadius, 7f, 1f, 12f);
         public static bool DrawnEffects => drawnEffects?.Value ?? true;
-        public static float RushDistance => Get(rushDistance, 2.5f, 0.5f, 6f);
-        public static float RushTime => Get(rushTime, 0.12f, 0.05f, 0.5f);
-        public static float BashRadius => Get(bashRadius, 1.2f, 0.3f, 3f);
-        public static float CrashRadius => Get(crashRadius, 2f, 0.5f, 5f);
-        public static float EnhancedCrashRadius => Get(enhancedCrashRadius, 2.5f, 0.5f, 5f);
-        public static float FullMultiplier => Get(fullMultiplier, 6f, 1f, 15f);
-        public static float Knockback => Get(knockback, 10f, 0f, 200f);
-        public static float FullKnockback => Get(fullKnockback, 70f, 0f, 300f);
-        public static float StunEnergyPercent => Get(stunEnergy, 75f, 0f, 100f);
-        public static float StunMultiplier => Get(stunMultiplier, 2.5f, 1f, 6f);
 
         private static float Get(ConfigEntry<float> entry, float fallback, float min, float max) =>
             Mathf.Clamp(entry?.Value ?? fallback, min, max);
@@ -79,13 +65,13 @@ namespace WoLStoneCharge
             {
                 ID = StoneChargeState.staticID,
                 displayName = "Stone Charge",
-                description = "Raise a stone bulwark and keep running: the faster you move, the more force it stores, " +
-                    "and dashing keeps it up. Run or dash into a foe or press again to crash forward and unload all of it!",
+                description = "Hurl a great stone shield forward: it hangs in the air for a moment, then slams down, " +
+                    "blasting away every foe around it!",
                 // The game shows this one text on the card for both the enhanced and the signature.
-                enhancedDescription = "Stores force faster and crashes wider! Signature: charge at full force, carry foes and crash in an earthquake!",
+                enhancedDescription = "A bigger shield that drops sooner and blasts wider! Signature: a colossal shield and an earthquake!",
                 icon = LoadIcon("icon.png"),
                 // Same tier and price as Aegis Charge and Terra Ring, the vanilla Earth arcana it's
-                // closest to (Aegis Charge: a shielded rush, 5.75 s cooldown, price 6).
+                // closest to.
                 tier = 4,
                 stateType = typeof(StoneChargeState),
                 skillStats = new SkillStats
@@ -94,38 +80,32 @@ namespace WoLStoneCharge
                     elementType = new[] { "Earth" },
                     subElementType = new[] { "Earth" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
-                    // Level 1 is the shield forming (a shove, no force behind it yet). Level 2 is
-                    // the shield bash during the rush and level 3 the crash at its end: these are
-                    // the base numbers at no stored force, and StoneChargeState scales them by the
-                    // force as each hit is made, up to FullMultiplier (6x) at full. An enemy caught
-                    // by both takes 6 at no force and 36 at full; one standing right in front of
-                    // you when you cast takes the shove (3) as well. Full force needs 4 s of
-                    // running at base speed (less the faster you are), and the crash is telegraphed
-                    // by a 2.5 u rush, so the big number has a real cost. All from [Balance].
-                    // Levels 4 and 5 (0.5.0) are the signature's earthquake crash (scaled by the
-                    // force like the crash, always full in the signature: 7 x 6 = 42) and its
-                    // aftershock further out (15, not scaled): with the bash about 70 to an enemy
-                    // carried into it, about what the game's earth signatures do.
+                    // Level 1: the shove as the shield leaves the wizard's hands (the game's shield
+                    // makes it). 2-4: the slam (standard, enhanced, signature). 5: the signature's
+                    // shockwave ring further out. An enemy under the signature takes about 80.
                     damage = new[]
                     {
                         Mathf.Clamp(raiseDamage.Value, 0, 100),
-                        Mathf.Clamp(bashDamage.Value, 0, 100),
-                        Mathf.Clamp(crashDamage.Value, 0, 200),
-                        Mathf.Clamp(sigCrashDamage.Value, 0, 200),
-                        Mathf.Clamp(aftershockDamage.Value, 0, 200)
+                        Mathf.Clamp(slamDamage.Value, 0, 200),
+                        Mathf.Clamp(enhancedSlamDamage.Value, 0, 200),
+                        Mathf.Clamp(sigSlamDamage.Value, 0, 300),
+                        Mathf.Clamp(shockwaveDamage.Value, 0, 200)
                     },
                     cooldown = new[] { Mathf.Clamp(cooldown.Value, 1f, 60f) },
-                    // Every hit shoves along the way you're facing (knockbackOverwrite), not away
-                    // from the burst's centre. The bash and crash knockback is set by the force as
-                    // each hit is made ([Crash] Knockback -> FullKnockback); these are placeholders.
-                    // The aftershock throws outward from the crash.
-                    knockbackMultiplier = new[] { Mathf.Clamp(raiseKnockback.Value, 0f, 100f), Knockback, Knockback, Knockback, 40f },
-                    knockbackOverwrite = new[] { true, true, true, true, false },
-                    // The crash stuns longer at high force (StunMultiplier), set as the hit is made.
-                    hitStunDurationModifier = new[] { 1f, 1f, 1f, 1f, 1.5f },
-                    // Two bash bursts overlap during the rush: one bash per enemy.
+                    // The shove pushes the way it's thrown; the slams and the shockwave throw
+                    // enemies outward from where the shield lands.
+                    knockbackMultiplier = new[]
+                    {
+                        Mathf.Clamp(raiseKnockback.Value, 0f, 100f),
+                        Mathf.Clamp(slamKnockback.Value, 0f, 200f),
+                        Mathf.Clamp(slamKnockback.Value * 1.15f, 0f, 200f),
+                        Mathf.Clamp(slamKnockback.Value * 1.7f, 0f, 300f),
+                        45f
+                    },
+                    knockbackOverwrite = new[] { true, false, false, false, false },
+                    hitStunDurationModifier = new[] { 1f, 1.3f, 1.3f, 1.6f, 1.5f },
                     sameTargetImmunityTime = new[] { 0.5f, 0.5f, 0.5f, 0.5f, 0.5f },
-                    shakeCamera = new[] { false, false, true, true, true }
+                    shakeCamera = new[] { false, true, true, true, true }
                 },
                 priceMultiplier = 6,
                 // LegendAPI rerolls a shop offer when this returns false.
@@ -137,70 +117,42 @@ namespace WoLStoneCharge
 
         private void BindSettings()
         {
-            chargeTime = Float("Charge", "ChargeTime", 4f, 1f, 10f,
-                "Seconds the shield stays up before it crashes by itself (press the button again to crash sooner).");
-            minPressTime = Float("Charge", "MinPressTime", 0.2f, 0f, 2f,
-                "Seconds after the cast before pressing the button again crashes (so the cast's own press doesn't).");
-            energyPerSecond = Float("Charge", "EnergyPerSecond", 25f, 5f, 100f,
-                "Percent of full force stored per second of running at base run speed. Faster stores more " +
-                "(a sprint is +40%, speed relics +15% each), standing still stores nothing. 25 = full force after " +
-                "4 s at base speed, about 2.9 s sprinting.");
-            enhancedEnergyBonus = Float("Charge", "EnhancedEnergyBonus", 35f, 0f, 200f,
-                "Percent faster the force builds when enhanced.");
-            sprintDelay = Float("Charge", "SprintDelay", 1f, 0f, 5f,
-                "Seconds on the move behind the shield before you work up to a sprint (+40% run speed, the game's own " +
-                "run speed-up, which it drops when you cast). Stopping loses it.");
-            frontArmour = Float("Charge", "FrontArmour", 30f, 0f, 90f,
-                "Percent less damage from hits coming from in front of you while the shield is up (0 = off). " +
-                "Hits from behind or the sides land in full.");
-            brace = Config.Bind("Charge", "Brace", true,
-                "Hits don't stagger you or knock you back while the shield is up (you still take the damage).");
+            distance = Float("Throw", "Distance", 5f, 1f, 10f, "How far the shield is thrown (it stops short of a wall in the way).");
+            flightTime = Float("Throw", "FlightTime", 0.4f, 0.1f, 1.5f, "Seconds the shield flies.");
+            slamDelay = Float("Throw", "SlamDelay", 0.45f, 0f, 2f,
+                "Seconds the shield hangs in the air over where it lands before it slams down (enhanced: three quarters of it).");
+            shieldSize = Float("Throw", "ShieldSize", 1.6f, 0.5f, 4f, "The shield's size, times the game's Aegis Charge shield (enhanced: 1.25 times this).");
+            slamRadius = Float("Throw", "SlamRadius", 2.6f, 0.5f, 6f, "Hit area of the slam.");
+            enhancedSlamRadius = Float("Throw", "EnhancedSlamRadius", 3.2f, 0.5f, 6f, "SlamRadius when enhanced.");
 
-            rushDistance = Float("Crash", "RushDistance", 2.5f, 0.5f, 6f, "How far the crash rushes you forward.");
-            rushTime = Float("Crash", "RushTime", 0.12f, 0.05f, 0.5f, "Seconds the rush takes.");
-            bashRadius = Float("Crash", "BashRadius", 1.2f, 0.3f, 3f,
-                "Hit area of the shield bash during the rush (at the shield, a unit ahead of you).");
-            crashRadius = Float("Crash", "CrashRadius", 2f, 0.5f, 5f, "Hit area of the crash at the end of the rush.");
-            enhancedCrashRadius = Float("Crash", "EnhancedCrashRadius", 2.5f, 0.5f, 5f, "CrashRadius when enhanced.");
-            fullMultiplier = Float("Crash", "FullMultiplier", 6f, 1f, 15f,
-                "Damage of the bash and the crash at full force, as a multiple of their base damage ([Balance]). " +
-                "Scales evenly from 1x at no force.");
-            knockback = Float("Crash", "Knockback", 10f, 0f, 200f, "Knockback of the bash and the crash at no force.");
-            fullKnockback = Float("Crash", "FullKnockback", 70f, 0f, 300f, "Knockback of the bash and the crash at full force.");
-            stunEnergy = Float("Crash", "StunEnergy", 75f, 0f, 100f,
-                "Percent of full force from which the crash stuns longer (see StunMultiplier).");
-            stunMultiplier = Float("Crash", "StunMultiplier", 2.5f, 1f, 6f,
-                "How much longer the crash's hitstun lasts at StunEnergy and above (1 = no longer).");
+            sigDistance = Float("Signature", "ThrowDistance", 6.5f, 1f, 12f, "How far the signature's shield is thrown.");
+            sigSlamDelay = Float("Signature", "SlamDelay", 0.8f, 0f, 3f, "Seconds the signature's shield hangs in the air before it slams.");
+            sigShieldSize = Float("Signature", "ShieldSize", 4.5f, 1f, 8f, "The signature's shield, times the game's Aegis Charge shield.");
+            sigSlamRadius = Float("Signature", "SlamRadius", 7f, 1f, 12f, "Hit area of the signature's slam; its shockwave reaches 1.6 times this.");
 
             drawnEffects = Config.Bind("Look", "DrawnEffects", true,
-                "Add effects on top of the game's own (0.4.0; 0.4.1 plays the game's rock, crack and spike sprites where loaded): " +
-                "glowing cracks and a rune in the shield, stone chunks circling you, floor cracks, embers, dust rings, a crater, " +
-                "rock spikes and flung stones. Off = the 0.3.0 look. Cosmetic only; applies on the next cast.");
+                "Add effects on top of the game's own: glowing cracks in the shield, a crater, rock spikes and flung stones. " +
+                "Cosmetic only; applies on the next cast.");
 
             signatureWithArcana = Config.Bind("General", "SignatureUnlocksWithArcana", true,
                 "Unlock Stone Charge's signature version along with the arcana itself, so it can go in the signature slot as soon as " +
                 "you have it. Off: its Signature drop has to be found in a run, as for the game's own arcana.");
-            sigCrashRadius = Float("Signature", "CrashScale", 2f, 1f, 4f,
-                "Size of each phalanx shield's crash in the signature (2 = radius 1.9; 0.5.0's single earthquake used it as 2x the enhanced crash).");
 
             const string restart = " Applies after restarting the game.";
-            sigCrashDamage = Config.Bind("Balance", "SignatureCrashDamage", 7,
-                new ConfigDescription("Base damage of the signature's earthquake crash (x FullMultiplier, always full force)." + restart,
-                    new AcceptableValueRange<int>(0, 200)));
-            aftershockDamage = Config.Bind("Balance", "SignatureAftershockDamage", 15,
-                new ConfigDescription("Damage of the signature's aftershock ring further out." + restart, new AcceptableValueRange<int>(0, 200)));
             raiseDamage = Config.Bind("Balance", "RaiseDamage", 3,
-                new ConfigDescription("Damage of the shove as the shield forms in front of you." + restart, new AcceptableValueRange<int>(0, 100)));
+                new ConfigDescription("Damage of the shove as the shield leaves the wizard's hands." + restart, new AcceptableValueRange<int>(0, 100)));
             raiseKnockback = Float("Balance", "RaiseKnockback", 8f, 0f, 100f, "Knockback of that shove." + restart);
-            bashDamage = Config.Bind("Balance", "BashDamage", 2,
-                new ConfigDescription("Base damage of the shield bash during the rush (x FullMultiplier at full force)." + restart,
-                    new AcceptableValueRange<int>(0, 100)));
-            crashDamage = Config.Bind("Balance", "CrashDamage", 4,
-                new ConfigDescription("Base damage of the crash at the end of the rush (x FullMultiplier at full force)." + restart,
-                    new AcceptableValueRange<int>(0, 200)));
-            // Counting from the end of the cast (the crash or the cancel), not the start: the shield
-            // can be up for 4 s, and Aegis Charge's 5.75 counts from a cast that's over in a moment.
-            cooldown = Float("Balance", "Cooldown", 6f, 1f, 60f, "Cooldown in seconds, counting from the crash (or the cancel)." + restart);
+            slamDamage = Config.Bind("Balance", "SlamDamage", 22,
+                new ConfigDescription("Damage of the slam." + restart, new AcceptableValueRange<int>(0, 200)));
+            enhancedSlamDamage = Config.Bind("Balance", "EnhancedSlamDamage", 28,
+                new ConfigDescription("Damage of the enhanced slam." + restart, new AcceptableValueRange<int>(0, 200)));
+            sigSlamDamage = Config.Bind("Balance", "SignatureSlamDamage", 60,
+                new ConfigDescription("Damage of the signature's slam." + restart, new AcceptableValueRange<int>(0, 300)));
+            shockwaveDamage = Config.Bind("Balance", "SignatureShockwaveDamage", 20,
+                new ConfigDescription("Damage of the signature's shockwave ring." + restart, new AcceptableValueRange<int>(0, 200)));
+            slamKnockback = Float("Balance", "SlamKnockback", 35f, 0f, 200f,
+                "Knockback of the slam, outward (enhanced 1.15x, signature 1.7x)." + restart);
+            cooldown = Float("Balance", "ThrowCooldown", 6f, 1f, 60f, "Cooldown in seconds." + restart);
         }
 
         private ConfigEntry<float> Float(string section, string key, float value, float min, float max, string description) =>

@@ -2,23 +2,43 @@
 
 A new **Earth standard arcana**, added with [LegendAPI](https://github.com/yekoc/LegendAPI).
 
-> **Stone Charge**: Raise a stone bulwark and keep running: the faster you move, the more force it
-> stores, and dashing keeps it up. Run or dash into a foe or press again to crash forward and
-> unload all of it!
+> **Stone Charge**: Hurl a great stone shield forward: it hangs in the air for a moment, then
+> slams down, blasting away every foe around it!
 >
-> *Enhanced: Stores force faster and crashes wider!*
+> *Enhanced: A bigger shield that drops sooner and blasts wider!*
+
+## 0.6.0: a thrown shield that slams down (asked for by Matt)
+
+Stone Charge is no longer a charge. **Cast** it and the wizard throws a big stone shield (the
+game's Aegis Charge slab, 1.6 times its size) **5 units forward** in an arc (short of a wall in
+the way). It hangs in the air over where it'll land for **0.45 s**, rising and trembling while
+dust and stones stir on the ground below (the tell), then **slams down**: an earth blast of
+**radius 2.6** for **22** that throws enemies outward, with a crater, rock spikes and flung
+stones. The wizard is free again after a 0.22 s throw (a dash cancels it; the shield flies on).
+
+- **Enhanced**: the shield is 1.25 times bigger, hangs a quarter less, and blasts at radius 3.2 for 28.
+- **Signature**: a **colossal shield** (4.5 times the game's) with burning cracks, thrown 6.5
+  units. While it's up the camera pulls back and the room dims; it hangs 0.8 s, rising 6 units,
+  then slams at **radius 7 for 60** with a hit-stop, a flash, a heavy shake and half a second of
+  near-frozen time. A **shockwave** rolls out to radius 11 for 20 more, then the camera and light
+  ease back. Its hits don't refill the signature gauge (as the game's own signatures).
 
 | Stat | Value |
 |------|-------|
 | Element | Earth |
 | Tier | 4 (like Aegis Charge and Terra Ring) |
 | Price | 6 (like Aegis Charge and Terra Ring) |
-| Damage | Shove 3 as the shield forms. Bash 2 and crash 4 at no stored force, scaling evenly to 12 and 24 at full (6x): an enemy caught by both takes 6 to 36 |
-| Knockback | Bash and crash 10 at no force to 70 at full, along the way you rush; the crash's hitstun is 2.5x from 75% force up |
-| Shield up | up to 4 s; 30% less damage from hits in front, no stagger (you still take the damage); dashing keeps it |
-| Force | 25% a second running at base speed, more the faster you are (x1.4 sprinting, x1.15 a speed relic...), nothing standing still. Enhanced +35% |
-| Rush | 2.5 units in 0.12 s; crash radius 2 (enhanced 2.5) a unit ahead of where you stop |
-| Cooldown | 6 s, counting from the crash (or a cancel) |
+| Damage | Shove 3 as it leaves your hands; slam 22 (enhanced 28, signature 60); signature shockwave 20 |
+| Knockback | Slam 35 outward (enhanced 40, signature 60); shockwave 45 |
+| Cooldown | 6 s |
+
+Settings (`mdbailey94.wol.stonecharge.cfg`): `[Throw]` Distance, FlightTime, SlamDelay,
+ShieldSize, SlamRadius, EnhancedSlamRadius; `[Signature]` ThrowDistance, SlamDelay, ShieldSize,
+SlamRadius; `[Balance]` RaiseDamage, RaiseKnockback, SlamDamage, EnhancedSlamDamage,
+SignatureSlamDamage, SignatureShockwaveDamage, SlamKnockback, ThrowCooldown (after a restart).
+The charge's old settings stay in the file unused.
+
+Everything below describes the charge it was up to 0.5.1.
 
 ## Signature: the phalanx (0.5.0; 0.5.1 made it a phalanx, asked for by Matt)
 

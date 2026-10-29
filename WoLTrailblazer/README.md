@@ -34,6 +34,13 @@ A new **Fire standard arcana**, added with [LegendAPI](https://github.com/yekoc/
   (3, 4, 5 ... 12), knockback up to 2.5x and the burn chance up to 100%.
 - **Enhanced**: 9 seconds and one level higher.
 
+## 0.10.4: the comet no longer refills its own gauge (asked for by Matt)
+
+- The signature's hits (the ignition, the trail, the patches' eruptions and the final blast,
+  including patches still burning for a few seconds after) are marked as a signature's, as the
+  game marks its own, so they no longer refill the signature gauge. Up to 0.10.3 its many hits
+  filled it again almost at once. Its look and damage are unchanged.
+
 ## Signature: the comet (0.10.0, asked for by Matt)
 
 Trailblazer has a **signature version** now (the spellbook's Signature page; unlocked along with

@@ -13,7 +13,7 @@ namespace WoLCyclone
     {
         public const string PluginGuid = "mdbailey94.wol.cyclone";
         public const string PluginName = "Cyclone";
-        public const string PluginVersion = "0.5.2";
+        public const string PluginVersion = "0.6.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -23,8 +23,8 @@ namespace WoLCyclone
         private static ConfigEntry<float> signatureWidth, tossHeight;
         private static ConfigEntry<int> tossDamage;
         public static float SignatureWidth => Mathf.Clamp(signatureWidth?.Value ?? 2.5f, 1f, 4f);
-        public static float TossHeight => Mathf.Clamp(tossHeight?.Value ?? 2.5f, 0.5f, 6f);
-        public static int TossDamage => Mathf.Clamp(tossDamage?.Value ?? 12, 0, 200);
+        public static float TossHeight => Mathf.Clamp(tossHeight?.Value ?? 11f, 0.5f, 16f);
+        public static int TossDamage => Mathf.Clamp(tossDamage?.Value ?? 25, 0, 200);
 
         public static void Log(string message) => log?.LogInfo(message);
 
@@ -50,10 +50,16 @@ namespace WoLCyclone
                 new ConfigDescription("The signature twister's hit area and look, times the enhanced one's. Applies to the next cast.", new AcceptableValueRange<float>(1f, 4f)));
             if (Mathf.Approximately(signatureWidth.Value, 1.8f))
                 signatureWidth.Value = 2.5f;
-            tossHeight = Config.Bind("Signature", "TossHeight", 2.5f,
-                new ConfigDescription("How high the signature throws enemies (units). Applies to the next cast.", new AcceptableValueRange<float>(0.5f, 6f)));
-            tossDamage = Config.Bind("Signature", "TossDamage", 12,
+            // 0.6.0 (Matt: 10+ units high, hurt on landing): 11 high, 25 on landing (were 2.5 and
+            // 12); the old values left in a config file are moved up once.
+            tossHeight = Config.Bind("Signature", "TossHeight", 11f,
+                new ConfigDescription("How high the signature throws enemies (units); higher throws stay up longer. Applies to the next cast.", new AcceptableValueRange<float>(0.5f, 16f)));
+            if (Mathf.Approximately(tossHeight.Value, 2.5f))
+                tossHeight.Value = 11f;
+            tossDamage = Config.Bind("Signature", "TossDamage", 25,
                 new ConfigDescription("Damage a thrown enemy takes when it lands. Applies to the next cast.", new AcceptableValueRange<int>(0, 200)));
+            if (tossDamage.Value == 12)
+                tossDamage.Value = 25;
             SignatureUnlock.Install(new HarmonyLib.Harmony(PluginGuid), CycloneState.staticID,
                 () => signatureWithArcana.Value, message => Log("Cyclone: " + message));
 

@@ -74,6 +74,8 @@ namespace WoLCyclone
                     {
                         damage = damage,
                         entity = thrower,
+                        // A signature hit: it doesn't refill the signature gauge.
+                        isUltimate = true,
                         skillCategory = skillCategory,
                         skillID = skillID,
                         elementType = ElementType.Air,
@@ -83,8 +85,9 @@ namespace WoLCyclone
                         targetPosition = transform.position
                     };
                     entity.health.TakeDamage(info, thrower);
-                    PoolManager.GetPoolItem<DustEmitter>().EmitCircle(14, 0.5f, -3f, -1f, new Vector3?(transform.position), null);
-                    CameraController.ShakeCamera(0.2f, false);
+                    // From up to 11 units: a heavier crash than the old knee-high drop.
+                    PoolManager.GetPoolItem<DustEmitter>().EmitCircle(24, 0.8f, -4f, -1f, new Vector3?(transform.position), null);
+                    CameraController.ShakeCamera(0.35f, false);
                 }
                 catch (System.Exception e)
                 {

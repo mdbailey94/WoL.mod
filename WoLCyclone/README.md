@@ -20,6 +20,15 @@ A new **Air standard arcana**, added with [LegendAPI](https://github.com/yekoc/L
 - **Enhanced**: full size in 3 seconds (bursting at 4), and a wider burst.
 - Dash to cancel at any time. Cooldown 5 seconds.
 
+## 0.6.0: higher throws, and the signature no longer refills its own gauge (asked for by Matt)
+
+- The signature throws enemies **11 units** high (was 2.5; `[Signature] TossHeight`, up to 16)
+  and they stay up longer the higher they go (about 1.9 s at 11). Each lands for **25** (was 12;
+  `TossDamage`) with a bigger crash of dust and a shake. Old values in a config file are moved up once.
+- The signature's hits (the twister, the burst and the landings) are marked as a signature's,
+  as the game marks its own, so they no longer refill the signature gauge. Up to 0.5.2 its many
+  hits filled it again almost at once.
+
 ## 0.5.2: a cinematic signature (asked for by Matt)
 
 The signature twister now plays out like the other mods' signatures (Thunderhead, Tidal Wall):

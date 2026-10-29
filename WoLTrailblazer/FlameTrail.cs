@@ -92,6 +92,8 @@ namespace WoLTrailblazer
         private static string lastBurstError;
 
         // Sets (or re-sets) the wizard alight for this long.
+        private float signatureHitsUntil;
+
         public static void Light(Player player, Player.SkillState skill, float duration, bool signature = false)
         {
             if (player == null)
@@ -105,6 +107,10 @@ namespace WoLTrailblazer
             trail.litAt = Time.time;
             trail.lastLoggedLevel = 0;
             trail.comet = signature;
+            // A signature's hits, its patches' last burns included, are marked as the game marks
+            // its own (isUltimate), so they don't refill the gauge: up to 0.10.3 they filled it
+            // again almost at once.
+            trail.signatureHitsUntil = signature ? Time.time + duration + 8f : 0f;
             trail.cinematic = signature ? Cinematic.Begin() : 0;
             trail.erupted = 0;
             trail.SpeedBoost(signature);
@@ -481,6 +487,7 @@ namespace WoLTrailblazer
                 AttackInfo info = burst != null && burst.attack != null ? burst.attack.atkInfo : null;
                 if (info == null)
                     throw new System.Exception("the burst has no attack info");
+                info.isUltimate = Time.time < signatureHitsUntil;
                 info.damage = Mathf.Max(1, Mathf.RoundToInt(info.damage * DamageScale(level) * extra));
                 info.knockbackMultiplier *= KnockbackScale(level);
                 info.burnChance = Mathf.Clamp01(info.burnChance + BurnBonus(level));

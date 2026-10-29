@@ -75,8 +75,9 @@ namespace WoLTrailblazer
             try
             {
                 // The hit is wide, but its visible burst small, so it doesn't blind.
-                FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1, 2.5f, false);
-                FlameBurst.CreateBurst(position, parent.skillCategory, skillID, 1, 0.9f, true);
+                // A signature's are marked as the game marks its own, so they don't refill the gauge.
+                FlameBurst.CreateBurst(position, AttackInfo.GetInfo(parent, parent.skillCategory, skillID, 1, isUltimate), 2.5f, false);
+                FlameBurst.CreateBurst(position, AttackInfo.GetInfo(parent, parent.skillCategory, skillID, 1, isUltimate), 0.9f, true);
                 PoolManager.GetPoolItem<FireBurst>()?.EmitSingle(new int?(8), new Vector3?(position));
                 CameraController.ShakeCamera(0.4f, false);
             }

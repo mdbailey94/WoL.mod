@@ -69,6 +69,7 @@ namespace WoLChaosDepths
                 return;
             Open = true;
             openCount++;
+            releaseWaitUntil = -1f;
             Rebuild();
             try
             {
@@ -116,6 +117,23 @@ namespace WoLChaosDepths
                 Time.timeScale = 1f;
             }
             pausedByUs = false;
+            // The wizards stay frozen until the button that closed the panel is let go: the game
+            // reads skills as held buttons, so up to 0.17.0 closing with B cast B's arcana.
+            releaseWaitUntil = Time.unscaledTime + 1f;
+            TickRelease();
+        }
+
+        private static float releaseWaitUntil = -1f;
+
+        // Every frame from the plugin: lets the wizards move once no skill button is held (or
+        // after a second, so a stuck button can't keep them frozen).
+        public static void TickRelease()
+        {
+            if (releaseWaitUntil < 0f || openCount > 0)
+                return;
+            if (Time.unscaledTime < releaseWaitUntil && SkillButtonHeld())
+                return;
+            releaseWaitUntil = -1f;
             try
             {
                 GameController.PauseAllPlayers(false);
@@ -124,6 +142,30 @@ namespace WoLChaosDepths
             {
                 ChaosDepthsPlugin.LogError($"unpause players: {e.Message}");
             }
+        }
+
+        private static bool SkillButtonHeld()
+        {
+            try
+            {
+                Player[] players = GameController.activePlayers;
+                if (players == null)
+                    return false;
+                foreach (Player p in players)
+                {
+                    Rewired.Player input = p != null && p.inputDevice != null ? p.inputDevice.rewiredPlayer : null;
+                    if (input == null)
+                        continue;
+                    for (int i = 0; i < 6; i++)
+                        if (input.GetButton("Skill" + i))
+                            return true;
+                }
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"release check: {e.Message}");
+            }
+            return false;
         }
 
         // ---- Input (unscaled time: the game is paused) ----

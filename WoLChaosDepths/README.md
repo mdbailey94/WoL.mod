@@ -555,6 +555,12 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
 - In the Debugging save, Unlock Mod Content has already unlocked every mod arcana, so there is
   nothing left to offer; this is for the save slots.
 
+## 0.17.1: closing the inventory with B no longer casts B's arcana
+
+- The game reads skills as held buttons, so the B press that closed the panel was still down
+  when the wizards were let go, and cast whatever was on B. After the last panel closes, the
+  wizards now stay frozen until every skill button is let go (a second at most).
+
 ## 0.17.0: drop gear, and both inventories open at once (asked for by Matt)
 
 - **Drop**: X (Square) on the pad, or G on the keyboard, drops the selected item at the wizard's

@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.17.0";
+        public const string PluginVersion = "0.17.1";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -244,6 +244,7 @@ namespace WoLChaosDepths
             DebugKeys.Update(this);
             DebugKeys.ShieldTick();
             Pickups.Update();
+            InventoryPanel.TickRelease();
             if (AnyPanelOpen)
             {
                 foreach (InventoryPanel p in new List<InventoryPanel>(panels.Values))

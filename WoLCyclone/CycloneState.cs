@@ -31,7 +31,8 @@ namespace WoLCyclone
         private const float EnhancedHeavyAt = 0.75f;        // ...and heavy only later on
         private const float TossFrom = 0.15f;      // the signature starts throwing this far into the growth
         private const float TossReach = 0.6f;      // throws enemies within this times the hit scale
-        private const float TossTime = 0.9f;       // seconds up and down
+        // Seconds up and down: 0.9 s for 2.5 units, longer for higher throws (as a fall would).
+        private static float TossTime => 0.9f * Mathf.Sqrt(CyclonePlugin.TossHeight / 2.5f);
         private const float TossAgain = 0.5f;      // an enemy can be thrown again this long after landing
         // The signature's cinematic (0.5.2; the camera and light are Cinematic's, always put back).
         private const float SigZoom = 0.25f;       // the camera pulls back this much as it grows
@@ -280,10 +281,16 @@ namespace WoLCyclone
         {
             int level = 1 + Mathf.Min(3, Mathf.FloorToInt(progress * 4f));
             float scale = HitScaleAt(progress);
-            WindBurst burst = WindBurst.CreateBurst(center, parent.skillCategory, skillID, level, scale);
+            WindBurst burst = MakeBurst(level, scale);
             if (burst != null)
                 burst.emitParticles = false;
         }
+
+        // A signature cast's hits are marked as the game marks its own (isUltimate), so they don't
+        // refill the signature gauge: up to 0.5.2 its many hits filled it again almost at once.
+        private WindBurst MakeBurst(int level, float scale) => signature
+            ? WindBurst.CreateBurst(center, AttackInfo.GetInfo(parent, parent.skillCategory, skillID, level, true), scale)
+            : WindBurst.CreateBurst(center, parent.skillCategory, skillID, level, scale);
 
         // The game's air vortex swirling at the twister, growing with it.
         private void Swirl(float progress)
@@ -373,7 +380,7 @@ namespace WoLCyclone
                 CyclonePlugin.Log($"Cyclone: signature burst after throwing {tossed} enem{(tossed == 1 ? "y" : "ies")}: hit-stop {BurstHitStopFrames} frames, " +
                     $"flash x{BurstFlash:0.0}, shake {BurstShake:0.0}, slow motion {BurstSlowMoTime:0.00} s, easing back over {BurstEaseBack:0.0} s");
             }
-            WindBurst.CreateBurst(center, parent.skillCategory, skillID, 5, scale);
+            MakeBurst(5, scale);
             // The drawn funnel blows apart in a gust ring the size of the burst (its own try/catch).
             look?.Burst(scale);
             try
