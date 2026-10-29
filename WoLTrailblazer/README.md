@@ -59,6 +59,10 @@ behind you. When it burns out, any patch not yet erupted goes too, then the blas
 fire's speed level up as well (a sprint with the boost is level 6 before the comet's three
 extra levels, so the comet is at level 9 or 10).
 
+**0.10.2 (Matt)**: walked back slightly: each patch erupts **0.8 s** after it's dropped (was
+0.5), and the boost is **+25%** (was +40%); a boosted sprint is level 5 before the comet's three
+extra levels, so the comet burns at level 8 or 9.
+
 ## Look
 
 Since **0.8.0** more fire is layered on top of the game's flames and Searing Rush's columns (which

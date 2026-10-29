@@ -37,8 +37,9 @@ namespace WoLTrailblazer
         // The signature comet.
         private const int CometLevels = 2;               // on top of the enhanced level
         private const float CometHitWide = 2f, CometFire = 1.6f, CometRing = 1.5f;
-        private const float CometFuse = 0.5f;            // a patch erupts this long after it's dropped
-        private const float CometSpeed = 0.4f;           // +40% move speed for the whole signature
+        // 0.10.2 walked 0.10.1 back slightly (Matt): 0.8 s fuse (was 0.5), +25% speed (was +40%).
+        private const float CometFuse = 0.8f;            // a patch erupts this long after it's dropped
+        private const float CometSpeed = 0.25f;          // +25% move speed for the whole signature
         private const string CometSpeedMod = "Trailblazer_Comet";
         private const float PillarLife = 0.6f;           // a pillar's fire column burns this long
         private int erupted;
