@@ -13,7 +13,7 @@ namespace WoLStoneCharge
     {
         public const string PluginGuid = "mdbailey94.wol.stonecharge";
         public const string PluginName = "Stone Charge";
-        public const string PluginVersion = "0.5.0";
+        public const string PluginVersion = "0.5.1";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -181,7 +181,7 @@ namespace WoLStoneCharge
                 "Unlock Stone Charge's signature version along with the arcana itself, so it can go in the signature slot as soon as " +
                 "you have it. Off: its Signature drop has to be found in a run, as for the game's own arcana.");
             sigCrashRadius = Float("Signature", "CrashScale", 2f, 1f, 4f,
-                "The signature earthquake's crash radius, times the enhanced crash's (the aftershock reaches 1.7x further).");
+                "Size of each phalanx shield's crash in the signature (2 = radius 1.9; 0.5.0's single earthquake used it as 2x the enhanced crash).");
 
             const string restart = " Applies after restarting the game.";
             sigCrashDamage = Config.Bind("Balance", "SignatureCrashDamage", 7,

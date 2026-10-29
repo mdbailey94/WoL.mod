@@ -17,6 +17,9 @@ namespace WoLStoneCharge
         private ShieldCharge shield;
         private int sector = -1;
         private static bool loggedAim;
+        // A shield of the signature's phalanx (0.5.1) stands this far to the side of the middle
+        // one (along the line across the way you're facing; 0 = the middle one).
+        private float side;
 
         public bool Alive => shield != null && shield.gameObject != null;
 
@@ -27,13 +30,13 @@ namespace WoLStoneCharge
             Alive ? (Vector2)shield.transform.position : (Vector2)player.attackOriginTrans.position;
 
         // Raises the shield facing direction. Null (logged) if the game's shield can't be made.
-        public static StoneShield Raise(Player player, string skillID, Vector2 direction)
+        public static StoneShield Raise(Player player, string skillID, Vector2 direction, float side = 0f)
         {
             try
             {
-                var raised = new StoneShield();
+                var raised = new StoneShield { side = side };
                 ShieldCharge sc = Globals.ChaosInst<ShieldCharge>(ShieldCharge.Prefab, player.transform.parent,
-                    (Vector3)((Vector2)player.attackOriginTrans.position + direction * Reach));
+                    (Vector3)((Vector2)player.attackOriginTrans.position + direction * Reach + Across(direction) * side));
                 if (sc == null || sc.attack == null)
                     throw new System.Exception("the prefab has no ShieldCharge or attack on it");
                 sc.followTrans = player.attackOriginTrans;
@@ -60,6 +63,13 @@ namespace WoLStoneCharge
             if (!Alive || direction == Vector2.zero)
                 return;
             int next = Sector(direction);
+            // A phalanx shield keeps its place in the line every frame (the game sets the
+            // follow offset itself when the shield starts).
+            if (side != 0f)
+            {
+                Vector2 snapped = SectorVector(next);
+                try { shield.followOffset = snapped * Reach + Across(snapped) * side; } catch { }
+            }
             if (next == sector)
                 return;
             sector = next;
@@ -67,7 +77,7 @@ namespace WoLStoneCharge
             try
             {
                 shield.atkVector = dir;
-                shield.followOffset = dir * Reach;
+                shield.followOffset = dir * Reach + Across(dir) * side;
                 shield.attack.knockbackOverwriteVector = dir;
                 shield.attack.transform.localEulerAngles = Globals.GetRotationVector(-dir);
                 shield.attack.transform.localPosition = -dir * 1.5f;
@@ -110,6 +120,9 @@ namespace WoLStoneCharge
             }
             shield = null;
         }
+
+        // The line across a facing (to its left).
+        private static Vector2 Across(Vector2 direction) => new Vector2(-direction.y, direction.x).normalized;
 
         private static int Sector(Vector2 direction)
         {

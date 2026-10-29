@@ -25,20 +25,30 @@ namespace WoLStoneCharge
     // to FullMultiplier at full, and the crash stuns longer from StunEnergy up. An instant crash
     // is weak; a crash after a long sprint is not.
     //
-    // Signature (0.5.0; isUltimate, the game's flag for a signature cast): the shield goes up at
-    // full force, and running it into enemies doesn't crash: it grabs them (Carrier), and they're
-    // carried along in front of it, up to 8, until the crash. The crash is an earthquake: twice
-    // the enhanced radius (level 4, full force), a hit-stop, a flash, a heavy shake and slowed
-    // time, then an aftershock ring further out (level 5) with its own spikes. The camera pulls
-    // back and the room darkens while you charge (Cinematic, always put back).
+    // Signature (0.5.0; isUltimate, the game's flag for a signature cast): a phalanx (0.5.1,
+    // Matt). The shield goes up at full force and a line of shields forms out to either side of
+    // it, pair by pair from the middle, PhalanxPairs a side, each pair landing with a shake: a
+    // wall of stone about ten units wide that moves and turns with you. Running it into enemies
+    // doesn't crash: every shield grabs what it touches (Carrier), carried along in front of the
+    // line, up to 8, until the crash. Then every shield crashes at once (level 4, full force),
+    // with a hit-stop, a flash, a heavy shake and slowed time, and a shockwave rolls on ahead of
+    // the whole line (level 5) with rock spikes. The camera pulls back to take the line in and
+    // the room darkens while you charge (Cinematic, always put back).
     public class StoneChargeState : Player.SkillState
     {
         public new static string staticID = "StoneCharge";
         // The signature.
         private const int SigCrashLevel = 4, AftershockLevel = 5;
-        private const float AftershockReach = 1.7f, AftershockAt = 0.3f, SigRecoverTime = 0.55f;
+        private const int PhalanxPairs = 3;           // shields either side of the middle one: 7 in all
+        private const float PhalanxSpacing = 1.4f;    // between shields in the line
+        private const float PhalanxStep = 0.07f;      // seconds between pairs forming
+        private const float PhalanxCrashRadius = 1.9f; // each shield's crash
+        private const float ShockAhead = 2.2f, AftershockRadius = 1.8f, AftershockAt = 0.3f, SigRecoverTime = 0.55f;
         private const float CarryKeep = 2.6f;         // a carried enemy further than this from the shield is let go
-        private const float SigZoom = 0.15f, SigDim = 0.7f;
+        private const float SigZoom = 0.25f, SigDim = 0.65f;
+        private readonly List<StoneShield> phalanx = new List<StoneShield>();
+        private readonly List<Vector2> crashSpots = new List<Vector2>();
+        private int pairsRaised;
         private const int SigHitStopFrames = 6;
         private const float SigFlash = 1.6f, SigShake = 2.6f, SigSlowMoTime = 0.5f, SigSlowMoScale = 0.05f, SigEaseBack = 1f;
         private bool signature, aftershockDone;
@@ -216,6 +226,9 @@ namespace WoLStoneCharge
             aftershockDone = false;
             carrier.Clear();
             cinematic = 0;
+            DropPhalanx();
+            pairsRaised = 0;
+            crashSpots.Clear();
             if (signature)
             {
                 energy = 100f;
@@ -284,6 +297,7 @@ namespace WoLStoneCharge
             if (signature)
                 Cinematic.EaseOut(cinematic, 0.5f, unloaded ? "cast over" : "shield dropped before the crash");
             carrier.Clear();
+            DropPhalanx();
             EndDash();
             StopSprint();
             SetArmour(false);
@@ -433,16 +447,25 @@ namespace WoLStoneCharge
             Milestones();
             ChargeEffects(moving);
 
-            // The signature: enemies the shield runs into are grabbed and carried along with it.
+            // The signature: the phalanx forms, and every shield in it grabs what it runs into,
+            // carried along in front of the line.
             if (signature)
             {
                 float settle = Mathf.Clamp01(time / 0.5f);
                 float eased = settle * settle * (3f - 2f * settle);
                 Cinematic.Set(cinematic, SigZoom * eased, Mathf.Lerp(1f, SigDim, eased));
+                FormPhalanx();
+                foreach (StoneShield s in phalanx)
+                    s.Aim(aim);
                 Vector2 shieldSpot = (Vector2)here + aim * BashOffset;
                 if (moving)
+                {
                     GrabAt(shieldSpot);
-                carrier.Move(here, shieldSpot, CarryKeep);
+                    foreach (StoneShield s in phalanx)
+                        if (s.Alive)
+                            GrabAt(s.Position(parent));
+                }
+                carrier.Move(here, shieldSpot, PhalanxPairs * PhalanxSpacing + CarryKeep);
             }
 
             // A dash covers most of a unit a frame: check halfway from last frame's spot as well.
@@ -655,6 +678,46 @@ namespace WoLStoneCharge
             {
                 LogOnce("airborne", $"couldn't set the dash's airborne status: {e.Message}");
             }
+        }
+
+        // The phalanx forming: a pair of shields either side of the middle one every PhalanxStep,
+        // from the middle outward, each pair landing with a shake; a hit-stop and a flash when the
+        // line is complete.
+        private void FormPhalanx()
+        {
+            while (pairsRaised < PhalanxPairs && time >= PhalanxStep * (pairsRaised + 1))
+            {
+                pairsRaised++;
+                float side = pairsRaised * PhalanxSpacing;
+                foreach (float s in new[] { side, -side })
+                {
+                    StoneShield shield = StoneShield.Raise(parent, skillID, aim, s);
+                    if (shield == null)
+                        continue;
+                    phalanx.Add(shield);
+                    Vector2 spot = shield.Position(parent);
+                    Effect("dust", () => PoolManager.GetPoolItem<DustEmitter>().EmitCircle(16, 0.6f, -2f, -1f, new Vector3?(spot), null));
+                    if (StoneChargePlugin.DrawnEffects)
+                        Effect("floor crack", () => PoolManager.GetPoolItem<FloorCrackEmitter>().Emit(new int?(1), new Vector3?(spot), null, null, 0f, null, null));
+                }
+                int pair = pairsRaised;
+                Effect("shake", () => CameraController.ShakeCamera(0.3f + 0.1f * pair, false));
+                Vector2 at = parent.transform.position;
+                Effect("sound", () => SoundManager.PlayAudioWithDistance("EarthExplosion", new Vector2?(at), null, 24f, -1f, 1f + 0.12f * pair, false));
+                if (pairsRaised == PhalanxPairs)
+                {
+                    Effect("hit-stop", () => TimeScaleController.FreezeForFrames(3, false));
+                    Cinematic.Flash(cinematic, 1.3f, 0.06f);
+                    Log($"signature phalanx formed: {phalanx.Count + 1} shields, {2f * PhalanxPairs * PhalanxSpacing + 1.5f:0.#} u wide");
+                }
+            }
+        }
+
+        private void DropPhalanx()
+        {
+            foreach (StoneShield s in phalanx)
+                s?.Drop();
+            phalanx.Clear();
         }
 
         // The signature: every live enemy (not an ally) at the shield is grabbed to be carried.
@@ -1076,7 +1139,7 @@ namespace WoLStoneCharge
             if (parent.rigidbody2D != null)
                 parent.rigidbody2D.velocity = rushDir * rushSpeed;
             if (signature)
-                carrier.Move(parent.transform.position, (Vector2)parent.transform.position + rushDir * BashOffset, CarryKeep + 1f);
+                carrier.Move(parent.transform.position, (Vector2)parent.transform.position + rushDir * BashOffset, PhalanxPairs * PhalanxSpacing + CarryKeep + 1f);
             if (!bashedMid && rushTime >= StoneChargePlugin.RushTime * 0.5f)
             {
                 bashedMid = true;
@@ -1116,14 +1179,41 @@ namespace WoLStoneCharge
             phase = Phase.Recovering;
             recoverTime = 0f;
             parent.movement.EndMovement();
-            float radius = IsEmpowered || signature ? StoneChargePlugin.EnhancedCrashRadius : StoneChargePlugin.CrashRadius;
+            float radius = IsEmpowered ? StoneChargePlugin.EnhancedCrashRadius : StoneChargePlugin.CrashRadius;
             if (signature)
-                radius *= StoneChargePlugin.SignatureCrashScale;
+                radius = PhalanxCrashRadius * StoneChargePlugin.SignatureCrashScale / 2f;
             Vector2 at = (Vector2)parent.attackOriginTrans.position + rushDir * CrashOffset;
             crashAt = at;
             crashRadius = radius;
+            crashSpots.Clear();
+            crashSpots.Add(at);
             if (signature)
+            {
+                // Every shield of the line crashes where it stands, at once.
+                foreach (StoneShield s in phalanx)
+                {
+                    if (!s.Alive)
+                        continue;
+                    Vector2 spot = s.Position(parent) + rushDir * (CrashOffset - 1f);
+                    crashSpots.Add(spot);
+                    try
+                    {
+                        EarthBurst side = EarthBurst.CreateBurst(spot, parent.skillCategory, skillID, SigCrashLevel, radius);
+                        Scale(side.attack, true);
+                        side.attack.entityCollisionEventHandlers += OnCrashHit;
+                    }
+                    catch (System.Exception e)
+                    {
+                        LogOnce("phalanx crash", $"couldn't make a phalanx shield's crash: {e.Message}");
+                    }
+                    Effect("game crater", () => PoolManager.GetPoolItem<ParticleEffect>("FloorCraterLarge").Emit(new int?(1), new Vector3?(spot), null, null, 0f, null, null));
+                    Effect("dust", () => PoolManager.GetPoolItem<DustEmitter>().EmitCircle(30, radius * 0.5f, -6f, -1f, new Vector3?(spot), null));
+                    Effect("debris", () => PoolManager.GetPoolItem<RockDebrisEmitter>().EmitSingle(RockDebrisType.Default, new int?(8),
+                        new Vector3?(spot), RockDebrisEmitter.FloorExplosionOverrideR1p5, null, 0f, null));
+                }
+                DropPhalanx();
                 Earthquake(carrier.Grabbed);
+            }
             carrier.Clear();
             try
             {
@@ -1267,33 +1357,35 @@ namespace WoLStoneCharge
             Cinematic.Flash(cinematic, SigFlash, 0.1f);
             Effect("quake", () => CameraController.ShakeCamera(SigShake, true));
             Effect("slow motion", () => TimeScaleController.SetTimeScaleDelayOverRealTime(SigSlowMoTime, SigSlowMoScale, true, true));
-            Log($"signature earthquake: crash radius {crashRadius:0.0} carrying {carried} enem{(carried == 1 ? "y" : "ies")}, hit-stop {SigHitStopFrames} frames, " +
-                $"flash x{SigFlash:0.0}, shake {SigShake:0.0}, slow motion {SigSlowMoTime:0.00} s; aftershock {AftershockAt:0.0} s later at x{AftershockReach:0.0}");
+            Log($"signature phalanx crash: {crashSpots.Count} shields at radius {crashRadius:0.0}, carrying {carried} enem{(carried == 1 ? "y" : "ies")}, hit-stop {SigHitStopFrames} frames, " +
+                $"flash x{SigFlash:0.0}, shake {SigShake:0.0}, slow motion {SigSlowMoTime:0.00} s; the shockwave rolls on {AftershockAt:0.0} s later");
         }
 
-        // The aftershock: a ring of the ground erupting further out from the crash.
+        // The shockwave: the ground erupts again a little ahead of every shield of the line, with
+        // rock spikes, throwing enemies outward.
         private void Aftershock()
         {
             aftershockDone = true;
-            float radius = crashRadius * AftershockReach;
-            Vector2 at = crashAt;
-            try
+            foreach (Vector2 spot in crashSpots)
             {
-                EarthBurst burst = EarthBurst.CreateBurst(at, parent.skillCategory, skillID, AftershockLevel, radius);
-                burst.skipParticleEmit = true;
+                Vector2 at = spot + rushDir * ShockAhead;
+                try
+                {
+                    EarthBurst burst = EarthBurst.CreateBurst(at, parent.skillCategory, skillID, AftershockLevel, AftershockRadius);
+                    burst.skipParticleEmit = true;
+                }
+                catch (System.Exception e)
+                {
+                    LogOnce("aftershock", $"couldn't make the shockwave: {e.Message}");
+                }
+                if (StoneChargePlugin.DrawnEffects)
+                    Effect("rock spikes", () => SpikeRing(at, AftershockRadius));
+                Effect("dust", () => PoolManager.GetPoolItem<DustEmitter>().EmitCircle(30, AftershockRadius * 0.6f, -6f, -1f, new Vector3?(at), null));
             }
-            catch (System.Exception e)
-            {
-                LogOnce("aftershock", $"couldn't make the aftershock: {e.Message}");
-            }
-            if (StoneChargePlugin.DrawnEffects)
-                Effect("rock spikes", () => SpikeRing(at, radius));
-            Effect("dust", () => PoolManager.GetPoolItem<DustEmitter>().EmitCircle(80, radius * 0.6f, -6f, -1f, new Vector3?(at), null));
-            Effect("debris", () => PoolManager.GetPoolItem<RockDebrisEmitter>().EmitSingle(RockDebrisType.Default, new int?(14),
-                new Vector3?(at), RockDebrisEmitter.FloorExplosionOverrideR1p5, null, 0f, null));
             Effect("shake", () => CameraController.ShakeCamera(1.3f, true));
-            Effect("sound", () => SoundManager.PlayAudioWithDistance("EarthExplosion", new Vector2?(at), null, 24f, -1f, 0.8f, false));
-            Cinematic.EaseOut(cinematic, SigEaseBack, "aftershock finished");
+            Vector2 middle = crashAt + rushDir * ShockAhead;
+            Effect("sound", () => SoundManager.PlayAudioWithDistance("EarthExplosion", new Vector2?(middle), null, 24f, -1f, 0.8f, false));
+            Cinematic.EaseOut(cinematic, SigEaseBack, "shockwave finished");
         }
 
         private void Recover()
