@@ -17,7 +17,7 @@ namespace WoLAscension
     {
         public const string PluginGuid = "mdbailey94.wol.ascension";
         public const string PluginName = "Ascension";
-        public const string PluginVersion = "0.7.5";
+        public const string PluginVersion = "0.8.0";
 
         private const string PlayerDamageTakenMod = "Ascension_DamageTaken";
         private const string PlayerHealingMod = "Ascension_Healing";
@@ -80,6 +80,8 @@ namespace WoLAscension
                 Config.Bind("Altar", "LeftOfPortalY", 0f, "Where the altar stands, in game units from the trials portal (negative = down).").Value);
             AscensionAltar.Effects = Config.Bind("Altar", "Effects", true,
                 "The altar's glow, ground ring, embers and light. Off leaves just the totem, its flame and runes.");
+            // The level table ([Level 01] to [Level 10], 0.8.0).
+            AscensionLevels.Bind(Config);
 
             var harmony = new Harmony(PluginGuid);
             try

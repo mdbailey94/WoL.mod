@@ -56,6 +56,21 @@ or lists the level loaders it saw. If the altar is in an awkward spot, move it w
 level with it). If a run starts some way that skips the portal, the altar's level is applied as soon as
 the first enemies appear.
 
+## Changes in 0.8.0: the whole level table is in the config (asked for by Matt)
+
+- Every value of every level is a setting: one section per level, `[Level 01]` to `[Level 10]`
+  in `mdbailey94.wol.ascension.cfg`, each holding that level's whole value (not what it adds
+  to the level below: `[Level 05] EnemyHealth = 1.7` means +70%). The defaults are the table
+  as it was, so nothing changes until you edit them. Change them with the game closed, or
+  they apply on the next launch.
+- Per level: `EnemyHealth`, `EnemyDamage` (what the wizard takes), `EliteChance`, `Healing`,
+  `EnemySpeed`, `Gold`, `BossHealth` (on top of `EnemyHealth`), `PlayerMaxHealth`, `ChaosGems`,
+  `Experience`, `TwoAffixEliteChance`, `BossAffixes` (floor bosses), `RealmBossAffixes`,
+  `ElitesInPairs`, `RiftChance`, `ItemLevelBonus`, `ElitesDropRare` and
+  `RealmBossDropsLegendary`. The elite, boss-affix, rift, experience and loot ones are applied by Chaos Depths.
+- The altar's "Adds:" line is now worked out from the settings, so it stays right when you
+  change them (the wording is a little different: "25% of elites have two affixes").
+
 ## Changes in 0.7.5
 
 - Each of Chaos Depths' save slots (0.15.0) keeps its own unlocked Ascension level, starting at
