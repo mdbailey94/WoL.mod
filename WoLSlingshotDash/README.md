@@ -141,6 +141,12 @@ Not a dash any more: it goes in a normal arcana slot, and your dash stays your d
   a level load, and by a watchdog if anything ever runs long.
 - The signature is unlocked together with the arcana (`SignatureUnlocksWithArcana`, under
   `[General]`, default on); off, its Signature drop has to be found in a run like the game's own.
+- **0.26.2 (Matt)**: the signature throws **nine feints** (was six) in a fan **72 degrees** wide
+  (widened so they stand as far apart as six did across 52), and the chain ends on the middle
+  one, thrown along your aim. With the swaps 0.08 s apart, all nine take under a second.
+  **Enhanced** (the normal cast): after the swap, **press the button a third time** (or cast
+  again) before the feint left behind goes off, and you **swap back onto it**; it goes off round
+  you as you land, as a swap does. Left alone it explodes after 2 s as before.
 - **0.26.1 (Matt: more cinema, a marker on each feint, swap more rapidly, every burst a large
   AoE)**:
   - Each feint that lands gets a **marker**: an ice ring on the floor the size of the burst it

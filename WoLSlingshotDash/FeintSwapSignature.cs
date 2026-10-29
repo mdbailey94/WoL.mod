@@ -6,7 +6,7 @@ using UnityEngine;
 namespace WoLSlingshotDash
 {
     // Feint Swap's signature (cast from the signature slot with the gauge full, isUltimate):
-    // 1. Fan throw: on release, six ice feints fly out at once in a fan over FanSpread degrees
+    // 1. Fan throw: on release, nine ice feints (six up to 0.26.1) fly out at once in a fan over FanSpread degrees
     //    centred on your aim, FanDistanceScale of the normal throw's distance at that charge (each
     //    stopping short of walls), each bursting with ice through the enemies on its way (level 3),
     //    with a frosty flash, the stage dimming a little and the camera pulling back to show the fan.
@@ -25,8 +25,10 @@ namespace WoLSlingshotDash
     // The camera, time and light are FeintCinematic's, which always puts them back.
     public partial class FeintSwapState
     {
-        private const int FanCount = 6;
-        private const float FanSpread = 52f;            // degrees across the fan, centred on the aim (0.24.0: 110, too spread out; 0.25.1: 70)
+        // 0.26.2 (Matt: more clones): nine feints (was six), the fan widened to keep them as far
+        // apart as six were across 52 degrees.
+        private const int FanCount = 9;
+        private const float FanSpread = 72f;            // degrees across the fan, centred on the aim (0.24.0: 110, too spread out; 0.25.1: 70; 0.25.5: 52 for six)
         private const float FanDistanceScale = 1f;      // the feints fly this share of the normal throw's distance (0.25.1-0.25.4: 0.75; 0.25.5 is back to the
                                                         // full throw, as the owner asked, with the fan narrowed so its ends sit as far apart as 70 degrees at 0.75 did)
         private const float SigPathHitInterval = 0.075f; // each feint bursts this often in flight (the normal one every 0.05 s)...
@@ -186,7 +188,7 @@ namespace WoLSlingshotDash
                 {
                     feint.swapped = true;
                     state.ClearFeint(feint);
-                    SlingshotDashPlugin.Log("Feint Swap: signature: all six feints were broken before the swaps, no chain");
+                    SlingshotDashPlugin.Log($"Feint Swap: signature: all {FanCount} feints were broken before the swaps, no chain");
                     if (cine != null)
                         cine.Finish("all feints broken");
                     yield break;

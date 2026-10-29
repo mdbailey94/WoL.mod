@@ -57,6 +57,10 @@ namespace WoLSlingshotDash
         // The feint that is out right now (per wizard would be cleaner, but each wizard's state
         // object is its own instance of this class, so one per state).
         private FrostSlingshotState.Feint outFeint;
+        // Enhanced (0.26.2, Matt): the feint left where you swapped from, while its fuse burns. A
+        // third press (or a recast) swaps you back onto it.
+        private FrostSlingshotState.Feint leftFeint;
+        private const float SwapBackGrace = 0.15f;   // a press this soon after the swap isn't the third
 
         public FeintSwapState(FSM newFSM, Player newEnt) : base(staticID, newFSM, newEnt)
         {
@@ -88,6 +92,14 @@ namespace WoLSlingshotDash
             // gauge full) and clears it once the state exits (Player.HandleOverdrive), so it's
             // read once here.
             signature = isUltimate;
+            // Enhanced: cast again while the feint left behind is burning: that's the swap back.
+            if (!signature && leftFeint != null && !leftFeint.swapped)
+            {
+                leftFeint.swapRequested = true;
+                done = true;
+                SlingshotDashPlugin.Log("Feint Swap: cast again with the feint left behind out, swap back requested");
+                return;
+            }
             // Cast again while a feint is out (the cooldown has run its course): that's the swap,
             // not a second feint.
             if (outFeint != null && !outFeint.swapped)
@@ -326,7 +338,9 @@ namespace WoLSlingshotDash
             if (!empowered)
                 yield break;
 
-            // Enhanced: a new feint where you swapped from, drawing enemies in, then exploding.
+            // Enhanced: a new feint where you swapped from, drawing enemies in, then exploding. A
+            // third press (or a recast) before its fuse runs out swaps you back onto it, and it
+            // goes off round you as you land (0.26.2).
             GameObject left = null;
             try
             {
@@ -336,17 +350,53 @@ namespace WoLSlingshotDash
             catch
             {
             }
+            var back = new FrostSlingshotState.Feint { thrownAt = Time.time };
+            state.leftFeint = back;
+            string button = "Skill" + state.skillSlot;
+            bool wasHeld = true;   // the press that made the swap, until it's seen released
             // No water splash or glints round it while it waits (the owner found them odd): it
             // just stands there until its fuse runs out.
             float fuse = 0f;
-            while (fuse < LeftBehindFuse && !Broken(left))
+            while (fuse < LeftBehindFuse && !Broken(left) && !back.swapRequested)
             {
                 fuse += Time.deltaTime;
+                bool held = false;
+                try
+                {
+                    held = player != null && player.inputDevice != null && player.inputDevice.GetButton(button);
+                }
+                catch
+                {
+                }
+                if (held && !wasHeld && fuse >= SwapBackGrace)
+                    back.swapRequested = true;
+                wasHeld = held;
                 yield return null;
             }
+            back.swapped = true;
+            if (state.leftFeint == back)
+                state.leftFeint = null;
             if (Broken(left))
             {
                 SlingshotDashPlugin.Log("Feint Swap: the feint left behind (enhanced) was broken before its fuse ran out");
+                yield break;
+            }
+            if (back.swapRequested && player != null && player.gameObject.activeInHierarchy)
+            {
+                // The swap back: you to the feint left behind, and it goes off round you.
+                Vector2 from = player.transform.position;
+                player.transform.position = here;
+                if (player.rigidbody2D != null)
+                {
+                    player.rigidbody2D.position = here;
+                    player.rigidbody2D.velocity = Vector2.zero;
+                }
+                FrostSlingshotState.Shatter(left);
+                Explode(here, freezeRadius, category, id);
+                for (int i = 1; i < 6; i++)
+                    Effects.Shimmer(Vector2.Lerp(from, here, i / 6f), 2);
+                SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(here), null, 24f, -1f, 1.8f, false);
+                SlingshotDashPlugin.Log($"Feint Swap: swapped back onto the feint left behind (enhanced) {fuse:0.00} s after the swap; it exploded round you");
                 yield break;
             }
             FrostSlingshotState.Shatter(left);
