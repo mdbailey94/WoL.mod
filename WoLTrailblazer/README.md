@@ -52,6 +52,13 @@ the arcana, `[General] SignatureUnlocksWithArcana`):
 
 The camera and light always go back (`Trailblazer: signature restored (...)`).
 
+**0.10.1 (Matt)**: the detonations start earlier. Each trail patch **erupts in its pillar 0.5 s
+after it's dropped**, while the comet is still burning, so the trail goes up in a rolling wave
+behind you. When it burns out, any patch not yet erupted goes too, then the blast. And you run
+**+40% faster for the whole signature** (the comet, the eruption and the blast), which pushes the
+fire's speed level up as well (a sprint with the boost is level 6 before the comet's three
+extra levels, so the comet is at level 9 or 10).
+
 ## Look
 
 Since **0.8.0** more fire is layered on top of the game's flames and Searing Rush's columns (which

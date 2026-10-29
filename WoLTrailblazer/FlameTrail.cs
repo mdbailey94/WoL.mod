@@ -25,15 +25,23 @@ namespace WoLTrailblazer
     // The signature comet (0.10.0, the signature cast): for SignatureDuration the room darkens to
     // embers and the camera pulls back (Cinematic, always put back), the fire burns three levels
     // hotter (the enhanced level and two more), its patches hit twice as wide and its flames are
-    // half again as big. When it burns out, every patch still burning erupts in a pillar of fire,
-    // oldest first, then a blast goes off round the wizard with a hit-stop, a flash, a heavy shake
-    // and a moment of near-frozen time.
+    // half again as big. Each patch erupts in a pillar of fire CometFuse after it's dropped
+    // (0.10.1, Matt: the detonations start earlier; up to 0.10.0 they all waited for the comet to
+    // burn out), and the wizard runs CometSpeed faster the whole time, which pushes the fire's
+    // level up too. When it burns out, any patch not yet erupted goes, oldest first, then a blast
+    // goes off round the wizard with a hit-stop, a flash, a heavy shake and a moment of
+    // near-frozen time, and the speed boost comes off.
     public class FlameTrail : MonoBehaviour
     {
         private const int MaxPatches = 40;
         // The signature comet.
         private const int CometLevels = 2;               // on top of the enhanced level
         private const float CometHitWide = 2f, CometFire = 1.6f, CometRing = 1.5f;
+        private const float CometFuse = 0.5f;            // a patch erupts this long after it's dropped
+        private const float CometSpeed = 0.4f;           // +40% move speed for the whole signature
+        private const string CometSpeedMod = "Trailblazer_Comet";
+        private const float PillarLife = 0.6f;           // a pillar's fire column burns this long
+        private int erupted;
         private const float CometZoom = 0.15f, CometDim = 0.5f, CometSettle = 0.6f;
         private const float PillarStep = 0.04f, FinalDelay = 0.25f;
         private const float PillarScale = 2.2f, FinalRadius = 3f;
@@ -59,6 +67,7 @@ namespace WoLTrailblazer
             public float nextHit;
             public float nextFlame;
             public int level;
+            public float eruptAt = -1f; // the comet: when this patch erupts (-1 never)
             public GameObject column; // Searing Rush's fire, if available
             public BlazeLook.PatchLook look; // its drawn flames (the char mark plays out by itself)
         }
@@ -95,9 +104,11 @@ namespace WoLTrailblazer
             trail.litAt = Time.time;
             trail.comet = signature;
             trail.cinematic = signature ? Cinematic.Begin() : 0;
+            trail.erupted = 0;
+            trail.SpeedBoost(signature);
             if (signature)
-                TrailblazerPlugin.Log($"Trailblazer: signature comet for {duration:0.#} s: {CometLevels} levels hotter, patches x{CometHitWide:0.#} wide, " +
-                    $"flames x{CometFire:0.#}; the trail erupts when it burns out");
+                TrailblazerPlugin.Log($"Trailblazer: signature comet for {duration:0.#} s: {CometLevels} levels hotter, +{CometSpeed * 100f:0}% speed, " +
+                    $"patches x{CometHitWide:0.#} wide, flames x{CometFire:0.#}; each patch erupts {CometFuse:0.0} s after it's dropped");
             trail.hasLast = false;
             trail.travelled = 0f;
             trail.nextAura = 0f;
@@ -136,9 +147,14 @@ namespace WoLTrailblazer
                     if (comet)
                     {
                         comet = false;
+                        // The patches that haven't erupted yet go now.
                         var spots = new List<Vector2>();
                         foreach (Patch p in patches)
-                            spots.Add(p.position);
+                            if (p.eruptAt >= 0f)
+                            {
+                                p.eruptAt = -1f;
+                                spots.Add(p.position);
+                            }
                         StartCoroutine(Erupt(spots));
                     }
                 }
@@ -215,6 +231,7 @@ namespace WoLTrailblazer
                 nextHit = now + TrailblazerPlugin.TrailHitInterval,
                 nextFlame = now,
                 level = level,
+                eruptAt = comet ? now + CometFuse : -1f,
                 column = TrailblazerPlugin.SearingFire
                     ? SearingLook.Light(position, ColumnScale(level) * FireScale, player != null ? player.spriteRenderer : null)
                     : null
@@ -241,6 +258,12 @@ namespace WoLTrailblazer
             for (int i = patches.Count - 1; i >= 0; i--)
             {
                 Patch patch = patches[i];
+                // The comet's patches erupt on their own fuse, while it's still burning.
+                if (patch.eruptAt >= 0f && (now >= patch.eruptAt || now >= patch.until))
+                {
+                    patch.eruptAt = -1f;
+                    Pillar(patch.position);
+                }
                 if (now >= patch.until)
                 {
                     SearingLook.PutOut(patch.column);
@@ -345,19 +368,54 @@ namespace WoLTrailblazer
 
         // The comet's end: each patch erupts in a pillar of fire in turn, then a blast round the
         // wizard; the camera and light ease back after it.
+        // One pillar of fire erupting from a patch: a level-10 hit times EruptionMultiplier, a
+        // tall fire column, flames, sparks and a small shake.
+        private void Pillar(Vector2 spot)
+        {
+            erupted++;
+            Burst(spot, MaxLevel, TrailblazerPlugin.TrailHitSize * CometHitWide, true, TrailblazerPlugin.EruptionMultiplier);
+            if (TrailblazerPlugin.SearingFire)
+            {
+                GameObject column = SearingLook.Light(spot, PillarScale, player != null ? player.spriteRenderer : null);
+                if (column != null)
+                    StartCoroutine(PutOutLater(column, PillarLife));
+            }
+            Flames(spot, 6, PillarScale * 0.7f);
+            Try(() => PoolManager.GetPoolItem<FireBurst>()?.EmitSingle(new int?(4), new Vector3?(spot)));
+            Try(() => CameraController.ShakeCamera(0.25f, false));
+        }
+
+        private System.Collections.IEnumerator PutOutLater(GameObject column, float seconds)
+        {
+            yield return new WaitForSeconds(seconds);
+            SearingLook.PutOut(column);
+        }
+
+        // The comet's speed boost: a multiplier on the move-speed stat (so the fire's level, read
+        // from the speed, climbs with it), on for the whole signature and always taken off.
+        private void SpeedBoost(bool on)
+        {
+            try
+            {
+                if (player == null || player.movement == null || player.movement.moveSpeedStat == null)
+                    return;
+                player.movement.moveSpeedStat.RemoveMod(CometSpeedMod);
+                if (on)
+                    player.movement.moveSpeedStat.AddMod(new NumVarStatMod(CometSpeedMod, CometSpeed, 10, VarStatModType.Multiplicative, false));
+            }
+            catch (System.Exception e)
+            {
+                TrailblazerPlugin.Log($"Trailblazer: couldn't {(on ? "give" : "take off")} the comet's speed boost: {e.Message}");
+            }
+        }
+
         private System.Collections.IEnumerator Erupt(List<Vector2> spots)
         {
             int token = cinematic;
-            var columns = new List<GameObject>();
-            TrailblazerPlugin.Log($"Trailblazer: signature eruption: {spots.Count} pillar(s) of fire, then the blast");
+            TrailblazerPlugin.Log($"Trailblazer: signature burnt out: {erupted} pillar(s) erupted along the way, {spots.Count} more now, then the blast");
             foreach (Vector2 spot in spots)
             {
-                Burst(spot, MaxLevel, TrailblazerPlugin.TrailHitSize * CometHitWide, true, TrailblazerPlugin.EruptionMultiplier);
-                if (TrailblazerPlugin.SearingFire)
-                    columns.Add(SearingLook.Light(spot, PillarScale, player != null ? player.spriteRenderer : null));
-                Flames(spot, 6, PillarScale * 0.7f);
-                Try(() => PoolManager.GetPoolItem<FireBurst>()?.EmitSingle(new int?(4), new Vector3?(spot)));
-                Try(() => CameraController.ShakeCamera(0.25f, false));
+                Pillar(spot);
                 yield return new WaitForSeconds(PillarStep);
             }
             yield return new WaitForSeconds(FinalDelay);
@@ -376,9 +434,9 @@ namespace WoLTrailblazer
                     $"slow motion {FinalSlowMoTime:0.00} s, easing back over {EaseBack:0.0} s");
             }
             Cinematic.EaseOut(token, EaseBack, "eruption finished");
-            yield return new WaitForSeconds(0.5f);
-            foreach (GameObject c in columns)
-                SearingLook.PutOut(c);
+            // The boost lasts through the blast; a new comet cast since then keeps its own.
+            if (!comet)
+                SpeedBoost(false);
         }
 
         private static void Try(System.Action effect)
@@ -394,6 +452,7 @@ namespace WoLTrailblazer
 
         private void OnDestroy()
         {
+            SpeedBoost(false);
             if (cinematic != 0)
                 Cinematic.EaseOut(cinematic, 0.5f, "the fire went with the wizard");
             foreach (Patch patch in patches)
