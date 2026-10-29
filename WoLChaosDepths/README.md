@@ -647,3 +647,17 @@ ninth of the unique drops; the first-boss testing unique can be any of them.
   in the trail puffs: red for offense, green for defense, violet for utility. The red, green
   and violet orbs are kept for the charm uniques being drafted (`FUTURE.md`). Rings and
   pendants still wear their themed looks.
+
+## 0.17.2 (balance settings, asked for by Matt)
+
+New settings for tuning drops; their defaults keep the game as it was.
+
+| Section | Setting | Default | What it does |
+|---|---|---|---|
+| `[Elites]` | `TwoAffixItemChanceBonus` | 0 | Added to the item chance of a two-affix elite (Ascension 4+) |
+| `[Elites]` | `TwoAffixDropMinRarity` | -1 | Minimum rarity of a two-affix elite's item (-1 = same as one affix) |
+| `[Elites]` | `DropMinRarityFromAscension5` | 2 | Minimum rarity of elite items from Ascension 5 (was fixed at Rare) |
+| `[Loot]` | `BossDropChance` | 1 | Chance a realm boss drops an item |
+| `[Loot]` | `FloorBossDropChance` | 1 | Chance a floor boss drops an item |
+| `[Loot]` | `RealmBossLegendaryAtAscension10` | true | A10 realm boss item is always Legendary |
+| `[Loot]` | `FinalBossFirstWinLegendary` | true | First final-boss win per Ascension level drops a Legendary |

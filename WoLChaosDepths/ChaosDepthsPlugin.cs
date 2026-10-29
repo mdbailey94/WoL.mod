@@ -20,12 +20,14 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.17.1";
+        public const string PluginVersion = "0.17.2";
 
 
         private static BepInEx.Logging.ManualLogSource log;
         private static ConfigEntry<bool> modEnabled;
         private static ConfigEntry<float> healthPerLevel, xpPerHealth, bossXpMultiplier, dropChance, freshDropChance, freshDropChanceZero;
+        private static ConfigEntry<float> bossDropChance, floorBossDropChance;
+        private static ConfigEntry<bool> realmBossLegendaryAt10, finalBossFirstWinLegendary;
 
         // An ordinary kill's chance of an item: the save slots' balanced rate (lower again at
         // Ascension 0), or the Debugging save's own.
@@ -112,6 +114,15 @@ namespace WoLChaosDepths
                 new ConfigDescription("DropChance in the profile's fresh save (WoL Player's balanced rates, #31); DropChance is used in the Debugging save.", new AcceptableValueRange<float>(0f, 1f)));
             freshDropChanceZero = Config.Bind("Loot", "FreshDropChanceAtAscension0", 0.03f,
                 new ConfigDescription("FreshDropChance at Ascension 0 (Matt: the game on its own comes first; from level 1, FreshDropChance).", new AcceptableValueRange<float>(0f, 1f)));
+            // Balance settings (0.17.2, asked for by Matt); the defaults keep the drops as they were.
+            bossDropChance = Config.Bind("Loot", "BossDropChance", 1f,
+                new ConfigDescription("Chance a realm boss drops an item (1 = always). Guaranteed Legendaries and the testing unique still drop.", new AcceptableValueRange<float>(0f, 1f)));
+            floorBossDropChance = Config.Bind("Loot", "FloorBossDropChance", 1f,
+                new ConfigDescription("Chance a floor boss (the skull altar's mini-boss) drops an item (1 = always).", new AcceptableValueRange<float>(0f, 1f)));
+            realmBossLegendaryAt10 = Config.Bind("Loot", "RealmBossLegendaryAtAscension10", true,
+                "At Ascension 10 the realm boss's item is always Legendary (Ascension's table). Off: it rolls from BossDropMinRarity like any boss.");
+            finalBossFirstWinLegendary = Config.Bind("Loot", "FinalBossFirstWinLegendary", true,
+                "The first time a character beats the final boss at each Ascension level, its item is a guaranteed Legendary.");
             bossDropRarity = Config.Bind("Loot", "BossDropMinRarity", 2,
                 new ConfigDescription("A boss drop is at least this rarity (0 Common, 1 Magic, 2 Rare, 3 Legendary).", new AcceptableValueRange<int>(0, 3)));
             firstBossUnique = Config.Bind("Testing", "FirstBossUnique", true,
@@ -695,11 +706,11 @@ namespace WoLChaosDepths
                     // first realm boss used to promise one).
                     int min = bossDropRarity.Value;
                     // Ascension 10: the realm boss drops a Legendary (#27).
-                    if (AscensionLink.RealmBossDropsLegendary)
+                    if (AscensionLink.RealmBossDropsLegendary && realmBossLegendaryAt10.Value)
                         min = LootTable.RarityIndex("Legendary");
                     // The first time a character beats the final boss at each Ascension level, it
                     // drops a Legendary.
-                    else if (DiveDirector.IsFinalBoss(DiveDirector.CurrentScene()) && !OtherBossAlive(entity)
+                    else if (finalBossFirstWinLegendary.Value && DiveDirector.IsFinalBoss(DiveDirector.CurrentScene()) && !OtherBossAlive(entity)
                         && !save.finalLegendaryAt.Contains(AscensionLink.Level))
                     {
                         save.finalLegendaryAt.Add(AscensionLink.Level);
@@ -715,14 +726,18 @@ namespace WoLChaosDepths
                         min = LootTable.RarityIndex("Legendary");
                         Log($"Player {player.playerID + 1}'s first boss win: a guaranteed unique Legendary (testing)");
                     }
-                    Drop(player, save, min, entity.transform.position, unique);
+                    if (unique || UnityEngine.Random.value < bossDropChance.Value)
+                        Drop(player, save, min, entity.transform.position, unique);
                 }
                 else if (floorBoss)
-                    Drop(player, save, floorBossDropRarity.Value, entity.transform.position);
+                {
+                    if (UnityEngine.Random.value < floorBossDropChance.Value)
+                        Drop(player, save, floorBossDropRarity.Value, entity.transform.position);
+                }
                 else if (elite != null)
                 {
-                    if (Elites.DropsItem())
-                        Drop(player, save, Elites.DropMinRarity, entity.transform.position);
+                    if (Elites.DropsItem(entity))
+                        Drop(player, save, Elites.DropMinRarityFor(entity), entity.transform.position);
                 }
                 else if (UnityEngine.Random.value < KillDropChance())
                     Drop(player, save, 0, entity.transform.position);

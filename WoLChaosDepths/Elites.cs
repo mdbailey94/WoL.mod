@@ -40,8 +40,8 @@ namespace WoLChaosDepths
         private static ConfigEntry<float> chance, chancePerAscension, healthMultiplier, xpMultiplier, zeroChance, zeroDropChance;
         private static ConfigEntry<float> itemChance, itemChancePerAscension;
         private static ConfigEntry<float> swiftSpeed, armoredReduction, giantScale, giantHealth;
-        private static ConfigEntry<int> dropMinRarity;
-        private static ConfigEntry<float> rarityBoostPerAscension;
+        private static ConfigEntry<int> dropMinRarity, ascension5DropMinRarity, twoAffixDropMinRarity;
+        private static ConfigEntry<float> rarityBoostPerAscension, twoAffixItemBonus;
 
         // Enemies already rolled this scene, and the ones that became elites (with their affixes
         // and the tint those give).
@@ -52,7 +52,31 @@ namespace WoLChaosDepths
 
         public static float XpMultiplier => xpMultiplier.Value;
         // Ascension 5 and up (#27): elites drop Rare or better.
-        public static int DropMinRarity => AscensionLink.ElitesDropRare ? Mathf.Max(dropMinRarity.Value, 2) : dropMinRarity.Value;
+        public static int DropMinRarity => AscensionLink.ElitesDropRare ? Mathf.Max(dropMinRarity.Value, ascension5DropMinRarity.Value) : dropMinRarity.Value;
+
+        // Balance settings (0.17.2, asked for by Matt): two-affix elites can drop more often and
+        // better than single-affix ones. Defaults keep the drops as they were.
+        public static int DropMinRarityFor(Entity entity)
+        {
+            int min = DropMinRarity;
+            if (AffixCount(entity) >= 2 && twoAffixDropMinRarity.Value >= 0)
+                min = Mathf.Max(min, twoAffixDropMinRarity.Value);
+            return min;
+        }
+
+        public static bool DropsItem(Entity entity)
+        {
+            float chance = ItemDropChance();
+            if (AffixCount(entity) >= 2)
+                chance += twoAffixItemBonus.Value;
+            return UnityEngine.Random.value < Mathf.Clamp01(chance);
+        }
+
+        private static int AffixCount(Entity entity)
+        {
+            Affix[] affixes;
+            return entity != null && elites.TryGetValue(entity.GetInstanceID(), out affixes) ? affixes.Length : 0;
+        }
 
         public static void Bind(ConfigFile config)
         {
@@ -76,6 +100,12 @@ namespace WoLChaosDepths
                 "Extra experience for an elite, on top of the experience from its larger health.");
             dropMinRarity = config.Bind("Elites", "DropMinRarity", 1,
                 "An elite's item is at least this rarity (0 Common, 1 Magic, 2 Rare, 3 Legendary).");
+            ascension5DropMinRarity = config.Bind("Elites", "DropMinRarityFromAscension5", 2,
+                new ConfigDescription("From Ascension 5 (Ascension's table), an elite's item is at least this rarity (0 Common, 1 Magic, 2 Rare, 3 Legendary).", new AcceptableValueRange<int>(0, 3)));
+            twoAffixItemBonus = config.Bind("Elites", "TwoAffixItemChanceBonus", 0f,
+                new ConfigDescription("Added to the item chance for an elite with two affixes (Ascension 4 and up). 0 = same as one affix; 0.2 = +20 points.", new AcceptableValueRange<float>(0f, 1f)));
+            twoAffixDropMinRarity = config.Bind("Elites", "TwoAffixDropMinRarity", -1,
+                new ConfigDescription("An item from an elite with two affixes is at least this rarity (0 Common, 1 Magic, 2 Rare, 3 Legendary). -1 = same as a one-affix elite.", new AcceptableValueRange<int>(-1, 3)));
             swiftSpeed = config.Bind("Elites", "SwiftSpeed", 0.4f, "Swift elites move this much faster (0.4 = +40%).");
             armoredReduction = config.Bind("Elites", "ArmoredReduction", 0.4f, "Armored elites take this much less damage (0.4 = -40%).");
             giantScale = config.Bind("Elites", "GiantScale", 1.35f, "Giant elites are drawn this much larger.");
