@@ -115,11 +115,21 @@ namespace WoLChaosDepths
                 return HubScene;
             }
 
-            // Nothing comes after the final boss: a dive that reaches it ends in the Hub.
+            // Past the final boss the dive is complete. The game goes on to its Ending scene, where
+            // the run is won: the final boss grants a Chaos arcana and the PlayerWin relic, and
+            // the run ends properly (relics and health reset on the way home), so that's let
+            // through (0.16.2, Matt). Up to 0.16.1 every exit was sent to the Hub, which skipped
+            // all of that. Anywhere else still ends in the Hub.
             if (here && IsFinalBoss(current) && destination != HubScene && !IsFinalBoss(destination))
             {
+                if (destination.IndexOf("Ending", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    ChaosDepthsPlugin.Log($"Dive complete after the final boss: on to the game's {destination}");
+                    EndDive(false);
+                    return null;
+                }
                 ChaosDepthsPlugin.Log($"Dive complete after the final boss: {destination} -> {HubScene}");
-                EndDive();
+                EndDive(true);
                 return HubScene;
             }
 
@@ -231,10 +241,10 @@ namespace WoLChaosDepths
         }
 
         // Every level load: keep the floor count, and log what the game thinks the run is.
-        private static void EndDive()
+        private static void EndDive(bool toHub = true)
         {
             inRun = false;
-            returningToHub = true;
+            returningToHub = toHub;
             AscensionLink.ReportRunBeaten();
             try
             {

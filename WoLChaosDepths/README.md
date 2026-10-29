@@ -555,6 +555,15 @@ WoL Player's first-pass rates, for the fresh save only (the Debugging save keeps
 - In the Debugging save, Unlock Mod Content has already unlocked every mod arcana, so there is
   nothing left to offer; this is for the save slots.
 
+## 0.16.2: beating the final boss plays the game's ending again
+
+- After the final boss, Chaos Depths sent every exit straight to the Hub. That skipped the
+  game's Ending scene, where the run is won: the final boss grants one of the locked **Chaos
+  arcana** (as a signature) and the **PlayerWin** relic, and the run ends properly (relics, gold
+  and health reset on the way home). So players came back with their relics and health and no
+  Chaos arcana. The exit to the Ending scene is now let through; the dive still counts as
+  complete (Ascension unlocks the next level) and says "Dive complete!".
+
 ## 0.16.1: a controller can close the inventory again
 
 - In co-op, player 1's controller couldn't move in or close their inventory; only Escape
