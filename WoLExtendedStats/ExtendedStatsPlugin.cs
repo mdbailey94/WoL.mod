@@ -14,7 +14,7 @@ namespace WoLExtendedStats
     {
         public const string PluginGuid = "mdbailey94.wol.extendedstats";
         public const string PluginName = "Extended Stats";
-        public const string PluginVersion = "0.4.5";
+        public const string PluginVersion = "0.4.6";
 
         private const float RefreshInterval = 0.25f;
         private const float ReferenceHeight = 1080f;
@@ -218,14 +218,23 @@ namespace WoLExtendedStats
             // Write our extras, and restore any box we touched before but no longer should.
             foreach (var pair in pendingExtras)
                 WriteInfoBox(pair.Key, pair.Value.Extra, pair.Value.Owner);
-            foreach (Text box in new List<Text>(infoBoxes.Keys))
+            // A copy to walk while boxes are removed; reused, and skipped while there are none (most
+            // of the game), so no new list every frame (#26).
+            if (infoBoxes.Count == 0)
+                return;
+            touchedBoxes.Clear();
+            touchedBoxes.AddRange(infoBoxes.Keys);
+            foreach (Text box in touchedBoxes)
             {
                 if (box == null)
                     infoBoxes.Remove(box);
                 else if (!pendingExtras.ContainsKey(box))
                     WriteInfoBox(box, null, null);
             }
+            touchedBoxes.Clear();
         }
+
+        private readonly List<Text> touchedBoxes = new List<Text>();
 
         private void CollectMenuInfo(Player player)
         {

@@ -6,10 +6,25 @@ BepInEx 5 mods for Wizard of Legend.
 |-----|--------|-------------|
 | [WoLCameraZoom](WoLCameraZoom/) | Working | Zooms the gameplay camera out so you can see more of the arena. |
 | [WoLRollingGale](WoLRollingGale/) | Working | New Air arcana: a line of wind bursts that rolls forward and pulls enemies. Needs LegendAPI. |
-| [WoLSlingshotDash](WoLSlingshotDash/) | Working (Blazing untested) | Two hold-to-charge dash arcana: Slingshot (wind bursts that knock enemies away) and Blazing Slingshot (a flaming rush that ends in a vacuum pulling enemies in). Needs LegendAPI. |
+| [WoLCyclone](WoLCyclone/) | Untested | New Air standard arcana: hold to grow a steerable twister into a hurricane over 4 s (bigger, faster, harder hits), bursting a second later to blow everyone away. Needs LegendAPI. |
+| [WoLThunderhead](WoLThunderhead/) | Working | New Lightning standard arcana: leap high into the air out of reach and hang there as lightning rains down, then crash down in a slam; enhanced, you steer through the air and the lightning strikes faster; signature: a raging storm with a wind-up, a dive and a frozen-frame impact. Needs LegendAPI. |
+| [WoLTrailblazer](WoLTrailblazer/) | Untested | New Fire standard arcana: set yourself ablaze for a few seconds; a ring of fire burns enemies you touch and moving leaves a burning trail, growing with your run speed. Needs LegendAPI. |
+| [WoLTidalWall](WoLTidalWall/) | Working | New Water standard arcana: a wall of water rises in front of you, blocking projectiles, then rolls forward sweeping enemies along until it crashes (low damage, pure control); enhanced, wider and longer; signature: a towering tidal wave whose crash freezes everything it carries. Needs LegendAPI. |
+| [WoLM4](WoLM4/) | Untested | New Air basic arcana: a rifle; three trigger pulls of brass bullets (bursts of 3, 3, then a spray of 5); enhanced, an extra round a burst, fired faster. Needs LegendAPI. |
+| [WoLBrambleRing](WoLBrambleRing/) | Working | New Earth standard arcana: a thicket of thorny vines knits around you for 3 s, rooting the enemies inside and pricking them; enhanced, it stands longer and spreads wider; signature: a slam, vines erupting outward, a gloom while they drag snared enemies inward, and a crushing final snap. Needs LegendAPI. |
+| [WoLGaleRider](WoLGaleRider/) | Working | New Air standard arcana: summon a ball of wind and ride it at a boosted pace for 3 s; its size and shove scale with your move speed, knocking enemies the way you're heading. Needs LegendAPI. |
+| [WoLStoneCharge](WoLStoneCharge/) | Untested | New Earth standard arcana (0.6.0): throw a big stone shield forward; it hangs in the air for a beat, then slams down in an earth blast that throws enemies outward; enhanced, bigger, wider and quicker; signature: a colossal shield, a cinematic slam at radius 7 and a shockwave ring. Needs LegendAPI. |
+| [WoLSlingshotDash](WoLSlingshotDash/) | Working (Storm untested) | Hold-to-charge arcana: four dashes, Vacuum Fist (a rushing wind that drags enemies, ending in a vacuum punch), Blazing Kick (a flaming rush that shoves enemies aside, ending in a blast), Vine Slingshot (grab with twin vines, pull in and kick) and Charged Leap (catch enemy projectiles, then hurl them and yourself), plus the standard arcana Feint Swap (throw an ice feint, swap places, freeze both ends). Needs LegendAPI. |
+| [WoLRelicPack](WoLRelicPack/) | Working (Pickpocket's Glove untested) | Four new relics: Storm Battery (dashes charge chain lightning for your next arcana hit), Echo Charm (your signature's hits echo at 40%), Glass Prism (+25% crit chance, -25% max health) and Pickpocket's Glove (+50% gold while at half health or below). Needs LegendAPI. |
+| [WoLDuelistCloak](WoLDuelistCloak/) | On sale (wearing it untested) | New cloak: +15% run speed, +10% crit chance and +30% crit damage, but you take 25% more damage. Always on sale at the plaza cloak merchant until bought. Needs LegendAPI. |
 | [WoLExtendedStats](WoLExtendedStats/) | Working | Hidden arcana and wizard stats in the character menu info box, plus a post-run report: crits, biggest crit, pit knock-offs, top speed and more. Co-op aware. |
-| [WoLAscension](WoLAscension/) | Working (0.2.1 untested) | Ascension levels 1–10: stacking difficulty modifiers, picked on a pixel-art prompt when you enter the run portal. |
-| [WoLUnlockModContent](WoLUnlockModContent/) | Untested | Mods-menu toggle that unlocks all mod-added arcana and relics for easy testing (reversible). Needs LegendAPI. |
+| [WoLDamageMeter](WoLDamageMeter/) | Working | DPS readout for the training dummies (top right, F3 to hide): damage, hits, crits, biggest hit and a per-arcana breakdown, with a summary in the log. |
+| [WoLAscension](WoLAscension/) | Working | Ascension levels 1–10: stacking difficulty modifiers, set at a stone totem beside the trials portal (its flame, rune notches, glow and number show the level), with +4% chaos gems per level. |
+| [WoLCloakUpgrades](WoLCloakUpgrades/) | Untested | Permanent cloak upgrades bought with chaos gems in the wardrobe screen: four tiers, up to doubled bonuses (strong stats capped at +50%). |
+| [WoLUnlockModContent](WoLUnlockModContent/) | Working | Mods-menu toggle that unlocks all mod-added arcana and relics for easy testing (reversible). Needs LegendAPI. |
+| [WoLCustomPaintings](WoLCustomPaintings/) | Untested | Puts your own pictures on some of the breakable paintings in the Chaos Trials, framed and pixelated to fit. |
+| [WoLPotionPrice](WoLPotionPrice/) | Working (buying untested) | Health potions cost more each time you buy one in a run (+25% of the base price each, adjustable); the price tag now updates. |
+| [WoLChaosDepths](WoLChaosDepths/) | Experimental | M0 technical test for the Chaos Depths RPG plan: a persistent character with its own save, experience and levels, and random items from a data file. |
 | [WoLModMenu](WoLModMenu/) | Working | A MODS panel on the title screen to switch the mods above on and off instantly (Select / M). |
 
 ## Install (no build needed)
@@ -25,4 +40,40 @@ BepInEx 5 mods for Wizard of Legend.
 
 Every push to `main` rebuilds the mods and replaces the downloads on the `latest` release.
 
-To build locally instead, see each mod's README.
+## Changing the mods yourself
+
+**Without code:** most mods have settings in `BepInEx\config\mdbailey94.wol.<mod>.cfg` (created the
+first time the game runs with the mod). Edit the file with Notepad while the game is closed; each
+setting has a comment saying what it does.
+
+**In the code:** every number that shapes how a mod plays is a named constant near the top of its
+`...State.cs` (or `...Plugin.cs` for damage and cooldowns), with a comment saying what it does. For
+example, in `WoLCyclone\CycloneState.cs`:
+
+```csharp
+private const float GrowTime = 4f;         // from small twister to full hurricane
+private const float Distance = 4f;         // starts about three tiles in front of the wizard
+```
+
+and its damage per hit is in `WoLCyclone\CyclonePlugin.cs` (`damage = new[] { ... }`: one number
+per skill level, explained just above it). Thunderhead and Trailblazer have all of theirs in the
+config file instead.
+
+To build your change into the game (Windows):
+
+1. Install the [.NET SDK](https://dotnet.microsoft.com/download) (version 8) once.
+2. Download this repository (green **Code** button > **Download ZIP** on the branch you want, or
+   `git clone`), and unzip it anywhere.
+3. Change the numbers you want, save.
+4. Open PowerShell in the repository folder and run, for example:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\build.ps1 WoLThunderhead
+   ```
+
+   (leave the mod name off to build them all; add `-GameDir "D:\path\to\Wizard of Legend"` if the
+   game isn't in Steam's default folder). It builds the mod and copies the DLL straight into
+   `BepInEx\plugins`, so just start the game.
+
+If the build fails, it prints the file and line with the problem (usually a missing `;` or `f`
+after a decimal number, like `1.5f`).

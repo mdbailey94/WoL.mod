@@ -1,0 +1,1079 @@
+using System.Collections.Generic;
+using Chaos.AnimatorExtensions;
+using UnityEngine;
+
+namespace WoLGaleRider
+{
+    // Gale Rider (Air, standard arcana): a ball of wind under the wizard that they ride for a few
+    // seconds. They keep steering with the stick, at their move speed with a ride bonus on it
+    // (like Aero Ring's +25%), rolling on in the last direction when the stick is let go, and the
+    // ball is a rolling attack round them: an enemy it rolls over is shoved away in the direction
+    // they're heading and takes a little damage, a few times a second. The ball's SIZE and the
+    // SHOVE grow with their speed (their move-speed stat against its base, like Trailblazer reads
+    // it: relics, the cloak and speed-boost arcana count, the speed a dash forces for a moment
+    // doesn't), from base run speed up to PeakSpeedPercent. Dashing cancels the ride; pressing
+    // the button again hops off early. It ends in the game's slide, like Tearing Whirlwind.
+    //
+    // Built on the same calls as the game's own rides: the ball is an attack circle parented to
+    // the wizard (Tearing Whirlwind), its collider pulsing to hit again (Aero Ring), its knockback
+    // overridden as it goes (Rushing Typhoon); the speed bonus is a multiplicative move-speed mod
+    // put on at the start and always taken off at the end, however the ride ends.
+    //
+    // Signature (0.4.0; isUltimate, the game's flag for a signature cast): a storm ball twice the
+    // size that hits harder (skill level 2), ridden for 6 s with the camera pulled back and the
+    // room darkened (Cinematic). When the time is up, or the button is pressed again, you leap
+    // off it, hang at the top in slow motion, and slam down: a wind blast round where you land
+    // (level 3, thrown outward) with a hit-stop, a flash and a heavy shake. A dash still cuts
+    // it short, with no slam.
+    public class GaleRiderState : Player.SkillState
+    {
+        public new static string staticID = "GaleRider";
+        // The signature.
+        private static float SigKnockbackScale => AdvancedTuning.SigKnockbackScale;
+        private static float SigZoom => AdvancedTuning.SigZoom;
+        private static float SigDim => AdvancedTuning.SigDim;
+        private static float SigSettleTime => AdvancedTuning.SigSettleTime;
+        private static float LeapUpTime => AdvancedTuning.LeapUpTime;
+        private static float LeapDownTime => AdvancedTuning.LeapDownTime;
+        private static float LeapCarry => AdvancedTuning.LeapCarry;              // of the ride speed, carried into the leap
+        private static float TopSlowMoTime => AdvancedTuning.TopSlowMoTime;
+        private static float TopSlowMoScale => AdvancedTuning.TopSlowMoScale;
+        private static float SlamScale => AdvancedTuning.SlamScale;               // the wind blast's size where you land
+        private static int SlamHitStopFrames => AdvancedTuning.SlamHitStopFrames;
+        private static float SlamFlash => AdvancedTuning.SlamFlash;
+        private static float SlamShake => AdvancedTuning.SlamShake;
+        private static float SlamSlowMoTime => AdvancedTuning.SlamSlowMoTime;
+        private static float SlamSlowMoScale => AdvancedTuning.SlamSlowMoScale;
+        private static float SlamEaseBack => AdvancedTuning.SlamEaseBack;
+        private bool signature, leaping, topSlowMoDone;
+        private float leapTime, leapBase;
+        private int cinematic;
+        // Signature (0.4.1, Matt): enemies the storm ball hits are swept along in it.
+        private static float CarryMargin => AdvancedTuning.CarryMargin;      // let go when further than the ball's radius plus this
+        private readonly Carrier carrier = new Carrier();
+
+        public const int MaxLevel = 10;                 // levels of the log's speed read, 1 at x1.0, 10 at the peak
+        private const string RideSpeedModID = "GaleRider_Ride";
+        private const float InputDeadZone = 0.04f;      // stick input (squared) below this is "not steering"
+        private const float PitEdgeMargin = 0.2f;       // how far ahead of their feet a pit stops the ball
+        private const float TeleportDistance = 3f;      // a step longer than this isn't riding (a new floor, a swap)
+        private const float LevelLogInterval = 0.25f;   // at most one "level changed" line this often
+        private const float VortexInterval = 0.06f;     // seconds between puffs of the swirling wind
+        private const float DustInterval = 0.15f;       // seconds between rings of dust
+        private const float BaseSpeedFactor = 1f;       // x1.0 base run speed: smallest ball, weakest shove
+        private const float LoopPitch = 1.15f;          // the game's tornado loop, a touch higher (Whirlwind uses 1.2)
+        // The drawn look (GaleArt), all cosmetic:
+        private const float DrawnVortexInterval = 0.09f; // the game's AirVortex puffs thinned out under the drawn ball
+        private const float BallLift = 0.45f;           // the drawn ball's middle above the feet (WindBall.Lift)
+        private const float GatherFps = 24f;            // the gather's 6 frames in a quarter second, over the cast's wind-up
+        private const float StreakInterval = 0.11f;     // seconds between wind streaks at level 1...
+        private const float StreakPerLevel = 0.007f;    // ...this much sooner each level (0.047 s at 10)
+        private const float StreakFps = 20f;
+        private const float StreakDrift = 0.6f;         // u/s the streaks drift back, plus StreakDriftPerLevel a level
+        private const float StreakDriftPerLevel = 0.12f;
+        private const float WakeInterval = 0.1f;        // seconds between puffs of dust thrown back behind
+        private const float TrailInterval = 0.45f;      // seconds between the game's wind trails behind, from TrailLevel
+        private const int TrailLevel = 4;
+        private const float TrailLength = 2.5f;
+        private const float PuffInterval = 0.05f;       // at most one drawn gust puff this often (a crowd hit at once)
+        private const float PuffFps = 22f;
+        private const float UnravelFps = 16f;           // the unravel's 5-6 frames in about a third of a second
+
+        // Numbers come from the config (GaleRiderPlugin), read as each cast starts.
+        private float RideTimeNow, SpeedPercent, MinSize, MaxSize, PeakSpeedFactor, HitInterval, Knockback, PeakKnockback;
+
+        private float time;
+        private bool riding;
+        private bool done;
+        private Vector2 direction;
+        private Vector2 velocity;
+        private Vector2 startSpot;
+        private Vector2 lastSpot;
+        private float travelled;
+        private int hits;
+        private float biggestKnockback;
+        private float currentKnockback;
+        private float currentSize;
+        private float currentSpeed = 1f;
+        private int speedLevel = 1;
+        private float nextPulse;
+        private float nextVortex;
+        private float nextDust;
+        private GameObject ballObj;
+        private Attack ball;
+        private CircleCollider2D ballCol;
+        private AudioSource loopAudio;
+        private int castStopwatchID = -1;
+        private int lastLoggedLevel = -1;
+        private float lastLevelLog = -99f;
+        private bool heldAtPitEdge;
+        private bool loggedEnd;
+        private string endReason;
+        private static bool loggedSpeed, loggedLevels;
+        // The drawn look.
+        private WindBall windBall;
+        private Rider rider;
+        private FacingDirection ridingFacing = FacingDirection.Neutral;
+        // The ride never asks for invulnerability, but if the game gives a riding wizard any
+        // (a movement skill's grace, say) it is taken off again while [Balance]
+        // HittableWhileRiding is on, and noted in the log once so we know it happened.
+        private static bool loggedInvulnerable;
+        private void KeepHittable()
+        {
+            if (!GaleRiderPlugin.HittableWhileRiding)
+                return;
+            try
+            {
+                if (parent.health != null && parent.health.invulnerable)
+                {
+                    parent.health.invulnerable = false;
+                    if (!loggedInvulnerable)
+                    {
+                        loggedInvulnerable = true;
+                        GaleRiderPlugin.Log("Gale Rider: the game had the wizard invulnerable during the ride; cleared it ([Balance] HittableWhileRiding)");
+                    }
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        // The game's animation for a ride pose name ([Look] RidePose); null = the run, not held.
+        private string PoseAnim(string name)
+        {
+            switch ((name ?? "").Trim().ToLowerInvariant())
+            {
+                case "slide": return parent.SlideAnimStr;
+                case "gslam": return GSlamAnim();
+                case "jump": return parent.JumpAnimStr;
+                case "fall": return parent.FallAnimStr;
+                case "charge": return parent.ChargeAnimStr;
+                case "dash": return parent.DashAnimStr;
+                case "run": return null;
+                default:
+                    if (!warnedPose)
+                    {
+                        warnedPose = true;
+                        GaleRiderPlugin.Log($"Gale Rider: [Look] RidePose '{name}' isn't one of Slide, GSlam, Jump, Fall, Charge, Dash, Run; using Slide");
+                    }
+                    return parent.SlideAnimStr;
+            }
+        }
+        private static bool warnedPose;
+
+        // The game draws its ground slam facing up or down only (GSlamAnimStr picks GroundSlamUp
+        // for up and GroundSlamDown for everything else). Riding sideways, a GroundSlamRight
+        // state is used if the wizard's animator has one, else the down pose; either way the
+        // picture is flipped to face the way the ball rolls (SetXScale).
+        private static int sideSlam = -1;   // -1 not checked yet, 0 no side state, 1 has one
+        private string GSlamAnim()
+        {
+            FacingDirection f = parent.facingDirection;
+            if (f != FacingDirection.Left && f != FacingDirection.Right)
+                return parent.GSlamAnimStr;
+            if (sideSlam < 0)
+            {
+                bool has = false;
+                try
+                {
+                    has = parent.anim != null && parent.anim.HasState(0, Animator.StringToHash("GroundSlamRight"));
+                }
+                catch
+                {
+                }
+                sideSlam = has ? 1 : 0;
+                GaleRiderPlugin.Log(has ? "Gale Rider: GSlam pose riding sideways uses the game's GroundSlamRight"
+                    : "Gale Rider: the game has no sideways ground slam; riding sideways holds GroundSlamDown, turned to face the way you ride");
+            }
+            return sideSlam == 1 ? "GroundSlamRight" : parent.GSlamAnimStr;
+        }
+        private float nextStreak, nextWake, nextTrail, lastPuff;
+        private int streaks, puffs;
+        private float lastBallWidth;
+        private bool lastBallGame, lastBallDrawn;
+        private static readonly HashSet<string> failed = new HashSet<string>();
+
+        public GaleRiderState(FSM newFSM, Player newEnt) : base(staticID, newFSM, newEnt)
+        {
+            // A movement skill (can't be cast while rooted) and a melee one, like Tearing Whirlwind.
+            isMovementSkill = true;
+            isMeleeSkill = true;
+            applyStopElementStatus = true;
+            // Lets the arcana into the signature slot (the spellbook's Signature page); see
+            // SignatureUnlock.cs for when that's unlocked.
+            hasSignatureVariant = true;
+            SetAnimTimes(
+                0.05f, // start
+                0.1f,  // hold
+                0.05f, // execute
+                0.4f,  // cancel
+                0.5f,  // run
+                0.6f); // exit
+        }
+
+        public override void OnEnter()
+        {
+            base.OnEnter();
+            time = 0f;
+            riding = false;
+            done = false;
+            travelled = 0f;
+            hits = 0;
+            biggestKnockback = 0f;
+            currentKnockback = 0f;
+            heldAtPitEdge = false;
+            loggedEnd = false;
+            endReason = "ride over";
+            lastLoggedLevel = -1;
+            lastLevelLog = -99f;
+            nextPulse = nextVortex = nextDust = 0f;
+            RideTimeNow = IsEmpowered ? GaleRiderPlugin.EnhancedRideTime : GaleRiderPlugin.RideTime;
+            SpeedPercent = GaleRiderPlugin.RideSpeedPercent;
+            MinSize = GaleRiderPlugin.MinSize;
+            MaxSize = IsEmpowered ? GaleRiderPlugin.EnhancedMaxSize : GaleRiderPlugin.MaxSize;
+            PeakSpeedFactor = Mathf.Max(BaseSpeedFactor + 0.05f, GaleRiderPlugin.PeakSpeedPercent / 100f);
+            HitInterval = GaleRiderPlugin.HitInterval;
+            Knockback = GaleRiderPlugin.Knockback;
+            PeakKnockback = GaleRiderPlugin.PeakKnockback;
+            signature = isUltimate;
+            leaping = false;
+            topSlowMoDone = false;
+            cinematic = 0;
+            carrier.Clear();
+            if (signature)
+            {
+                // The storm ball: the enhanced ball (the signature slot is always empowered)
+                // made bigger, shoving harder, ridden longer.
+                RideTimeNow = GaleRiderPlugin.SignatureRideTime;
+                MinSize *= GaleRiderPlugin.SignatureBallSize;
+                MaxSize *= GaleRiderPlugin.SignatureBallSize;
+                Knockback *= SigKnockbackScale;
+                PeakKnockback *= SigKnockbackScale;
+                cinematic = Cinematic.Begin();
+                GaleRiderPlugin.Log($"Gale Rider: signature storm ball: {RideTimeNow:0.#} s, ball radius {MinSize:0.0} to {MaxSize:0.0}, " +
+                    $"then a {GaleRiderPlugin.SignatureLeapHeight:0.#} u leap and a slam");
+            }
+            // Set off the way the stick points (or the way they face), with the move stick, not the aim.
+            direction = GetInputVector(true, false, true);
+            if (direction == Vector2.zero)
+                direction = Vector2.right;
+            direction.Normalize();
+            windBall = null;
+            nextStreak = nextWake = nextTrail = 0f;
+            lastPuff = -99f;
+            streaks = puffs = 0;
+            // The wind gathering round the wizard over the wind-up: the game's whirlwind forming
+            // at their feet (or the drawn wisps spiralling in to a flash).
+            if (GaleRiderPlugin.DrawnEffects)
+            {
+                Effect("gather", () =>
+                {
+                    Sprite[] game = GaleArt.GameGather;
+                    Sprite[] frames = game ?? GaleArt.Gather;
+                    FxSprite fx = FxSprite.Spawn(frames, parent.transform.position, "Effect", 0);
+                    if (fx == null)
+                        return;
+                    fx.Follow(parent.transform, game != null ? GameSprites.PivotShift(game[0], GaleArt.GameWhirlBase, 1f) : new Vector2(0f, BallLift));
+                    fx.fps = GatherFps;
+                    fx.life = frames.Length / GatherFps;
+                    fx.fadeAt = 1f;
+                    fx.owner = this;
+                    fx.sortRef = parent.spriteRenderer;
+                    fx.sortOffset = 1;
+                });
+            }
+        }
+
+        public override void ExecuteSkill()
+        {
+            if (done)
+            {
+                base.ExecuteSkill();
+                return;
+            }
+            if (!riding)
+            {
+                riding = true;
+                Mount();
+            }
+            if (leaping)
+            {
+                // Still carrying them through the leap, so the slam lands on them.
+                carrier.Move(parent.transform.position, parent.transform.position, currentSize + CarryMargin + 1f);
+                Leap();
+                return;
+            }
+            // Dashing hops off at any time (OnExit takes everything back off).
+            if (CancelToDash(false))
+            {
+                endReason = "dashed off";
+                return;
+            }
+
+            time += Time.deltaTime;
+            Steer();
+            UpdateBall();
+            Effects();
+            KeepHittable();
+            if (signature)
+            {
+                float t = Mathf.Clamp01(time / SigSettleTime);
+                float eased = t * t * (3f - 2f * t);
+                Cinematic.Set(cinematic, SigZoom * eased, Mathf.Lerp(1f, SigDim, eased));
+                carrier.Move(parent.transform.position, parent.transform.position, currentSize + CarryMargin);
+            }
+
+            bool hopOff = GaleRiderPlugin.HopOffOnPress && time >= GaleRiderPlugin.MinRideTime && skillSlot >= 0
+                && parent.inputDevice != null && parent.inputDevice.GetButtonDown("Skill" + skillSlot);
+            if (time >= RideTimeNow || hopOff)
+            {
+                endReason = hopOff ? "hopped off" : "ride over";
+                if (signature)
+                {
+                    StartLeap();
+                    return;
+                }
+                done = true;
+                Finish();
+            }
+        }
+
+        // Keep the ride going through the physics steps too, and pulse the ball's collider so an
+        // enemy still inside it is hit again (a trigger only fires on entering), the way Aero Ring
+        // does: off and on again in one step.
+        public override void FixedUpdate()
+        {
+            base.FixedUpdate();
+            if (done || !riding)
+                return;
+            if (parent.rigidbody2D != null)
+                parent.rigidbody2D.velocity = velocity;
+            if (ballCol != null && time >= nextPulse)
+            {
+                nextPulse = time + HitInterval;
+                ballCol.enabled = false;
+                ballCol.enabled = true;
+            }
+        }
+
+        public override void OnExit()
+        {
+            Dismount();
+            if (signature)
+                Cinematic.EaseOut(cinematic, 0.5f, leaping ? "cut short in the leap" : "ride ended without a slam");
+            leaping = false;
+            carrier.Clear();
+            base.OnExit();
+        }
+
+        // ---- The signature's leap and slam ----
+
+        // Off the storm ball: it comes apart under you and you spring up.
+        private void StartLeap()
+        {
+            leaping = true;
+            leapTime = 0f;
+            if (ballCol != null)
+                ballCol.enabled = false;
+            velocity = direction * (parent.movement != null ? parent.movement.moveSpeedStat.CurrentValue : 0f) * LeapCarry;
+            if (rider == null)
+                rider = Rider.On(parent);
+            leapBase = rider != null ? rider.height : 0f;
+            if (windBall != null)
+            {
+                lastBallWidth = windBall.Width;
+                WindBall gone = windBall;
+                Effect("wind ball", () => gone.Stop());
+                windBall = null;
+            }
+            Vector2 spot = parent.transform.position;
+            Effect("unravel", () => Unravel(spot));
+            Dust(spot, 40, 0.4f);
+            SoundManager.PlayAudioWithDistance("WindBlastSharp", new Vector2?(spot), null, 24f, -1f, 0.8f, false);
+            GaleRiderPlugin.Log($"Gale Rider: signature leap ({endReason} after {time:0.00}s, {hits} hit(s))");
+        }
+
+        // Up (easing out), a moment of slow motion at the top, then down fast into the slam.
+        private void Leap()
+        {
+            leapTime += Time.deltaTime;
+            float h;
+            if (leapTime < LeapUpTime)
+            {
+                float t = leapTime / LeapUpTime;
+                h = 1f - (1f - t) * (1f - t);
+                parent.anim?.PlayDirectional(parent.JumpAnimStr, -1, 0.5f);
+            }
+            else
+            {
+                if (!topSlowMoDone)
+                {
+                    topSlowMoDone = true;
+                    Try(() => TimeScaleController.SetTimeScaleDelayOverRealTime(TopSlowMoTime, TopSlowMoScale, true, true));
+                }
+                float t = Mathf.Clamp01((leapTime - LeapUpTime) / LeapDownTime);
+                h = 1f - t * t;
+                parent.anim?.PlayDirectional(parent.FallAnimStr, -1, 0.5f);
+                if (t >= 1f)
+                {
+                    Slam();
+                    return;
+                }
+            }
+            if (rider != null)
+                rider.height = Mathf.Lerp(0f, leapBase, 1f - Mathf.Clamp01(leapTime / (LeapUpTime + LeapDownTime))) + GaleRiderPlugin.SignatureLeapHeight * h;
+        }
+
+        // The landing: a wind blast round you that throws everything outward, with the game's
+        // shockwave, spinning burst and a ring of dust, a hit-stop, a flash and a heavy shake.
+        private void Slam()
+        {
+            leaping = false;
+            done = true;
+            velocity = Vector2.zero;
+            int carried = carrier.Grabbed;
+            carrier.Clear();
+            if (rider != null)
+                rider.height = 0f;
+            Vector2 spot = parent.transform.position;
+            try
+            {
+                WindBurst.CreateBurst(spot, AttackInfo.GetInfo(parent, parent.skillCategory, skillID, 3, true), SlamScale);
+            }
+            catch (System.Exception e)
+            {
+                GaleRiderPlugin.Log($"Gale Rider: the slam's blast failed: {e.Message}");
+            }
+            Effect("slam shockwave", () => PoolManager.GetPoolItem<ParticleEffect>("AirWaveShockwave").Emit(new int?(1), new Vector3?(spot), null, null, 0f, null, null));
+            Effect("slam burst", () => PoolManager.GetPoolItem<ParticleEffect>("SpinningAirBurst").Emit(new int?(1), new Vector3?(spot), null, null, 0f, null, null));
+            Effect("slam gusts", () => PoolManager.GetPoolItem<ParticleEffect>("WindBurstEffect").Emit(new int?(6), new Vector3?(spot), null, null, 0f, null, null));
+            Dust(spot, 120, SlamScale * 0.4f);
+            Try(() => TimeScaleController.FreezeForFrames(SlamHitStopFrames, false));
+            Cinematic.Flash(cinematic, SlamFlash, 0.1f);
+            Try(() => CameraController.ShakeCamera(SlamShake, true));
+            Try(() => TimeScaleController.SetTimeScaleDelayOverRealTime(SlamSlowMoTime, SlamSlowMoScale, true, true));
+            Cinematic.EaseOut(cinematic, SlamEaseBack, "slam finished");
+            SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(spot), null, 24f, -1f, 0.7f, false);
+            parent.anim?.PlayDirectional(parent.GSlamAnimStr, -1, 0.5f);
+            endReason += ", leapt and slammed down";
+            GaleRiderPlugin.Log($"Gale Rider: signature slam after carrying {carried} enem{(carried == 1 ? "y" : "ies")}: blast x{SlamScale:0.#}, hit-stop {SlamHitStopFrames} frames, flash x{SlamFlash:0.0}, " +
+                $"shake {SlamShake:0.0}, easing back over {SlamEaseBack:0.0} s");
+        }
+
+        private static void Try(System.Action effect)
+        {
+            try
+            {
+                effect();
+            }
+            catch
+            {
+            }
+        }
+
+        // ---- Riding ----
+
+        // The stick steers; let go and the ball rolls on the way it was going. Speed is the
+        // move-speed stat with the ride mod on it. Walls stop them as usual (their body still
+        // collides); a pit's edge stops them too, see KeepOffPits.
+        private void Steer()
+        {
+            Vector2 input = GetInputVector(false, false, false);
+            if (input.sqrMagnitude >= InputDeadZone)
+                direction = input.normalized;
+            float speed = parent.movement != null ? parent.movement.moveSpeedStat.CurrentValue : 0f;
+            velocity = KeepOffPits(direction * speed);
+            if (parent.movement != null)
+                parent.movement.moveVector = direction;
+            if (parent.rigidbody2D != null)
+                parent.rigidbody2D.velocity = velocity;
+            if (rider != null)
+            {
+                // Crouched on top of the ball: a crouched pose held on one frame (the game's
+                // slide by default), turned with the ball; the picture is raised so the feet sit
+                // on the ball's top ([Look] RideSeat, 0.9 = just into its surface).
+                FacingDirection facing = Mathf.Abs(direction.x) >= Mathf.Abs(direction.y)
+                    ? (direction.x >= 0f ? FacingDirection.Right : FacingDirection.Left)
+                    : (direction.y >= 0f ? FacingDirection.Up : FacingDirection.Down);
+                if (facing != ridingFacing)
+                    parent.facingDirection = facing;   // so the pose below is picked for the new facing
+                string pose = PoseAnim(GaleRiderPlugin.RidePose);
+                bool hold = pose != null;
+                if (facing != ridingFacing)
+                {
+                    ridingFacing = facing;
+                    parent.facingDirection = facing;
+                    // The picture only turns left through the transform's x scale: up to 0.3.7
+                    // the facing was set without it, so riding left showed the right-facing pose.
+                    parent.SetXScale();
+                    if (!hold)
+                        parent.anim?.PlayDirectional("Run", -1, 0f);
+                }
+                if (hold)
+                    // Replayed at the same moment every frame, so the pose holds still.
+                    parent.anim?.PlayDirectional(pose, -1, GaleRiderPlugin.RidePoseFrame);
+                rider.height = Mathf.Max(0f, (windBall != null ? windBall.Width : 0f) * GaleRiderPlugin.RideSeat);
+            }
+            else
+                // Run animation, turning with the ball (the game's Charge does the same).
+                parent.PlayAnimOnFaceDirChange("Run", parent.transform.position + (Vector3)direction);
+
+            Vector2 spot = parent.transform.position;
+            float step = Vector2.Distance(spot, lastSpot);
+            lastSpot = spot;
+            if (step <= TeleportDistance)
+                travelled += step;
+        }
+
+        // Rolling out over a pit would drop them in (the game checks for pits under them as they
+        // go), so the pit's edge holds them like a wall would: a step that would put their feet
+        // over a pit is cut to the axis that stays on the floor, or to nothing. Wizards who can
+        // walk on air (the relic) ride wherever they like.
+        private Vector2 KeepOffPits(Vector2 wanted)
+        {
+            if (wanted == Vector2.zero || CanWalkOnAir)
+                return wanted;
+            float step = wanted.magnitude * Mathf.Max(Time.deltaTime, Time.fixedDeltaTime) + PitEdgeMargin;
+            Vector2 feet = Feet;
+            if (!OverPit(feet + wanted.normalized * step))
+                return wanted;
+            Vector2 alongX = new Vector2(wanted.x, 0f);
+            Vector2 alongY = new Vector2(0f, wanted.y);
+            if (alongX != Vector2.zero && !OverPit(feet + alongX.normalized * step))
+                wanted = alongX;
+            else if (alongY != Vector2.zero && !OverPit(feet + alongY.normalized * step))
+                wanted = alongY;
+            else
+                wanted = Vector2.zero;
+            heldAtPitEdge = true;
+            return wanted;
+        }
+
+        // Where the game checks for pits under them.
+        private Vector2 Feet => parent.fall != null && parent.fall.fallCol != null
+            ? (Vector2)parent.fall.fallCol.bounds.center
+            : (Vector2)parent.transform.position;
+
+        private bool CanWalkOnAir => parent.fall != null && parent.fall.ignoreFall != null && parent.fall.ignoreFall.CurrentValue;
+
+        private static bool OverPit(Vector2 spot)
+        {
+            try
+            {
+                return ChaosCollisions.layerPit != 0 && Physics2D.OverlapPoint(spot, ChaosCollisions.layerPit) != null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        // ---- The ball ----
+
+        // Size and shove from the speed read: x1.0 (base run speed) is the smallest ball and the
+        // walking-pace knockback, PeakSpeedFactor the biggest and hardest, evenly between. Set on
+        // the ball every frame: its collider's radius, its knockback (overriding the stat) and
+        // the direction it shoves (the way they're heading).
+        private void UpdateBall()
+        {
+            currentSpeed = SpeedFactor();
+            float along = Mathf.Clamp01((currentSpeed - BaseSpeedFactor) / (PeakSpeedFactor - BaseSpeedFactor));
+            currentSize = Mathf.Lerp(MinSize, MaxSize, along);
+            currentKnockback = Mathf.Lerp(Knockback, PeakKnockback, along);
+            speedLevel = Mathf.Clamp(1 + Mathf.FloorToInt(along * (MaxLevel - 1) + 0.001f), 1, MaxLevel);
+            if (ballCol != null)
+                ballCol.radius = currentSize;
+            if (ball != null)
+            {
+                ball.transform.position = parent.attackOriginTrans.position;
+                ball.knockbackMultiplierOverride = currentKnockback;
+                ball.knockbackOverwriteVector = direction;
+            }
+            if (speedLevel != lastLoggedLevel && Time.time - lastLevelLog >= LevelLogInterval)
+            {
+                lastLoggedLevel = speedLevel;
+                lastLevelLog = Time.time;
+                GaleRiderPlugin.Log($"Gale Rider: speed x{currentSpeed:0.00} -> level {speedLevel} of {MaxLevel}: " +
+                    $"ball radius {currentSize:0.00}, knockback {currentKnockback:0.#}");
+            }
+        }
+
+        private void Mount()
+        {
+            startSpot = lastSpot = parent.transform.position;
+            StartRide();
+            MakeBall();
+            if (!loggedLevels)
+            {
+                loggedLevels = true;
+                GaleRiderPlugin.Log($"Gale Rider: level 1 at x{BaseSpeedFactor:0.00} base run speed, level {MaxLevel} at x{PeakSpeedFactor:0.00}; " +
+                    $"ball radius {MinSize:0.0} to {MaxSize:0.0}, knockback {Knockback:0.#} to {PeakKnockback:0.#}");
+            }
+            try
+            {
+                // The ride's time on the cast bar, like the game's Charge.
+                castStopwatchID = ChaosStopwatch.Begin(RideTimeNow);
+                parent.hud?.castBar?.StartCast(castStopwatchID, false);
+            }
+            catch
+            {
+            }
+            parent.anim?.PlayDirectional("Run" + parent.facingDirection);
+            Vector2 spot = parent.transform.position;
+            Dust(spot, 60, 0.3f);
+            try
+            {
+                PoolManager.GetPoolItem<ParticleEffect>("WindTwirlEffect").Emit(new int?(1), new Vector3?(spot), null,
+                    new Vector3?(new Vector3(0f, 0f, 25f)), 0f, null, null);
+                PoolManager.GetPoolItem<ParticleEffect>("WindBurstEffect").Emit(new int?(3), new Vector3?(spot), null, null, 0f, null, null);
+                CameraController.ShakeCamera(0.3f, false);
+            }
+            catch
+            {
+            }
+            if (GaleRiderPlugin.DrawnEffects)
+            {
+                Effect("wind ball", () =>
+                {
+                    windBall = WindBall.Create(parent, this);
+                    if (windBall != null && GaleRiderPlugin.RideOnTop)
+                    {
+                        windBall.OnTop = true;
+                        rider = Rider.On(parent);
+                        ridingFacing = FacingDirection.Neutral;
+                    }
+                });
+                // The game's own air kick-off, as Rushing Typhoon starts its rush: a spinning
+                // burst at the feet, a shockwave and a wind trail out the way they set off.
+                Vector2 dir = direction;
+                Effect("spinning burst", () => PoolManager.GetPoolItem<ParticleEffect>("SpinningAirBurst").Emit(new int?(1), new Vector3?(spot), null, null, 0f, null, null));
+                Effect("shockwave", () => PoolManager.GetPoolItem<ParticleEffect>("AirWaveShockwave").Emit(new int?(1), new Vector3?(spot + dir * 0.5f), null,
+                    new Vector3?(Globals.GetRotationVector(dir)), 0f, null, null));
+                Effect("wind trail", () => PoolManager.GetPoolItem<SectionedTrailEmitter>("WindTrail").Emit(spot, spot + dir * 5f, -1, false, -1f, true, 0.3f));
+            }
+            SoundManager.PlayAudioWithDistance("TornadoStart", new Vector2?(spot), null, 24f, -1f, LoopPitch, false);
+            try
+            {
+                loopAudio = SoundManager.PlayAudioWithDistance("TornadoLoop", null, parent.transform, 24f, -1f, LoopPitch, false);
+            }
+            catch
+            {
+                loopAudio = null;
+            }
+        }
+
+        // The ball: the game's attack circle, parented to the wizard so it rides with them
+        // (Tearing Whirlwind's), hitting with this arcana's level-1 stats. Every enemy it touches
+        // is announced, for the count.
+        private void MakeBall()
+        {
+            try
+            {
+                ballObj = Object.Instantiate(Attack.CirclePrefab, parent.attackOriginTrans.position, Quaternion.identity, parent.attackOriginTrans);
+                ball = ballObj.GetComponent<Attack>();
+                ball.SetAttackInfo(parent.skillCategory, skillID, signature ? 2 : 1, signature);
+                ballCol = ball.collider as CircleCollider2D ?? ballObj.GetComponent<CircleCollider2D>();
+                if (ballCol != null)
+                    ballCol.radius = MinSize;
+                ball.knockbackOverwriteVector = direction;
+                ball.knockbackMultiplierOverride = Knockback;
+                ball.entityCollisionEventHandlers += OnHit;
+                // Roll through enemies rather than bump into them, like Aero Ring and Whirlwind.
+                parent.ToggleEnemyFloorCollisions(false);
+            }
+            catch (System.Exception e)
+            {
+                GaleRiderPlugin.Log($"Gale Rider: couldn't make the ball, riding without one: {e.Message}");
+                ball = null;
+                ballCol = null;
+            }
+        }
+
+        private void OnHit(Entity hit)
+        {
+            hits++;
+            if (signature && !leaping)
+                carrier.Grab(hit);
+            if (currentKnockback > biggestKnockback)
+                biggestKnockback = currentKnockback;
+            try
+            {
+                Vector2 where = hit != null && hit.hurtBoxTransform != null ? (Vector2)hit.hurtBoxTransform.position
+                    : hit != null ? (Vector2)hit.transform.position : (Vector2)parent.transform.position;
+                PoolManager.GetPoolItem<ParticleEffect>("WindBurstEffect").Emit(new int?(1), new Vector3?(where), null, null, 0f, null, null);
+                if (GaleRiderPlugin.DrawnEffects && time - lastPuff >= PuffInterval)
+                {
+                    lastPuff = time;
+                    Effect("gust puff", () => GustPuff(where));
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        // A gust on the enemy, opening along the way it's shoved (the game's wind-arrow break,
+        // its arc turned to face the shove, or the drawn crescent); bigger at speed.
+        private void GustPuff(Vector2 where)
+        {
+            Sprite[] game = GaleArt.GameGust;
+            Sprite[] frames = game ?? GaleArt.Puff;
+            float size = 1f + 0.06f * (speedLevel - 1);
+            // The game's arc points up (+y), the drawn one along +x.
+            float angle = PixelArt.Angle(direction) - (game != null ? 90f : 0f);
+            Vector2 at = where;
+            if (game != null)
+                at += (Vector2)(Quaternion.Euler(0f, 0f, angle) * GameSprites.PivotShift(game[0], GaleArt.GameGustCentre, size));
+            FxSprite fx = FxSprite.Spawn(frames, at, "Effect", 0);
+            if (fx == null)
+                return;
+            fx.angle = angle;
+            fx.size = size;
+            fx.fps = PuffFps;
+            fx.life = frames.Length / PuffFps;
+            fx.fadeAt = 1f;
+            fx.velocity = direction * 1.5f;
+            fx.drag = 4f;
+            puffs++;
+        }
+
+        // The ride's move-speed mod, like Aero Ring's: a multiplier on the move-speed stat (so
+        // speed relics count), put on at the start and always taken off at the end.
+        private void StartRide()
+        {
+            if (parent.movement == null)
+                return;
+            try
+            {
+                float before = parent.movement.moveSpeedStat.CurrentValue;
+                parent.movement.moveSpeedStat.RemoveMod(RideSpeedModID);
+                parent.movement.moveSpeedStat.AddMod(new NumVarStatMod(RideSpeedModID, SpeedPercent / 100f, 10, VarStatModType.Multiplicative));
+                float after = parent.movement.moveSpeedStat.CurrentValue;
+                GaleRiderPlugin.Log($"Gale Rider: cast{(IsEmpowered ? " (enhanced)" : "")}, riding {RideTimeNow:0.00}s, " +
+                    $"speed +{SpeedPercent:0}% ({before:0.0} -> {after:0.0} u/s)");
+            }
+            catch (System.Exception e)
+            {
+                GaleRiderPlugin.Log($"Gale Rider: couldn't speed up the ride: {e.Message}");
+            }
+        }
+
+        private void StopRide()
+        {
+            try
+            {
+                parent.movement?.moveSpeedStat.RemoveMod(RideSpeedModID);
+            }
+            catch
+            {
+            }
+        }
+
+        // The end of the ride when it runs its course or they hop off: a skid to a stop in the
+        // game's slide (Whirlwind and Frost Surf end the same way), which takes over the exit.
+        private void Finish()
+        {
+            try
+            {
+                if (parent.movement != null)
+                    parent.movement.dashVector = direction;
+                fsm.ChangeState(Player.SlideState.staticID);
+            }
+            catch
+            {
+                // No slide: end as a plain cast does.
+                Dismount();
+                base.ExecuteSkill();
+            }
+        }
+
+        // Everything back to normal, however the ride ends (its time up, a hop-off, a dash, a hit,
+        // death), and one line in the log saying how it went.
+        private void Dismount()
+        {
+            StopRide();
+            // The wizard comes back down off the ball.
+            if (rider != null)
+            {
+                try
+                {
+                    rider.Off();
+                }
+                catch
+                {
+                }
+                rider = null;
+            }
+            // The drawn ball and anything else riding on the wizard go with it.
+            float ballWidth = windBall != null ? windBall.Width : 0f;
+            bool ballGame = windBall != null && windBall.UsesGameSprites;
+            lastBallDrawn = windBall != null && windBall.UsesDrawnArt;
+            if (windBall != null)
+            {
+                Effect("wind ball", () => windBall.Stop());
+                windBall = null;
+            }
+            Effect("cleanup", () => FxSprite.StopAll(this));
+            lastBallWidth = ballWidth;
+            lastBallGame = ballGame;
+            try
+            {
+                parent.ToggleEnemyFloorCollisions(true);
+            }
+            catch
+            {
+            }
+            if (ball != null)
+                ball.entityCollisionEventHandlers -= OnHit;
+            if (ballObj != null)
+                Object.Destroy(ballObj);
+            ballObj = null;
+            ball = null;
+            ballCol = null;
+            try
+            {
+                parent.hud?.castBar?.EndCast();
+            }
+            catch
+            {
+            }
+            if (loopAudio != null)
+            {
+                if (loopAudio.isPlaying)
+                    loopAudio.Stop();
+                loopAudio = null;
+            }
+            if (loggedEnd)
+                return;
+            loggedEnd = true;
+            if (!riding)
+            {
+                GaleRiderPlugin.Log("Gale Rider: cancelled before the ride started");
+                return;
+            }
+            Vector2 spot = parent.transform.position;
+            Dust(spot, 30, 0.25f);
+            if (GaleRiderPlugin.DrawnEffects)
+                Effect("unravel", () => Unravel(spot));
+            SoundManager.PlayAudioWithDistance("WindBlastSharp", new Vector2?(spot), null, 24f, -1f, 1f, false);
+            if (time < RideTimeNow && endReason == "ride over")
+                endReason = "cut short";
+            GaleRiderPlugin.Log($"Gale Rider: {endReason} after {time:0.00}s, travelled {travelled:0.0} u, hit {hits} time(s), " +
+                $"biggest knockback {biggestKnockback:0.#} (last speed x{currentSpeed:0.00}, level {speedLevel})" +
+                (heldAtPitEdge ? ", held back at a pit's edge" : "") +
+                (GaleRiderPlugin.DrawnEffects ? $"; drawn: ball {lastBallWidth:0.0} u wide ({(lastBallDrawn ? "the hand-drawn ball" : lastBallGame ? "the game's WindBall" : "coded")}), {streaks} streak(s), {puffs} gust puff(s), {FxSprite.Live} fx sprite(s) live" : ""));
+        }
+
+        // The ball coming apart where the ride ends, sized to it: the game's whirlwind lifting
+        // and breaking up with its broken wind ring spreading on the floor (or the drawn gather
+        // played backwards).
+        private void Unravel(Vector2 spot)
+        {
+            Sprite[] game = GaleArt.GameUnravel;
+            Sprite[] frames = game ?? GaleArt.Unravel;
+            // The whirl and the drawn gather are both about 3 units wide.
+            float size = Mathf.Clamp(lastBallWidth / 3f, 0.8f, game != null ? 1.6f : 2f);
+            Vector2 at = game != null ? spot + GameSprites.PivotShift(game[0], GaleArt.GameWhirlBase, size) : spot + new Vector2(0f, BallLift);
+            FxSprite fx = FxSprite.Spawn(frames, at, "Effect", 0);
+            if (fx == null)
+                return;
+            fx.size = size;
+            fx.fps = UnravelFps;
+            fx.life = frames.Length / UnravelFps;
+            fx.fadeAt = 0.6f;
+            Sprite[] ring = GaleArt.GameRing;
+            if (ring == null)
+                return;
+            FxSprite floorRing = FxSprite.Spawn(ring, spot, "TargetLineGround", 1);
+            if (floorRing == null)
+                return;
+            floorRing.size = Mathf.Clamp(lastBallWidth / GaleArt.GameRingWidth, 0.8f, 2.5f);
+            floorRing.fps = UnravelFps;
+            floorRing.life = ring.Length / UnravelFps;
+            floorRing.fadeAt = 0.7f;
+        }
+
+        // ---- Speed ----
+
+        // The wizard's run speed against its base (1 = running at base speed; more with the ride
+        // mod, speed relics, the cloak and speed-boost arcana; less when slowed). Counts the
+        // stat's lasting modifiers the way the game does (multiplied, then added, then
+        // late-multiplied), but not the Override ones: those are the speeds a dash, a charge or
+        // an attack's wind-up force on the wizard for a moment, which would swing the ball about
+        // wildly. The same read as Trailblazer's.
+        private float SpeedFactor()
+        {
+            float factor = 1f;
+            try
+            {
+                NumVarStat stat = parent.movement != null ? parent.movement.moveSpeedStat : null;
+                if (stat != null && stat.BaseValue > 0.01f)
+                {
+                    float speed = stat.BaseValue;
+                    int overrides = 0;
+                    if (stat.modifiers != null)
+                    {
+                        // Already sorted by type (as Recalculate applies them).
+                        foreach (VarStatMod<float> mod in stat.modifiers)
+                        {
+                            NumVarStatMod numMod = mod as NumVarStatMod;
+                            if (numMod == null)
+                                continue;
+                            switch (numMod.modType)
+                            {
+                                case VarStatModType.Additive:
+                                    speed += numMod.modValue;
+                                    break;
+                                case VarStatModType.Multiplicative:
+                                case VarStatModType.LateMultiplicative:
+                                    speed *= 1f + numMod.modValue;
+                                    break;
+                                case VarStatModType.Override:
+                                case VarStatModType.OverrideWithMods:
+                                    overrides++;
+                                    break;
+                            }
+                        }
+                    }
+                    factor = speed / stat.BaseValue;
+                    if (!loggedSpeed)
+                    {
+                        loggedSpeed = true;
+                        GaleRiderPlugin.Log($"Gale Rider: run speed {speed:0.##} of base {stat.BaseValue:0.##} (x{factor:0.00}; " +
+                            $"the stat reads {stat.ModifiedValue:0.##}, {overrides} override mod(s) ignored)");
+                    }
+                }
+            }
+            catch
+            {
+            }
+            return Mathf.Clamp(factor, 0.25f, 6f);
+        }
+
+        // ---- Look ----
+
+        // The swirling wind round the wizard, sized with the ball: the game's AirVortex puffs,
+        // emitted one at a time so each takes the ball's size of the moment, and a ring of dust
+        // kicked up as it rolls.
+        private void Effects()
+        {
+            if (GaleRiderPlugin.DrawnEffects)
+                DrawnEffects();
+            if (time < nextVortex)
+                return;
+            nextVortex = time + (GaleRiderPlugin.DrawnEffects ? DrawnVortexInterval : VortexInterval);
+            Vector2 spot = parent.attackOriginTrans != null ? (Vector2)parent.attackOriginTrans.position : (Vector2)parent.transform.position;
+            float look = currentSize * GaleRiderPlugin.VortexSize;
+            try
+            {
+                var vortex = new ParticleSystemOverride
+                {
+                    // AirVortex at startSize 2.4 covers about a radius-1 burst (Rolling Gale's sizing).
+                    startSize = new float?(2.4f * look),
+                    startLifetime = new float?(0.5f),
+                    sortingLayer = "Trail"
+                };
+                PoolManager.GetPoolItem<ParticleEffect>("AirVortex").Emit(new int?(1), new Vector3?(spot + Random.insideUnitCircle * 0.15f), vortex,
+                    new Vector3?(new Vector3(0f, 0f, Random.Range(0f, 360f))), 0f, null, null);
+            }
+            catch
+            {
+            }
+            if (GaleRiderPlugin.Dust && time >= nextDust)
+            {
+                nextDust = time + DustInterval;
+                Dust(parent.transform.position, Mathf.RoundToInt(8f + 8f * currentSize), 0.2f * currentSize);
+            }
+        }
+
+        // The drawn ball kept to the hit's size and the speed level; wind streaks flicking off
+        // behind it, dust thrown back from the feet, and from TrailLevel the game's wind trail
+        // streaming behind (Rushing Typhoon's).
+        private void DrawnEffects()
+        {
+            if (windBall != null)
+            {
+                WindBall ball = windBall;
+                Effect("wind ball", () => ball.Update(currentSize, speedLevel, GaleRiderPlugin.VortexSize));
+            }
+            Vector2 feet = parent.transform.position;
+            bool moving = velocity.sqrMagnitude > 0.25f;
+            if (time >= nextStreak)
+            {
+                nextStreak = time + Mathf.Max(0.03f, StreakInterval - StreakPerLevel * (speedLevel - 1));
+                Effect("wind streak", () => Streak(feet));
+            }
+            if (moving && GaleRiderPlugin.Dust && time >= nextWake)
+            {
+                nextWake = time + WakeInterval;
+                Vector2 dir = direction;
+                int count = 1 + speedLevel / 4;
+                Effect("dust wake", () => parent.dustEmitter.EmitDirBurst(count, Globals.GetRotationVector(-dir).z, 4f, -1f, 0.45f, new Vector3?(feet - dir * 0.3f)));
+            }
+            if (moving && speedLevel >= TrailLevel && time >= nextTrail)
+            {
+                nextTrail = time + TrailInterval;
+                Vector2 from = feet + new Vector2(0f, BallLift) - direction * TrailLength;
+                Vector2 to = feet + new Vector2(0f, BallLift);
+                Effect("wind trail", () => PoolManager.GetPoolItem<SectionedTrailEmitter>("WindTrail").Emit(from, to, -1, false, -1f, true, 0.3f));
+            }
+        }
+
+        // A wind streak off the back edge of the ball, drifting back: the game's wisp (its sheet
+        // has it flying along +x, so it's turned to fly back from the ride, flipped at random) or
+        // the drawn flick pointing the way they ride. Behind the wizard if it's above their
+        // middle, in front if below.
+        private void Streak(Vector2 feet)
+        {
+            float half = windBall != null ? windBall.Width * 0.5f : currentSize;
+            Vector2 side = new Vector2(-direction.y, direction.x);
+            Vector2 middle = feet + new Vector2(0f, BallLift);
+            Vector2 at = middle + side * (Random.Range(-0.85f, 0.85f) * half * 0.6f) - direction * (half * Random.Range(0.3f, 0.7f));
+            Sprite[] game = GaleArt.GameStreak;
+            Sprite[] frames = game ?? GaleArt.Streak;
+            FxSprite fx = FxSprite.Spawn(frames, at, "Actor", 0);
+            if (fx == null)
+                return;
+            fx.angle = PixelArt.Angle(game != null ? -direction : direction);
+            if (game != null)
+                fx.sr.flipY = Random.value < 0.5f;
+            fx.fps = StreakFps;
+            fx.life = frames.Length / StreakFps;
+            fx.fadeAt = 1f;
+            fx.velocity = -direction * (StreakDrift + StreakDriftPerLevel * speedLevel);
+            fx.drag = 2f;
+            fx.sortRef = parent.spriteRenderer;
+            fx.sortOffset = at.y > middle.y ? -1 : 1;
+            streaks++;
+        }
+
+        // Runs a cosmetic effect; if it's unavailable it's skipped (and logged once) instead of
+        // stopping the ride.
+        private static void Effect(string name, System.Action effect)
+        {
+            if (failed.Contains(name))
+                return;
+            try
+            {
+                effect();
+            }
+            catch (System.Exception e)
+            {
+                failed.Add(name);
+                GaleRiderPlugin.Log($"Gale Rider: effect '{name}' unavailable, skipping it: {e.Message}");
+            }
+        }
+
+        private static void Dust(Vector2 position, int count, float radius)
+        {
+            try
+            {
+                PoolManager.GetPoolItem<DustEmitter>().EmitCircle(count, radius, -6f, -1f, new Vector3?(position), null);
+            }
+            catch
+            {
+            }
+        }
+    }
+}
