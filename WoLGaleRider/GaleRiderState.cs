@@ -431,7 +431,7 @@ namespace WoLGaleRider
             Vector2 spot = parent.transform.position;
             try
             {
-                WindBurst.CreateBurst(spot, parent.skillCategory, skillID, 3, SlamScale);
+                WindBurst.CreateBurst(spot, AttackInfo.GetInfo(parent, parent.skillCategory, skillID, 3, true), SlamScale);
             }
             catch (System.Exception e)
             {
@@ -664,7 +664,7 @@ namespace WoLGaleRider
             {
                 ballObj = Object.Instantiate(Attack.CirclePrefab, parent.attackOriginTrans.position, Quaternion.identity, parent.attackOriginTrans);
                 ball = ballObj.GetComponent<Attack>();
-                ball.SetAttackInfo(parent.skillCategory, skillID, signature ? 2 : 1, isUltimate);
+                ball.SetAttackInfo(parent.skillCategory, skillID, signature ? 2 : 1, signature);
                 ballCol = ball.collider as CircleCollider2D ?? ballObj.GetComponent<CircleCollider2D>();
                 if (ballCol != null)
                     ballCol.radius = MinSize;

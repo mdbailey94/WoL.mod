@@ -113,7 +113,7 @@ namespace WoLChaosDepths
             riftOpen = false;
             // Ascension 7 and up raises the chance to 40% (#27).
             float chance = Mathf.Max(riftChance.Value, AscensionLink.RiftChance);
-            if (bossArena || chance <= 0f || UnityEngine.Random.value >= chance)
+            if (ChaosDepthsPlugin.FreshAscensionZero || bossArena || chance <= 0f || UnityEngine.Random.value >= chance)
                 return;
             Open(depth, "opened");
         }

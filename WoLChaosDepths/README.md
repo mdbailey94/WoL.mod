@@ -661,3 +661,27 @@ New settings for tuning drops; their defaults keep the game as it was.
 | `[Loot]` | `FloorBossDropChance` | 1 | Chance a floor boss drops an item |
 | `[Loot]` | `RealmBossLegendaryAtAscension10` | true | A10 realm boss item is always Legendary |
 | `[Loot]` | `FinalBossFirstWinLegendary` | true | First final-boss win per Ascension level drops a Legendary |
+
+
+## 0.18.0
+
+Fresh saves: A0 has no random enemy gear, custom elites or rifts. Each floor/realm
+boss gives each player exactly one Common item; the final boss gives each exactly
+one Magic (Uncommon) item. Existing testing uniques and rarity/rate settings cannot
+override these rules. A1+ enables elites and ordinary enemy drops; each player's
+first final-boss victory at each A1+ guarantees a Legendary, independently of the
+boss-drop chance. Existing first-win records are preserved. Later boss drops use
+the configured rates. The normal Ending scene still grants a locked Chaos arcana
+each victory until all are unlocked. Beta floor count and character XP are unchanged.
+Unique chain/echo and kill-burst damage inherit signature status and do not generate
+signature charge when triggered by a signature.
+
+Ordinary enemy/elite and repeat boss gear is randomly assigned with equal odds to
+participating players (including a defeated partner), independently of kill credit.
+Items roll using the recipient's level. Guaranteed boss and rift rewards stay personal;
+manually dropped gear remains available to either player.
+
+Validation: `pwsh -File tests/check-rewards.ps1` exercises the actual reward and
+drop methods with stubbed game objects (not an in-game test). Existing A0 drop and
+elite configuration values are retained for compatibility but cannot override the
+fresh-save A0 rules above. No saves are reset.

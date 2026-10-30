@@ -157,7 +157,7 @@ namespace WoLChaosDepths
                 if (target != null)
                 {
                     int damage = Mathf.Max(1, Mathf.RoundToInt(attack.damage * chainShare.Value));
-                    Hit(player, target, damage, attack.elementType);
+                    Hit(player, target, damage, attack.elementType, attack.isUltimate);
                     PowerFx.Arc(hurt.transform.position + Vector3.up * 0.5f, target.transform.position + Vector3.up * 0.5f, ColourOf("Chain"), player);
                 }
             }
@@ -171,7 +171,7 @@ namespace WoLChaosDepths
                 {
                     hits = 0;
                     int damage = Mathf.Max(1, Mathf.RoundToInt(attack.damage * echoShare.Value));
-                    Hit(player, hurt, damage, attack.elementType);
+                    Hit(player, hurt, damage, attack.elementType, attack.isUltimate);
                     PowerFx.Echo(hurt.transform.position, ColourOf("Echo"), player);
                     if (ChaosDepthsPlugin.DebugEnabled)
                         ChaosDepthsPlugin.Log($"Twinfold: echo on {hurt.GetType().Name} for {damage}");
@@ -180,7 +180,7 @@ namespace WoLChaosDepths
             }
         }
 
-        public static void OnPlayerKill(Player player, CharacterSave save, Entity slain)
+        public static void OnPlayerKill(Player player, CharacterSave save, Entity slain, bool signature = false)
         {
             if (applying || player == null)
                 return;
@@ -192,7 +192,7 @@ namespace WoLChaosDepths
                 int burned = 0;
                 foreach (Entity enemy in EnemiesNear(at, pyreRadius.Value, slain))
                 {
-                    Hit(player, enemy, damage, ElementType.Fire);
+                    Hit(player, enemy, damage, ElementType.Fire, signature);
                     burned++;
                 }
                 PowerFx.Burst(at, pyreRadius.Value, ColourOf("Pyre"), player);
@@ -471,7 +471,7 @@ namespace WoLChaosDepths
             slowed.Clear();
         }
 
-        private static void Hit(Player player, Entity target, int damage, ElementType element)
+        private static void Hit(Player player, Entity target, int damage, ElementType element, bool signature = false)
         {
             if (target == null || target.health == null || target.health.CurrentHealthValue <= 0)
                 return;
@@ -484,6 +484,7 @@ namespace WoLChaosDepths
                     entity = player,
                     skillCategory = player != null ? player.skillCategory : "",
                     elementType = element,
+                    isUltimate = signature,
                     showDamageNumber = true,
                     showDamageEffect = true,
                     attackerPosition = player != null ? (Vector2)player.transform.position : Vector2.zero,

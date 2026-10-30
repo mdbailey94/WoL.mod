@@ -88,3 +88,8 @@ constants in `RollingGaleState.cs` and `GaleLook.cs`.
 Put `Assembly-CSharp.dll`, `UnityEngine.dll` (from `WizardOfLegend_Data\Managed`), `BepInEx.dll`
 (from `BepInEx\core`) and `LegendApi.dll` into a `lib` folder at the repo root, then run
 `dotnet build -c Release`.
+
+
+## 0.6.1
+
+Signature damage retains its signature flag through bursts and delayed hits, so it cannot generate signature charge. Standard/enhanced casts still charge normally.

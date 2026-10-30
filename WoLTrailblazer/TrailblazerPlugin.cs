@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
@@ -13,7 +13,7 @@ namespace WoLTrailblazer
     {
         public const string PluginGuid = "mdbailey94.wol.trailblazer";
         public const string PluginName = "Trailblazer";
-        public const string PluginVersion = "0.10.4";
+        public const string PluginVersion = "0.10.5";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;

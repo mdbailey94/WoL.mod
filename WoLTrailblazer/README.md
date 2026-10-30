@@ -187,3 +187,8 @@ Needs BepInExPack of Legend, **LegendAPI** and **HookGenPatcher**. Download `WoL
 from the [latest release](https://github.com/mdbailey94/wol.mod/releases/tag/latest) and unzip it
 into your Wizard of Legend folder. It shows up in the arcana shop (or straight away with Unlock Mod
 Content on).
+
+
+## 0.10.5
+
+Signature damage retains its signature flag through bursts and delayed hits, so it cannot generate signature charge. Standard/enhanced casts still charge normally. Trailblazer patches retain the originating cast flag across recasts and long linger settings.

@@ -68,6 +68,7 @@ namespace WoLTrailblazer
             public float nextHit;
             public float nextFlame;
             public int level;
+            public bool signature;
             public float eruptAt = -1f; // the comet: when this patch erupts (-1 never)
             public GameObject column; // Searing Rush's fire, if available
             public BlazeLook.PatchLook look; // its drawn flames (the char mark plays out by itself)
@@ -92,8 +93,6 @@ namespace WoLTrailblazer
         private static string lastBurstError;
 
         // Sets (or re-sets) the wizard alight for this long.
-        private float signatureHitsUntil;
-
         public static void Light(Player player, Player.SkillState skill, float duration, bool signature = false)
         {
             if (player == null)
@@ -110,7 +109,7 @@ namespace WoLTrailblazer
             // A signature's hits, its patches' last burns included, are marked as the game marks
             // its own (isUltimate), so they don't refill the gauge: up to 0.10.3 they filled it
             // again almost at once.
-            trail.signatureHitsUntil = signature ? Time.time + duration + 8f : 0f;
+            // Each lingering patch retains the originating cast, even after a recast.
             trail.cinematic = signature ? Cinematic.Begin() : 0;
             trail.erupted = 0;
             trail.SpeedBoost(signature);
@@ -192,7 +191,7 @@ namespace WoLTrailblazer
             if (now >= nextAura)
             {
                 nextAura = now + TrailblazerPlugin.AuraInterval;
-                Burst(position, level, ring, false);
+                Burst(position, level, ring, false, ultimate: comet);
             }
             // Burning feet: small flames licking up right at the wizard's feet (the ring's hit has
             // no look of its own).
@@ -239,6 +238,7 @@ namespace WoLTrailblazer
                 nextHit = now + TrailblazerPlugin.TrailHitInterval,
                 nextFlame = now,
                 level = level,
+                signature = comet,
                 eruptAt = comet ? now + CometFuse : -1f,
                 column = TrailblazerPlugin.SearingFire
                     ? SearingLook.Light(position, ColumnScale(level) * FireScale, player != null ? player.spriteRenderer : null)
@@ -292,7 +292,7 @@ namespace WoLTrailblazer
                 {
                     patch.nextHit = now + TrailblazerPlugin.TrailHitInterval;
                     if (FoeNear(patch.position, hitRadius + FoeMargin))
-                        Burst(patch.position, level, hitRadius, false);
+                        Burst(patch.position, level, hitRadius, false, ultimate: patch.signature);
                 }
             }
         }
@@ -381,7 +381,7 @@ namespace WoLTrailblazer
         private void Pillar(Vector2 spot)
         {
             erupted++;
-            Burst(spot, MaxLevel, TrailblazerPlugin.TrailHitSize * CometHitWide, true, TrailblazerPlugin.EruptionMultiplier);
+            Burst(spot, MaxLevel, TrailblazerPlugin.TrailHitSize * CometHitWide, true, TrailblazerPlugin.EruptionMultiplier, true);
             if (TrailblazerPlugin.SearingFire)
             {
                 GameObject column = SearingLook.Light(spot, PillarScale, player != null ? player.spriteRenderer : null);
@@ -430,7 +430,7 @@ namespace WoLTrailblazer
             if (player != null)
             {
                 Vector2 at = player.transform.position;
-                Burst(at, MaxLevel, FinalRadius, true, TrailblazerPlugin.FinalMultiplier);
+                Burst(at, MaxLevel, FinalRadius, true, TrailblazerPlugin.FinalMultiplier, true);
                 Flames(at, 20, 2f);
                 Try(() => PoolManager.GetPoolItem<FireBurst>()?.EmitSingle(new int?(20), new Vector3?(at)));
                 Try(() => TimeScaleController.FreezeForFrames(FinalHitStopFrames, false));
@@ -478,16 +478,16 @@ namespace WoLTrailblazer
         // stat level 1 and its damage, knockback and burn chance are scaled by the level here,
         // before the hit's collider gets to touch anything. All hits share the level-1 attack key,
         // so the stats' sameTargetImmunityTime limits how often one enemy is hit by any of them.
-        private void Burst(Vector2 position, int level, float scale, bool effects, float extra = 1f)
+        private void Burst(Vector2 position, int level, float scale, bool effects, float extra = 1f, bool ultimate = false)
         {
             try
             {
-                FlameBurst burst = FlameBurst.CreateBurst(position, player != null ? player.skillCategory : "",
-                    TrailblazerState.staticID, 1, scale, effects);
+                FlameBurst burst = FlameBurst.CreateBurst(position, AttackInfo.GetInfo(player, player != null ? player.skillCategory : "",
+                    TrailblazerState.staticID, 1, ultimate), scale, effects);
                 AttackInfo info = burst != null && burst.attack != null ? burst.attack.atkInfo : null;
                 if (info == null)
                     throw new System.Exception("the burst has no attack info");
-                info.isUltimate = Time.time < signatureHitsUntil;
+                info.isUltimate = ultimate;
                 info.damage = Mathf.Max(1, Mathf.RoundToInt(info.damage * DamageScale(level) * extra));
                 info.knockbackMultiplier *= KnockbackScale(level);
                 info.burnChance = Mathf.Clamp01(info.burnChance + BurnBonus(level));

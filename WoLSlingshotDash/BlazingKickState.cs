@@ -243,7 +243,7 @@ namespace WoLSlingshotDash
             Effects.FireBlast(parent.transform.position, 6 + Mathf.RoundToInt(6 * charge));
             Effects.Shake(0.5f + 0.4f * charge);
             SoundManager.PlayAudioWithDistance("StandardHeavySwing", new Vector2?(parent.transform.position), null, 24f, -1f, 0.9f - 0.2f * charge, false);
-            FlameBurst.CreateBurst(parent.transform.position, parent.skillCategory, skillID, 1 + LevelOffset, LaunchHitScale, false);
+            FlameBurst.CreateBurst(parent.transform.position, AttackInfo.GetInfo(parent, parent.skillCategory, skillID, 1 + LevelOffset, signature), LaunchHitScale, false);
             LaunchLook(parent.transform.position, charge);
             parent.anim?.PlayDirectional(parent.DashAnimStr, -1, 0f);
             SlingshotDashPlugin.Log($"Blazing Kick: rush at {charge * 100f:0}% charge: {speed * rushTime:0.0} u in {rushTime:0.00} s");
@@ -282,8 +282,8 @@ namespace WoLSlingshotDash
             if (nextTrail <= 0f)
             {
                 nextTrail = TrailInterval;
-                FlameBurst.CreateBurst(here, parent.skillCategory, skillID, 1 + offset, TrailHitScale, false);
-                FlameBurst.CreateBurst(here, parent.skillCategory, skillID, 1 + offset, 0.8f + 0.4f * charge, true);
+                FlameBurst.CreateBurst(here, AttackInfo.GetInfo(parent, parent.skillCategory, skillID, 1 + offset, signature), TrailHitScale, false);
+                FlameBurst.CreateBurst(here, AttackInfo.GetInfo(parent, parent.skillCategory, skillID, 1 + offset, signature), 0.8f + 0.4f * charge, true);
             }
         }
 
@@ -291,7 +291,7 @@ namespace WoLSlingshotDash
         private void Land(Vector2 position, float power, int level)
         {
             float scale = BlastScale + BlastChargeScale * power;
-            FlameBurst.CreateBurst(position, parent.skillCategory, skillID, level, scale, true);
+            FlameBurst.CreateBurst(position, AttackInfo.GetInfo(parent, parent.skillCategory, skillID, level, signature), scale, true);
             EmitBlitzFlames(position, 14);
             Effects.FireBlast(position, 12 + Mathf.RoundToInt(8 * power));
             Effects.Dust(position, 60, scale);
@@ -383,7 +383,7 @@ namespace WoLSlingshotDash
                 ? (Vector2)blitzTarget.transform.position : here;
             if (blitzTarget != null)
                 blitzed.Add(blitzTarget);
-            FlameBurst.CreateBurst(at, parent.skillCategory, skillID, 4, ImpactScale, true);
+            FlameBurst.CreateBurst(at, AttackInfo.GetInfo(parent, parent.skillCategory, skillID, 4, signature), ImpactScale, true);
             Effects.FireBlast(at, 14);
             Effects.Game("FlameCircleBurstEmitter", 16, at, ParticleEffectOverrides.Radius0p75);
             Effects.Visual("hit-stop", () => TimeScaleController.FreezeForFrames(ImpactHitStopFrames, false));
@@ -460,12 +460,12 @@ namespace WoLSlingshotDash
         private void Finale()
         {
             Vector2 at = parent.transform.position;
-            FlameBurst.CreateBurst(at, parent.skillCategory, skillID, 5, FinaleScale, true);
+            FlameBurst.CreateBurst(at, AttackInfo.GetInfo(parent, parent.skillCategory, skillID, 5, signature), FinaleScale, true);
             for (int i = 0; i < RingBursts; i++)
             {
                 float a = i * Mathf.PI * 2f / RingBursts;
                 Vector2 spot = at + new Vector2(Mathf.Cos(a), Mathf.Sin(a) * 0.6f) * RingRadius;
-                FlameBurst.CreateBurst(spot, parent.skillCategory, skillID, 3, RingBurstScale, true);
+                FlameBurst.CreateBurst(spot, AttackInfo.GetInfo(parent, parent.skillCategory, skillID, 3, signature), RingBurstScale, true);
                 EmitBlitzFlames(spot, 6);
                 Effects.Game("BurnMarkMedEmitter", 1, spot, ParticleEffectOverrides.StartLifeTimeTwo);
             }

@@ -132,10 +132,10 @@ namespace WoLChaosDepths
         // A random item for this item level; minRarity (0-based index into rarities) forces at
         // least that rarity, e.g. for a boss drop.
         // rarityBoost scales the weight of Magic and better (0.3 = +30%), e.g. from Ascension.
-        public static ItemData Roll(int itemLevel, int minRarity = 0, float rarityBoost = 0f)
+        public static ItemData Roll(int itemLevel, int minRarity = 0, float rarityBoost = 0f, int exactRarity = -1)
         {
             Data data = Current ?? (Current = Defaults());
-            int rarityIndex = PickRarity(data, minRarity, rarityBoost);
+            int rarityIndex = exactRarity >= 0 ? Mathf.Clamp(exactRarity, 0, data.rarities.Count - 1) : PickRarity(data, minRarity, rarityBoost);
             RarityDef rarity = data.rarities[rarityIndex];
             string slot = Slots[UnityEngine.Random.Range(0, Slots.Length)];
 

@@ -185,7 +185,7 @@ namespace WoLRollingGale
         {
             Vector2 position = FanSpot(i);
             float scale = FanScale(i);
-            WindBurst burst = WindBurst.CreateBurst(position, parent.skillCategory, skillID, 3, scale);
+            WindBurst burst = WindBurst.CreateBurst(position, AttackInfo.GetInfo(parent, parent.skillCategory, skillID, 3, true), scale);
             if (burst != null)
                 burst.emitParticles = false;
             Try(() =>
@@ -207,7 +207,7 @@ namespace WoLRollingGale
 
         private void Echo(Vector2 position, float scale)
         {
-            WindBurst burst = WindBurst.CreateBurst(position, parent.skillCategory, skillID, 2, scale * EchoScale);
+            WindBurst burst = WindBurst.CreateBurst(position, AttackInfo.GetInfo(parent, parent.skillCategory, skillID, 2, true), scale * EchoScale);
             if (burst != null)
                 burst.emitParticles = false;
             GaleLook.Burst(position, scale * EchoScale, true, direction);
@@ -228,7 +228,7 @@ namespace WoLRollingGale
         private void FinalGale()
         {
             Vector2 at = origin + direction * FinalDistance;
-            WindBurst.CreateBurst(at, parent.skillCategory, skillID, 4, FinalScale);
+            WindBurst.CreateBurst(at, AttackInfo.GetInfo(parent, parent.skillCategory, skillID, 4, true), FinalScale);
             Try(() =>
             {
                 for (int i = 0; i < 3; i++)

@@ -160,6 +160,7 @@ namespace WoLChaosDepths
         // with an Ascension older than its table, Chance plus ChancePerAscension a level.
         public static float Chance()
         {
+            if (ChaosDepthsPlugin.FreshAscensionZero) return 0f;
             float table = AscensionLink.EliteChance;
             int level = AscensionLevel();
             // Ascension 0 is the game as it is, with Chaos Depths on top: fewer elites (Matt,
@@ -194,7 +195,7 @@ namespace WoLChaosDepths
         // Twice a second from the plugin, in the trials: roll new enemies, keep elite tints on.
         public static void Tick()
         {
-            if (!enabled.Value || GameController.enemies == null)
+            if (!enabled.Value || ChaosDepthsPlugin.FreshAscensionZero || GameController.enemies == null)
                 return;
             float odds = Chance();
             if (!announced)

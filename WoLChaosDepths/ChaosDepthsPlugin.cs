@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using BepInEx;
 using BepInEx.Configuration;
@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.17.2";
+        public const string PluginVersion = "0.18.0";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -31,8 +31,9 @@ namespace WoLChaosDepths
 
         // An ordinary kill's chance of an item: the save slots' balanced rate (lower again at
         // Ascension 0), or the Debugging save's own.
+        public static bool FreshAscensionZero => ProfileSave.Fresh && AscensionLink.Level <= 0;
         private static float KillDropChance() => !ProfileSave.Fresh ? dropChance.Value
-            : AscensionLink.Level <= 0 ? freshDropChanceZero.Value : freshDropChance.Value;
+            : FreshAscensionZero ? 0f : freshDropChance.Value;
         private static ConfigEntry<int> levelCap, bossDropRarity, floorBossDropRarity;
         private static ConfigEntry<float> floorBossXpMultiplier, xpToLevelScale;
         private static ConfigEntry<bool> firstBossUnique;
@@ -227,6 +228,7 @@ namespace WoLChaosDepths
                     p.Close();
                 SaveAll();
                 lastHitBy.Clear();
+                lastHitUltimate.Clear();
                 lastKillTime.Clear();
                 Elites.ClearScene();
                 Uniques.ClearScene();
@@ -586,7 +588,7 @@ namespace WoLChaosDepths
             try
             {
                 CharacterSave save = CharacterOf(player);
-                Drop(player, save, minRarity);
+                Drop(player, save, minRarity, randomAllocation: false);
             }
             catch (Exception e)
             {
@@ -643,6 +645,7 @@ namespace WoLChaosDepths
                 if (player == null)
                     return;
                 lastHitBy[hurt.GetInstanceID()] = player;
+                lastHitUltimate[hurt.GetInstanceID()] = attack.isUltimate;
                 Health health = hurt.health;
                 if (health != null && deathHooked.Add(health.GetInstanceID()))
                     health.deathEventHandlers += OnEnemyDeath;
@@ -654,6 +657,8 @@ namespace WoLChaosDepths
                 LogError($"damage hook: {e.Message}");
             }
         }
+
+        private readonly Dictionary<int, bool> lastHitUltimate = new Dictionary<int, bool>();
 
         private static Player FindAttacker(AttackInfo attack, Entity attacker)
         {
@@ -680,6 +685,7 @@ namespace WoLChaosDepths
                 if (lastKillTime.ContainsKey(id))
                     return;
                 lastKillTime[id] = Time.time;
+                bool freshBossReward = RewardFreshBoss(entity);
                 Player player;
                 if (!lastHitBy.TryGetValue(id, out player) || player == null)
                     return;
@@ -698,8 +704,12 @@ namespace WoLChaosDepths
                 if (logKills.Value || kind.Length > 0)
                     Log($"{entity.GetType().Name}{kind} slain by player {player.playerID + 1}: +{xp} xp");
                 AddXp(player, save, xp);
-                Uniques.OnPlayerKill(player, save, entity);
-                if (boss)
+                Uniques.OnPlayerKill(player, save, entity, lastHitUltimate.ContainsKey(id) && lastHitUltimate[id]);
+                if (freshBossReward)
+                {
+                    // The shared boss reward was issued once per participating player above.
+                }
+                else if (boss)
                 {
                     // Every boss drops an item, rolled from BossDropMinRarity up: a Legendary is
                     // possible, not promised (Matt, 0.15.3; layer bosses and each character's
@@ -734,7 +744,7 @@ namespace WoLChaosDepths
                     if (UnityEngine.Random.value < floorBossDropChance.Value)
                         Drop(player, save, floorBossDropRarity.Value, entity.transform.position);
                 }
-                else if (elite != null)
+                else if (elite != null && !FreshAscensionZero)
                 {
                     if (Elites.DropsItem(entity))
                         Drop(player, save, Elites.DropMinRarityFor(entity), entity.transform.position);
@@ -750,6 +760,53 @@ namespace WoLChaosDepths
             }
         }
 
+        // Fresh-save boss rules override legacy testing/rate settings. Reward both co-op
+        // participants, including a defeated partner; kill credit only controls XP.
+        private bool RewardFreshBoss(Entity entity)
+        {
+            if (!ProfileSave.Fresh) return false;
+            bool boss = entity is Boss || (IsBoss(entity) && !(entity is MiniBoss));
+            bool floorBoss = entity is MiniBoss;
+            if (!boss && !floorBoss) return false;
+            bool final = boss && DiveDirector.IsFinalBoss(DiveDirector.CurrentScene());
+            if (boss && OtherBossAlive(entity)) return true;
+            Player[] players = GameController.activePlayers;
+            if (players == null) return true;
+            int ascension = AscensionLink.Level;
+            bool guaranteed = false;
+            Player fallback = null;
+            var rewarded = new HashSet<int>();
+            foreach (Player recipient in players)
+            {
+                if (recipient == null || !rewarded.Add(recipient.playerID)) continue;
+                fallback = recipient;
+                CharacterSave character = CharacterOf(recipient);
+                bool firstFinal = final && ascension > 0 && !character.finalLegendaryAt.Contains(ascension);
+                Vector3 at = entity.transform.position + Vector3.right * (recipient.playerID == 0 ? -0.6f : 0.6f);
+                if (ascension <= 0)
+                {
+                    // Uncommon is the existing Magic rarity; no random upgrade or testing unique.
+                    int rarity = LootTable.RarityIndex(final ? "Magic" : "Common");
+                    Drop(recipient, character, rarity, at, exactRarity: rarity, randomAllocation: false);
+                    guaranteed = true;
+                }
+                else if (firstFinal)
+                {
+                    Drop(recipient, character, LootTable.RarityIndex("Legendary"), at, randomAllocation: false);
+                    guaranteed = true;
+                    character.finalLegendaryAt.Add(ascension);
+                }
+                SaveStore.Save(recipient.playerID, character);
+            }
+            if (!guaranteed && fallback != null && UnityEngine.Random.value < (floorBoss ? floorBossDropChance.Value : bossDropChance.Value))
+            {
+                int min = floorBoss ? floorBossDropRarity.Value : bossDropRarity.Value;
+                if (boss && AscensionLink.RealmBossDropsLegendary && realmBossLegendaryAt10.Value)
+                    min = LootTable.RarityIndex("Legendary");
+                Drop(fallback, CharacterOf(fallback), min, entity.transform.position);
+            }
+            return true;
+        }
         // Whether a boss other than this one still stands (the final boss is the last to fall).
         private static bool OtherBossAlive(Entity entity)
         {
@@ -918,11 +975,22 @@ namespace WoLChaosDepths
 
         // Rolls an item for this player. Dropped on the floor at 'at' as a pickup when physical
         // drops are on and a position is known; otherwise straight into the inventory.
-        private void Drop(Player player, CharacterSave save, int minRarity, Vector3? at = null, bool unique = false)
+        private void Drop(Player player, CharacterSave save, int minRarity, Vector3? at = null, bool unique = false, int exactRarity = -1, bool randomAllocation = true)
         {
+            if (randomAllocation)
+            {
+                // Reservoir sampling: equal odds per participant, no kill-credit weighting.
+                Player[] participants = GameController.activePlayers;
+                int count = 0;
+                if (participants != null)
+                    foreach (Player candidate in participants)
+                        if (candidate != null && UnityEngine.Random.Range(0, ++count) == 0)
+                            player = candidate;
+                save = CharacterOf(player);
+            }
             // Item level: the character's level, plus 2 a level of Ascension (#27, in place of
             // depth's 1 a depth).
-            ItemData item = LootTable.Roll(save.level + AscensionLink.ItemLevelBonus + Depth.ItemLevelBonus, minRarity, Elites.RarityBoost() + Depth.RarityBoost + Layers.RarityBonus);
+            ItemData item = LootTable.Roll(save.level + AscensionLink.ItemLevelBonus + Depth.ItemLevelBonus, minRarity, Elites.RarityBoost() + Depth.RarityBoost + Layers.RarityBonus, exactRarity);
             // A promised unique: a Legendary that didn't roll one becomes a random unique.
             if (unique && string.IsNullOrEmpty(item.unique) && Uniques.Defs.Count > 0)
                 Uniques.MakeUnique(item, Uniques.Defs[UnityEngine.Random.Range(0, Uniques.Defs.Count)]);

@@ -393,3 +393,8 @@ have them unlocked right away.
 If holding dash doesn't charge, check `BepInEx\LogOutput.log` for the lines starting with
 `Dash button` and send them over. For Feint Swap's signature, the lines starting with
 `Feint Swap: signature` (and `Feint Swap: cast (`) tell each beat of the cast.
+
+
+## 0.27.1
+
+Signature damage retains its signature flag through bursts and delayed hits, so it cannot generate signature charge. Standard/enhanced casts still charge normally.
