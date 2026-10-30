@@ -14,7 +14,7 @@ namespace WoLThunderhead
     {
         public const string PluginGuid = "mdbailey94.wol.thunderhead";
         public const string PluginName = "Thunderhead";
-        public const string PluginVersion = "0.9.4";
+        public const string PluginVersion = "0.10.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -97,6 +97,7 @@ namespace WoLThunderhead
             settingsRevision = Config.Bind("General", "SettingsRevision", 0,
                 "Which version's defaults this file was last updated to. Leave it alone.");
             BindSettings();
+            AdvancedTuning.Bind(Config);
             UpgradeSettings(hadConfig);
             // The signature version only shows up in the spellbook's Signature list once it's
             // unlocked; see SignatureUnlock.cs.

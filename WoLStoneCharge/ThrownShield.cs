@@ -17,24 +17,43 @@ namespace WoLStoneCharge
     {
         public const int ShoveLevel = 1, SlamLevel = 2, EnhancedSlamLevel = 3, SignatureSlamLevel = 4, ShockwaveLevel = 5;
 
-        private const float SignatureFlightTime = 0.6f;
-        private const float SlamTime = 0.12f, SignatureSlamTime = 0.18f;   // the drop from the air
+        private static float SignatureFlightTime => AdvancedTuning.SignatureFlightTime;
+        private static float SlamTime => AdvancedTuning.SlamTime;
+        private static float SignatureSlamTime => AdvancedTuning.SignatureSlamTime;   // the drop from the air
         private const float TellEvery = 0.12f;
         // The shield's height (units) as it's thrown, at the end of its flight (plus an arc in the
         // middle), and when it starts to drop.
-        private const float StartHeight = 0.5f;
-        private const float HangHeight = 1.6f, RiseHeight = 2.6f, ArcHeight = 1f;
-        private const float SigHangHeight = 3.5f, SigRiseHeight = 6f, SigArcHeight = 2f;
+        private static float StartHeight => AdvancedTuning.StartHeight;
+        private static float HangHeight => AdvancedTuning.HangHeight;
+        private static float RiseHeight => AdvancedTuning.RiseHeight;
+        private static float ArcHeight => AdvancedTuning.ArcHeight;
+        private static float SigHangHeight => AdvancedTuning.SigHangHeight;
+        private static float SigRiseHeight => AdvancedTuning.SigRiseHeight;
+        private static float SigArcHeight => AdvancedTuning.SigArcHeight;
         // The signature's beats (the old phalanx crash's).
-        private const float SigZoom = 0.3f, SigDim = 0.6f;
-        private const int SigHitStopFrames = 6;
-        private const float SigFlash = 1.6f, SigShake = 2.6f, SigSlowMoTime = 0.5f, SigSlowMoScale = 0.05f, SigEaseBack = 1f;
-        private const float ShockwaveAfter = 0.55f;    // real seconds after the slam (past the slow motion)
-        private const float ShockwaveScale = 1.6f;     // of the slam radius
+        private static float SigZoom => AdvancedTuning.SigZoom;
+        private static float SigDim => AdvancedTuning.SigDim;
+        private static int SigHitStopFrames => AdvancedTuning.SigHitStopFrames;
+        private static float SigFlash => AdvancedTuning.SigFlash;
+        private static float SigShake => AdvancedTuning.SigShake;
+        private static float SigSlowMoTime => AdvancedTuning.SigSlowMoTime;
+        private static float SigSlowMoScale => AdvancedTuning.SigSlowMoScale;
+        private static float SigEaseBack => AdvancedTuning.SigEaseBack;
+        private static float ShockwaveAfter => AdvancedTuning.ShockwaveAfter;    // real seconds after the slam (past the slow motion)
+        private static float ShockwaveScale => AdvancedTuning.ShockwaveScale;     // of the slam radius
         // The drawn crash (the old crash's).
-        private const float GameCrackFps = 12f, CraterFps = 18f, CraterLife = 1.1f, CraterWidth = 3f, CraterFill = 0.8f;
-        private const int MinShards = 6, MinSpikes = 8;
-        private const float SpikeReach = 0.8f, FloorSquashY = 0.6f, SpikeStagger = 0.035f, SpikeFps = 16f, ShardFps = 12f;
+        private const float GameCrackFps = 12f;
+        private const float CraterFps = 18f;
+        private const float CraterLife = 1.1f;
+        private const float CraterWidth = 3f;
+        private const float CraterFill = 0.8f;
+        private const int MinShards = 6;
+        private const int MinSpikes = 8;
+        private const float SpikeReach = 0.8f;
+        private const float FloorSquashY = 0.6f;
+        private const float SpikeStagger = 0.035f;
+        private const float SpikeFps = 16f;
+        private const float ShardFps = 12f;
 
         private enum Stage { Flight, Hang, Drop, Landed }
 

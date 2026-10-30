@@ -13,7 +13,7 @@ namespace WoLGaleRider
     {
         public const string PluginGuid = "mdbailey94.wol.galerider";
         public const string PluginName = "Gale Rider";
-        public const string PluginVersion = "0.4.2";
+        public const string PluginVersion = "0.5.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -74,6 +74,7 @@ namespace WoLGaleRider
                 "Offer Gale Rider in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
             BindSettings();
+            AdvancedTuning.Bind(Config);
             // The signature version only shows up in the spellbook's Signature list once it's
             // unlocked; see SignatureUnlock.cs.
             SignatureUnlock.Install(new HarmonyLib.Harmony(PluginGuid), GaleRiderState.staticID,

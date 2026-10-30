@@ -185,3 +185,11 @@ Put `Assembly-CSharp.dll`, `UnityEngine.dll` (from `WizardOfLegend_Data\Managed`
 ## 0.4.2
 
 Signature damage retains its signature flag through bursts and delayed hits, so it cannot generate signature charge. Standard/enhanced casts still charge normally.
+
+
+## 0.5.0: expanded configuration
+
+Added 17 advanced tuning controls for gameplay, timing and presentation.
+See [CONFIGURATION.md](../CONFIGURATION.md) for every new key, default, range and unit.
+All existing settings and default behavior are preserved. New keys appear on the first
+launch; close the game before editing the config, then restart to apply changes.

@@ -192,3 +192,11 @@ Content on).
 ## 0.10.5
 
 Signature damage retains its signature flag through bursts and delayed hits, so it cannot generate signature charge. Standard/enhanced casts still charge normally. Trailblazer patches retain the originating cast flag across recasts and long linger settings.
+
+
+## 0.11.0: expanded configuration
+
+Added 22 advanced tuning controls for gameplay, timing and presentation.
+See [CONFIGURATION.md](../CONFIGURATION.md) for every new key, default, range and unit.
+All existing settings and default behavior are preserved. New keys appear on the first
+launch; close the game before editing the config, then restart to apply changes.

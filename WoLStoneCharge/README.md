@@ -225,3 +225,11 @@ Content on).
 Put `Assembly-CSharp.dll`, `UnityEngine.dll` (from `WizardOfLegend_Data\Managed`), `BepInEx.dll`
 (from `BepInEx\core`) and `LegendApi.dll` into a `lib` folder at the repo root, then run
 `dotnet build -c Release`.
+
+
+## 0.7.0: expanded configuration
+
+Added 20 advanced tuning controls for gameplay, timing and presentation.
+See [CONFIGURATION.md](../CONFIGURATION.md) for every new key, default, range and unit.
+All existing settings and default behavior are preserved. New keys appear on the first
+launch; close the game before editing the config, then restart to apply changes.

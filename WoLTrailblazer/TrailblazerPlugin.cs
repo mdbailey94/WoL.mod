@@ -13,7 +13,7 @@ namespace WoLTrailblazer
     {
         public const string PluginGuid = "mdbailey94.wol.trailblazer";
         public const string PluginName = "Trailblazer";
-        public const string PluginVersion = "0.10.5";
+        public const string PluginVersion = "0.11.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -68,6 +68,7 @@ namespace WoLTrailblazer
                 "Offer Trailblazer in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
             BindSettings();
+            AdvancedTuning.Bind(Config);
             // The signature version only shows up in the spellbook's Signature list once it's
             // unlocked; see SignatureUnlock.cs.
             SignatureUnlock.Install(new HarmonyLib.Harmony(PluginGuid), TrailblazerState.staticID,

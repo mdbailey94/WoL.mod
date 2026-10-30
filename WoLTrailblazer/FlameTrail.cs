@@ -35,19 +35,29 @@ namespace WoLTrailblazer
     {
         private const int MaxPatches = 40;
         // The signature comet.
-        private const int CometLevels = 2;               // on top of the enhanced level
-        private const float CometHitWide = 2f, CometFire = 1.6f, CometRing = 1.5f;
+        private static int CometLevels => AdvancedTuning.CometLevels;               // on top of the enhanced level
+        private static float CometHitWide => AdvancedTuning.CometHitWide;
+        private static float CometFire => AdvancedTuning.CometFire;
+        private static float CometRing => AdvancedTuning.CometRing;
         // 0.10.2 walked 0.10.1 back slightly (Matt): 0.8 s fuse (was 0.5), +25% speed (was +40%).
-        private const float CometFuse = 0.8f;            // a patch erupts this long after it's dropped
-        private const float CometSpeed = 0.25f;          // +25% move speed for the whole signature
+        private static float CometFuse => AdvancedTuning.CometFuse;            // a patch erupts this long after it's dropped
+        private static float CometSpeed => AdvancedTuning.CometSpeed;          // +25% move speed for the whole signature
         private const string CometSpeedMod = "Trailblazer_Comet";
-        private const float PillarLife = 0.6f;           // a pillar's fire column burns this long
+        private static float PillarLife => AdvancedTuning.PillarLife;           // a pillar's fire column burns this long
         private int erupted;
-        private const float CometZoom = 0.15f, CometDim = 0.5f, CometSettle = 0.6f;
-        private const float PillarStep = 0.04f, FinalDelay = 0.25f;
-        private const float PillarScale = 2.2f, FinalRadius = 3f;
-        private const int FinalHitStopFrames = 5;
-        private const float FinalFlash = 1.9f, FinalShake = 2.2f, FinalSlowMoTime = 0.35f, FinalSlowMoScale = 0.05f, EaseBack = 1f;
+        private static float CometZoom => AdvancedTuning.CometZoom;
+        private static float CometDim => AdvancedTuning.CometDim;
+        private static float CometSettle => AdvancedTuning.CometSettle;
+        private static float PillarStep => AdvancedTuning.PillarStep;
+        private static float FinalDelay => AdvancedTuning.FinalDelay;
+        private static float PillarScale => AdvancedTuning.PillarScale;
+        private static float FinalRadius => AdvancedTuning.FinalRadius;
+        private static int FinalHitStopFrames => AdvancedTuning.FinalHitStopFrames;
+        private static float FinalFlash => AdvancedTuning.FinalFlash;
+        private static float FinalShake => AdvancedTuning.FinalShake;
+        private static float FinalSlowMoTime => AdvancedTuning.FinalSlowMoTime;
+        private static float FinalSlowMoScale => AdvancedTuning.FinalSlowMoScale;
+        private static float EaseBack => AdvancedTuning.EaseBack;
         private bool comet;
         private int cinematic;
         private float litAt;
@@ -58,8 +68,8 @@ namespace WoLTrailblazer
         // settings, with the wizard's own damage bonuses) scaled by the level: damage up to
         // PeakDamageMultiplier times, knockback and burn chance up to these, all spread evenly.
         public const int MaxLevel = 10;
-        private const float PeakKnockbackMultiplier = 2.5f; // knockback at level 10, against level 1
-        private const float PeakBurnBonus = 0.5f;           // burn chance added at level 10 (0.5 -> 1.0)
+        private static float PeakKnockbackMultiplier => AdvancedTuning.PeakKnockbackMultiplier; // knockback at level 10, against level 1
+        private static float PeakBurnBonus => AdvancedTuning.PeakBurnBonus;           // burn chance added at level 10 (0.5 -> 1.0)
 
         private class Patch
         {

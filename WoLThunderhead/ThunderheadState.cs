@@ -40,39 +40,41 @@ namespace WoLThunderhead
         private const int SignatureSlamLevel = 5;
 
         // The normal slam's bolt, dust, shake and hit-stop.
-        private const float SlamBoltSize = 1.6f;
+        private static float SlamBoltSize => AdvancedTuning.SlamBoltSize;
         private const int SlamDust = 80;
-        private const float SlamShake = 1.4f;
-        private const int SlamHitStop = 3;
+        private static float SlamShake => AdvancedTuning.SlamShake;
+        private static int SlamHitStop => AdvancedTuning.SlamHitStop;
 
         // The signature storm.
-        private const float SignatureDiveSpeed = 0.6f;      // the dive takes this times CrashTime
-        private const float SignatureHoldLift = 0.15f;      // rises this much higher (times Height) during the wind-up
-        private const float CloudGrowFrom = 0.75f, CloudGrowTo = 1.25f, CloudGrowHold = 1.35f; // the cloud swelling
+        private static float SignatureDiveSpeed => AdvancedTuning.SignatureDiveSpeed;      // the dive takes this times CrashTime
+        private static float SignatureHoldLift => AdvancedTuning.SignatureHoldLift;      // rises this much higher (times Height) during the wind-up
+        private const float CloudGrowFrom = 0.75f;
+        private const float CloudGrowTo = 1.25f;
+        private const float CloudGrowHold = 1.35f; // the cloud swelling
         private const float TakeOffBoltSize = 2f;
-        private const float TakeOffShake = 0.6f;
-        private const float StrikeShake = 0.15f;            // each signature volley gives a small shake
+        private static float TakeOffShake => AdvancedTuning.TakeOffShake;
+        private static float StrikeShake => AdvancedTuning.StrikeShake;            // each signature volley gives a small shake
         private const int StrikeThunderEvery = 4;           // and every so-many a thunderclap
         private const float CrackleInterval = 0.04f;        // sparks round the wizard during the wind-up
-        private const float SignatureSlamBoltSize = 2.6f;
+        private static float SignatureSlamBoltSize => AdvancedTuning.SignatureSlamBoltSize;
         private const int SignatureSlamDust = 140;
-        private const float SignatureSlamShake = 2.2f;
+        private static float SignatureSlamShake => AdvancedTuning.SignatureSlamShake;
         private const int LightBeams = 6;                   // rays of light at the impact (the ending altar's LightBeam)
         private const float LightBeamScale = 0.75f;
         private const float LightBeamSpeed = 1.6f;
-        private const float RingDelay = 0.06f;              // seconds after the impact the ring of bolts strikes
-        private const float RingOutside = 0.6f;             // how far past the slam's edge the ring strikes
-        private const float RingBurstSize = 1.2f;
-        private const float RingShake = 0.8f;
+        private static float RingDelay => AdvancedTuning.RingDelay;              // seconds after the impact the ring of bolts strikes
+        private static float RingOutside => AdvancedTuning.RingOutside;             // how far past the slam's edge the ring strikes
+        private static float RingBurstSize => AdvancedTuning.RingBurstSize;
+        private static float RingShake => AdvancedTuning.RingShake;
 
         // Standard and enhanced: the first strike of each volley seeks an enemy within the strike
         // circle (one aimed at least so far this cast), the rest land spread as before. Random
         // spots alone often missed the enemies right below (0.9.1). An aimed bolt still follows
         // its enemy this far from where its glyph was drawn, so a small step doesn't dodge it,
         // but walking off does.
-        private const int AimedPerVolley = 1;
-        private const float AimReachPastRadius = 0.5f;  // enemies this far past the circle's edge can be aimed at
-        private const float AimFollow = 1.2f;
+        private static int AimedPerVolley => AdvancedTuning.AimedPerVolley;
+        private static float AimReachPastRadius => AdvancedTuning.AimReachPastRadius;  // enemies this far past the circle's edge can be aimed at
+        private static float AimFollow => AdvancedTuning.AimFollow;
 
         // Timings and sizes come from the config (ThunderheadPlugin), read as each cast starts.
         private float WindupTime, RiseTime, CrashTime, RecoverTime, Height, HoverSpeedPercent, HoldTime;

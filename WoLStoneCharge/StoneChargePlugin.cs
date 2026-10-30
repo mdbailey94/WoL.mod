@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
@@ -13,7 +13,7 @@ namespace WoLStoneCharge
     {
         public const string PluginGuid = "mdbailey94.wol.stonecharge";
         public const string PluginName = "Stone Charge";
-        public const string PluginVersion = "0.6.0";
+        public const string PluginVersion = "0.7.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -56,6 +56,7 @@ namespace WoLStoneCharge
                 "Offer Stone Charge in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
             BindSettings();
+            AdvancedTuning.Bind(Config);
             // The signature version only shows up in the spellbook's Signature list once it's
             // unlocked; see SignatureUnlock.cs.
             SignatureUnlock.Install(new HarmonyLib.Harmony(PluginGuid), StoneChargeState.staticID,

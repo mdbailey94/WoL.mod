@@ -185,3 +185,11 @@ Needs BepInExPack of Legend, **LegendAPI** and **HookGenPatcher**. Download `WoL
 the [latest release](https://github.com/mdbailey94/wol.mod/releases/tag/latest) and unzip it into
 your Wizard of Legend folder. It shows up in the arcana shop (or straight away with Unlock Mod
 Content on).
+
+
+## 0.10.0: expanded configuration
+
+Added 16 advanced tuning controls for gameplay, timing and presentation.
+See [CONFIGURATION.md](../CONFIGURATION.md) for every new key, default, range and unit.
+All existing settings and default behavior are preserved. New keys appear on the first
+launch; close the game before editing the config, then restart to apply changes.

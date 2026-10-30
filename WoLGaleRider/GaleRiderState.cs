@@ -29,19 +29,27 @@ namespace WoLGaleRider
     {
         public new static string staticID = "GaleRider";
         // The signature.
-        private const float SigKnockbackScale = 1.5f;
-        private const float SigZoom = 0.2f, SigDim = 0.65f, SigSettleTime = 0.6f;
-        private const float LeapUpTime = 0.35f, LeapDownTime = 0.2f;
-        private const float LeapCarry = 0.35f;              // of the ride speed, carried into the leap
-        private const float TopSlowMoTime = 0.35f, TopSlowMoScale = 0.15f;
-        private const float SlamScale = 4.5f;               // the wind blast's size where you land
-        private const int SlamHitStopFrames = 5;
-        private const float SlamFlash = 1.8f, SlamShake = 2.2f, SlamSlowMoTime = 0.3f, SlamSlowMoScale = 0.05f, SlamEaseBack = 0.8f;
+        private static float SigKnockbackScale => AdvancedTuning.SigKnockbackScale;
+        private static float SigZoom => AdvancedTuning.SigZoom;
+        private static float SigDim => AdvancedTuning.SigDim;
+        private static float SigSettleTime => AdvancedTuning.SigSettleTime;
+        private static float LeapUpTime => AdvancedTuning.LeapUpTime;
+        private static float LeapDownTime => AdvancedTuning.LeapDownTime;
+        private static float LeapCarry => AdvancedTuning.LeapCarry;              // of the ride speed, carried into the leap
+        private static float TopSlowMoTime => AdvancedTuning.TopSlowMoTime;
+        private static float TopSlowMoScale => AdvancedTuning.TopSlowMoScale;
+        private static float SlamScale => AdvancedTuning.SlamScale;               // the wind blast's size where you land
+        private static int SlamHitStopFrames => AdvancedTuning.SlamHitStopFrames;
+        private static float SlamFlash => AdvancedTuning.SlamFlash;
+        private static float SlamShake => AdvancedTuning.SlamShake;
+        private static float SlamSlowMoTime => AdvancedTuning.SlamSlowMoTime;
+        private static float SlamSlowMoScale => AdvancedTuning.SlamSlowMoScale;
+        private static float SlamEaseBack => AdvancedTuning.SlamEaseBack;
         private bool signature, leaping, topSlowMoDone;
         private float leapTime, leapBase;
         private int cinematic;
         // Signature (0.4.1, Matt): enemies the storm ball hits are swept along in it.
-        private const float CarryMargin = 1.2f;      // let go when further than the ball's radius plus this
+        private static float CarryMargin => AdvancedTuning.CarryMargin;      // let go when further than the ball's radius plus this
         private readonly Carrier carrier = new Carrier();
 
         public const int MaxLevel = 10;                 // levels of the log's speed read, 1 at x1.0, 10 at the peak
