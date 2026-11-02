@@ -322,7 +322,8 @@ namespace WoLChaosDepths
                 if (assassinHits.Remove(info))
                 {
                     bonus += AssassinBonus;
-                    Fx(() => KeystoneFx.Fire(player, "Assassin"));
+                    // On the struck enemy (its red slash).
+                    Fx(() => KeystoneFx.Fire(hurt, "Assassin"));
                 }
                 if (bonus > 0f)
                     info.damage = Mathf.CeilToInt(info.damage * (1f + bonus));
