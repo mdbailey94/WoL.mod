@@ -13,7 +13,7 @@ namespace WoLStoneCharge
     {
         public const string PluginGuid = "mdbailey94.wol.stonecharge";
         public const string PluginName = "Stone Charge";
-        public const string PluginVersion = "0.8.0";
+        public const string PluginVersion = "0.8.1";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -138,8 +138,16 @@ namespace WoLStoneCharge
                     || data.skills[data.signatureSkillIndex] != StoneChargeState.staticID)
                     return;
                 int sig = data.signatureSkillIndex;
-                string replacement = System.Array.IndexOf(data.skills, Player.ShootFireball.staticID) < 0
-                    ? Player.ShootFireball.staticID : Player.ShootFireArc.staticID;
+                // The game's default signature, or another vanilla one not already in the loadout
+                // (a duplicate would put one arcana in two slots); none free leaves the slot empty,
+                // which the game accepts. Its check is hasSignatureVariant only, not the unlock.
+                string replacement = string.Empty;
+                foreach (string id in new[] { Player.ShootFireball.staticID, Player.ShootFireArc.staticID })
+                    if (System.Array.IndexOf(data.skills, id) < 0)
+                    {
+                        replacement = id;
+                        break;
+                    }
                 data.skills[sig] = replacement;
                 int free = -1;
                 for (int i = 2; i < data.skills.Length && free < 0; i++)
@@ -148,7 +156,7 @@ namespace WoLStoneCharge
                 if (free >= 0)
                     data.skills[free] = StoneChargeState.staticID;
                 Log($"Stone Charge: no signature version now; moved out of player {__instance.playerID + 1}'s signature slot " +
-                    $"({(free >= 0 ? $"to slot {free}" : "no free slot, left out")}), {replacement} takes the signature slot");
+                    $"({(free >= 0 ? $"to slot {free}" : "no free slot, left out")}), {(replacement.Length > 0 ? replacement : "nothing")} takes the signature slot");
             }
             catch (System.Exception e)
             {
