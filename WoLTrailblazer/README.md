@@ -34,6 +34,15 @@ A new **Fire standard arcana**, added with [LegendAPI](https://github.com/yekoc/
   (3, 4, 5 ... 12), knockback up to 2.5x and the burn chance up to 100%.
 - **Enhanced**: 9 seconds and one level higher.
 
+## 0.12.0: a white-hot trail at level 10 (task sheet #23)
+
+- At fire level 10 the trail burns white-hot: each patch has two of WoL Art's white-hot flames,
+  the size of the game's flame tiles and scaled with the level (about 1.6 times), in place of
+  the orange Searing Rush column, and a couple of white-hot embers rise from it. Enhanced and the
+  signature reach it sooner, as they raise the level. Cosmetic only; damage is unchanged.
+- `[Look] WhiteHotAtMaxLevel` turns it off. It needs `[Look] Drawn`; if the art can't load the
+  trail keeps its orange fire (logged once).
+
 ## 0.10.4: the comet no longer refills its own gauge (asked for by Matt)
 
 - The signature's hits (the ignition, the trail, the patches' eruptions and the final blast,

@@ -13,7 +13,7 @@ namespace WoLTrailblazer
     {
         public const string PluginGuid = "mdbailey94.wol.trailblazer";
         public const string PluginName = "Trailblazer";
-        public const string PluginVersion = "0.11.0";
+        public const string PluginVersion = "0.12.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -51,6 +51,8 @@ namespace WoLTrailblazer
         public static float TrailHitInterval => Get(trailHitInterval, 0.3f, 0.1f, 2f);
         public static bool SearingFire => searingFire?.Value ?? true;
         public static bool Drawn => drawn?.Value ?? true;
+        private static ConfigEntry<bool> whiteHotFire;
+        public static bool WhiteHotFire => whiteHotFire?.Value ?? true;
         public static bool RingOfFire => ringOfFire?.Value ?? false;
         public static float FlameSize => Get(flameSize, 1f, 0.2f, 4f);
         public static float FlameAmount => Get(flameAmount, 2f, 0.5f, 10f);
@@ -149,6 +151,8 @@ namespace WoLTrailblazer
             drawn = Config.Bind("Look", "Drawn", true,
                 "The drawn fire on top of the game's flames: flames licking up from the wizard's feet, embers, " +
                 "flames and char marks on the trail, the burst as you cast it and the flare-up as it burns out (from the next cast).");
+            whiteHotFire = Config.Bind("Look", "WhiteHotAtMaxLevel", true,
+                "At fire level 10 the trail burns white-hot: drawn white-hot flames and embers replace its orange columns. Needs [Look] Drawn on. Cosmetic only.");
 
             const string restart = " Applies after restarting the game.";
             damage = Config.Bind("Balance", "Damage", 3,

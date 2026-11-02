@@ -78,6 +78,10 @@ namespace WoLTrailblazer
         private const float RingAlpha = 0.85f;       // the ring of fire lets the floor show through a little
         private const float TrailFlameSpread = 0.18f;
         private const float TrailFlameBackstop = 1f; // seconds past its patch a trail flame lasts if never put out
+        private const int WhiteHotEmbersPerPatch = 2;
+        private const float WhiteHotEmberFrameTime = 0.12f;
+        private const float WhiteHotEmberSpread = 0.3f;
+        private static bool loggedWhiteHot;
         private const float MarkAfter = 1.8f;        // seconds a char mark stays after its patch burns out
         private const float MarkFade = 0.8f;
         private const float MarkWarm = 0.5f;         // seconds a mark stays warm once its patch is out
@@ -303,26 +307,33 @@ namespace WoLTrailblazer
 
         // A patch was dropped: its flames (one over a Searing Rush column, two without) burn as long
         // as it does, the game's burn mark is left under it, and a glow in it cools as it burns out.
-        public PatchLook Patch(Vector2 position, int level, float life, bool hasColumn)
+        // At level 10 (WhiteHot) they're WoL Art's white-hot tongues, hotScale times their size, in
+        // place of the orange Searing Rush column (FlameTrail leaves it out), with a few embers.
+        public PatchLook Patch(Vector2 position, int level, float life, bool hasColumn, float hotScale)
         {
             var look = new PatchLook { tier = Tier(level), flames = new FxHandle[hasColumn ? 1 : 2] };
             Mark(position, look.tier, life * 0.55f, life * 0.45f, life);
             try
             {
+                Sprite[] hot = WhiteHot(level) ? WhiteHotArt.Tongue(ppu) : null;
                 Sprite[] game = GameFlames(FlameTiles[look.tier]);
                 Fx.Source("trail flames", game, GameFlameName);
                 look.game = game != null;
-                Sprite[] frames = game ?? FireArt.Tongue(look.tier, 0);
+                Sprite[] frames = hot ?? game ?? FireArt.Tongue(look.tier, 0);
                 for (int i = 0; i < look.flames.Length; i++)
                 {
                     Vector2 spot = position + new Vector2(Random.Range(-TrailFlameSpread, TrailFlameSpread), Random.Range(-0.05f, 0.05f));
                     FxSprite flame = Fx.Get("trail flames", TrailFlameCap).Play(frames, FireArt.TongueFrameTime, true, life + TrailFlameBackstop)
                         .Phase(Random.value).At(spot);
                     flame.Renderer.flipX = Random.value < 0.5f;
+                    if (hot != null)
+                        flame.transform.localScale = new Vector3(hotScale, hotScale, 1f);
                     // Sorted as Searing Rush's columns on the trail are: just behind the wizard as it was dropped.
                     Fx.NearBody(flame.Renderer, -1, Body);
                     look.flames[i] = new FxHandle(flame);
                 }
+                if (hot != null)
+                    WhiteHotEmbers(position);
                 Fx.Ready("trail flames", game != null ? game.Length : FireArt.Tiers * FireArt.TongueFrames, ppu, Body);
             }
             catch (System.Exception e)
@@ -330,6 +341,31 @@ namespace WoLTrailblazer
                 Fx.Fail("trail flames", e);
             }
             return look;
+        }
+
+        // Whether a patch at this level burns white-hot (task #23).
+        public bool WhiteHot(int level) =>
+            level >= FlameTrail.MaxLevel && TrailblazerPlugin.WhiteHotFire && WhiteHotArt.Tongue(ppu) != null;
+
+        private void WhiteHotEmbers(Vector2 position)
+        {
+            Sprite[] sparks = WhiteHotArt.Ember(ppu);
+            if (sparks == null)
+                return;
+            for (int i = 0; i < WhiteHotEmbersPerPatch; i++)
+            {
+                FxSprite ember = Fx.Get("embers", EmberCap).Play(sparks, WhiteHotEmberFrameTime, false, sparks.Length * WhiteHotEmberFrameTime)
+                    .At(position + new Vector2(Random.Range(-WhiteHotEmberSpread, WhiteHotEmberSpread), Random.Range(0f, WhiteHotEmberSpread)));
+                ember.Velocity = new Vector2(Random.Range(-EmberBack, EmberBack), Random.Range(EmberRise, EmberRiseMax));
+                ember.Accel = new Vector2(0f, EmberGravity);
+                ember.Drag = EmberDrag;
+                Fx.NearBody(ember.Renderer, 1, Body);
+            }
+            if (!loggedWhiteHot)
+            {
+                loggedWhiteHot = true;
+                TrailblazerPlugin.Log("Trailblazer: the trail burns white-hot at level " + FlameTrail.MaxLevel);
+            }
         }
 
         // A char mark: the game's own burn mark (sized by the tier) with the drawn glow cooling in

@@ -241,6 +241,7 @@ namespace WoLTrailblazer
                 look?.PatchOut(patches[0].look);
                 patches.RemoveAt(0);
             }
+            bool whiteHot = look != null && look.WhiteHot(level);
             var patch = new Patch
             {
                 position = position,
@@ -250,11 +251,11 @@ namespace WoLTrailblazer
                 level = level,
                 signature = comet,
                 eruptAt = comet ? now + CometFuse : -1f,
-                column = TrailblazerPlugin.SearingFire
+                column = TrailblazerPlugin.SearingFire && !whiteHot
                     ? SearingLook.Light(position, ColumnScale(level) * FireScale, player != null ? player.spriteRenderer : null)
                     : null
             };
-            patch.look = look?.Patch(position, level, patch.until - now, patch.column != null);
+            patch.look = look?.Patch(position, level, patch.until - now, patch.column != null, FlameScale(level));
             patches.Add(patch);
             if (!loggedPatch)
             {

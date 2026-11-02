@@ -44,6 +44,8 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Assets\icon.png" LogicalName="WoLTrailblazer.Assets.icon.png" />
+    <EmbeddedResource Include="Assets\trailblazer_max_tongue.png" LogicalName="WoLTrailblazer.Assets.trailblazer_max_tongue.png" />
+    <EmbeddedResource Include="Assets\trailblazer_max_ember.png" LogicalName="WoLTrailblazer.Assets.trailblazer_max_ember.png" />
   </ItemGroup>
 
   <Target Name="CopyToPlugins" AfterTargets="Build" Condition="Exists('$(GameDir)\BepInEx\plugins')">
