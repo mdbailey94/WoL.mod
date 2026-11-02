@@ -59,6 +59,10 @@ namespace UnityEngine.SceneManagement
     public struct Scene { } public enum LoadSceneMode { Single }
     public static class SceneManager { public static event Action<Scene, LoadSceneMode> sceneLoaded; public static void Load() { if (sceneLoaded != null) sceneLoaded(new Scene(), LoadSceneMode.Single); } }
 }
+namespace BepInEx.Logging
+{
+    public class ManualLogSource { public void LogInfo(string s) { } }
+}
 namespace BepInEx.Configuration
 {
     public class ConfigEntry<T> { public T Value; public ConfigEntry(T value) { Value = value; } }
@@ -68,7 +72,7 @@ namespace BepInEx
 {
     public class BepInPlugin : Attribute { public BepInPlugin(string id, string name, string version) { } }
     public class BepInDependency : Attribute { public BepInDependency(string id) { } }
-    public class TestLogger { public readonly List<string> Warnings = new List<string>(); public void LogInfo(string s) { } public void LogWarning(string s) { Warnings.Add(s); } }
+    public class TestLogger : Logging.ManualLogSource { public readonly List<string> Warnings = new List<string>(); public void LogWarning(string s) { Warnings.Add(s); } }
     public class BaseUnityPlugin : MonoBehaviour { public readonly Configuration.ConfigFile Config = new Configuration.ConfigFile(); public readonly TestLogger Logger = new TestLogger(); }
 }
 namespace LegendAPI
@@ -100,7 +104,7 @@ public class Player : MonoBehaviour
     // attack-info initialization and execute event; increment/wrap and destroy on exit.
     public class MeleeAttackState:SkillState
     {
-        public bool isBasic,isMeleeSkill,setParent,destroyAttackObjectOnExit,flipObjectForBackhand,alwaysStartForehand;
+        public bool isBasic,isMeleeSkill,setParent,destroyAttackObjectOnExit,flipObjectForBackhand,alwaysStartForehand,forceMovement;
         public GameObject attackPrefab; public MeleeAttackObject currentAttackObject;
         public int maxComboCount=3,comboCounter=1,currentLevel=1,ExecuteEvents,BaseAttacks; public float EventDamageModifier;
         public float animStartTime,animExecTime,baseCancelThreshold,finalCancelThreshold,baseRunThreshold,finalRunThreshold,baseExitThreshold,finalExitThreshold;

@@ -32,8 +32,12 @@ namespace WoLMomentumSpear
             finalAttackScale = 1.25f;
             flipObjectForBackhand = false;
             alwaysStartForehand = true;
-            attackMoveSpeedMod = new NumVarStatMod(atkMoveModStr, 0.5f, 10, VarStatModType.OverrideWithMods);
-            finalAttackMoveSpeedMod = attackMoveSpeedMod;
+            // A melee basic has to lunge: without it the first hit's knockback leaves the target out
+            // of the next thrust's reach (0.1.0 used a ranged basic's 0.5, and hit 2 whiffed).
+            // forceMovement lunges along the aim even with the mouse close to the wizard.
+            attackMoveSpeedMod = new NumVarStatMod(atkMoveModStr, SpearPlugin.Lunge, 10, VarStatModType.OverrideWithMods);
+            finalAttackMoveSpeedMod = new NumVarStatMod(atkMoveModStr, SpearPlugin.FinisherLunge, 10, VarStatModType.OverrideWithMods);
+            forceMovement = true;
             autoHoldStat.BaseValue = true;
             sfxNames = new[] { "WindSlashBasic", "WindSlashBasic", "WindSlashBasic" };
         }
@@ -62,6 +66,7 @@ namespace WoLMomentumSpear
             if (executed) return;
             executed = true;
             base.ExecuteAttack();
+            SpearPlugin.Trace($"thrust {comboCounter} of {maxComboCount}: level {currentLevel}, opening x{openingMultiplier:0.00}, t={Time.time:0.00}");
         }
 
         public override void HandleComboCount(int givenCount)

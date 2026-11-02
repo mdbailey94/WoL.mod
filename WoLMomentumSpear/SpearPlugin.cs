@@ -6,12 +6,14 @@ using UnityEngine;
 
 namespace WoLMomentumSpear
 {
-    [BepInPlugin(PluginGuid, "Momentum Spear", "0.1.0")]
+    [BepInPlugin(PluginGuid, "Momentum Spear", "0.1.1")]
     [BepInDependency("xyz.yekoc.wizardoflegend.LegendAPI")]
     public sealed class SpearPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "mdbailey94.wol.momentumspear";
-        private static ConfigEntry<float> bonus, cap, reach, width;
+        private static ConfigEntry<float> bonus, cap, reach, width, lunge, finisherLunge;
+        private static ConfigEntry<bool> logThrusts;
+        private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> enabledSetting;
         private Texture2D iconTexture;
         private Sprite iconSprite;
@@ -21,6 +23,13 @@ namespace WoLMomentumSpear
         public static float MomentumCap { get { return SpearRules.Bound(cap != null ? cap.Value : 2f, 2f, 1f, 4f); } }
         public static float ReachScale { get { return SpearRules.Bound(reach != null ? reach.Value : 1.8f, 1.8f, 0.5f, 3f); } }
         public static float WidthScale { get { return SpearRules.Bound(width != null ? width.Value : 0.65f, 0.65f, 0.3f, 1.5f); } }
+        public static float Lunge { get { return SpearRules.Bound(lunge != null ? lunge.Value : 4f, 4f, 0f, 20f); } }
+        public static float FinisherLunge { get { return SpearRules.Bound(finisherLunge != null ? finisherLunge.Value : 8f, 8f, 0f, 20f); } }
+
+        internal static void Trace(string message)
+        {
+            if (logThrusts != null && logThrusts.Value && log != null) log.LogInfo(message);
+        }
 
         private void Awake()
         {
@@ -29,7 +38,12 @@ namespace WoLMomentumSpear
             cap = Config.Bind("Momentum", "MaximumMultiplier", 2f, "Opening-hit total multiplier cap, 1–4. Default 2 is at most double damage. Other hits are not momentum-scaled.");
             reach = Config.Bind("Spear", "ReachScale", 1.8f, "Native thrust hitbox length multiplier, 0.5–3. Enhanced adds 15%; finisher adds 25%. Applies to future attacks.");
             width = Config.Bind("Spear", "WidthScale", 0.65f, "Native thrust width multiplier, 0.3–1.5. Applies to future attacks.");
+            lunge = Config.Bind("Spear", "Lunge", 4f, "Speed of the forward lunge on the first two thrusts, units a second, 0–20 (the game's melee basics default to 4). Applies after restarting the game.");
+            finisherLunge = Config.Bind("Spear", "FinisherLunge", 8f, "Speed of the finisher's lunge, 0–20 (the game's melee basics default to 8). Applies after restarting the game.");
+            logThrusts = Config.Bind("Debug", "LogThrusts", false, "Log every thrust that fires (its combo step, level and opening multiplier), to tell a thrust that missed from one that never fired.");
+            log = Logger;
             int first = Damage("OpeningDamage", 8), second = Damage("SecondDamage", 10), final = Damage("FinisherDamage", 16);
+            float firstPush = Push("OpeningKnockback", 2f), secondPush = Push("SecondKnockback", 2f), finalPush = Push("FinisherKnockback", 12f);
             try { iconSprite = CreateIcon(); }
             catch (System.Exception e) { Logger.LogWarning("Using default icon: " + e.Message); }
             Shader shader = Shader.Find("Sprites/Default");
@@ -52,7 +66,7 @@ namespace WoLMomentumSpear
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
                     damage = new[] { first, second, final },
                     cooldown = new[] { 0f },
-                    knockbackMultiplier = new[] { 5f, 5f, 12f },
+                    knockbackMultiplier = new[] { firstPush, secondPush, finalPush },
                     sameAttackImmunityTime = new[] { 0.3f },
                     shakeCamera = new[] { false }
                 },
@@ -65,6 +79,11 @@ namespace WoLMomentumSpear
         private int Damage(string key, int value)
         {
             return Mathf.Clamp(Config.Bind("Balance", key, value, "Base damage, clamped to 1–100. Requires restart.").Value, 1, 100);
+        }
+
+        private float Push(string key, float value)
+        {
+            return SpearRules.Bound(Config.Bind("Balance", key, value, "Knockback, clamped to 0–60. Too much on the first two hits knocks the target out of the next thrust's reach. Requires restart.").Value, value, 0f, 60f);
         }
 
         private Sprite CreateIcon()

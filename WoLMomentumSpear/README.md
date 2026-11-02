@@ -49,6 +49,11 @@ BepInEx creates `BepInEx\config\mdbailey94.wol.momentumspear.cfg` on first load.
 | Balance / OpeningDamage | 8 | 1–100; requires restart |
 | Balance / SecondDamage | 10 | 1–100; requires restart |
 | Balance / FinisherDamage | 16 | 1–100; requires restart |
+| Balance / OpeningKnockback, SecondKnockback | 2 | 0–60; requires restart |
+| Balance / FinisherKnockback | 12 | 0–60; requires restart |
+| Spear / Lunge | 4 | 0–20; speed of the first two thrusts' lunge; requires restart |
+| Spear / FinisherLunge | 8 | 0–20; requires restart |
+| Debug / LogThrusts | false | Logs each thrust that fires, with its combo step |
 
 Momentum values apply to future snapshots; reach/width apply to future attacks. Nonfinite or out-of-range configuration values use defaults or clamps. Nonfinite velocity gives a neutral multiplier; extreme finite velocities are safely capped before float overflow.
 
@@ -69,6 +74,8 @@ The simulation compiles the actual five mod source files against explicit engine
 
 ## Installation and gameplay status
 
-Version 0.1.0 is installed in the base game and the Chaos Depths profile (`BepInEx\plugins\WoLMomentumSpear`); building the project copies it into the base game. It has **not been played yet**: buy it in the shop, or use the Debugging save, and equip it as a basic.
+Version 0.1.1 is installed in the base game and the Chaos Depths profile (`BepInEx\plugins\WoLMomentumSpear`); building the project copies it into the base game. Buy it in the shop, or use the Debugging save, and equip it as a basic.
+
+0.1.0's first in-game test: it loaded and drew correctly, but thrust 2 didn't connect. It barely moved the wizard, so the first hit's knockback pushed the target (training dummies stay pushed for 2.5 s) out of reach. 0.1.1 lunges on every thrust and lowers the knockback of the first two hits; this is the likely cause rather than a proven one, so `[Debug] LogThrusts` is there to confirm it.
 
 Manual checks still needed: shop/basic-slot placement, spear alignment and hitbox reach, three-hit input timing, hold-to-combo, run-to-opening damage, dash/cancel momentum timing, standing still despite speed bonuses, multiple enemies and destructibles, critical/basic-relic interactions, co-op isolation, enhanced reach, cancellation cleanup, icon appearance and overall balance. Verify the real Harmony hook is installed and that a moving opener receives its bonus.
