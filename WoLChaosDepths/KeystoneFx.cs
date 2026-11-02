@@ -14,8 +14,40 @@ namespace WoLChaosDepths
     {
         private const float Fps = 12f;
         private const float AfterimageLife = 1.5f;
-        private static readonly Color AfterimageTint = new Color(0.45f, 0.9f, 1f, 0.6f);
+        private static readonly Color AfterimageTint = new Color32(0x6f, 0xe0, 0xf0, 0x80);   // WoL Art's #6fe0f0 at 50%
         private static readonly HashSet<string> missing = new HashSet<string>();
+
+        // WoL Art's strips (Log - Art 17:14): frame size, frame count, fps, the anchor point in
+        // the frame (from its top left) that goes on the wizard's feet, how far above the feet
+        // (units), and whether it's drawn behind the wizard. 'only' picks single frames from the
+        // strip (Archmage's ring is state frames: 0 = idle, 4 = the free cast's flare).
+        private class Spec
+        {
+            public string file;
+            public int w, h, n;
+            public float fps, ax, ay, lift;
+            public bool behind;
+            public int[] only;
+        }
+
+        private static readonly Dictionary<string, Spec> specs = new Dictionary<string, Spec>
+        {
+            { "Graduate", new Spec { w = 32, h = 32, n = 6, fps = 12, ax = 16, ay = 18 } },
+            { "Survivor", new Spec { w = 32, h = 40, n = 5, fps = 12, ax = 16, ay = 36 } },
+            { "Juggernaut", new Spec { w = 40, h = 16, n = 5, fps = 12, ax = 20, ay = 9 } },
+            { "LastStand", new Spec { w = 40, h = 20, n = 6, fps = 10, ax = 20, ay = 12, behind = true } },
+            { "Assassin", new Spec { w = 24, h = 24, n = 4, fps = 12, ax = 12, ay = 12, lift = 0.6f } },
+            { "Flurry", new Spec { w = 8, h = 8, n = 4, fps = 12, ax = 4, ay = 4, lift = 0.8f } },
+            { "Archmage", new Spec { w = 32, h = 16, n = 5, fps = 1, ax = 16, ay = 8, behind = true, only = new[] { 0 } } },
+            { "Archmage!", new Spec { file = "fx_ks_Archmage", w = 32, h = 16, n = 5, fps = 4, ax = 16, ay = 8, behind = true, only = new[] { 4 } } },
+            { "Cataclysm", new Spec { w = 64, h = 32, n = 6, fps = 12, ax = 32, ay = 16 } },
+            { "Velocity", new Spec { w = 24, h = 24, n = 4, fps = 16, ax = 12, ay = 12, lift = 0.6f, behind = true } },
+            { "Sanctuary", new Spec { w = 64, h = 32, n = 6, fps = 10, ax = 32, ay = 16 } },
+            { "Lifebloom", new Spec { w = 16, h = 8, n = 4, fps = 12, ax = 8, ay = 4, lift = 0.6f } },
+            { "AllIn", new Spec { w = 32, h = 40, n = 6, fps = 10, ax = 16, ay = 35, behind = true } },
+            { "DoubleOrNothing", new Spec { w = 12, h = 12, n = 6, fps = 10, ax = 6, ay = 6, lift = 1.9f } },
+            { "DoubleOrNothing!", new Spec { file = "fx_ks_DoubleOrNothing_shatter", w = 16, h = 16, n = 4, fps = 12, ax = 8, ay = 8, lift = 1.9f } },
+        };
         // The looping effects showing now, per wizard and keystone.
         private static readonly Dictionary<string, Fx> looping = new Dictionary<string, Fx>();
         private static Material material;
@@ -30,7 +62,9 @@ namespace WoLChaosDepths
                 if (key == "Afterimage")
                     Afterimage(player);
                 else
-                    Spawn(player, key, false);
+                    // A one-shot of a lasting keystone has its own strip where Art drew one
+                    // (Archmage's flare, Double or Nothing's shatter).
+                    Spawn(player, specs.ContainsKey(key + "!") ? key + "!" : key, false);
             }
             catch (System.Exception e)
             {
@@ -95,25 +129,38 @@ namespace WoLChaosDepths
 
         private static Fx Spawn(Player player, string key, bool loop)
         {
-            string name = "fx_ks_" + key;
+            Spec spec;
+            specs.TryGetValue(key, out spec);
+            string name = spec != null && spec.file != null ? spec.file : "fx_ks_" + key;
             Texture2D tex = ItemArt.LoadPng(name);
             if (tex == null)
             {
                 Missing(key, "no " + name + ".png yet");
                 return null;
             }
-            int count = Mathf.Max(1, tex.width / Mathf.Max(1, tex.height));
+            // Without a spec: square frames, anchored at the bottom middle.
+            int count = spec != null ? spec.n : Mathf.Max(1, tex.width / Mathf.Max(1, tex.height));
+            Vector2 pivot = spec != null ? new Vector2(spec.ax / spec.w, (spec.h - spec.ay) / spec.h) : new Vector2(0.5f, 0.25f);
             SpriteRenderer body = player.spriteRenderer;
             float ppu = body.sprite != null && body.sprite.pixelsPerUnit > 0f ? body.sprite.pixelsPerUnit : 16f;
-            Sprite[] frames = ItemArt.Frames(name, count, new Vector2(0.5f, 0.25f), ppu);
+            Sprite[] frames = ItemArt.Frames(name, count, pivot, ppu);
             if (frames == null || frames.Length == 0)
             {
                 Missing(key, "couldn't cut " + name + ".png into " + count + " frames");
                 return null;
             }
+            if (spec != null && spec.only != null)
+            {
+                var picked = new List<Sprite>();
+                foreach (int i in spec.only)
+                    if (i >= 0 && i < frames.Length)
+                        picked.Add(frames[i]);
+                frames = picked.ToArray();
+            }
             var go = new GameObject("ChaosDepths Keystone " + key);
             Fx fx = go.AddComponent<Fx>();
-            fx.Init(player, body, frames, ppu, loop, Color.white);
+            fx.Init(player, body, frames, ppu, loop, Color.white, spec != null ? spec.fps : Fps,
+                spec != null ? spec.lift : 0f, spec != null && spec.behind);
             ChaosDepthsPlugin.Log($"Keystone: {key} {(loop ? "on" : "fired")} for player {player.playerID + 1}");
             return fx;
         }
@@ -171,13 +218,20 @@ namespace WoLChaosDepths
                 r.sortingOrder = body.sortingOrder - 5;
             }
 
-            public void Init(Player owner, SpriteRenderer ownerBody, Sprite[] strip, float pixels, bool loops, Color colour)
+            private float fps, lift;
+            private bool behind;
+
+            public void Init(Player owner, SpriteRenderer ownerBody, Sprite[] strip, float pixels, bool loops, Color colour,
+                float framesPerSecond, float above, bool drawBehind)
             {
                 player = owner;
                 body = ownerBody;
                 frames = strip;
                 ppu = pixels;
                 loop = loops;
+                fps = framesPerSecond;
+                lift = above;
+                behind = drawBehind;
                 born = Time.time;
                 r = gameObject.AddComponent<SpriteRenderer>();
                 r.material = Material();
@@ -188,7 +242,7 @@ namespace WoLChaosDepths
 
             private void LateUpdate()
             {
-                int frame = (int)((Time.time - born) * Fps);
+                int frame = (int)((Time.time - born) * fps);
                 if (player == null || body == null || (!loop && frame >= frames.Length) || (until >= 0f && Time.time >= until))
                 {
                     Destroy(gameObject);
@@ -200,11 +254,11 @@ namespace WoLChaosDepths
 
             private void Follow()
             {
-                Vector3 feet = pinned ? (Vector3)spot : player.transform.position;
+                Vector3 feet = pinned ? (Vector3)spot : player.transform.position + new Vector3(0f, lift, 0f);
                 transform.position = new Vector3(Mathf.Round(feet.x * ppu) / ppu, Mathf.Round(feet.y * ppu) / ppu, feet.z);
                 r.sortingLayerID = body.sortingLayerID;
                 if (!pinned)
-                    r.sortingOrder = body.sortingOrder + 20;
+                    r.sortingOrder = body.sortingOrder + (behind ? -1 : 20);
             }
         }
 
