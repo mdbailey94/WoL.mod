@@ -142,10 +142,21 @@ namespace WoLChaosDepths
                     bool canLearn = Talents.CantLearn(save, cloak, node) == null;
                     // ui_slot_frames: 0 empty, 2 blue (can learn), 3 gold (learned).
                     Frame(slots, 5, points > 0 ? 3 : canLearn ? 2 : 0, R(nx, ty, 20, 20));
+                    // WoL Art's icon (talent_<key>.png, 16x16 at +2,+2), grey at about 55% while
+                    // its tier is locked, under the padlock; a letter if the icon isn't there.
+                    Texture2D icon = Piece("talent_" + node.Key);
+                    if (icon != null)
+                    {
+                        Color previous = GUI.color;
+                        if (!open)
+                            GUI.color = new Color(0.55f, 0.55f, 0.55f, 1f);
+                        GUI.DrawTexture(R(nx + 2, ty + 2, 16, 16), icon);
+                        GUI.color = previous;
+                    }
+                    else if (open || padlock == null)
+                        Label(R(nx, ty + 6, 20, 9), node.Name.Substring(0, 1), PixelUI.Style(font, points > 0 ? Gold : open ? PixelUI.Text : PixelUI.Dim, TextAnchor.UpperCenter));
                     if (!open && padlock != null)
                         GUI.DrawTexture(R(nx + 7, ty + 7, 5, 5), padlock);
-                    else
-                        Label(R(nx, ty + 6, 20, 9), node.Name.Substring(0, 1), PixelUI.Style(font, points > 0 ? Gold : open ? PixelUI.Text : PixelUI.Dim, TextAnchor.UpperCenter));
                     // A pip per point: lit for each learned.
                     for (int p = 0; p < node.MaxPoints; p++)
                         PixelUI.Fill(R(nx + 22, ty + 14 - p * 4, 2, 2), p < points ? PixelUI.Accent : PixelUI.Dim);
