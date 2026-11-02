@@ -14,7 +14,7 @@ namespace WoLTidalWall
     {
         public const string PluginGuid = "mdbailey94.wol.tidalwall";
         public const string PluginName = "Tidal Wall";
-        public const string PluginVersion = "0.5.1";
+        public const string PluginVersion = "0.6.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -38,6 +38,8 @@ namespace WoLTidalWall
             pushHitStun, crashHitStun, sigPushHitStun, sigCrashHitStun, sigFreezeChance, sigFreezeDuration,
             pushImmunity, sigPushImmunity;
 
+        private static ConfigEntry<bool> waveBody;
+        public static bool WaveBody => waveBody?.Value ?? true;
         public static float RiseDistance => Get(riseDistance, 2f, 0.5f, 6f);
         public static int Columns => Get(columns, 5, 1, 15);
         public static float ColumnSpacing => Get(columnSpacing, 0.7f, 0.3f, 2f);
@@ -186,6 +188,9 @@ namespace WoLTidalWall
         private void BindSettings()
         {
             const string next = " Applies to the next cast.";
+            waveBody = Config.Bind("Look", "WaveBody", true,
+                "Draw the normal and enhanced wall as one continuous wave of water (0.6.0, #47). Off: the game's own " +
+                "spiky water pillars, as before 0.6.0. Looks only; the signature keeps its own look." + next);
             riseDistance = Float("Cast", "RiseDistance", 2f, 0.5f, 6f,
                 "How far in front of you the wall rises, in units (it stops short of a level wall in the way)." + next);
             columns = Int("Cast", "Columns", 5, 1, 15,

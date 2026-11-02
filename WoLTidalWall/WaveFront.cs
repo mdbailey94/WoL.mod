@@ -115,6 +115,9 @@ namespace WoLTidalWall
         private string crashReason = "crashed";
 
         private WaterWall wall;
+        // 0.6.0: columns already given a wave body, and their hidden pillar sprites.
+        private readonly HashSet<Transform> bodied = new HashSet<Transform>();
+        private readonly List<SpriteRenderer> hiddenPillars = new List<SpriteRenderer>();
         private bool wallUp;      // its columns actually rose (otherwise the spray stands in for them)
         private int columnsUp;
         private NegateProjectiles barrier;
@@ -346,9 +349,11 @@ namespace WoLTidalWall
                         StartRoll();
                     break;
                 case Phase.Rolling:
+                    HidePillars();
                     Roll(dt);
                     break;
                 case Phase.Crashed:
+                    HidePillars();
                     AfterCrash();
                     break;
             }
@@ -383,11 +388,30 @@ namespace WoLTidalWall
                         scaled[child] = child.localScale;
                         child.localScale = Vector3.Scale(child.localScale, new Vector3(s.ColumnScale, s.ColumnScale, 1f));
                     }
+                    // 0.6.0 (#47): the game's spiky pillar is hidden (its barrier stays) and the
+                    // wave's face is drawn in its place as soon as the column is up.
+                    if (look != null && look.BodiesOn && child.gameObject.activeSelf && bodied.Add(child))
+                    {
+                        foreach (SpriteRenderer pillar in child.GetComponentsInChildren<SpriteRenderer>(true))
+                            hiddenPillars.Add(pillar);
+                        Effects.Try("drawn wave body", () => look.Body(child));
+                    }
                 }
+                HidePillars();
             }
             catch (System.Exception e)
             {
                 LogWallOnce($"couldn't adjust the WaterWall's columns: {e.Message}");
+            }
+        }
+
+        // Keeps the hidden pillars hidden (their animator may turn them back on).
+        private void HidePillars()
+        {
+            foreach (SpriteRenderer pillar in hiddenPillars)
+            {
+                if (pillar != null && pillar.enabled)
+                    pillar.enabled = false;
             }
         }
 

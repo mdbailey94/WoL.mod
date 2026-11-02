@@ -132,6 +132,62 @@ namespace WoLTidalWall
                     c.Scatter(1f - q * 0.8f);
             });
 
+        // Wave body (0.6.0, #47): the face of the wave under the crest, drawn in place of the game's
+        // spiky water pillars so the wall reads as one sheet of water. A foot of churning foam, then
+        // bands of deep to pale water streaming up the face, leaning forward the way it rolls
+        // (lean) or standing straight (rolling up or down). Three frames rising out of the floor,
+        // six looping, four collapsing into specks. 24x26 (26 px is the pillars' 1.6 units), drawn
+        // rolling to the right; wide enough that neighbours overlap into one wall.
+        public const int BodyWidth = 24, BodyHeight = 26;
+        public static PixelAnim Body(bool lean) => PixelArt.Paint(lean ? "body lean" : "body", "wave body", BodyWidth, BodyHeight, 13, 12f, 3, 8,
+            new Vector2(0.5f, 0f), Water, (c, f) =>
+            {
+                const int W = BodyWidth, H = BodyHeight;
+                float[] rise = { 0.35f, 0.65f, 0.9f };
+                bool outro = f >= 9;
+                float q = outro ? (f - 8) / 4f : 0f;
+                float size = f < 3 ? rise[f] : outro ? 1f - q * 0.8f : 1f;
+                float p = (f < 3 ? 0 : outro ? 5 : f - 3) / 6f;
+                for (int x = 0; x < W; x++)
+                {
+                    // The top swells gently along the width, rolling forward a swell a loop, and
+                    // drops off at both ends so the wall's last columns round off.
+                    float swell = Mathf.Sin(x / (float)W * TwoPi * 1.5f - p * TwoPi);
+                    float edge = Mathf.Min(1f, Mathf.Min(x + 1, W - x) / 3f);
+                    int top = Mathf.RoundToInt((H - 3 + 1.5f * swell) * size * (0.75f + 0.25f * edge));
+                    int shard = (x * 7 + 3) % 5;
+                    for (int y = 0; y <= top; y++)
+                    {
+                        // Leaning: each row drawn a little further forward the higher it is.
+                        float px = x + (lean ? y * 5f / H : 0f);
+                        float h = y / (float)H;
+                        int colour;
+                        if (y <= 1)
+                            colour = (x + f) % 3 == 0 ? White : Pale;               // foam at the foot
+                        else if (y >= top - 1)
+                            colour = Pale;                                          // lit top edge under the crest
+                        else if ((y + f * 2 + shard) % 9 == 0 && shard != 0)
+                            colour = h > 0.5f ? Pale : Mid;                         // streaks running up the face
+                        else if (h < 0.35f)
+                            colour = shard == 0 ? Dark : Deep;
+                        else if (h < 0.7f)
+                            colour = shard == 0 ? Deep : shard == 2 ? Mid : Deep;
+                        else
+                            colour = shard == 0 ? Deep : Mid;
+                        c.Set(px, y, colour);
+                    }
+                }
+                // Foam splashing off the foot as it rolls (rising: off the floor it bursts from).
+                for (int k = 0; k < 4; k++)
+                {
+                    float at = (k * 6f + 2f + p * 12f) % W;
+                    c.Set(at, 2f + (f + k) % 2, White);
+                    c.Set(at + 1f, 3f + (f + k) % 2, Pale);
+                }
+                if (outro)
+                    c.Scatter(1f - q * 0.7f);
+            });
+
         // Surge: a jet of water shards bursting up, its crown breaking into specks (the stand-in
         // for the game's WaterHitSmall crown). Seven frames, 16x28.
         public static PixelAnim Surge => PixelArt.Paint("surge", "water splash crowns", 16, 28, 7, 16f, -1, -1,

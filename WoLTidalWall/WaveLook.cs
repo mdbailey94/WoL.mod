@@ -33,6 +33,11 @@ namespace WoLTidalWall
         private const float CrestOverlap = 1.2f;        // each crest this much wider than its column's spacing, so they join
         private const int CrestSortBias = 1;
         private const float CrestSafety = 1f;           // crests end by themselves this long after the wave should have crashed
+        // Wave bodies (0.6.0): each this much wider than its column's spacing so the face is one
+        // sheet, sorted just behind its crest; they can rise up to MaxRiseWait before the hold.
+        private const float BodyOverlap = 1.6f;
+        private const int BodySortBias = 0;
+        private const float MaxRiseWait = 0.5f;
         // Rise: one surge per column as it rises (WaveFront's RiseDelay and RiseInterval).
         private const float SurgeFirstDelay = 0.05f;
         private const float SurgeStagger = 0.03f;
@@ -96,9 +101,14 @@ namespace WoLTidalWall
         // Crests wide enough to overlap their neighbours into one line (and taller with the
         // signature's columns).
         private float CrestScale => Mathf.Max(1f, s.Spacing * CrestOverlap / (WaveArt.CrestWidth / PixelArt.PixelsPerUnit)) * s.ColumnScale;
+        private float BodyScale => Mathf.Max(1f, s.Spacing * BodyOverlap / (WaveArt.BodyWidth / PixelArt.PixelsPerUnit)) * s.ColumnScale;
+        // The face is drawn leaning forward when the wave rolls mostly sideways, straight up or down.
+        private readonly bool lean;
+        private readonly List<FxRef> bodies = new List<FxRef>();
+        public bool BodiesOn => TidalWallPlugin.WaveBody;
         private bool measured;
         // For the log.
-        private int surges, crestCount, droplets, plumes, puddles, bubbles, crowns, mists;
+        private int bodyCount, surges, crestCount, droplets, plumes, puddles, bubbles, crowns, mists;
 
         public WaveLook(WaveSettings settings)
         {
@@ -108,6 +118,7 @@ namespace WoLTidalWall
             // turned to the roll direction (snapped to 15 degrees by PixelFx), so a wave rolling
             // up or down, or diagonally, keeps its crest aligned with the way it's going.
             flip = s.Direction.x < -0.1f;
+            lean = Mathf.Abs(s.Direction.x) >= 0.5f;
             crestAngle = flip
                 ? -Mathf.Atan2(s.Direction.y, -s.Direction.x) * Mathf.Rad2Deg
                 : Mathf.Atan2(s.Direction.y, s.Direction.x) * Mathf.Rad2Deg;
@@ -184,6 +195,12 @@ namespace WoLTidalWall
                 return crestHeight;
             measured = true;
             crestHeight = CrestFallbackHeight;
+            if (BodiesOn)
+            {
+                // The column's own sprite is hidden: the crest caps the wave body instead.
+                crestHeight = WaveArt.BodyHeight / PixelArt.PixelsPerUnit * BodyScale;
+                return crestHeight;
+            }
             try
             {
                 if (body != null && body.sprite != null)
@@ -325,12 +342,34 @@ namespace WoLTidalWall
             }
         }
 
-        // The crash: the crests break apart, the foam lets go of everyone.
+        // A water column has come up (with [Look] WaveBody on, its own spiky sprite is hidden): the
+        // face of the wave rises out of the floor in its place and rides along with it.
+        public void Body(Transform column)
+        {
+            if (column == null)
+                return;
+            float life = s.HoldTime + s.RollTime + CrestSafety + MaxRiseWait;
+            PixelFx fx = PixelFx.Spawn(WaveArt.Body(lean), column.position, FxLayer.Actor, BodySortBias);
+            if (fx == null)
+                return;
+            fx.Follow(column, Vector2.zero).Loop(life).Flip(flip).Scale(BodyScale);
+            // Sorted where the hidden column would be, just behind its crest.
+            SpriteRenderer pillar = column.GetComponentInChildren<SpriteRenderer>(true);
+            if (pillar != null)
+                fx.SortWith(pillar, BodySortBias);
+            bodies.Add(fx.Ref);
+            bodyCount++;
+        }
+
+        // The crash: the crests and the wave's face break apart, the foam lets go of everyone.
         public void Crash()
         {
             foreach (FxRef crest in crests)
                 crest.Stop();
             crests.Clear();
+            foreach (FxRef body in bodies)
+                body.Stop();
+            bodies.Clear();
             foreach (Churned churn in churned.Values)
             {
                 churn.front.Stop();
@@ -343,7 +382,7 @@ namespace WoLTidalWall
         public void End() => Crash();
 
         public string Summary() =>
-            $"Tidal Wall: look: {surges} rising surges, {crestCount} foam crests (columns {crestHeight:0.0} tall), " +
+            $"Tidal Wall: look: {surges} rising surges, {(BodiesOn ? $"{bodyCount} wave bodies, " : "")}{crestCount} foam crests (columns {crestHeight:0.0} tall), " +
             $"{droplets} droplets, {plumes} sprays, {puddles} puddles, churned {everChurned.Count} enemies ({bubbles} bubbles), " +
             $"crash {crowns} splashes and {mists} mist puffs ({PixelFx.Live} drawn effects still playing)";
     }
