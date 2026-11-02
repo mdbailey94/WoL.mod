@@ -18,6 +18,12 @@ namespace WoLChaosDepths
     //   F12 dump the game's textures named in [Debug] DumpTextures as PNGs (reference art)
     //   F10 auto-dive: clear floor after floor (as F7) until the run leaves the trials (e.g. the dive
     //       director sends you back to the Hub), logging each step. Start it on a trial floor.
+    // With Shift held (0.19.4, for the tester):
+    //   Shift+F9  the first wizard gains a level      Shift+F4  drop a Common, Magic, Rare and
+    //                                                            Legendary item at the feet
+    //   Shift+F7  clear the exit room and stop at its portal (F7 without taking it)
+    //   Shift+F10 start a run from the house or the Hub (no walking to the portal)
+    //   Shift+F8  win the run: the dive complete (Ascension's unlock), back to the Hub
     public static class DebugKeys
     {
         private const int MaxSteps = 40;
@@ -47,6 +53,26 @@ namespace WoLChaosDepths
             if (!ChaosDepthsPlugin.DebugEnabled)
                 return;
             Hook();
+            // Shift + a key: the tester's shortcuts (0.19.4, Matt: cut the time spent playing).
+            if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+            {
+                if (Input.GetKeyDown(KeyCode.F9))
+                    GrantLevel();
+                if (Input.GetKeyDown(KeyCode.F4))
+                    DropTestItems();
+                if (Input.GetKeyDown(KeyCode.F7))
+                {
+                    if (InTrials())
+                        host.StartCoroutine(ClearFloor(30f, false));
+                    else
+                        ChaosDepthsPlugin.Log("Debug: Shift+F7 clears the exit room in the trials only");
+                }
+                if (Input.GetKeyDown(KeyCode.F10))
+                    host.StartCoroutine(StartRun());
+                if (Input.GetKeyDown(KeyCode.F8))
+                    WinRun();
+                return;
+            }
             if (Input.GetKeyDown(KeyCode.F6))
                 KillAll();
             if (Input.GetKeyDown(KeyCode.F7))
@@ -432,7 +458,8 @@ namespace WoLChaosDepths
 
         // Skip to the exit room, summon the mini-boss, kill everything that appears until the exit
         // portal spawns (up to maxSeconds), then take it. Yields; the caller checks the scene.
-        private static IEnumerator ClearFloor(float maxSeconds)
+        // takeExit false (Shift+F7): stop once the exit portal is there, the wizard beside it.
+        private static IEnumerator ClearFloor(float maxSeconds, bool takeExit = true)
         {
             int load = loads;
             KillAll();
@@ -496,6 +523,16 @@ namespace WoLChaosDepths
             ChaosDepthsPlugin.Log($"Debug: {kills} kill sweep(s) hit {hits} enemies in {waited:0.0} s");
             if (loads != load)
                 yield break;
+            if (!takeExit)
+            {
+                Player wizard = FirstPlayer();
+                if (exit != null && wizard != null)
+                    wizard.transform.position = exit.transform.position + new Vector3(0f, -3f, 0f);
+                ChaosDepthsPlugin.Log(exit != null
+                    ? $"Debug: exit room cleared; exit portal '{exit.name}' at ({exit.transform.position.x:0.0}, {exit.transform.position.y:0.0}), wizard put 3 u below it"
+                    : $"Debug: exit room not cleared in {maxSeconds:0} s (no exit portal)");
+                yield break;
+            }
             if (exit != null)
             {
                 ChaosDepthsPlugin.Log($"Debug: exit portal '{exit.name}' appeared");
@@ -771,6 +808,120 @@ namespace WoLChaosDepths
             {
                 ChaosDepthsPlugin.LogError($"Debug money: {e.Message}");
             }
+        }
+
+        // ---- Shift shortcuts ----
+
+        // Shift+F9: the first wizard gains a level (any save), through the normal experience path.
+        private static void GrantLevel()
+        {
+            Player player = FirstPlayer();
+            if (player == null || ChaosDepthsPlugin.Instance == null)
+            {
+                ChaosDepthsPlugin.Log("Debug: Shift+F9 needs a wizard");
+                return;
+            }
+            ChaosDepthsPlugin.Instance.DebugGrantLevel(player);
+        }
+
+        // Shift+F4: one item of each rarity (Common to Legendary) on the floor at the feet, real
+        // items for the first wizard, to check the drop rings, names and the Legendary pillar.
+        private static void DropTestItems()
+        {
+            Player player = FirstPlayer();
+            if (player == null || ChaosDepthsPlugin.Instance == null)
+            {
+                ChaosDepthsPlugin.Log("Debug: Shift+F4 needs a wizard");
+                return;
+            }
+            for (int rarity = 0; rarity <= 3; rarity++)
+                ChaosDepthsPlugin.Instance.DebugDrop(player, rarity);
+            ChaosDepthsPlugin.Log("Debug: dropped a Common, Magic, Rare and Legendary item at the wizard's feet");
+        }
+
+        // Shift+F10: from the house or the Hub, straight into the trials: the house's exit to the
+        // Hub, then the Hub's trials portal, each loaded as if the wizard had used it.
+        private static IEnumerator StartRun()
+        {
+            if (InTrials())
+            {
+                ChaosDepthsPlugin.Log("Debug: Shift+F10: already in the trials");
+                yield break;
+            }
+            string scene = DiveDirector.CurrentScene();
+            ChaosDepthsPlugin.Log($"Debug: Shift+F10: starting a run from {Where()}");
+            if (scene == "PlayerRoom")
+            {
+                int load = loads;
+                if (!UseLoader(l => l.nextLevelName == "Hub", "the house's exit to the Hub"))
+                    yield break;
+                float waited = 0f;
+                while (loads == load && waited < 20f)
+                {
+                    yield return new WaitForSecondsRealtime(0.5f);
+                    waited += 0.5f;
+                }
+                yield return new WaitForSecondsRealtime(2f);
+                scene = DiveDirector.CurrentScene();
+            }
+            if (scene != "Hub")
+            {
+                ChaosDepthsPlugin.Log($"Debug: Shift+F10 starts a run from the house or the Hub only (now in {Where()})");
+                yield break;
+            }
+            int before = loads;
+            // The trials portal: the Hub's active loader that doesn't lead back to the house.
+            if (!UseLoader(l => l.gameObject.activeInHierarchy && l.nextLevelName != "PlayerRoom", "the Hub's trials portal"))
+                yield break;
+            float wait = 0f;
+            while (loads == before && wait < 20f)
+            {
+                yield return new WaitForSecondsRealtime(0.5f);
+                wait += 0.5f;
+            }
+            yield return new WaitForSecondsRealtime(1f);
+            ChaosDepthsPlugin.Log(InTrials() ? $"Debug: Shift+F10: run started, now in {Where()}" : $"Debug: Shift+F10: the portal didn't start a run (now in {Where()})");
+        }
+
+        // Puts the wizards on the first loader that fits and loads it as if they had walked in.
+        private static bool UseLoader(Func<NextLevelLoader, bool> fits, string what)
+        {
+            try
+            {
+                foreach (NextLevelLoader loader in UnityEngine.Object.FindObjectsOfType<NextLevelLoader>())
+                {
+                    if (loader == null || !fits(loader))
+                        continue;
+                    Player[] players = GameController.activePlayers;
+                    if (players != null)
+                        foreach (Player p in players)
+                            if (p != null)
+                                p.transform.position = loader.transform.position;
+                    loader.forceTriggerExit = true;
+                    loader.LoadNextLevel();
+                    ChaosDepthsPlugin.Log($"Debug: took {what} '{loader.name}' (to '{loader.nextLevelName}', queued '{GameController.queuedLevelName}')");
+                    return true;
+                }
+                ChaosDepthsPlugin.Log($"Debug: couldn't find {what}");
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"Debug {what}: {e.Message}");
+            }
+            return false;
+        }
+
+        // Shift+F8: count the run as won (the dive complete: Ascension unlocks the next level when
+        // this was the highest) and go back to the Hub.
+        private static void WinRun()
+        {
+            if (!InTrials())
+            {
+                ChaosDepthsPlugin.Log("Debug: Shift+F8 wins a run in the trials only");
+                return;
+            }
+            ChaosDepthsPlugin.Log($"Debug: Shift+F8: run won at Ascension {AscensionLink.Level} in {Where()}; back to the Hub");
+            DiveDirector.DebugWin();
         }
 
         private static Player FirstPlayer()

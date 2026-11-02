@@ -240,6 +240,21 @@ namespace WoLChaosDepths
             ChaosDepthsPlugin.Log($"Dive ({when}): floors per realm {floors} (the game's counter {before} -> {counter})");
         }
 
+        // Debug (Shift+F8): the dive as if its last boss fell, then home to the Hub.
+        public static void DebugWin()
+        {
+            EndDive(true);
+            try
+            {
+                NextLevelLoader.SetLevelInfo(HubScene);
+                GameController.LoadLevel(HubScene);
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"Debug win: {e.Message}");
+            }
+        }
+
         // Every level load: keep the floor count, and log what the game thinks the run is.
         private static void EndDive(bool toHub = true)
         {

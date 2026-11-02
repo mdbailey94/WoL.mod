@@ -198,6 +198,7 @@ namespace WoLChaosDepths
                 GameDataManager.LoadInitial(true);
                 cachedName = null;
                 log.LogInfo($"Profile save: switched to {NameOf(next).ToLowerInvariant()} ({profileRoot})");
+                log.LogInfo($"Title: save slot -> {NameOf(next).ToUpperInvariant()}");
                 return true;
             }
             catch (Exception e)

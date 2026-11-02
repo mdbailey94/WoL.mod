@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.19.3";
+        public const string PluginVersion = "0.19.4";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -177,7 +177,7 @@ namespace WoLChaosDepths
             ProfileSave.Bind(Config);
             Pickups.Collected = Collect;
             debugEnabled = Config.Bind("Debug", "Enabled", false,
-                "Test keys: F6 kill all enemies, F7 skip floor, F8 god mode, F9 gold, F10 auto-dive (kill and skip floor after floor until the run ends), F5 spawn one elite of each affix, F3 open a rift on this floor, F4 give one of each unique legendary, F11 log every relic's ID and name.");
+                "Test keys: F6 kill all enemies, F7 skip floor, F8 god mode, F9 gold, F10 auto-dive (kill and skip floor after floor until the run ends), F5 spawn one elite of each affix, F3 open a rift on this floor, F4 give one of each unique legendary, F11 log every relic's ID and name. With Shift: Shift+F9 gain a level, Shift+F4 drop one item of each rarity at the feet, Shift+F7 clear the exit room and stop at its portal, Shift+F10 start a run from the house or the Hub, Shift+F8 win the run (Ascension unlock) and go back to the Hub.");
             Hitches.Bind(Config);
             PortalProbe.Bind(Config);
             showcaseEnemy = Config.Bind("Debug", "ShowcaseEnemy", "Knight",
@@ -1032,6 +1032,26 @@ namespace WoLChaosDepths
             Log($"Player {player.playerID + 1} reached level {save.level} ({save.xp}/{XpToNext(save.level)} xp to the next)");
             StatMods.Apply(player, save);
             SaveStore.Save(player.playerID, save);
+        }
+
+        // Debug (Shift+F9): exactly the experience this wizard lacks for the next level.
+        public void DebugGrantLevel(Player player)
+        {
+            CharacterSave save = CharacterOf(player);
+            if (save.level >= levelCap.Value)
+            {
+                Log($"Debug: player {player.playerID + 1} is at the level cap ({levelCap.Value})");
+                return;
+            }
+            int xp = Mathf.Max(1, XpToNext(save.level) - save.xp);
+            Log($"Debug: +{xp} xp to player {player.playerID + 1} for level {save.level + 1}");
+            AddXp(player, save, xp);
+        }
+
+        // Debug (Shift+F4): an item of exactly this rarity on the floor at the wizard's feet.
+        public void DebugDrop(Player player, int rarity)
+        {
+            Drop(player, CharacterOf(player), rarity, player.transform.position, exactRarity: rarity, randomAllocation: false);
         }
 
         // ---- Loot ----
