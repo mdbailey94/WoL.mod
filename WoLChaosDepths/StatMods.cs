@@ -32,6 +32,8 @@ namespace WoLChaosDepths
                     totals[affix.key] = current + affix.value;
                 }
             }
+            // Phase 1a: the worn cloak's talents count like gear (nothing while [Talents] is off).
+            TalentEffects.AddStats(player, totals);
             float levelHealth = HealthPerLevel * (save.level - 1);
 
             // Only touch the game when something changed.
