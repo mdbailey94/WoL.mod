@@ -136,9 +136,10 @@ namespace WoLChaosDepths
             if (tex != null && frameCount > 0 && tex.width % frameCount == 0)
             {
                 int w = tex.width / frameCount;
+                Vector2 snapped = WholePixel(pivot, w, tex.height);
                 result = new Sprite[frameCount];
                 for (int i = 0; i < frameCount; i++)
-                    result[i] = UnityEngine.Sprite.Create(tex, new Rect(i * w, 0, w, tex.height), pivot, ppu);
+                    result[i] = UnityEngine.Sprite.Create(tex, new Rect(i * w, 0, w, tex.height), snapped, ppu);
             }
             else
             {
@@ -148,6 +149,15 @@ namespace WoLChaosDepths
             }
             sheets[key] = result;
             return result;
+        }
+
+        // A pivot moved onto a pixel edge (#38). The parts are placed at whole-pixel offsets, so a
+        // centred pivot on an odd-width frame (a 7-wide pendant, the 5x3 eyes, a 7x7 trail puff)
+        // put every pixel half a pixel off the wizard's. Odd sizes take the centre column's left
+        // (or the centre row's bottom) edge, as WoL Art's sheets are drawn; even sizes don't move.
+        public static Vector2 WholePixel(Vector2 pivot, int width, int height)
+        {
+            return new Vector2(Mathf.Floor(pivot.x * width + 0.001f) / width, Mathf.Floor(pivot.y * height + 0.001f) / height);
         }
 
         public static string RarityName(int tier) => tier <= 0 ? "common" : tier == 1 ? "magic" : tier == 2 ? "rare" : "legendary";

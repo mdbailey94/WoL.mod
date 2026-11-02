@@ -94,7 +94,7 @@ namespace WoLChaosDepths
             var tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
             tex.SetPixels32(px);
             tex.Apply();
-            s = Sprite.Create(tex, new Rect(0, 0, w, h), pivot, ppu);
+            s = Sprite.Create(tex, new Rect(0, 0, w, h), ItemArt.WholePixel(pivot, w, h), ppu);
             sprites[k] = s;
             return s;
         }
@@ -211,7 +211,7 @@ namespace WoLChaosDepths
                 int w = tex.width / 4;
                 frames = new Sprite[4];
                 for (int i = 0; i < 4; i++)
-                    frames[i] = Sprite.Create(tex, new Rect(i * w, 0, 3, tex.height), new Vector2(0.5f, 0.5f), ppu);
+                    frames[i] = Sprite.Create(tex, new Rect(i * w, 0, 3, tex.height), ItemArt.WholePixel(new Vector2(0.5f, 0.5f), 3, tex.height), ppu);
             }
             oneEye[key] = frames;
             return frames;
