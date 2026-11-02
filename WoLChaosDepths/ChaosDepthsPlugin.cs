@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.21.1";
+        public const string PluginVersion = "0.22.0";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -154,6 +154,7 @@ namespace WoLChaosDepths
             }
             InventoryPanel.BindLook(Config);
             Talents.Bind(Config);
+            ArcanaLevels.Bind(Config);
             try
             {
                 TalentEffects.Install(Logger);
@@ -161,6 +162,14 @@ namespace WoLChaosDepths
             catch (Exception e)
             {
                 Logger.LogError($"Talent effects failed to install: {e.Message}");
+            }
+            try
+            {
+                LoadoutSets.Install(Config, Logger);
+            }
+            catch (Exception e)
+            {
+                Logger.LogError($"Loadout sets failed to install: {e.Message}");
             }
             diveEnabled = Config.Bind("Dive", "Enabled", true,
                 "Shape the run as a dive (the settings below) and log what the game does with it.");
@@ -200,6 +209,7 @@ namespace WoLChaosDepths
                 "Relic IDs (comma separated) given to the first player when the auto-dive (F10) starts, e.g. one that speeds up getting to the exit room. Press F11 in a run to log every relic's ID and name.");
             var harmony = new Harmony(PluginGuid);
             ProfileSave.Install(harmony, Logger);
+            ArcanaLevels.Install(harmony);
             try
             {
                 DiveDirector.Install(harmony);
@@ -473,7 +483,7 @@ namespace WoLChaosDepths
 
         // The wizard playing on the keyboard: the one whose input is set to it, else the one
         // whose controls include the keyboard, else the first.
-        private static Player KeyboardPlayer(Player[] players)
+        internal static Player KeyboardPlayer(Player[] players)
         {
             foreach (Player p in players)
                 if (p != null && p.inputDevice != null && p.inputDevice.inputScheme == ChaosInputDevice.InputScheme.Keyboard)
@@ -639,7 +649,7 @@ namespace WoLChaosDepths
 
         public void SaveCharacter(Player player, CharacterSave save) => SaveStore.Save(player.playerID, save);
 
-        private CharacterSave CharacterOf(Player player)
+        internal CharacterSave CharacterOf(Player player)
         {
             CharacterSave save;
             if (!characters.TryGetValue(player.playerID, out save))

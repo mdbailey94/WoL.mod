@@ -30,6 +30,27 @@ namespace WoLChaosDepths
         public List<string> equipped = new List<string>();
         // Phase 1a: talent points spent, per cloak (Talents.cs).
         public List<TalentData> talents = new List<TalentData>();
+        // Phase 1c: named sets of cloak + arcana + gear (LoadoutSets.cs); talents follow the cloak.
+        public List<LoadoutData> loadouts = new List<LoadoutData>();
+        // Phase 1b: each arcana's xp (casts in runs; ArcanaLevels.cs).
+        public List<ArcanaData> arcana = new List<ArcanaData>();
+    }
+
+    [Serializable]
+    public class ArcanaData
+    {
+        public string arcana;  // the skill ID
+        public int xp;
+    }
+
+    [Serializable]
+    public class LoadoutData
+    {
+        public string name;
+        public string cloak;                                    // the game's outfit ID
+        public List<string> skills = new List<string>();        // arcana per slot (Player.assignedSkills order)
+        public int signatureSlot = -1;
+        public List<string> equipped = new List<string>();      // item ids, as CharacterSave.equipped
     }
 
     [Serializable]
@@ -141,10 +162,14 @@ namespace WoLChaosDepths
         {
             if (save.inventory == null)
                 save.inventory = new List<ItemData>();
+            if (save.loadouts == null)
+                save.loadouts = new List<LoadoutData>();
             if (save.equipped == null)
                 save.equipped = new List<string>();
             if (save.talents == null)
                 save.talents = new List<TalentData>();
+            if (save.arcana == null)
+                save.arcana = new List<ArcanaData>();
             while (save.equipped.Count < LootTable.Slots.Length)
                 save.equipped.Add("");
             save.depthReached = Math.Max(1, save.depthReached);
