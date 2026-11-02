@@ -38,6 +38,23 @@ namespace WoLChaosDepths
             }
         }
 
+        // A keystone's effect left on the floor at a spot, looping for this long (Sanctuary's circle).
+        public static void FireAt(Player player, Vector2 spot, string key, float seconds)
+        {
+            if (!Talents.Enabled || player == null || player.spriteRenderer == null)
+                return;
+            try
+            {
+                Fx fx = Spawn(player, key, true);
+                if (fx != null)
+                    fx.Pin(spot, seconds);
+            }
+            catch (System.Exception e)
+            {
+                Missing(key, e.Message);
+            }
+        }
+
         // A lasting keystone turned on or off (Last Stand under 30% health, Flurry's stacks, ...).
         // Calling it every frame with the same value is fine.
         public static void SetActive(Player player, string key, bool on)
@@ -140,8 +157,19 @@ namespace WoLChaosDepths
             private Player player;
             private SpriteRenderer body, r;
             private Sprite[] frames;
-            private float ppu, born;
-            private bool loop;
+            private float ppu, born, until = -1f;
+            private bool loop, pinned;
+            private Vector2 spot;
+
+            // Stays at a spot (under the wizards, on the floor) until the time is up.
+            public void Pin(Vector2 at, float seconds)
+            {
+                pinned = true;
+                spot = at;
+                until = Time.time + seconds;
+                Follow();
+                r.sortingOrder = body.sortingOrder - 5;
+            }
 
             public void Init(Player owner, SpriteRenderer ownerBody, Sprite[] strip, float pixels, bool loops, Color colour)
             {
@@ -161,7 +189,7 @@ namespace WoLChaosDepths
             private void LateUpdate()
             {
                 int frame = (int)((Time.time - born) * Fps);
-                if (player == null || body == null || (!loop && frame >= frames.Length))
+                if (player == null || body == null || (!loop && frame >= frames.Length) || (until >= 0f && Time.time >= until))
                 {
                     Destroy(gameObject);
                     return;
@@ -172,10 +200,11 @@ namespace WoLChaosDepths
 
             private void Follow()
             {
-                Vector3 feet = player.transform.position;
+                Vector3 feet = pinned ? (Vector3)spot : player.transform.position;
                 transform.position = new Vector3(Mathf.Round(feet.x * ppu) / ppu, Mathf.Round(feet.y * ppu) / ppu, feet.z);
                 r.sortingLayerID = body.sortingLayerID;
-                r.sortingOrder = body.sortingOrder + 20;
+                if (!pinned)
+                    r.sortingOrder = body.sortingOrder + 20;
             }
         }
 
