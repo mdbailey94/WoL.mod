@@ -7,7 +7,8 @@ namespace WoLBrambleRing
 {
     // Slams the ground (Rippling Vines' slam) and knits a thicket of thorny vines around the
     // wizard: the game's own vine traps (VineTrap, the vines Rippling Vines and the Root Shield
-    // relic raise) in two rows, each with its own grabbing hit box. The thicket stands where it
+    // relic raise) in a ring (0.7.0; two rows before, now behind [Cast] InnerRow), each with its
+    // own grabbing hit box. The thicket stands where it
     // was cast for a few seconds, and the wizard is free to walk off. Every enemy inside it, or
     // that walks into it, is snared (the game's root status: held in place, no knockback) and
     // pricked by the thorns every half second while it stays; a vine that catches an enemy
@@ -337,20 +338,28 @@ namespace WoLBrambleRing
         {
             ring.vines = NewVines(ring);
             CastEffects(ring.center);
-            Look(ring, "drawn roots", look => look.Cast());
 
             // A random turn for each cast, so the vines don't always stand in the same places.
             float spin = Random.Range(0f, 360f);
             var positions = new List<Vector2>();
-            int blocked = BrambleVines.RowPositions(ring.center, InnerRowRadius, spin, VineSpacing, MinVinesPerRow, false, positions);
-            yield return parent.StartCoroutine(RaiseRow(ring, positions));
-            Look(ring, "drawn undergrowth", look => look.Row(positions, InnerRowRadius));
-            yield return new WaitForSeconds(RowInterval);
-            positions.Clear();
-            blocked += BrambleVines.RowPositions(ring.center, OuterRowRadius, spin, VineSpacing, MinVinesPerRow, true, positions);
+            int blocked = 0;
+            // 0.7.0 (#45): just the ring, the outer row; the inner row and the roots creeping out
+            // from the wizard's feet to it are only knitted with [Cast] InnerRow on.
+            bool innerRow = BrambleRingPlugin.InnerRow;
+            if (innerRow)
+            {
+                Look(ring, "drawn roots", look => look.Cast());
+                blocked = BrambleVines.RowPositions(ring.center, InnerRowRadius, spin, VineSpacing, MinVinesPerRow, false, positions);
+                yield return parent.StartCoroutine(RaiseRow(ring, positions));
+                Look(ring, "drawn undergrowth", look => look.Row(positions, InnerRowRadius));
+                yield return new WaitForSeconds(RowInterval);
+                positions.Clear();
+            }
+            blocked += BrambleVines.RowPositions(ring.center, OuterRowRadius, spin, VineSpacing, MinVinesPerRow, innerRow, positions);
             yield return parent.StartCoroutine(RaiseRow(ring, positions));
             Look(ring, "drawn undergrowth", look => look.Row(positions, OuterRowRadius));
-            Log($"knitted {ring.vines.Count} vines in 2 rows {InnerRowRadius:0.0}-{OuterRowRadius:0.0} out" +
+            Log((innerRow ? $"knitted {ring.vines.Count} vines in 2 rows {InnerRowRadius:0.0}-{OuterRowRadius:0.0} out"
+                    : $"knitted {ring.vines.Count} vines in 1 ring {OuterRowRadius:0.0} out") +
                 (blocked > 0 ? $" ({blocked} skipped in walls or pits)" : ""));
 
             if (!ring.enhanced)

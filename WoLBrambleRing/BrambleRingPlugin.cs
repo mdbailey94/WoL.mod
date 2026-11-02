@@ -14,7 +14,7 @@ namespace WoLBrambleRing
     {
         public const string PluginGuid = "mdbailey94.wol.bramblering";
         public const string PluginName = "Bramble Ring";
-        public const string PluginVersion = "0.6.1";
+        public const string PluginVersion = "0.7.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -35,6 +35,8 @@ namespace WoLBrambleRing
         private static ConfigEntry<int> catchDamage, prickDamage, sigCatchDamage, sigPrickDamage, snapDamage;
         private static ConfigEntry<float> cooldown, knockback, hitStun, rootChance, rootDuration, slowChance;
 
+        private static ConfigEntry<bool> innerRowOn;
+        public static bool InnerRow => innerRowOn?.Value ?? false;
         public static float Duration => Get(duration, 3f, 0.5f, 20f);
         public static float InnerRowRadius => Get(innerRow, 0.8f, 0.3f, 6f);
         public static float OuterRowRadius => Get(outerRow, 1.5f, 0.3f, 8f);
@@ -176,7 +178,10 @@ namespace WoLBrambleRing
         {
             const string next = " Applies to the next cast.";
             duration = Float("Cast", "Duration", 3f, 0.5f, 20f, "Seconds the thicket stands." + next);
-            innerRow = Float("Cast", "InnerRowRadius", 0.8f, 0.3f, 6f, "Distance in units from the centre to the inner row of vines." + next);
+            innerRowOn = Config.Bind("Cast", "InnerRow", false,
+                "Also knit an inner row of vines, with roots creeping out to it from your feet (the two-row thicket " +
+                "before 0.7.0). Off: just the ring, at OuterRowRadius. Normal and enhanced; the signature keeps its rows." + next);
+            innerRow = Float("Cast", "InnerRowRadius", 0.8f, 0.3f, 6f, "Distance in units from the centre to the inner row of vines (with InnerRow on)." + next);
             outerRow = Float("Cast", "OuterRowRadius", 1.5f, 0.3f, 8f, "Distance in units from the centre to the outer row of vines." + next);
             reachPastRows = Float("Cast", "ReachPastRows", 0.5f, 0f, 3f,
                 "How many units past its widest row the thicket reaches: every enemy within that is pricked and snared " +

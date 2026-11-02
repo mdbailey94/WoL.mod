@@ -26,7 +26,9 @@ a **signature version**, so it can go in the signature slot.
 | Signature | All three rows erupt outward, wider than the enhanced thicket (rows 1.4, 2.4 and 3.5 out, reach 4; 0.4.2 widened it from 3.4), stands 6 s, 10 for the catch and 6 a prick, every half second each snared enemy is dragged 0.5 units toward the centre, and a closing crush of 12 on everything inside (88 for an enemy held the whole way) |
 
 Your wizard slams the ground (Rippling Vines' slam) and thorny vines knit a thicket around them,
-one after another round the ring, in two rows about 0.8 and 1.5 units out. The vines are the
+one after another round a single ring about 1.5 units out (0.7.0, #45: the inner row at 0.8 and
+the roots creeping out to it from your feet are gone; `[Cast] InnerRow = true` brings them back;
+the reach and the signature are unchanged). The vines are the
 game's own vine traps, the ones Rippling Vines and the Root Shield relic raise, each with its own
 grabbing hit box. The thicket stands where it was cast for **3 seconds** while you walk off (or
 stay inside it, nothing in it hurts you).
