@@ -298,8 +298,10 @@ namespace WoLChaosDepths
             tears.Clear();
         }
 
-        // Stood on the exit's floor: the bottom centre of its pictures (the loader's own position
-        // when it has none), with the tear's floor glow (5 px up its 56) just above that edge.
+        // The tear's floor glow (5 px up its 56) on the exit's own position, the centre of its pad.
+        // 0.19.3 stood it on the bottom of the exit's pictures, 3 u lower, which put it on the front
+        // half of the pad (#19 retest: tear at y -170, ExitPortal at -167). The pictures are still
+        // read for the sort order and logged, to tell the two apart if the pad moves.
         private static GameObject Tear(Transform loader)
         {
             SpriteRenderer under = null;
@@ -315,12 +317,14 @@ namespace WoLChaosDepths
                     under = sr;
             }
             const float ppu = 16f;
-            Sprite[] frames = ItemArt.Frames("rift_portal", 8, any ? new Vector2(0.5f, 0f) : new Vector2(0.5f, 5f / 56f), ppu);
+            Sprite[] frames = ItemArt.Frames("rift_portal", 8, new Vector2(0.5f, 5f / 56f), ppu);
             if (frames == null)
                 return null;
+            if (any)
+                ChaosDepthsPlugin.Log($"Rift: the exit's pictures span x {b.min.x:0.0} to {b.max.x:0.0}, y {b.min.y:0.0} to {b.max.y:0.0}; its position is ({loader.position.x:0.0}, {loader.position.y:0.0})");
             var go = new GameObject("ChaosDepthsRiftTear");
             go.transform.SetParent(loader.transform, true);
-            float x = Mathf.Round(b.center.x * ppu) / ppu, y = Mathf.Round((any ? b.min.y : loader.transform.position.y) * ppu) / ppu;
+            float x = Mathf.Round(loader.position.x * ppu) / ppu, y = Mathf.Round(loader.position.y * ppu) / ppu;
             go.transform.position = new Vector3(x, y, loader.transform.position.z);
             var r = go.AddComponent<SpriteRenderer>();
             if (tearMaterial == null)
