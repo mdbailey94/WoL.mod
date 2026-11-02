@@ -77,3 +77,7 @@ To build your change into the game (Windows):
 
 If the build fails, it prints the file and line with the problem (usually a missing `;` or `f`
 after a decimal number, like `1.5f`).
+
+## Momentum Spear
+
+[WoLMomentumSpear](WoLMomentumSpear/README.md) adds a three-hit Air basic arcana. The opener scales with actual pre-attack velocity; follow-up and finisher damage stay fixed. Installed in the base game and the Chaos Depths profile; not yet played.

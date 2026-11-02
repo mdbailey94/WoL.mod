@@ -1,0 +1,63 @@
+{
+  "passed": true,
+  "exit_code": 0,
+  "current_source_and_references_unchanged": true,
+  "diagnostics": "",
+  "output": "C:\\Users\\mdbai\\AppData\\Local\\LocalAI\\tests\\MomentumSpear\\installed-a8be05e5f6634662a1d10a9caa85df81\\WoLMomentumSpear.dll",
+  "inputs": [
+    {
+      "file": "C:\\Users\\mdbai\\source\\wol.mod\\WoLMomentumSpear\\SpearLook.cs",
+      "sha256": "CBED6BDDBA8C9C8B221D43FB586E021086458144E9BD2F1F40D500B45E867312"
+    },
+    {
+      "file": "C:\\Users\\mdbai\\source\\wol.mod\\WoLMomentumSpear\\SpearMomentumCapture.cs",
+      "sha256": "1701415B423D41B05D8CF249BD553B501B903A8BF083A6A7E63D6E34CACA7DCC"
+    },
+    {
+      "file": "C:\\Users\\mdbai\\source\\wol.mod\\WoLMomentumSpear\\SpearPlugin.cs",
+      "sha256": "EB46356A4D5BB579E21E8441317B27A7D3C4D14799840F3979384BC3EDD358FE"
+    },
+    {
+      "file": "C:\\Users\\mdbai\\source\\wol.mod\\WoLMomentumSpear\\SpearRules.cs",
+      "sha256": "3368A8D7C0B382EA2A9F91DA0A2156F79E13F2CF0FA250CA95D6B9D512B5D146"
+    },
+    {
+      "file": "C:\\Users\\mdbai\\source\\wol.mod\\WoLMomentumSpear\\SpearState.cs",
+      "sha256": "01EDD798BD46691DE377E43F7D6AD70A8DD52DA6810E2F91B063041ABA6612E7"
+    },
+    {
+      "file": "C:\\Users\\mdbai\\.nuget\\packages\\microsoft.netframework.referenceassemblies.net35\\1.0.3\\build\\.NETFramework\\v3.5\\mscorlib.dll",
+      "sha256": "881B727119658DE055DD21DEDCE18C0DF6C7671B4D56ADEE0A26B59FD38ADD79"
+    },
+    {
+      "file": "C:\\Users\\mdbai\\.nuget\\packages\\microsoft.netframework.referenceassemblies.net35\\1.0.3\\build\\.NETFramework\\v3.5\\System.dll",
+      "sha256": "2A45804364AF991433B1C2AFBF49C515F41DFDB355CC454F5869D83CF476A1C1"
+    },
+    {
+      "file": "C:\\Users\\mdbai\\.nuget\\packages\\microsoft.netframework.referenceassemblies.net35\\1.0.3\\build\\.NETFramework\\v3.5\\System.Core.dll",
+      "sha256": "21281280ECD22ADBE03966A0F0CC764F41C5D139F4FEF41C317865AC0B773DD7"
+    },
+    {
+      "file": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Wizard of Legend\\WizardOfLegend_Data\\Managed\\Assembly-CSharp.dll",
+      "sha256": "FD9E01A818E4237391748926A6361B25172F62058996306F0EDC2A167ED35103"
+    },
+    {
+      "file": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Wizard of Legend\\WizardOfLegend_Data\\Managed\\UnityEngine.dll",
+      "sha256": "879924003F092619E29BA6DA93F599E82DF671868494AE1B32927D9D5B3FD66D"
+    },
+    {
+      "file": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Wizard of Legend\\BepInEx\\core\\BepInEx.dll",
+      "sha256": "475F794330FF7DA4E70F892694498CF516D41EB9B064FAA5797E09A1DD546B33"
+    },
+    {
+      "file": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Wizard of Legend\\BepInEx\\core\\0Harmony.dll",
+      "sha256": "1A21CC03424FC82C3DD1346905D16494536B9595AE4162228D99FB7C285C1031"
+    },
+    {
+      "file": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Wizard of Legend\\BepInEx\\plugins\\LegendApi.dll",
+      "sha256": "FFAAA878909684A0DC86A1934253A622243CE0D1742C38C1BDE66D4AC1EC8ECE"
+    }
+  ],
+  "installed": false,
+  "gameplay_tested": false
+}

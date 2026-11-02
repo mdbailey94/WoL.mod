@@ -1,0 +1,22 @@
+{
+  "build_id": "2026-11-01T10-53-17.301Z-6a429ff6",
+  "mod": "WoLMomentumSpear",
+  "success": true,
+  "compiled_snapshot": true,
+  "matches_current_source": true,
+  "target_framework": "net35",
+  "language_version": "7.3",
+  "directory": "C:\\Users\\mdbai\\Jeeves\\BuildChecks\\2026-11-01T10-53-17.301Z-6a429ff6\\WoLMomentumSpear",
+  "manifest": "C:\\Users\\mdbai\\Jeeves\\BuildChecks\\2026-11-01T10-53-17.301Z-6a429ff6\\WoLMomentumSpear\\build.json",
+  "deployed": false,
+  "game_tested": false,
+  "exit_code": 0,
+  "source_fingerprint": "8f1be07a271a0dc671b49408a080422653161dfe6524412d74738876cc8e8dda",
+  "source_files": 5,
+  "embedded_resources": 0,
+  "ignored_build_targets": [],
+  "skipped_optional_references": [],
+  "output_dll": "C:\\Users\\mdbai\\Jeeves\\BuildChecks\\2026-11-01T10-53-17.301Z-6a429ff6\\WoLMomentumSpear\\WoLMomentumSpear.dll",
+  "diagnostics": "",
+  "elapsed_seconds": 3.22
+}
