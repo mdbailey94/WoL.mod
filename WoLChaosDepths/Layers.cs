@@ -111,6 +111,7 @@ namespace WoLChaosDepths
             layerBosses.Clear();
             layerEntities.Clear();
             riftOpen = false;
+            ClearTears();
             // Ascension 7 and up raises the chance to 40% (#27).
             float chance = Mathf.Max(riftChance.Value, AscensionLink.RiftChance);
             if (ChaosDepthsPlugin.FreshAscensionZero || bossArena || chance <= 0f || UnityEngine.Random.value >= chance)
@@ -125,6 +126,7 @@ namespace WoLChaosDepths
                 return;
             bool inTime = Time.time < riftEndsAt;
             riftOpen = false;
+            ClearTears();
             if (!inTime)
             {
                 ChaosDepthsPlugin.Log($"Rift{Where(riftDepth)}: collapsed before the floor was cleared; no reward");
@@ -170,12 +172,17 @@ namespace WoLChaosDepths
                 ChaosDepthsPlugin.Log($"Rift{Where(riftDepth)}: collapsed");
                 ChaosDepthsPlugin.Notice("The rift collapses", 3f);
             }
+            TickTears();
         }
 
-        // The rift timer, top centre.
+        // The rift timer, top centre: WoL Art's frame (#19, rift_timer_frame.png, 72x20) with the
+        // hourglass in its icon well, the countdown in its text well and the bar cropped to the
+        // time left; the code-drawn box when the art isn't there.
         public static void Draw()
         {
             if (!RiftOpen)
+                return;
+            if (DrawnTimer())
                 return;
             try
             {
@@ -192,6 +199,135 @@ namespace WoLChaosDepths
             }
             catch
             {
+            }
+        }
+
+        private static bool DrawnTimer()
+        {
+            try
+            {
+                int s = Mathf.Max(1, Mathf.FloorToInt(Screen.height / 360f));
+                float left = RiftSecondsLeft;
+                float x = Mathf.Floor((Screen.width - 72 * s) / 2f), y = 3 * s;
+                if (PixelUI.Sheet("rift_timer_frame", 1, 0, x, y, s, Color.white) == Vector2.zero)
+                    return false;
+                // Sand drains over frames 0-2 at 4 fps; in the last 10 s frame 3 flashes in.
+                float t = Time.unscaledTime;
+                int glass = left < 10f && ((int)(t * 4f) & 1) == 0 ? 3 : (int)(t * 4f) % 3;
+                PixelUI.Sheet("rift_hourglass", 4, glass, x + 5 * s, y + 5 * s, s, Color.white);
+                PixelUI.Sheet("rift_timer_bar", 1, 0, x + 18 * s, y + 15 * s, s, Color.white, Mathf.Clamp01(left / Mathf.Max(1f, riftSeconds.Value)));
+                string text = $"{Mathf.FloorToInt(left / 60f)}:{Mathf.FloorToInt(left % 60f):00}";
+                GUIStyle style = PixelUI.Style(Mathf.Max(10, 8 * s), left < 30f ? PixelUI.Accent : PixelUI.Text, TextAnchor.MiddleCenter);
+                GUI.Label(new Rect(x + 17 * s, y + 3 * s, 52 * s, 10 * s), text, style);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        // ---- The rift's tear on the floor's exit (#19, rift_portal.png, 8 frames of 40x56) ----
+
+        private const float TearFps = 10f;
+        private static readonly List<GameObject> tears = new List<GameObject>();
+        private static bool tearsPlaced;
+        private static Material tearMaterial;
+
+        // Twice a second while a rift is open, until the floor's exits are found (they may load
+        // after the floor does); gone when the rift closes.
+        private static void TickTears()
+        {
+            if (!RiftOpen)
+            {
+                ClearTears();
+                return;
+            }
+            if (tearsPlaced)
+                return;
+            try
+            {
+                var placed = new List<string>();
+                foreach (NextLevelLoader loader in UnityEngine.Object.FindObjectsOfType<NextLevelLoader>())
+                {
+                    if (loader == null || !loader.gameObject.activeInHierarchy)
+                        continue;
+                    GameObject tear = Tear(loader);
+                    if (tear == null)
+                        continue;
+                    tears.Add(tear);
+                    placed.Add($"'{loader.name}' at ({tear.transform.position.x:0.0}, {tear.transform.position.y:0.0})");
+                }
+                if (placed.Count == 0)
+                    return;
+                tearsPlaced = true;
+                ChaosDepthsPlugin.Log($"Rift: tear drawn on {placed.Count} exit(s): {string.Join(", ", placed.ToArray())}");
+            }
+            catch (Exception e)
+            {
+                tearsPlaced = true;
+                ChaosDepthsPlugin.LogError($"rift tear: {e.Message}");
+            }
+        }
+
+        private static void ClearTears()
+        {
+            foreach (GameObject tear in tears)
+                if (tear != null)
+                    UnityEngine.Object.Destroy(tear);
+            tears.Clear();
+            tearsPlaced = false;
+        }
+
+        // Stood on the exit's floor: the bottom centre of its pictures (the loader's own position
+        // when it has none), with the tear's floor glow (5 px up its 56) just above that edge.
+        private static GameObject Tear(NextLevelLoader loader)
+        {
+            SpriteRenderer under = null;
+            Bounds b = new Bounds(loader.transform.position, Vector3.zero);
+            bool any = false;
+            foreach (SpriteRenderer sr in loader.GetComponentsInChildren<SpriteRenderer>())
+            {
+                if (sr == null || sr.sprite == null || !sr.enabled)
+                    continue;
+                if (!any) { b = sr.bounds; under = sr; any = true; }
+                else b.Encapsulate(sr.bounds);
+                if (sr.sortingOrder > under.sortingOrder)
+                    under = sr;
+            }
+            const float ppu = 16f;
+            Sprite[] frames = ItemArt.Frames("rift_portal", 8, any ? new Vector2(0.5f, 0f) : new Vector2(0.5f, 5f / 56f), ppu);
+            if (frames == null)
+                return null;
+            var go = new GameObject("ChaosDepthsRiftTear");
+            go.transform.SetParent(loader.transform, true);
+            float x = Mathf.Round(b.center.x * ppu) / ppu, y = Mathf.Round((any ? b.min.y : loader.transform.position.y) * ppu) / ppu;
+            go.transform.position = new Vector3(x, y, loader.transform.position.z);
+            var r = go.AddComponent<SpriteRenderer>();
+            if (tearMaterial == null)
+                tearMaterial = new Material(Shader.Find("Sprites/Default"));
+            r.material = tearMaterial;
+            r.sprite = frames[0];
+            if (under != null)
+            {
+                r.sortingLayerID = under.sortingLayerID;
+                r.sortingOrder = under.sortingOrder + 1;
+            }
+            go.AddComponent<TearAnim>().frames = frames;
+            return go;
+        }
+
+        private class TearAnim : MonoBehaviour
+        {
+            public Sprite[] frames;
+            private SpriteRenderer r;
+
+            private void Update()
+            {
+                if (r == null)
+                    r = GetComponent<SpriteRenderer>();
+                if (r != null && frames != null && frames.Length > 0)
+                    r.sprite = frames[(int)(Time.time * TearFps) % frames.Length];
             }
         }
     }

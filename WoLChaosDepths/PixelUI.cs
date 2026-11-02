@@ -74,6 +74,28 @@ namespace WoLChaosDepths
             return new Rect(x, centerY - (half + 1) * u, (half + 1) * u, (size + 1) * u);
         }
 
+        // One frame of a drawn sheet (frames side by side), at `scale` screen pixels per art pixel
+        // with its top left at (x, y), so it stays crisp; `crop` (0-1) keeps only the left part
+        // (the rift timer's bar). The size drawn, or zero when the PNG isn't there.
+        public static Vector2 Sheet(string name, int frames, int index, float x, float y, int scale, Color tint, float crop = 1f)
+        {
+            Texture2D tex = ItemArt.LoadPng(name);
+            if (tex == null || frames <= 0 || tex.width % frames != 0)
+                return Vector2.zero;
+            int w = tex.width / frames, shown = Mathf.Clamp(Mathf.RoundToInt(w * crop), 0, w);
+            index = ((index % frames) + frames) % frames;
+            var size = new Vector2(w * scale, tex.height * scale);
+            if (shown > 0)
+            {
+                Color previous = GUI.color;
+                GUI.color = tint;
+                GUI.DrawTextureWithTexCoords(new Rect(Mathf.Round(x), Mathf.Round(y), shown * scale, tex.height * scale), tex,
+                    new Rect((float)(index * w) / tex.width, 0f, (float)shown / tex.width, 1f));
+                GUI.color = previous;
+            }
+            return size;
+        }
+
         // The game's UI font, borrowed from any active UI Text; null until one is found.
         public static Font GameFont()
         {

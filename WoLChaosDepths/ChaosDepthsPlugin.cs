@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.18.1";
+        public const string PluginVersion = "0.19.0";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -170,6 +170,7 @@ namespace WoLChaosDepths
             Uniques.Bind(Config);
             Depth.Bind(Config);
             Layers.Bind(Config);
+            ChaosSurge.Bind(Config);
             Pickups.Bind(Config);
             Adornments.Bind(Config);
             ProfileSave.Bind(Config);
@@ -293,6 +294,7 @@ namespace WoLChaosDepths
                 return;
             nextTick = Time.unscaledTime + 0.5f;
             DiveDirector.Tick();
+            ChaosSurge.Tick(InTrials());
             if (InTrials())
             {
                 Elites.Tick();
@@ -331,6 +333,7 @@ namespace WoLChaosDepths
             }
             else if (InTrials())
             {
+                ChaosSurge.Draw();
                 Layers.Draw();
                 Pickups.Draw();
             }
@@ -845,8 +848,15 @@ namespace WoLChaosDepths
         // the profile from the base game at a glance.
         // The tag in the corner: the profile and which save it is playing; on the title screen,
         // how to switch saves (#31).
+        // WoL Art's logo (#20): on the title screen the 192x48 title, its light sweeping across
+        // once (frames 0-3 at 10 fps, then the resting frame 3, again every 6 s); elsewhere in the
+        // profile the 96x24 tag. The save's name beside it. The text tag when the art isn't there.
+        private static float titleShownSince = -1f;
+
         private static void ProfileTag()
         {
+            if (DrawnLogo())
+                return;
             try
             {
                 int u = Mathf.Max(2, Mathf.FloorToInt(Screen.height / 240f));
@@ -861,6 +871,49 @@ namespace WoLChaosDepths
             }
             catch
             {
+            }
+        }
+
+        private static bool DrawnLogo()
+        {
+            try
+            {
+                int s = Mathf.Max(1, Mathf.FloorToInt(Screen.height / 540f));
+                bool saves = ProfileSave.Active;
+                float x = 3 * s, y = 3 * s;
+                Vector2 size;
+                if (onTitle)
+                {
+                    if (titleShownSince < 0f)
+                        titleShownSince = Time.unscaledTime;
+                    float since = (Time.unscaledTime - titleShownSince) % 6f;
+                    size = PixelUI.Sheet("chaos_depths_title", 4, Mathf.Min(3, (int)(since * 10f)), x, y, s, Color.white);
+                }
+                else
+                {
+                    titleShownSince = -1f;
+                    size = PixelUI.Sheet("chaos_depths_tag", 1, 0, x, y, s, Color.white);
+                }
+                if (size == Vector2.zero)
+                    return false;
+                if (!saves)
+                    return true;
+                int font = Mathf.Max(10, 6 * s);
+                GUIStyle style = PixelUI.Style(font, PixelUI.Accent, TextAnchor.MiddleLeft);
+                if (onTitle)
+                {
+                    var line = new Rect(x + 2 * s, y + size.y + 2 * s, 200 * s, font + 2 * s);
+                    PixelUI.Fill(new Rect(line.x - s, line.y, 100 * s, 2 * line.height), new Color(0f, 0f, 0f, 0.4f));
+                    GUI.Label(line, ProfileSave.SaveName, style);
+                    GUI.Label(new Rect(line.x, line.yMax, line.width, line.height), "TAB / LB: NEXT SAVE", PixelUI.Style(font, PixelUI.Dim, TextAnchor.MiddleLeft));
+                }
+                else
+                    GUI.Label(new Rect(x + size.x + 3 * s, y, 200 * s, size.y), ProfileSave.SaveName, style);
+                return true;
+            }
+            catch
+            {
+                return false;
             }
         }
 
