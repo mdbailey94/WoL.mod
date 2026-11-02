@@ -58,6 +58,14 @@ namespace WoLChaosDepths
             UnityEngine.Object.DontDestroyOnLoad(host);
             host.hideFlags = HideFlags.HideAndDontSave;
             host.AddComponent<Runner>();
+            try
+            {
+                TalentMechanics.Install(logger);
+            }
+            catch (Exception e)
+            {
+                logger.LogError($"Talents: Windrunner/Mender mechanics failed to install ({e.Message})");
+            }
         }
 
         /// <summary>Adds the stat talents to the totals StatMods.Apply builds from gear.</summary>
