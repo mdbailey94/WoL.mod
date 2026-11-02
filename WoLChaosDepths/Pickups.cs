@@ -55,7 +55,8 @@ namespace WoLChaosDepths
             try
             {
                 var go = new GameObject($"ChaosDepthsPickup {item.rarity} {item.name}");
-                go.transform.position = new Vector3(at.x, at.y, at.z);
+                Vector2 spot = FreeSpot(at);
+                go.transform.position = new Vector3(spot.x, spot.y, at.z);
                 var pickup = go.AddComponent<Pickup>();
                 pickup.owner = owner;
                 pickup.droppedBy = droppedBy;
@@ -68,6 +69,36 @@ namespace WoLChaosDepths
                 ChaosDepthsPlugin.LogError($"pickup spawn: {e.Message}");
                 Collected?.Invoke(owner ?? droppedBy, item, true); // never lose the item
             }
+        }
+
+        // Overlap pass (#17/#18): drops landing on the same spot (a pair of A9 elites, both
+        // wizards' boss drops) stacked their glows into one ring. A drop closer than Gap to
+        // another moves to the first free spot on a ring round it (a short step, so it stays
+        // within reach of where the enemy fell), else stays where it fell.
+        private const float Gap = 0.9f;
+
+        private static Vector2 FreeSpot(Vector2 at)
+        {
+            if (Free(at))
+                return at;
+            float start = UnityEngine.Random.value * 360f;
+            foreach (float radius in new[] { Gap, Gap * 1.6f })
+                for (int i = 0; i < 8; i++)
+                {
+                    float a = (start + i * 45f) * Mathf.Deg2Rad;
+                    Vector2 p = at + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * radius;
+                    if (Free(p))
+                        return p;
+                }
+            return at;
+        }
+
+        private static bool Free(Vector2 p)
+        {
+            foreach (Pickup other in live)
+                if (other != null && Vector2.Distance(other.transform.position, p) < Gap)
+                    return false;
+            return true;
         }
 
         // Every frame from the plugin: each player's nearest item within reach shows the game's
@@ -232,6 +263,7 @@ namespace WoLChaosDepths
                 return;
             int u = Mathf.Max(2, Mathf.FloorToInt(Screen.height / 240f));
             int font = Mathf.Max(10, 3 * u);
+            labels.Clear();
             foreach (Pickup p in live)
             {
                 if (p == null || p.item == null)
@@ -250,9 +282,23 @@ namespace WoLChaosDepths
                 labelContent.text = text;
                 var size = style.CalcSize(labelContent);
                 var rect = new Rect(screen.x - size.x / 2f - u, Screen.height - screen.y - size.y / 2f, size.x + 2 * u, size.y);
+                // Names of drops close together stack upwards instead of printing over each other.
+                for (int tries = 0; tries < 6 && Overlaps(rect); tries++)
+                    rect.y -= rect.height + u;
+                labels.Add(rect);
                 PixelUI.Fill(rect, new Color(0f, 0f, 0f, 0.55f));
                 GUI.Label(rect, text, style);
             }
+        }
+
+        private static readonly List<Rect> labels = new List<Rect>();
+
+        private static bool Overlaps(Rect r)
+        {
+            foreach (Rect other in labels)
+                if (other.Overlaps(r))
+                    return true;
+            return false;
         }
 
         public static Color Colour(ItemData item)
