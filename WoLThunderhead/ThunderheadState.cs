@@ -67,12 +67,12 @@ namespace WoLThunderhead
         private static float RingBurstSize => AdvancedTuning.RingBurstSize;
         private static float RingShake => AdvancedTuning.RingShake;
 
-        // Standard and enhanced: the first strike of each volley seeks an enemy within the strike
-        // circle (one aimed at least so far this cast), the rest land spread as before. Random
+        // Every AimEvery-th bolt (SignatureAimEvery-th in the signature, 0.11.0) seeks an enemy within
+        // the strike circle (one aimed at least so far this cast), the rest land spread as before. Random
         // spots alone often missed the enemies right below (0.9.1). An aimed bolt still follows
         // its enemy this far from where its glyph was drawn, so a small step doesn't dodge it,
         // but walking off does.
-        private static int AimedPerVolley => AdvancedTuning.AimedPerVolley;
+        private static int AimEvery => AdvancedTuning.AimEvery;
         private static float AimReachPastRadius => AdvancedTuning.AimReachPastRadius;  // enemies this far past the circle's edge can be aimed at
         private static float AimFollow => AdvancedTuning.AimFollow;
 
@@ -197,7 +197,8 @@ namespace WoLThunderhead
             Height = ThunderheadPlugin.Height;
             HoverSpeedPercent = ThunderheadPlugin.HoverSpeedPercent;
             HoldTime = signature ? ThunderheadPlugin.SignatureWindupHold : 0f;
-            VolleySize = EnhancedTier ? ThunderheadPlugin.EnhancedVolleySize : ThunderheadPlugin.VolleySize;
+            VolleySize = signature ? ThunderheadPlugin.SignatureVolleySize
+                : IsEmpowered ? ThunderheadPlugin.EnhancedVolleySize : ThunderheadPlugin.VolleySize;
             levitator = Levitator.On(parent);
         }
 
@@ -484,14 +485,17 @@ namespace WoLThunderhead
             visuals?.Telegraph(plannedOffsets, from, until, ground);
         }
 
-        // For the first AimedPerVolley strikes of a standard or enhanced volley: the offset (in
+        // For an aimed bolt (every AimEvery-th of the cast): the offset (in
         // StrikeOffset's space, y unsquashed) of an enemy within the strike circle, preferring the
         // one aimed at least so far this cast. False when there's none.
         private bool AimedStrike(int i, Vector2 ground, out Vector2 offset, out Enemy target)
         {
             offset = Vector2.zero;
             target = null;
-            if (signature || i >= AimedPerVolley)
+            // Some bolts aim (0.11.0, #46): every AimEvery-th of the cast, counted across volleys,
+            // so a volley of one still aims every other volley (the signature: SignatureAimEvery).
+            int every = signature ? AdvancedTuning.SignatureAimEvery : AimEvery;
+            if (every <= 0 || (volleyCount * VolleySize + i) % every != 0)
                 return false;
             float reach = RadiusNow + AimReachPastRadius;
             int fewest = int.MaxValue;

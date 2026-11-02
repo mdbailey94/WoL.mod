@@ -14,7 +14,7 @@ namespace WoLThunderhead
     {
         public const string PluginGuid = "mdbailey94.wol.thunderhead";
         public const string PluginName = "Thunderhead";
-        public const string PluginVersion = "0.10.1";
+        public const string PluginVersion = "0.11.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -22,7 +22,7 @@ namespace WoLThunderhead
         private ConfigEntry<int> settingsRevision;
         // Bumped when a default changes: an older config file still holding the old default gets
         // the new one (values you changed yourself are kept). 8 = 0.8.0.
-        private const int SettingsRevision = 8;
+        private const int SettingsRevision = 11;
 
         public static void Log(string message) => log?.LogInfo(message);
 
@@ -30,7 +30,7 @@ namespace WoLThunderhead
         // [Leap], [Lightning] and [Signature] apply the next time you cast it; [Balance] after restarting the game.
         private static ConfigEntry<float> height, windupTime, riseTime, airTime, enhancedAirTime, crashTime, recoverTime;
         private static ConfigEntry<float> radius, enhancedRadius, volleyInterval, enhancedVolleyInterval, auraSize, strikeSize, slamSize, enhancedSlamSize;
-        private static ConfigEntry<int> volleySize, enhancedVolleySize;
+        private static ConfigEntry<int> volleySize, enhancedVolleySize, signatureVolleySize;
         private static ConfigEntry<bool> evenSpread, electricLook, stormCloud, drawn;
         private static ConfigEntry<float> hoverSpeedPercent, cloudSize;
         private static ConfigEntry<float> signatureAirTime, signatureStrikeRate, signatureRadius, signatureSlamSize, signatureHold;
@@ -49,24 +49,27 @@ namespace WoLThunderhead
         public static float RecoverTime => Get(recoverTime, 0.15f, 0f, 1f);
         public static float Radius => Get(radius, 2.2f, 0.5f, 8f);
         public static float EnhancedRadius => Get(enhancedRadius, 2.8f, 0.5f, 8f);
-        // Standard: volleys of 2 every 0.4 s (6 strikes in the 1 s up). Enhanced: 3 every 0.25 s.
-        public static float VolleyInterval => Get(volleyInterval, 0.4f, 0.05f, 2f);
-        public static float EnhancedVolleyInterval => Get(enhancedVolleyInterval, 0.25f, 0.05f, 2f);
+        // 0.11.0 (#46): standard volleys of 1 every 0.12 s (9 strikes in the 1 s up), enhanced 2
+        // every 0.12 s (13 volleys, 26 strikes in 1.5 s), signature 4 every 0.096 s (25 volleys,
+        // 100 strikes in 2.4 s). Was 2 / 3 / 3 every 0.4 / 0.25 / 0.1 s.
+        public static float VolleyInterval => Get(volleyInterval, 0.12f, 0.05f, 2f);
+        public static float EnhancedVolleyInterval => Get(enhancedVolleyInterval, 0.12f, 0.03f, 2f);
         public static float HoverSpeedPercent => Get(hoverSpeedPercent, 40f, 0f, 100f);
         public static bool Cloud => stormCloud?.Value ?? true;
         public static float CloudSize => Get(cloudSize, 1f, 0.3f, 3f);
         public static bool ElectricLook => electricLook?.Value ?? true;
         public static bool Drawn => drawn?.Value ?? true;
         public static float AuraSize => Get(auraSize, 1f, 0.2f, 4f);
-        public static int VolleySize => Mathf.Clamp(volleySize?.Value ?? 2, 1, 12);
-        public static int EnhancedVolleySize => Mathf.Clamp(enhancedVolleySize?.Value ?? 3, 1, 12);
+        public static int VolleySize => Mathf.Clamp(volleySize?.Value ?? 1, 1, 12);
+        public static int EnhancedVolleySize => Mathf.Clamp(enhancedVolleySize?.Value ?? 2, 1, 12);
+        public static int SignatureVolleySize => Mathf.Clamp(signatureVolleySize?.Value ?? 4, 1, 12);
         public static bool EvenSpread => evenSpread?.Value ?? true;
         public static float StrikeSize => Get(strikeSize, 1f, 0.3f, 4f);
         public static float SlamSize => Get(slamSize, 2.4f, 0.5f, 6f);
         public static float EnhancedSlamSize => Get(enhancedSlamSize, 3f, 0.5f, 6f);
         // The signature storm's multipliers, on top of the enhanced values.
         public static float SignatureAirTimeMultiplier => Get(signatureAirTime, 1.6f, 1f, 4f);
-        public static float SignatureStrikeRateMultiplier => Get(signatureStrikeRate, 2.5f, 1f, 4f);
+        public static float SignatureStrikeRateMultiplier => Get(signatureStrikeRate, 1.25f, 1f, 4f);
         public static float SignatureRadiusMultiplier => Get(signatureRadius, 1.5f, 1f, 3f);
         public static float SignatureSlamSizeMultiplier => Get(signatureSlamSize, 1.5f, 1f, 3f);
         // The signature's cinematic beats.
@@ -125,16 +128,17 @@ namespace WoLThunderhead
                     // crash down, level 3 the game's lightning bolts used only for the look
                     // (harmless). All from [Balance] in the config. Each strike's hit circle is about
                     // a tile across its radius, so an enemy standing near the spot below takes about
-                    // a third of the strikes:
-                    // - standard (hanging still, volleys of 2 every 0.4 s for 1 s: 6 strikes):
-                    //   2 strikes and the slam, about 24 (0.7.0: 12 strikes and steering, about 34);
-                    // - enhanced (steering, volleys of 3 every 0.25 s for 1.5 s over a wider circle:
-                    //   18 strikes): 4 strikes and the slam, about 34, more when you steer onto them.
+                    // a third of the spread strikes, and every AimEvery-th bolt (3) seeks the
+                    // least-aimed enemy in reach (0.11.0, #46; one enemy alone gets all of those):
+                    // - standard (hanging still, volleys of 1 every 0.12 s for 1 s: 9 strikes):
+                    //   about 5 strikes at 3 and the slam, about 29 against one enemy;
+                    // - enhanced (steering, volleys of 2 every 0.12 s for 1.5 s: 26 strikes): about
+                    //   14 strikes and the slam, about 56 against one enemy, less spread over a group.
                     // Levels 4 and 5 are the signature storm's strikes (also its ring of bolts round
-                    // the landing) and slam: 2.4 s of volleys every 0.1 s (72 strikes within 4.2
-                    // tiles). A strike's circle plus the enemy's own hurtbox reaches 1.2-1.5 tiles,
-                    // so an enemy kept under the storm takes about 8-13 strikes and the slam: about
-                    // 110 (90-125 by the enemy's size), for the whole gauge. Vanilla lightning
+                    // the landing) and slam: 2.4 s of volleys of 4 every 0.096 s (100 strikes within
+                    // 4.2 tiles, every 4th aimed): one enemy under it takes about 30 strikes at 4 and
+                    // the slam, about 155; a group shares the aimed ones. (0.10: 72 strikes at 7,
+                    // none aimed, about 110.) Vanilla lightning
                     // signatures do about 110-130 to one enemy: Shock Nova's 11 pulses of 10,
                     // Thunder Drop's 30 plus 9-10 of its 10-damage javelins. (0.8.0: strikes 8,
                     // about 125.)
@@ -175,13 +179,15 @@ namespace WoLThunderhead
 
             radius = Float("Lightning", "Radius", 2.2f, 0.5f, 8f, "How far from the spot below the strikes can land.");
             enhancedRadius = Float("Lightning", "EnhancedRadius", 2.8f, 0.5f, 8f, "Radius when enhanced.");
-            volleyInterval = Float("Lightning", "VolleyInterval", 0.4f, 0.05f, 2f, "Seconds between volleys of strikes while up.");
-            enhancedVolleyInterval = Float("Lightning", "EnhancedVolleyInterval", 0.25f, 0.05f, 2f,
-                "VolleyInterval when enhanced (lower = more often).");
-            volleySize = Config.Bind("Lightning", "VolleySize", 2,
+            volleyInterval = Float("Lightning", "VolleyInterval", 0.12f, 0.05f, 2f, "Seconds between volleys of strikes while up.");
+            enhancedVolleyInterval = Float("Lightning", "EnhancedVolleyInterval", 0.12f, 0.03f, 2f,
+                "VolleyInterval when enhanced and in the signature storm (lower = more often; the signature divides it by [Signature] StrikeRateMultiplier).");
+            volleySize = Config.Bind("Lightning", "VolleySize", 1,
                 new ConfigDescription("Strikes in each volley.", new AcceptableValueRange<int>(1, 12)));
-            enhancedVolleySize = Config.Bind("Lightning", "EnhancedVolleySize", 3,
-                new ConfigDescription("VolleySize when enhanced (and in the signature storm).", new AcceptableValueRange<int>(1, 12)));
+            enhancedVolleySize = Config.Bind("Lightning", "EnhancedVolleySize", 2,
+                new ConfigDescription("VolleySize when enhanced.", new AcceptableValueRange<int>(1, 12)));
+            signatureVolleySize = Config.Bind("Lightning", "SignatureVolleySize", 4,
+                new ConfigDescription("VolleySize in the signature storm.", new AcceptableValueRange<int>(1, 12)));
             evenSpread = Config.Bind("Lightning", "EvenSpread", true,
                 "Spread the strikes evenly over the whole area through the leap, each volley striking near, " +
                 "middle and far all round you. Off: each strike lands at a random spot.");
@@ -191,7 +197,7 @@ namespace WoLThunderhead
 
             signatureAirTime = Float("Signature", "AirTimeMultiplier", 1.6f, 1f, 4f,
                 "The signature cast hangs in the air this many times as long (times EnhancedAirTime).");
-            signatureStrikeRate = Float("Signature", "StrikeRateMultiplier", 2.5f, 1f, 4f,
+            signatureStrikeRate = Float("Signature", "StrikeRateMultiplier", 1.25f, 1f, 4f,
                 "Volleys come this many times as often in the signature cast (EnhancedVolleyInterval divided by this).");
             signatureRadius = Float("Signature", "RadiusMultiplier", 1.5f, 1f, 3f,
                 "The signature cast's strikes land over a circle this many times as wide (times EnhancedRadius).");
@@ -224,7 +230,7 @@ namespace WoLThunderhead
             auraSize = Float("Look", "AuraSize", 1f, 0.2f, 4f, "Size of the electric aura round the wizard in the air.");
 
             const string restart = " Applies after restarting the game.";
-            strikeDamage = Config.Bind("Balance", "StrikeDamage", 5,
+            strikeDamage = Config.Bind("Balance", "StrikeDamage", 3,
                 new ConfigDescription("Damage of each lightning strike." + restart, new AcceptableValueRange<int>(0, 200)));
             slamDamage = Config.Bind("Balance", "SlamDamage", 14,
                 new ConfigDescription("Damage of the landing slam." + restart, new AcceptableValueRange<int>(0, 500)));
@@ -232,7 +238,7 @@ namespace WoLThunderhead
             slamKnockback = Float("Balance", "SlamKnockback", 45f, 0f, 200f, "Knockback of the slam." + restart);
             strikeShockChance = Float("Balance", "StrikeShockChance", 0.2f, 0f, 1f, "Chance a strike shocks (0 to 1)." + restart);
             slamShockChance = Float("Balance", "SlamShockChance", 0.5f, 0f, 1f, "Chance the slam shocks (0 to 1)." + restart);
-            signatureStrikeDamage = Config.Bind("Balance", "SignatureStrikeDamage", 7,
+            signatureStrikeDamage = Config.Bind("Balance", "SignatureStrikeDamage", 4,
                 new ConfigDescription("Damage of each lightning strike in the signature cast." + restart, new AcceptableValueRange<int>(0, 200)));
             signatureSlamDamage = Config.Bind("Balance", "SignatureSlamDamage", 35,
                 new ConfigDescription("Damage of the signature cast's landing slam (it always shocks)." + restart, new AcceptableValueRange<int>(0, 500)));
@@ -258,9 +264,22 @@ namespace WoLThunderhead
                 Upgrade(signatureAirTime, 2f, changed);
                 Upgrade(signatureStrikeRate, 2f, changed);
             }
+            if (settingsRevision.Value < 11)
+            {
+                // #46 (Matt): 1 / 2 / 4 strikes a volley and far more volleys. Asked for outright,
+                // so these move to the new values even if they'd been set by hand.
+                Force(volleySize, changed);
+                Force(enhancedVolleySize, changed);
+                Force(volleyInterval, changed);
+                Force(enhancedVolleyInterval, changed);
+                Force(signatureStrikeRate, changed);
+                // About three times the strikes, a third of them aimed: less damage each.
+                Upgrade(strikeDamage, 5, changed);
+                Upgrade(signatureStrikeDamage, 7, changed);
+            }
             settingsRevision.Value = SettingsRevision;
             Logger.LogInfo(changed.Count > 0
-                ? "Thunderhead: settings moved to the 0.8.0 defaults: " + string.Join(", ", changed.ToArray())
+                ? "Thunderhead: settings moved to the new defaults: " + string.Join(", ", changed.ToArray())
                 : "Thunderhead: settings kept as you set them (none were on the old defaults)");
         }
 
@@ -270,6 +289,24 @@ namespace WoLThunderhead
             if (Mathf.Abs(entry.Value - oldDefault) > 0.0001f || Mathf.Abs(now - oldDefault) < 0.0001f)
                 return;
             changed.Add($"{entry.Definition.Key} {entry.Value:0.###} -> {now:0.###}");
+            entry.Value = now;
+        }
+
+        private static void Force(ConfigEntry<float> entry, System.Collections.Generic.List<string> changed)
+        {
+            float now = (float)entry.DefaultValue;
+            if (Mathf.Abs(entry.Value - now) < 0.0001f)
+                return;
+            changed.Add($"{entry.Definition.Key} {entry.Value:0.###} -> {now:0.###}");
+            entry.Value = now;
+        }
+
+        private static void Force(ConfigEntry<int> entry, System.Collections.Generic.List<string> changed)
+        {
+            int now = (int)entry.DefaultValue;
+            if (entry.Value == now)
+                return;
+            changed.Add($"{entry.Definition.Key} {entry.Value} -> {now}");
             entry.Value = now;
         }
 

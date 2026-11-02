@@ -5,8 +5,9 @@ namespace WoLThunderhead
     // Bound once at startup. Numeric reads allocate nothing; defaults preserve prior behavior.
     internal static class AdvancedTuning
     {
-        private static ConfigEntry<int> entryAimedPerVolley;
-        public static int AimedPerVolley => entryAimedPerVolley?.Value ?? 1;
+        private static ConfigEntry<int> entryAimEvery, entrySignatureAimEvery;
+        public static int AimEvery => entryAimEvery?.Value ?? 3;
+        public static int SignatureAimEvery => entrySignatureAimEvery?.Value ?? 4;
         private static ConfigEntry<float> entryAimFollow;
         public static float AimFollow => entryAimFollow?.Value ?? 1.2f;
         private static ConfigEntry<float> entryAimReachPastRadius;
@@ -40,8 +41,11 @@ namespace WoLThunderhead
 
         public static void Bind(ConfigFile config)
         {
-            entryAimedPerVolley = config.Bind("Aim Advanced", "AimedPerVolley", 1,
-                new ConfigDescription("Number of bolts per standard or enhanced volley that seek enemies; capped by volley size. Restart the game after editing this file.", new AcceptableValueRange<int>(0, 8)));
+            // 0.11.0 (#46): replaces AimedPerVolley, which with volleys of one or two aimed nearly every bolt.
+            entryAimEvery = config.Bind("Aim Advanced", "AimEvery", 3,
+                new ConfigDescription("Every Nth bolt of a standard or enhanced cast seeks an enemy (3 = every third); 0 = none aim. Restart the game after editing this file.", new AcceptableValueRange<int>(0, 12)));
+            entrySignatureAimEvery = config.Bind("Aim Advanced", "SignatureAimEvery", 4,
+                new ConfigDescription("Every Nth bolt of the signature storm seeks an enemy; 0 = none aim. Restart the game after editing this file.", new AcceptableValueRange<int>(0, 12)));
             entryAimFollow = config.Bind("Aim Advanced", "AimFollow", 1.2f,
                 new ConfigDescription("World units a targeted bolt follows an enemy beyond its drawn target marker. Restart the game after editing this file.", new AcceptableValueRange<float>(0f, 5f)));
             entryAimReachPastRadius = config.Bind("Aim Advanced", "AimReachPastRadius", 0.5f,

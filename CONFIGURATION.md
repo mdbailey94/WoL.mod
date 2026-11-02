@@ -58,11 +58,12 @@ Base config folder: C:\Program Files (x86)\Steam\steamapps\common\Wizard of Lege
 
 No advanced tuning: 0.8.0 is the 0.4.1 running shield again (#42), and its settings are the [Charge], [Crash], [Look] and [Balance] entries in its own config, described in WoLStoneCharge/README.md. The 0.7.0 [Cinema Advanced] and [Signature Advanced] keys no longer exist.
 
-## WoLThunderhead 0.10.0
+## WoLThunderhead 0.11.0
 
 | Section | Key | Default | Range | Meaning |
 |---|---|---:|---|---|
-| Aim Advanced | AimedPerVolley | 1 | 0-8 | Number of bolts per standard or enhanced volley that seek enemies; capped by volley size. |
+| Aim Advanced | AimEvery | 3 | 0-12 | Every Nth bolt of a standard or enhanced cast seeks an enemy; 0 = none aim (replaces AimedPerVolley, 0.11.0). |
+| Aim Advanced | SignatureAimEvery | 4 | 0-12 | Every Nth bolt of the signature storm seeks an enemy; 0 = none aim. |
 | Aim Advanced | AimFollow | 1.2 | 0-5 | World units a targeted bolt follows an enemy beyond its drawn target marker. |
 | Aim Advanced | AimReachPastRadius | 0.5 | 0-5 | Extra world units past the strike circle that can be targeted. |
 | Cinema Advanced | RingShake | 0.8 | 0-5 | Camera-shake strength from the lightning ring. |
