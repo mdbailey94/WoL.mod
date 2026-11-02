@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.19.6";
+        public const string PluginVersion = "0.19.7";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -172,6 +172,7 @@ namespace WoLChaosDepths
             Layers.Bind(Config);
             ChaosSurge.Bind(Config);
             LevelUpBurst.Bind(Config);
+            DebugKeys.Bind(Config);
             Pickups.Bind(Config);
             Adornments.Bind(Config);
             ProfileSave.Bind(Config);

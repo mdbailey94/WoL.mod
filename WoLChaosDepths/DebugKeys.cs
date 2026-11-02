@@ -25,6 +25,8 @@ namespace WoLChaosDepths
     //   Shift+F10 start a run from the house or the Hub (no walking to the portal); from a new
     //             save's Tutorial, it's marked cleared first and the Hub loaded
     //   Shift+F8  win the run: the dive complete (Ascension's unlock), back to the Hub
+    //   Shift+F6  the next arcana of [Debug] SignatureCycle in the signature slot (0.19.7)
+    //   Shift+F5  fill the signature bar
     public static class DebugKeys
     {
         private const int MaxSteps = 40;
@@ -72,6 +74,10 @@ namespace WoLChaosDepths
                     host.StartCoroutine(StartRun());
                 if (Input.GetKeyDown(KeyCode.F8))
                     WinRun();
+                if (Input.GetKeyDown(KeyCode.F6))
+                    NextSignature();
+                if (Input.GetKeyDown(KeyCode.F5))
+                    FillSignatureBar();
                 return;
             }
             if (Input.GetKeyDown(KeyCode.F6))
@@ -947,6 +953,76 @@ namespace WoLChaosDepths
                 ChaosDepthsPlugin.LogError($"Debug {what}: {e.Message}");
             }
             return false;
+        }
+
+        // Shift+F6: the next arcana of [Debug] SignatureCycle in the first wizard's signature slot,
+        // its signature unlocked (on the wizard only, not in the save), so its signature can be
+        // tested without the shop or a Signature drop. Shift+F5 then fills the signature bar.
+        private static BepInEx.Configuration.ConfigEntry<string> signatureCycle;
+        private static int signatureNext;
+
+        public static void Bind(BepInEx.Configuration.ConfigFile config)
+        {
+            signatureCycle = config.Bind("Debug", "SignatureCycle", "Trailblazer,FeintSwap,BlazingKick",
+                "Arcana IDs that Shift+F6 puts in the signature slot in turn (with [Debug] Enabled).");
+        }
+
+        private static void NextSignature()
+        {
+            Player player = FirstPlayer();
+            if (player == null || player.skillsDict == null || player.assignedSkills == null)
+            {
+                ChaosDepthsPlugin.Log("Debug: Shift+F6 needs a wizard");
+                return;
+            }
+            try
+            {
+                string[] ids = (signatureCycle != null ? signatureCycle.Value : "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                if (ids.Length == 0)
+                {
+                    ChaosDepthsPlugin.Log("Debug: Shift+F6: [Debug] SignatureCycle is empty");
+                    return;
+                }
+                string id = ids[signatureNext % ids.Length].Trim();
+                signatureNext++;
+                Player.SkillState state;
+                if (!player.skillsDict.TryGetValue(id, out state) || state == null)
+                {
+                    ChaosDepthsPlugin.Log($"Debug: Shift+F6: no arcana '{id}' on the wizard (is its mod installed?)");
+                    return;
+                }
+                // The slot the signature is in now; the fourth slot when there's none.
+                int slot = 3;
+                Player.SkillState current = player.GetSignatureSkill();
+                for (int i = 0; i < player.assignedSkills.Length; i++)
+                    if (current != null && player.assignedSkills[i] == current)
+                        slot = i;
+                state.signatureUnlocked = true;
+                player.AssignSkillSlot(slot, id, true, true);
+                Player.SkillState now = player.GetSignatureSkill();
+                ChaosDepthsPlugin.Log($"Debug: Shift+F6: '{id}' put in slot {slot} as the signature (was '{(current != null ? current.name : "none")}', now '{(now != null ? now.name : "none")}')");
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"Debug signature: {e.Message}");
+            }
+        }
+
+        // Shift+F5: the first wizard's signature bar full.
+        private static void FillSignatureBar()
+        {
+            Player player = FirstPlayer();
+            if (player == null)
+                return;
+            try
+            {
+                player.OverdriveProgress = Player.overdriveMaxValue;
+                ChaosDepthsPlugin.Log($"Debug: Shift+F5: signature bar filled ({player.OverdriveProgress:0}/{Player.overdriveMaxValue:0})");
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"Debug signature bar: {e.Message}");
+            }
         }
 
         // Shift+F8: count the run as won (the dive complete: Ascension unlocks the next level when
