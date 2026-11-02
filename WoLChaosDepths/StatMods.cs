@@ -57,6 +57,16 @@ namespace WoLChaosDepths
                 Skill(category, StatData.critChStr, "CritChance", Get(totals, "CritChance"), VarStatModType.Additive);
                 Skill(category, StatData.critDmgStr, "CritDamage", Get(totals, "CritDamage"), VarStatModType.Additive);
                 Skill(category, StatData.cdStr, "Cooldown", Get(totals, "Cooldown"), VarStatModType.Multiplicative);
+                Skill(category, StatData.kbMultiStr, "Knockback", Get(totals, "Knockback"), VarStatModType.Multiplicative);
+                // Elemental talents (Phase 1a): only that element's arcana, by the game's own test
+                // (status effects such as burns excluded, as the game's element relics do).
+                foreach (string element in Elements)
+                {
+                    string ele = element;
+                    StatManager.ModApplyConditional only = sd => !sd.GetValue<bool>(StatData.isStatStr) && sd.GetValue<string>(StatData.eleStr) == ele;
+                    Skill(category, StatData.damageStr, ele + "Damage", Get(totals, ele + "Damage"), VarStatModType.Multiplicative, only);
+                    Skill(category, StatData.cdStr, ele + "Cooldown", Get(totals, ele + "Cooldown"), VarStatModType.Multiplicative, only);
+                }
                 Health health = player.health;
                 if (health != null)
                 {
@@ -91,6 +101,12 @@ namespace WoLChaosDepths
                     foreach (string name in new[] { "Damage", "CritChance", "CritDamage", "Cooldown" })
                         StatManager.ModifyAllStatData(new NumVarStatMod(Prefix + name, 0f), category, field, null, false);
                 }
+                StatManager.ModifyAllStatData(new NumVarStatMod(Prefix + "Knockback", 0f), category, StatData.kbMultiStr, null, false);
+                foreach (string element in Elements)
+                {
+                    StatManager.ModifyAllStatData(new NumVarStatMod(Prefix + element + "Damage", 0f), category, StatData.damageStr, null, false);
+                    StatManager.ModifyAllStatData(new NumVarStatMod(Prefix + element + "Cooldown", 0f), category, StatData.cdStr, null, false);
+                }
                 Health health = player.health;
                 if (health != null)
                 {
@@ -108,11 +124,14 @@ namespace WoLChaosDepths
             applied.Remove(player.GetInstanceID());
         }
 
-        private static void Skill(string category, string field, string name, float value, VarStatModType type)
+        private static readonly string[] Elements = { "Fire", "Air", "Earth", "Lightning", "Water" };
+
+        private static void Skill(string category, string field, string name, float value, VarStatModType type,
+            StatManager.ModApplyConditional only = null)
         {
             if (Mathf.Approximately(value, 0f) || string.IsNullOrEmpty(field))
                 return;
-            StatManager.ModifyAllStatData(new NumVarStatMod(Prefix + name, value, 10, type), category, field);
+            StatManager.ModifyAllStatData(new NumVarStatMod(Prefix + name, value, 10, type), category, field, only);
         }
 
         private static void Stat(NumVarStat stat, string name, float value, VarStatModType type, bool fill)

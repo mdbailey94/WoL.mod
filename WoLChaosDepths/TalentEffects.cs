@@ -64,10 +64,32 @@ namespace WoLChaosDepths
         {
             if (!Talents.Enabled || player == null)
                 return;
+            // Rank is 0 for a node outside the worn cloak's tree, so every tree's stat nodes can be
+            // summed here and only the worn one's count.
             Add(totals, "Health", SturdyHealth * Talents.Rank(player, "Sturdy"));
             Add(totals, "Damage", KeenDamage * Talents.Rank(player, "Keen"));
             Add(totals, "MoveSpeed", QuickFeetSpeed * Talents.Rank(player, "QuickFeet"));
             Add(totals, "Cooldown", SteadyHandsCooldown * Talents.Rank(player, "SteadyHands"));
+            // The elemental trees (approved 2026-11-02).
+            Add(totals, "Health", 0.04f * Talents.Rank(player, "HotBlood") + 0.05f * Talents.Rank(player, "Bedrock")
+                + 0.04f * Talents.Rank(player, "Tide"));
+            Add(totals, "MoveSpeed", 0.03f * (Talents.Rank(player, "Flicker") + Talents.Rank(player, "Tailwind")
+                + Talents.Rank(player, "Quickened") + Talents.Rank(player, "Glide")));
+            Add(totals, "CritChance", 0.05f * Talents.Rank(player, "Conductor"));
+            Add(totals, "Knockback", 0.25f * Talents.Rank(player, "Updraft"));
+            Element(player, totals, "Fire", "Kindling", "HeatSink");
+            Element(player, totals, "Air", "SharpGust", "SecondBreath");
+            Element(player, totals, "Earth", "HeavyHands", "Quarry");
+            Element(player, totals, "Lightning", "Static", "Capacitor");
+            Element(player, totals, "Water", "ColdSnap", "Riptide");
+        }
+
+        // +4% damage per point and -6% cooldowns on that element's arcana only (StatMods applies
+        // the "<Element>Damage" / "<Element>Cooldown" keys to arcana of that element).
+        private static void Element(Player player, Dictionary<string, float> totals, string element, string damageNode, string cooldownNode)
+        {
+            Add(totals, element + "Damage", 0.04f * Talents.Rank(player, damageNode));
+            Add(totals, element + "Cooldown", -0.06f * Talents.Rank(player, cooldownNode));
         }
 
         private static void Add(Dictionary<string, float> totals, string key, float value)
