@@ -26,14 +26,15 @@ namespace WoLChaosDepths
         private static ConfigEntry<int> sets;
         private static ManualLogSource log;
 
-        public static bool Enabled => enabled != null && enabled.Value;
+        // On while the Mod Menu's Phase One switch is on (Matt 2026-11-02).
+        public static bool Enabled => PhaseOne.On && enabled != null && enabled.Value;
         public static int Sets => Mathf.Clamp(sets != null ? sets.Value : 3, 1, 9);
 
         public static void Install(ConfigFile config, ManualLogSource logger)
         {
             log = logger;
-            enabled = config.Bind("Loadouts", "Enabled", false,
-                "Phase 1c (in testing): named sets of cloak + arcana + gear, stored and worn in the house. " +
+            enabled = config.Bind("Loadouts", "Enabled", true,
+                "Phase 1c, while the Mod Menu's Phase One switch is on: named sets of cloak + arcana + gear, stored and worn in the house. " +
                 "Keyboard: Ctrl+1..3 wears a set, Ctrl+Shift+1..3 stores what you're wearing in it.");
             sets = config.Bind("Loadouts", "Sets", 3,
                 new ConfigDescription("How many sets each character has.", new AcceptableValueRange<int>(1, 9)));

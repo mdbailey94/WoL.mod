@@ -25,12 +25,13 @@ namespace WoLChaosDepths
         // cast only touches the stats when they're new (a level load) or the level changed.
         private static readonly Dictionary<StatData, int> applied = new Dictionary<StatData, int>();
 
-        public static bool Enabled => enabled != null && enabled.Value;
+        // On while the Mod Menu's Phase One switch is on (Matt 2026-11-02).
+        public static bool Enabled => PhaseOne.On && enabled != null && enabled.Value;
 
         public static void Bind(ConfigFile config)
         {
-            enabled = config.Bind("Arcana Levels", "Enabled", false,
-                "Phase 1 preview: arcana level 1-10 from use (each cast in a run is 1 xp), each level a flat step on one " +
+            enabled = config.Bind("Arcana Levels", "Enabled", true,
+                "Phase 1, while the Mod Menu's Phase One switch is on: arcana level 1-10 from use (each cast in a run is 1 xp), each level a flat step on one " +
                 "line (damage, or cooldown for the arcana listed below). Off: no xp and no steps.");
             xpScale = config.Bind("Arcana Levels", "XpScale", 1f,
                 new ConfigDescription("Casts needed per level, times this (1: level 2 at 11 casts, level 5 at 176, level 10 at 891).",

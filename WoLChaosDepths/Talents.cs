@@ -260,13 +260,14 @@ namespace WoLChaosDepths
         private static string parsedFrom;
         private static readonly Dictionary<string, Tree> treeOfCloak = new Dictionary<string, Tree>();
 
-        public static bool Enabled => enabled != null && enabled.Value;
+        // Phase 1 is installed (Matt 2026-11-02): on while the Mod Menu's Phase One switch is on.
+        public static bool Enabled => PhaseOne.On && enabled != null && enabled.Value;
 
         public static void Bind(ConfigFile config)
         {
-            enabled = config.Bind("Talents", "Enabled", false,
-                "Phase 1 preview: the character panel's TALENTS tab and cloak talent trees (1 point per wizard level, " +
-                "spent per cloak, free respec in the house). Off: the tab stays locked and no talent does anything.");
+            enabled = config.Bind("Talents", "Enabled", true,
+                "Cloak talent trees and the character panel's TALENTS tab (1 point per wizard level, spent per cloak, " +
+                "free respec in the house), while the Mod Menu's Phase One switch is on. Off: the tab stays locked and no talent does anything.");
             // Matt's stat-archetype mapping (approved 2026-11-02, Log - Player 17:05): each cloak
             // to the tree of its strongest stat. Hope, Patience and Normal keep Apprentice.
             cloakTrees = config.Bind("Talents", "CloakTrees",
