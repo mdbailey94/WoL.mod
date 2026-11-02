@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.19.1";
+        public const string PluginVersion = "0.19.2";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -171,6 +171,7 @@ namespace WoLChaosDepths
             Depth.Bind(Config);
             Layers.Bind(Config);
             ChaosSurge.Bind(Config);
+            LevelUpBurst.Bind(Config);
             Pickups.Bind(Config);
             Adornments.Bind(Config);
             ProfileSave.Bind(Config);
@@ -1019,6 +1020,7 @@ namespace WoLChaosDepths
             if (!levelled)
                 return;
             Notice($"Level {save.level}!", 2.5f);
+            LevelUpBurst.Play(player);
             Log($"Player {player.playerID + 1} reached level {save.level} ({save.xp}/{XpToNext(save.level)} xp to the next)");
             StatMods.Apply(player, save);
             SaveStore.Save(player.playerID, save);
