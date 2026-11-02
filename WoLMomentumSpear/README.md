@@ -80,7 +80,7 @@ In-game testing so far:
 
 - 0.1.0: it loaded and drew correctly, but thrust 2 didn't connect. It barely moved the wizard, so the first hit's knockback pushed the target (training dummies stay pushed for 2.5 s) out of reach.
 - 0.1.1: every thrust lunges and the first two hits push less. Retest: all three thrusts fire and land at clicks 0.2 s apart, the aim is right in every direction, a running opener logs x1.95 with the gold tip, and a dash cancel leaves nothing behind. Its lunge (4 and 8) carried a chain past the target.
-- 0.1.2: a shorter lunge (2.5 and 5); not retested yet. `[Debug] LogThrusts` logs each thrust.
+- 0.1.2: a shorter lunge (2.5 and 5). Passed: at clicks about 0.2 s apart all three thrusts hit and the wizard stayed beside the dummies, and a running opener landed at x1.95. Still untested: enhanced reach, destructibles, co-op and the full-auto relic. `[Debug] LogThrusts` logs each thrust.
 
 A held button stops after thrust 3, and a new press is needed after that. That's how the game's own basics work: its melee combos only repeat on hold with a full-auto relic such as its cursed attack-speed item, which works on this spear too.
 
