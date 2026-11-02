@@ -22,7 +22,8 @@ namespace WoLChaosDepths
     //   Shift+F9  the first wizard gains a level      Shift+F4  drop a Common, Magic, Rare and
     //                                                            Legendary item at the feet
     //   Shift+F7  clear the exit room and stop at its portal (F7 without taking it)
-    //   Shift+F10 start a run from the house or the Hub (no walking to the portal)
+    //   Shift+F10 start a run from the house or the Hub (no walking to the portal); from a new
+    //             save's Tutorial, it's marked cleared first and the Hub loaded
     //   Shift+F8  win the run: the dive complete (Ascension's unlock), back to the Hub
     public static class DebugKeys
     {
@@ -76,7 +77,14 @@ namespace WoLChaosDepths
             if (Input.GetKeyDown(KeyCode.F6))
                 KillAll();
             if (Input.GetKeyDown(KeyCode.F7))
-                SkipStage(host);
+            {
+                // Outside the trials there's no exit room, and it only swept kills every half
+                // second for 30 s (0.19.5 in the Tutorial).
+                if (InTrials())
+                    SkipStage(host);
+                else
+                    ChaosDepthsPlugin.Log($"Debug: F7 clears trial floors only (now in {Where()})");
+            }
             if (Input.GetKeyDown(KeyCode.F8))
                 GodMode();
             if (Input.GetKeyDown(KeyCode.F9))
@@ -850,6 +858,36 @@ namespace WoLChaosDepths
             }
             string scene = DiveDirector.CurrentScene();
             ChaosDepthsPlugin.Log($"Debug: Shift+F10: starting a run from {Where()}");
+            // A new save starts in the Tutorial: mark it cleared (saved, so the save doesn't start
+            // there again) and go to the Hub.
+            if (!string.IsNullOrEmpty(scene) && scene.IndexOf("Tutorial", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                int load = loads;
+                try
+                {
+                    if (GameDataManager.gameData != null)
+                    {
+                        GameDataManager.gameData.tutorialCleared = true;
+                        GameDataManager.Save(true, false);
+                    }
+                    ChaosDepthsPlugin.Log("Debug: Shift+F10: tutorial marked cleared and saved; loading the Hub");
+                    NextLevelLoader.SetLevelInfo("Hub");
+                    GameController.LoadLevel("Hub");
+                }
+                catch (Exception e)
+                {
+                    ChaosDepthsPlugin.LogError($"Debug tutorial skip: {e.Message}");
+                    yield break;
+                }
+                float waited = 0f;
+                while (loads == load && waited < 20f)
+                {
+                    yield return new WaitForSecondsRealtime(0.5f);
+                    waited += 0.5f;
+                }
+                yield return new WaitForSecondsRealtime(2f);
+                scene = DiveDirector.CurrentScene();
+            }
             if (scene == "PlayerRoom")
             {
                 int load = loads;
@@ -866,7 +904,7 @@ namespace WoLChaosDepths
             }
             if (scene != "Hub")
             {
-                ChaosDepthsPlugin.Log($"Debug: Shift+F10 starts a run from the house or the Hub only (now in {Where()})");
+                ChaosDepthsPlugin.Log($"Debug: Shift+F10 starts a run from the Tutorial, the house or the Hub only (now in {Where()})");
                 yield break;
             }
             int before = loads;
