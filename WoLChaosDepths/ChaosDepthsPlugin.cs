@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.20.0";
+        public const string PluginVersion = "0.21.0";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -153,6 +153,7 @@ namespace WoLChaosDepths
                 InProfile = false;
             }
             InventoryPanel.BindLook(Config);
+            Talents.Bind(Config);
             diveEnabled = Config.Bind("Dive", "Enabled", true,
                 "Shape the run as a dive (the settings below) and log what the game does with it.");
             diveRealm = Config.Bind("Dive", "Realm", "Game",

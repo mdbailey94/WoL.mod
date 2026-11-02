@@ -41,7 +41,7 @@ namespace WoLChaosDepths
             for (int i = 0; i < PanelTabNames.Length; i++)
             {
                 float tx = PanelTabX(i);
-                bool open = PanelTabOpen[i], chosen = i == panelTab;
+                bool open = PanelTabIsOpen(i), chosen = i == panelTab;
                 bool lit = i == lockedTab && Time.unscaledTime < lockedUntil;
                 if (tabs != null)
                     Frame(tabs, 3, chosen ? 1 : open ? 0 : 2, R(tx, 2, PanelTabW, 10));
@@ -118,6 +118,12 @@ namespace WoLChaosDepths
                 }
                 RuleFrom(4, opening);
                 RuleFrom(opening + PanelTabW, 230);
+
+                if (panelTab == 1)
+                {
+                    DrawTalents(R, s, font, inset, slots);
+                    return true;
+                }
 
                 // Tab row: < ALL amulet ring charm >, the sort on the right.
                 Texture2D chevL = Piece("ui_chevron_left"), chevR = Piece("ui_chevron_right"), tabArt = Piece("ui_tab");

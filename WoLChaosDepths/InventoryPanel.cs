@@ -33,7 +33,6 @@ namespace WoLChaosDepths
         // tabs: the inventory is the GEAR tab; TALENTS and SKILLS are shown locked until Phase 1.
         // LB / RB on a pad, Z / C on the keyboard; a locked tab lights up and says so.
         private static readonly string[] PanelTabNames = { "GEAR", "TALENTS", "SKILLS" };
-        private static readonly bool[] PanelTabOpen = { true, false, false };
         private static readonly string[] LBNames = { "lb", "left shoulder", "left bumper", "l1" };
         private static readonly string[] RBNames = { "rb", "right shoulder", "right bumper", "r1" };
         private const float LockedFlash = 1.2f;
@@ -212,6 +211,14 @@ namespace WoLChaosDepths
             int panelStep = PadButton(pad, 4, LBNames) || KeyDown(KeyCode.Z) ? -1 : PadButton(pad, 5, RBNames) || KeyDown(KeyCode.C) ? 1 : 0;
             if (panelStep != 0)
                 StepPanelTab(panelStep);
+            if (!PanelTabIsOpen(panelTab))
+                panelTab = 0;
+            if (panelTab == 1)
+            {
+                // Phase 1a: the TALENTS tab has its own controls (TalentsPanel.cs).
+                TalentInput(pad, useKeys);
+                return;
+            }
 
             // Left and right: the item-type tab (All / Amulet / Ring / Charm). In the Hub, with
             // Interact (Y) held, or Q / E on the keyboard: the depth the next dive starts at.
@@ -359,7 +366,7 @@ namespace WoLChaosDepths
         private void StepPanelTab(int step)
         {
             int next = ((panelTab + step) % PanelTabNames.Length + PanelTabNames.Length) % PanelTabNames.Length;
-            if (PanelTabOpen[next])
+            if (PanelTabIsOpen(next))
             {
                 panelTab = next;
                 return;

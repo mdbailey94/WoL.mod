@@ -28,6 +28,16 @@ namespace WoLChaosDepths
         public List<ItemData> inventory = new List<ItemData>();
         // Item id equipped in each slot, "" for none; same order as LootTable.Slots.
         public List<string> equipped = new List<string>();
+        // Phase 1a: talent points spent, per cloak (Talents.cs).
+        public List<TalentData> talents = new List<TalentData>();
+    }
+
+    [Serializable]
+    public class TalentData
+    {
+        public string cloak;   // the game's outfit ID
+        public string node;    // Talents.Node.Key
+        public int points;
     }
 
     [Serializable]
@@ -133,6 +143,8 @@ namespace WoLChaosDepths
                 save.inventory = new List<ItemData>();
             if (save.equipped == null)
                 save.equipped = new List<string>();
+            if (save.talents == null)
+                save.talents = new List<TalentData>();
             while (save.equipped.Count < LootTable.Slots.Length)
                 save.equipped.Add("");
             save.depthReached = Math.Max(1, save.depthReached);
