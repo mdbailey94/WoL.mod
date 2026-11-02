@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.19.8";
+        public const string PluginVersion = "0.19.9";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -214,6 +214,14 @@ namespace WoLChaosDepths
             catch (Exception e)
             {
                 Logger.LogError($"Rift exit hook failed to install: {e.Message}");
+            }
+            try
+            {
+                RemovedArcana.Install(harmony, Logger);
+            }
+            catch (Exception e)
+            {
+                Logger.LogError($"Removed-arcana loadout fallback failed to install: {e.Message}");
             }
             try
             {
