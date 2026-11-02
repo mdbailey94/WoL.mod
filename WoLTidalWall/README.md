@@ -85,6 +85,14 @@ columns' crests overlap into one line of water, all moving in step rather than s
 turned to the roll direction (snapped to 15 degrees) so a wave rolling up, down or diagonally
 keeps its crest aligned with the way it's going.
 
+0.6.0 (#47, Matt: it looked bad, a row of separate spiky pillars) hides the game's water pillars,
+keeping their projectile barrier, and draws one continuous **wave face** in their place: under
+each column a painted body of water (a churning white foot, deep-to-pale bands streaming up,
+leaning forward when the wave rolls sideways) wide enough to overlap its neighbours into one
+sheet, with the foam crest on top. It rises out of the floor column by column and collapses into
+specks at the crash. `[Look] WaveBody = false` brings the pillars back. The end-of-wave `look:`
+line counts the `wave bodies`.
+
 ## Signature
 
 Put Tidal Wall in the **signature slot** (the spellbook in your house lists it under Signature
