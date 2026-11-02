@@ -17,7 +17,7 @@ namespace WoLAscension
     {
         public const string PluginGuid = "mdbailey94.wol.ascension";
         public const string PluginName = "Ascension";
-        public const string PluginVersion = "0.8.0";
+        public const string PluginVersion = "0.8.1";
 
         private const string PlayerDamageTakenMod = "Ascension_DamageTaken";
         private const string PlayerHealingMod = "Ascension_Healing";
@@ -113,6 +113,10 @@ namespace WoLAscension
                     RunBeaten("the final boss was beaten");
                 if (IsTrialScene(previous) && !IsTrialScene(next))
                     runEnded = true;
+                // Up to 0.8.0 inTrials kept the old scene's answer for up to half a second, so
+                // back in the Hub the plaza's dummies started a phantom run at the altar's level.
+                inTrials = IsTrialScene(next);
+                nextTrialCheck = Time.unscaledTime + TrialCheckInterval;
             };
             Logger.LogInfo($"{PluginName} {PluginVersion} loaded (last level {level.Value})");
         }
