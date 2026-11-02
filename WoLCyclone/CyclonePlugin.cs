@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
@@ -13,7 +13,7 @@ namespace WoLCyclone
     {
         public const string PluginGuid = "mdbailey94.wol.cyclone";
         public const string PluginName = "Cyclone";
-        public const string PluginVersion = "0.7.0";
+        public const string PluginVersion = "0.7.1";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;

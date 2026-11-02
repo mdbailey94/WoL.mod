@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using HarmonyLib;
 
 namespace WoLRollingGale
@@ -49,6 +49,10 @@ namespace WoLRollingGale
         private static void Apply(GameData data)
         {
             if (enabled == null || !enabled())
+                return;
+            // Chaos Depths' fresh saves (#48): a shop card unlocks exactly what it shows, so the
+            // standard card unlocks only the arcana and the signature stays its own card, as in vanilla.
+            if (Environment.GetEnvironmentVariable("CHAOSDEPTHS_FRESH_SAVE") == "1")
                 return;
             Player[] players = GameController.activePlayers;
             if (players == null)

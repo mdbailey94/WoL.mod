@@ -196,6 +196,7 @@ namespace WoLChaosDepths
                 slot.Value = SlotValue(next);
                 MarkFresh();
                 GameDataManager.LoadInitial(true);
+                PullStatics();
                 cachedName = null;
                 log.LogInfo($"Profile save: switched to {NameOf(next).ToLowerInvariant()} ({profileRoot})");
                 log.LogInfo($"Title: save slot -> {NameOf(next).ToUpperInvariant()}");
@@ -205,6 +206,37 @@ namespace WoLChaosDepths
             {
                 log.LogError($"Profile save: couldn't switch saves ({e.Message})");
                 return false;
+            }
+        }
+
+        // Cloaks (Outfit.OutfitDict) and chaos gems (Player.platWallet) live in static fields the
+        // game fills from the save only once, at start-up. The first level load saves them back
+        // (GameData.UpdateData), so after a switch they'd carry the previous save's cloaks and
+        // gems into this one (#49, #50). Set both from the save just loaded.
+        private static void PullStatics()
+        {
+            var data = GameDataManager.gameData;
+            if (data == null)
+                return;
+            try
+            {
+                foreach (var pair in Outfit.OutfitDict)
+                {
+                    bool unlocked;
+                    if (pair.Value != null)
+                        pair.Value.unlocked = data.outfitDataDictionary != null && data.outfitDataDictionary.TryGetValue(pair.Key, out unlocked) && unlocked;
+                }
+                data.PullOutfitData();
+                int gems = data.GetPlatinumBalance();
+                if (Player.platWallet != null)
+                    Player.platWallet.balance = gems;
+                else
+                    Player.platWallet = new PlatWallet(gems);
+                log.LogInfo($"Profile save: cloaks ({data.GetUnlockedOutfitCount()} unlocked) and chaos gems ({gems}) taken from this save");
+            }
+            catch (Exception e)
+            {
+                log.LogWarning($"Profile save: couldn't load this save's cloaks and gems ({e.Message})");
             }
         }
 

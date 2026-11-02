@@ -14,7 +14,7 @@ namespace WoLBrambleRing
     {
         public const string PluginGuid = "mdbailey94.wol.bramblering";
         public const string PluginName = "Bramble Ring";
-        public const string PluginVersion = "0.6.0";
+        public const string PluginVersion = "0.6.1";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;

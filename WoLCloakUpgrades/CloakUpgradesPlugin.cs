@@ -17,7 +17,7 @@ namespace WoLCloakUpgrades
     {
         public const string PluginGuid = "mdbailey94.wol.cloakupgrades";
         public const string PluginName = "Cloak Upgrades";
-        public const string PluginVersion = "0.3.2";
+        public const string PluginVersion = "0.3.3";
 
         // Ignore presses right after the wardrobe opens.
         private const float OpenGrace = 0.35f;
@@ -159,15 +159,26 @@ namespace WoLCloakUpgrades
         {
             if (string.IsNullOrEmpty(outfitID))
                 return null;
+            string section = TierSection();
+            string key = section + "|" + outfitID;
             ConfigEntry<int> entry;
-            if (!tiers.TryGetValue(outfitID, out entry))
+            if (!tiers.TryGetValue(key, out entry))
             {
-                entry = Config.Bind("Tiers", outfitID, 0,
+                entry = Config.Bind(section, outfitID, 0,
                     new ConfigDescription("Upgrade tier of this cloak (0-4), bought at the wardrobe.",
                         new AcceptableValueRange<int>(0, CloakTiers.Max)));
-                tiers[outfitID] = entry;
+                tiers[key] = entry;
             }
             return entry;
+        }
+
+        // Each Chaos Depths save slot keeps its own tiers (0.3.3, #49): a new save starts with
+        // plain cloaks. The base game and the Debugging save (slot 0) keep the old [Tiers].
+        private static string TierSection()
+        {
+            int slot;
+            string value = Environment.GetEnvironmentVariable("CHAOSDEPTHS_SAVE_SLOT");
+            return int.TryParse(value, out slot) && slot > 0 ? $"Tiers (Save {slot})" : "Tiers";
         }
 
         private static Outfit Highlighted(WardrobeUI ui)
