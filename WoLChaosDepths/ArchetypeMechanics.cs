@@ -35,6 +35,14 @@ namespace WoLChaosDepths
         private const int ArchmageEvery = 4;
         private const float SurgeDamage = 0.15f;
         private const float SurgeTime = 4f;
+        // Duelist
+        private const float MomentumCut = 0.3f;          // seconds off every cooldown per crit...
+        private const float MomentumSpacing = 0.5f;      // ...at most twice a second
+        private const float ExploitBonus = 0.25f;
+        private const float AssassinBonus = 0.5f;
+        private const float FlurryStep = 0.03f;
+        private const float FlurryTime = 4f;
+        private const int FlurryMax = 5;
         // Gambler
         private const float HotStreakStep = 0.02f;
         private const int HotStreakMax = 10;
@@ -52,7 +60,15 @@ namespace WoLChaosDepths
             public float juggernautFxAt;
             public float damageApplied;     // the damage mod on the player now (fraction)
             public int damageOn;            // which Player object it's on
+            public float momentumAt;
+            public bool riposteReady;
+            public readonly List<float> flurry = new List<float>();   // when each stack runs out
+            public int critApplied = -1;    // Flurry stacks the crit mod holds now
+            public int critOn;
         }
+
+        // Hits Assassin forced to crit, to add its bonus when the crit lands (cleared each tick).
+        private static readonly HashSet<AttackInfo> assassinHits = new HashSet<AttackInfo>();
 
         private static ManualLogSource log;
         private static readonly Dictionary<int, State> states = new Dictionary<int, State>();
@@ -67,6 +83,8 @@ namespace WoLChaosDepths
             log = logger;
             GameController.levelLoadEventHandlers += OnLevelLoad;
             Health.globalTakeDamageActualHandlers += OnAnyHit;
+            Health.globalTakeDamageEnterHandlers += OnHitEnter;
+            Attack.globalCritEventHandlers += OnCrit;
             var harmony = new Harmony("mdbailey94.wol.chaosdepths.archetypes");
             harmony.Patch(AccessTools.Method(typeof(Player.SkillState), nameof(Player.SkillState.StartCooldownTimer)),
                 postfix: new HarmonyMethod(typeof(ArchetypeMechanics), nameof(AfterCooldownStart)));
@@ -129,6 +147,8 @@ namespace WoLChaosDepths
                 {
                     s.hitThisFloor = false;
                     s.damageOn = 0;   // the player's stats may be rebuilt: put the damage mod back
+                    s.critOn = 0;
+                    s.flurry.Clear();
                 }
             }
             catch (Exception e)
@@ -180,7 +200,17 @@ namespace WoLChaosDepths
                 SetDamage(player, s, damage);
 
                 Fx(() => KeystoneFx.SetActive(p, "DoubleOrNothing", Talents.Rank(p, "DoubleOrNothing") > 0 && goldMultiplier > 1));
+
+                // Flurry: stacks run out after FlurryTime; the crit chance mod follows them.
+                s.flurry.RemoveAll(t => t <= Time.time);
+                if (Talents.Rank(player, "Flurry") <= 0)
+                    s.flurry.Clear();
+                SetCrit(player, s, s.flurry.Count);
+                Fx(() => KeystoneFx.SetActive(p, "Flurry", s.flurry.Count > 0));
+                if (Talents.Rank(player, "Riposte") <= 0)
+                    s.riposteReady = false;
             }
+            assassinHits.Clear();
             HookGold();
         }
 
@@ -198,6 +228,125 @@ namespace WoLChaosDepths
             health.takeDamageEventHandlers += (info, attacker) => BeforeHit(owner, info);
             health.takeDamageActualHandlers += (info, attacker) => AfterHit(owner, info);
             player.skillExecEventHandlers += state => OnCast(owner, state);
+            // Riposte: an evaded hit readies a sure crit.
+            health.evadeEventHandlers += () =>
+            {
+                if (Talents.Rank(owner, "Riposte") > 0 && !StateOf(owner).riposteReady)
+                {
+                    StateOf(owner).riposteReady = true;
+                    log?.LogInfo($"Talents: Riposte ready, player {owner.playerID + 1}'s next hit crits");
+                }
+            };
+        }
+
+        // ---- Duelist: the wizard's hits on enemies ----
+
+        // Before a hit on an enemy is worked out (crits are rolled after this): Assassin and
+        // Riposte make it a sure crit.
+        private static void OnHitEnter(AttackInfo info, Entity attacker, Entity hurt)
+        {
+            try
+            {
+                if (!Talents.Enabled || info == null || info.damage <= 0 || !(hurt is Enemy) || hurt.health == null)
+                    return;
+                Player player = PlayerOf(info.skillCategory);
+                if (player == null)
+                    return;
+                State s = StateOf(player);
+                if (Talents.Rank(player, "Assassin") > 0 && hurt.health.CurrentHealthValue >= (int)hurt.health.healthStat.ModifiedValue)
+                {
+                    info.critHitChance = 1f;
+                    assassinHits.Add(info);
+                }
+                if (s.riposteReady)
+                {
+                    s.riposteReady = false;
+                    info.critHitChance = 1f;
+                }
+            }
+            catch (Exception e)
+            {
+                LogOnce("hit enter", $"Talents: Duelist hit setup failed ({e.Message})");
+            }
+        }
+
+        // A crit, before its multiplier: Exploit and Assassin add to it; Momentum and Flurry count it.
+        private static void OnCrit(AttackInfo info, Entity attacker, Entity hurt)
+        {
+            try
+            {
+                if (!Talents.Enabled || info == null || !(hurt is Enemy))
+                    return;
+                Player player = PlayerOf(info.skillCategory);
+                if (player == null)
+                    return;
+                State s = StateOf(player);
+                float bonus = 0f;
+                if (Talents.Rank(player, "Exploit") > 0 && Afflicted(hurt))
+                    bonus += ExploitBonus;
+                if (assassinHits.Remove(info))
+                {
+                    bonus += AssassinBonus;
+                    Fx(() => KeystoneFx.Fire(player, "Assassin"));
+                }
+                if (bonus > 0f)
+                    info.damage = Mathf.CeilToInt(info.damage * (1f + bonus));
+                if (Talents.Rank(player, "Momentum") > 0 && Time.time >= s.momentumAt)
+                {
+                    s.momentumAt = Time.time + MomentumSpacing;
+                    CutCooldowns(player, MomentumCut);
+                }
+                if (Talents.Rank(player, "Flurry") > 0)
+                {
+                    s.flurry.Add(Time.time + FlurryTime);
+                    while (s.flurry.Count > FlurryMax)
+                        s.flurry.RemoveAt(0);
+                    SetCrit(player, s, s.flurry.Count);
+                }
+            }
+            catch (Exception e)
+            {
+                LogOnce("crit", $"Talents: Duelist crit failed ({e.Message})");
+            }
+        }
+
+        // Burning, shocked or frozen (the game's own checks, as its on-status relics use).
+        private static bool Afflicted(Entity enemy)
+        {
+            if (enemy.dotManager != null && (enemy.dotManager.HasDot(BurnDoTEffect.burnStatusStr) || enemy.dotManager.HasDot(ShockDotEffect.shockStatusStr)))
+                return true;
+            return enemy.fsm != null && enemy.fsm.currentStateName.Contains("Frozen");
+        }
+
+        // Momentum: every running cooldown (not charge-based ones) loses this many seconds.
+        private static void CutCooldowns(Player player, float seconds)
+        {
+            if (player.cooldownManager == null)
+                return;
+            foreach (Cooldown cd in player.cooldownManager.cooldowns.Values)
+            {
+                if (cd == null || cd.isChargeSkill || cd.Ready)
+                    continue;
+                float left = cd.RemainingTime - seconds;
+                if (left <= 0.05f)
+                    player.cooldownManager.ResetCooldown(cd.ID);
+                else
+                    ChaosStopwatch.Refresh(cd.remainingTimeStopwatchID, left);
+            }
+        }
+
+        // Flurry's crit chance, one mod per wizard, changed only when the stacks do.
+        private static void SetCrit(Player player, State s, int stacks)
+        {
+            int on = player.GetInstanceID();
+            if (stacks == s.critApplied && s.critOn == on)
+                return;
+            string id = ModPrefix + "Flurry";
+            StatManager.ModifyAllStatData(new NumVarStatMod(id, 0f), player.skillCategory, StatData.critChStr, null, false);
+            if (stacks > 0)
+                StatManager.ModifyAllStatData(new NumVarStatMod(id, FlurryStep * stacks, 10, VarStatModType.Additive), player.skillCategory, StatData.critChStr);
+            s.critApplied = stacks;
+            s.critOn = on;
         }
 
         // Before a hit on the wizard lands: the damage cuts.

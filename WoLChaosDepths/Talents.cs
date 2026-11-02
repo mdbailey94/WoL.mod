@@ -174,11 +174,11 @@ namespace WoLChaosDepths
                 new Node { Key = "KeenEye", Name = "Keen Eye", Tier = 1, MaxPoints = 2, Effect = "+2% critical hit chance" },
                 new Node { Key = "DeepCuts", Name = "Deep Cuts", Tier = 1, MaxPoints = 2, Effect = "+8% critical damage" },
                 new Node { Key = "Nimble", Name = "Nimble", Tier = 1, MaxPoints = 1, Effect = "+2% evade" },
-                new Node { Key = "Momentum", Name = "Momentum", Tier = 2, MaxPoints = 1, Effect = "A crit takes 0.3 s off all cooldowns (at most twice a second)" + Soon },
-                new Node { Key = "Exploit", Name = "Exploit", Tier = 2, MaxPoints = 1, Effect = "Crits on burning, frozen or shocked enemies deal 25% more" + Soon },
-                new Node { Key = "Riposte", Name = "Riposte", Tier = 2, MaxPoints = 1, Effect = "After evading a hit, your next hit crits" + Soon },
-                new Node { Key = "Assassin", Name = "Assassin", Tier = 3, MaxPoints = 1, Effect = "The first hit on an enemy at full health always crits, for 50% more" + Soon },
-                new Node { Key = "Flurry", Name = "Flurry", Tier = 3, MaxPoints = 1, Effect = "Each crit gives +3% crit chance for 4 s, stacking to 5" + Soon },
+                new Node { Key = "Momentum", Name = "Momentum", Tier = 2, MaxPoints = 1, Effect = "A crit takes 0.3 s off all cooldowns (at most twice a second)" },
+                new Node { Key = "Exploit", Name = "Exploit", Tier = 2, MaxPoints = 1, Effect = "Crits on burning, frozen or shocked enemies deal 25% more" },
+                new Node { Key = "Riposte", Name = "Riposte", Tier = 2, MaxPoints = 1, Effect = "After evading a hit, your next hit crits" },
+                new Node { Key = "Assassin", Name = "Assassin", Tier = 3, MaxPoints = 1, Effect = "The first hit on an enemy at full health always crits, for 50% more" },
+                new Node { Key = "Flurry", Name = "Flurry", Tier = 3, MaxPoints = 1, Effect = "Each crit gives +3% crit chance for 4 s, stacking to 5" },
             }
         };
 
