@@ -157,11 +157,11 @@ namespace WoLChaosDepths
                 new Node { Key = "IronHide", Name = "Iron Hide", Tier = 1, MaxPoints = 2, Effect = "+2% armor" },
                 new Node { Key = "ThickSkin", Name = "Thick Skin", Tier = 1, MaxPoints = 2, Effect = "+4% max health" },
                 new Node { Key = "Mending", Name = "Mending", Tier = 1, MaxPoints = 1, Effect = "+5% healing received" },
-                new Node { Key = "StandFirm", Name = "Stand Firm", Tier = 2, MaxPoints = 1, Effect = "-15% damage taken while standing still or casting" + Soon },
-                new Node { Key = "Retaliate", Name = "Retaliate", Tier = 2, MaxPoints = 1, Effect = "Being hit adds 10% signature charge (3 s cooldown)" + Soon },
+                new Node { Key = "StandFirm", Name = "Stand Firm", Tier = 2, MaxPoints = 1, Effect = "-15% damage taken while standing still or casting" },
+                new Node { Key = "Retaliate", Name = "Retaliate", Tier = 2, MaxPoints = 1, Effect = "Being hit adds 10% signature charge (3 s cooldown)" },
                 new Node { Key = "ShieldWall", Name = "Shield Wall", Tier = 2, MaxPoints = 1, Effect = "The first hit in each room deals 50% less" + Soon },
-                new Node { Key = "Juggernaut", Name = "Juggernaut", Tier = 3, MaxPoints = 1, Effect = "Can't be knocked back or staggered, +10% armor" + Soon },
-                new Node { Key = "LastStand", Name = "Last Stand", Tier = 3, MaxPoints = 1, Effect = "Below 30% health: -30% damage taken, +20% damage" + Soon },
+                new Node { Key = "Juggernaut", Name = "Juggernaut", Tier = 3, MaxPoints = 1, Effect = "Can't be knocked back or staggered, +10% armor" },
+                new Node { Key = "LastStand", Name = "Last Stand", Tier = 3, MaxPoints = 1, Effect = "Below 30% health: -30% damage taken, +20% damage" },
             }
         };
 
@@ -191,10 +191,10 @@ namespace WoLChaosDepths
                 new Node { Key = "Focus", Name = "Focus", Tier = 1, MaxPoints = 2, Effect = "-3% cooldowns" },
                 new Node { Key = "Overflow", Name = "Overflow", Tier = 1, MaxPoints = 2, Effect = "+5% signature charge" },
                 new Node { Key = "Potency", Name = "Potency", Tier = 1, MaxPoints = 1, Effect = "+3% damage" },
-                new Node { Key = "Echo", Name = "Echo", Tier = 2, MaxPoints = 1, Effect = "10% chance a cast doesn't start its cooldown" + Soon },
-                new Node { Key = "Surge", Name = "Surge", Tier = 2, MaxPoints = 1, Effect = "Casting your signature resets the dash and gives +15% damage for 4 s" + Soon },
+                new Node { Key = "Echo", Name = "Echo", Tier = 2, MaxPoints = 1, Effect = "10% chance a cast doesn't start its cooldown" },
+                new Node { Key = "Surge", Name = "Surge", Tier = 2, MaxPoints = 1, Effect = "Casting your signature resets the dash and gives +15% damage for 4 s" },
                 new Node { Key = "Channel", Name = "Channel", Tier = 2, MaxPoints = 1, Effect = "After standing still 1 s, cooldowns recover 10% faster" + Soon },
-                new Node { Key = "Archmage", Name = "Archmage", Tier = 3, MaxPoints = 1, Effect = "Every 4th standard cast has no cooldown" + Soon },
+                new Node { Key = "Archmage", Name = "Archmage", Tier = 3, MaxPoints = 1, Effect = "Every 4th standard cast has no cooldown" },
                 new Node { Key = "Cataclysm", Name = "Cataclysm", Tier = 3, MaxPoints = 1, Effect = "Your signature deals 40% more" },
             }
         };
@@ -244,11 +244,11 @@ namespace WoLChaosDepths
                 new Node { Key = "GemSense", Name = "Gem Sense", Tier = 1, MaxPoints = 2, Effect = "+5% chance of an extra chaos gem from bosses" + Soon },
                 new Node { Key = "Nerve", Name = "Nerve", Tier = 1, MaxPoints = 1, Effect = "+3% damage" },
                 new Node { Key = "HighRoller", Name = "High Roller", Tier = 2, MaxPoints = 1, Effect = "Relics cost 10% less" + Soon },
-                new Node { Key = "HotStreak", Name = "Hot Streak", Tier = 2, MaxPoints = 1, Effect = "Each kill without taking damage: +2% damage, up to +20%, lost when hit" + Soon },
+                new Node { Key = "HotStreak", Name = "Hot Streak", Tier = 2, MaxPoints = 1, Effect = "Each kill without taking damage: +2% damage, up to +20%, lost when hit" },
                 new Node { Key = "Jackpot", Name = "Jackpot", Tier = 2, MaxPoints = 1, Effect = "Elites drop 25% more gold" + Soon },
                 new Node { Key = "AllIn", Name = "All In", Tier = 3, MaxPoints = 1, Effect = "+25% damage, -25% max health" },
                 new Node { Key = "DoubleOrNothing", Name = "Double or Nothing", Tier = 3, MaxPoints = 1,
-                    Effect = "Each floor cleared without being hit doubles the next floor's gold (up to 4x); a hit resets it" + Soon },
+                    Effect = "Each floor cleared without being hit doubles the next floor's gold (up to 4x); a hit resets it" },
             }
         };
 

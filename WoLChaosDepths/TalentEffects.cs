@@ -60,6 +60,14 @@ namespace WoLChaosDepths
             host.AddComponent<Runner>();
             try
             {
+                ArchetypeMechanics.Install(logger);
+            }
+            catch (Exception e)
+            {
+                logger.LogError($"Talents: Bulwark/Duelist/Arcanist/Gambler mechanics failed to install ({e.Message})");
+            }
+            try
+            {
                 TalentMechanics.Install(logger);
             }
             catch (Exception e)
@@ -87,7 +95,7 @@ namespace WoLChaosDepths
             Add(totals, "CritChance", 0.05f * Talents.Rank(player, "Conductor"));
             Add(totals, "Knockback", 0.25f * Talents.Rank(player, "Updraft"));
             // The stat-archetype trees (approved 2026-11-02 17:12, the default mapping).
-            Add(totals, "DamageTaken", -0.02f * Talents.Rank(player, "IronHide"));                     // Bulwark
+            Add(totals, "DamageTaken", -0.02f * Talents.Rank(player, "IronHide") - 0.10f * Talents.Rank(player, "Juggernaut")); // Bulwark
             Add(totals, "Health", 0.04f * (Talents.Rank(player, "ThickSkin") + Talents.Rank(player, "Vitality")));
             Add(totals, "Healing", 0.05f * Talents.Rank(player, "Mending") + 0.08f * Talents.Rank(player, "Remedy"));
             Add(totals, "CritChance", 0.02f * Talents.Rank(player, "KeenEye"));                         // Duelist
