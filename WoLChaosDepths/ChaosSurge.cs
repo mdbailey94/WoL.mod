@@ -155,8 +155,12 @@ namespace WoLChaosDepths
                 aura.r.material = material;
                 aura.r.sprite = frames[0];
                 aura.born = Time.time - Random.value;
-                // Scaled up in whole steps for big enemies (a 24-px aura is about a grunt's width).
-                aura.scale = Mathf.Clamp(Mathf.RoundToInt(body.bounds.size.x * ppu / 24f), 1, 4);
+                // Scaled up in whole steps for big enemies (a 24-px aura is about a grunt's width):
+                // by the enemy's own scale (a Giant elite's), 2 for bosses. 0.19.0 went by the
+                // picture's width, which counts its empty margin, so bunched knights at 2-3x
+                // merged into one wide band (#29 retest).
+                aura.scale = entity is Boss || entity is MiniBoss ? 2
+                    : Mathf.Clamp(Mathf.RoundToInt(Mathf.Abs(entity.transform.lossyScale.y)), 1, 3);
                 aura.transform.localScale = new Vector3(aura.scale, aura.scale, 1f);
                 aura.Follow();
             }

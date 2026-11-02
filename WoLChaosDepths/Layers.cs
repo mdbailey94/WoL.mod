@@ -158,6 +158,7 @@ namespace WoLChaosDepths
             riftEndsAt = Time.time + riftSeconds.Value;
             ChaosDepthsPlugin.Log($"Rift {how}{Where(depth)}: {riftSeconds.Value:0} s, elite chance +{riftEliteBonus.Value:P0}, rarity +{riftRarityBonus.Value:P0}");
             ChaosDepthsPlugin.Notice($"A rift opens! Clear the floor in {Mathf.RoundToInt(riftSeconds.Value / 60f)} min", 4f);
+            FindExits();
         }
 
         // Twice a second: keep the layer tint on, and log the collapse once.
@@ -231,41 +232,60 @@ namespace WoLChaosDepths
 
         private const float TearFps = 10f;
         private static readonly List<GameObject> tears = new List<GameObject>();
-        private static bool tearsPlaced;
         private static Material tearMaterial;
 
-        // Twice a second while a rift is open, until the floor's exits are found (they may load
-        // after the floor does); gone when the rift closes.
+        // A trial floor's exit is the game's ExitPortal, which only appears once the exit room is
+        // cleared (0.19.0 looked for level loaders twice a second and found none: #19 retest).
+        // Looked for once when the rift opens (an exit already there), then each new exit is
+        // caught as it starts (the patch below). Gone when the rift closes.
         private static void TickTears()
         {
-            if (!RiftOpen)
-            {
+            if (!RiftOpen && tears.Count > 0)
                 ClearTears();
-                return;
-            }
-            if (tearsPlaced)
-                return;
+        }
+
+        private static void FindExits()
+        {
             try
             {
-                var placed = new List<string>();
-                foreach (NextLevelLoader loader in UnityEngine.Object.FindObjectsOfType<NextLevelLoader>())
-                {
-                    if (loader == null || !loader.gameObject.activeInHierarchy)
-                        continue;
-                    GameObject tear = Tear(loader);
-                    if (tear == null)
-                        continue;
-                    tears.Add(tear);
-                    placed.Add($"'{loader.name}' at ({tear.transform.position.x:0.0}, {tear.transform.position.y:0.0})");
-                }
-                if (placed.Count == 0)
-                    return;
-                tearsPlaced = true;
-                ChaosDepthsPlugin.Log($"Rift: tear drawn on {placed.Count} exit(s): {string.Join(", ", placed.ToArray())}");
+                foreach (ExitPortal exit in UnityEngine.Object.FindObjectsOfType<ExitPortal>())
+                    AddTear(exit);
             }
             catch (Exception e)
             {
-                tearsPlaced = true;
+                ChaosDepthsPlugin.LogError($"rift tear: {e.Message}");
+            }
+        }
+
+        public static void Install(HarmonyLib.Harmony harmony)
+        {
+            harmony.Patch(HarmonyLib.AccessTools.Method(typeof(ExitPortal), "Start"),
+                postfix: new HarmonyLib.HarmonyMethod(typeof(Layers), nameof(AfterExitStart)));
+        }
+
+        private static void AfterExitStart(ExitPortal __instance)
+        {
+            if (RiftOpen)
+                AddTear(__instance);
+        }
+
+        private static void AddTear(ExitPortal exit)
+        {
+            try
+            {
+                if (exit == null || !exit.gameObject.activeInHierarchy)
+                    return;
+                foreach (GameObject t in tears)
+                    if (t != null && t.transform.parent == exit.transform)
+                        return;
+                GameObject tear = Tear(exit.transform);
+                if (tear == null)
+                    return;
+                tears.Add(tear);
+                ChaosDepthsPlugin.Log($"Rift: tear drawn on the exit '{exit.name}' at ({tear.transform.position.x:0.0}, {tear.transform.position.y:0.0})");
+            }
+            catch (Exception e)
+            {
                 ChaosDepthsPlugin.LogError($"rift tear: {e.Message}");
             }
         }
@@ -276,12 +296,11 @@ namespace WoLChaosDepths
                 if (tear != null)
                     UnityEngine.Object.Destroy(tear);
             tears.Clear();
-            tearsPlaced = false;
         }
 
         // Stood on the exit's floor: the bottom centre of its pictures (the loader's own position
         // when it has none), with the tear's floor glow (5 px up its 56) just above that edge.
-        private static GameObject Tear(NextLevelLoader loader)
+        private static GameObject Tear(Transform loader)
         {
             SpriteRenderer under = null;
             Bounds b = new Bounds(loader.transform.position, Vector3.zero);

@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.19.2";
+        public const string PluginVersion = "0.19.3";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -205,6 +205,14 @@ namespace WoLChaosDepths
             catch (Exception e)
             {
                 Logger.LogError($"Pickup press hook failed to install: {e.Message}");
+            }
+            try
+            {
+                Layers.Install(harmony);
+            }
+            catch (Exception e)
+            {
+                Logger.LogError($"Rift exit hook failed to install: {e.Message}");
             }
             try
             {
