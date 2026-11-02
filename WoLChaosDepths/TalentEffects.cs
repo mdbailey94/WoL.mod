@@ -29,6 +29,7 @@ namespace WoLChaosDepths
         private const float QuickFeetSpeed = 0.03f;
         private const float SteadyHandsCooldown = -0.05f;   // negative = shorter, as gear's Cooldown affix
         private const float PocketChangeGold = 0.15f;
+        private const float FortuneGold = 0.08f;
         private const float SecondWindShare = 0.02f;        // of max health...
         private const float SecondWindTime = 3f;            // ...over this long...
         private const float SecondWindCooldown = 6f;        // ...at most this often
@@ -77,6 +78,22 @@ namespace WoLChaosDepths
                 + Talents.Rank(player, "Quickened") + Talents.Rank(player, "Glide")));
             Add(totals, "CritChance", 0.05f * Talents.Rank(player, "Conductor"));
             Add(totals, "Knockback", 0.25f * Talents.Rank(player, "Updraft"));
+            // The stat-archetype trees (approved 2026-11-02 17:12, the default mapping).
+            Add(totals, "DamageTaken", -0.02f * Talents.Rank(player, "IronHide"));                     // Bulwark
+            Add(totals, "Health", 0.04f * (Talents.Rank(player, "ThickSkin") + Talents.Rank(player, "Vitality")));
+            Add(totals, "Healing", 0.05f * Talents.Rank(player, "Mending") + 0.08f * Talents.Rank(player, "Remedy"));
+            Add(totals, "CritChance", 0.02f * Talents.Rank(player, "KeenEye"));                         // Duelist
+            Add(totals, "CritDamage", 0.08f * Talents.Rank(player, "DeepCuts"));
+            Add(totals, "Evade", 0.02f * Talents.Rank(player, "Nimble"));
+            Add(totals, "Cooldown", -0.03f * Talents.Rank(player, "Focus"));                            // Arcanist
+            Add(totals, "SignatureCharge", 0.05f * Talents.Rank(player, "Overflow"));
+            Add(totals, "Damage", 0.03f * (Talents.Rank(player, "Potency") + Talents.Rank(player, "Nerve")));
+            Add(totals, "SignatureDamage", 0.4f * Talents.Rank(player, "Cataclysm"));
+            Add(totals, "MoveSpeed", 0.03f * Talents.Rank(player, "Fleet"));                            // Windrunner
+            Add(totals, "HealCrit", 0.03f * Talents.Rank(player, "LuckyHeal"));                         // Mender
+            int allIn = Talents.Rank(player, "AllIn");                                                  // Gambler
+            Add(totals, "Damage", 0.25f * allIn);
+            Add(totals, "Health", -0.25f * allIn);
             Element(player, totals, "Fire", "Kindling", "HeatSink");
             Element(player, totals, "Air", "SharpGust", "SecondBreath");
             Element(player, totals, "Earth", "HeavyHands", "Quarry");
@@ -131,6 +148,20 @@ namespace WoLChaosDepths
         {
             survived.Clear();
             winds.Clear();
+            Fx(() => KeystoneFx.Clear());
+        }
+
+        // Keystone visuals (WoL Player's KeystoneFx.cs); a failure there never stops an effect.
+        private static void Fx(Action show)
+        {
+            try
+            {
+                show();
+            }
+            catch (Exception e)
+            {
+                LogOnce("keystone fx", $"Talents: keystone visual failed ({e.Message})");
+            }
         }
 
         private static void Tick()
@@ -139,8 +170,14 @@ namespace WoLChaosDepths
             if (players == null)
                 return;
             foreach (Player player in players)
-                if (player != null && player.health != null)
-                    Hook(player);
+            {
+                if (player == null || player.health == null)
+                    continue;
+                Hook(player);
+                // The lasting keystone looks that are on whenever the keystone is learned.
+                Player p = player;
+                Fx(() => KeystoneFx.SetActive(p, "AllIn", Talents.Rank(p, "AllIn") > 0));
+            }
             HookGold(players);
             bool inTrials = ChaosDepthsPlugin.InTrials();
             if (inTrials && !wasInTrials)
@@ -163,6 +200,12 @@ namespace WoLChaosDepths
             health.takeDamageEventHandlers += (info, attacker) => BeforeHit(owner, info);
             // After it landed: Second Wind.
             health.takeDamageActualHandlers += (info, attacker) => AfterHit(owner, info);
+            // Cataclysm's look on a signature cast (its +40% is a stat, in AddStats).
+            player.skillExecEventHandlers += state =>
+            {
+                if (state != null && state.isUltimate && Talents.Rank(owner, "Cataclysm") > 0)
+                    Fx(() => KeystoneFx.Fire(owner, "Cataclysm"));
+            };
         }
 
         private static void BeforeHit(Player player, AttackInfo info)
@@ -181,6 +224,7 @@ namespace WoLChaosDepths
                 Effect(() => PoolManager.GetPoolItem<HitSparkEmitter>().EmitSingle(HitSparkType.Large, player.transform.position, player.transform.position));
                 Effect(() => CameraController.ShakeCamera(0.5f, false));
                 ChaosDepthsPlugin.Notice($"Player {player.playerID + 1}: SURVIVOR!", 2f);
+                Fx(() => KeystoneFx.Fire(player, "Survivor"));
                 log?.LogInfo($"Talents: Survivor kept player {player.playerID + 1} at 1 health (used for this floor)");
             }
             catch (Exception e)
@@ -266,14 +310,16 @@ namespace WoLChaosDepths
             {
                 if (amount <= 0 || !Talents.Enabled)
                     return;
-                int best = 0;
+                // Pocket Change (Apprentice) +15% a point, Fortune (Gambler) +8% a point; the
+                // best wizard's bonus counts.
+                float best = 0f;
                 Player[] players = GameController.activePlayers;
                 if (players != null)
                     foreach (Player player in players)
                         if (player != null)
-                            best = Mathf.Max(best, Talents.Rank(player, "PocketChange"));
-                if (best > 0)
-                    amount = Mathf.RoundToInt(amount * (1f + PocketChangeGold * best));
+                            best = Mathf.Max(best, PocketChangeGold * Talents.Rank(player, "PocketChange") + FortuneGold * Talents.Rank(player, "Fortune"));
+                if (best > 0f)
+                    amount = Mathf.RoundToInt(amount * (1f + best));
             }
             catch (Exception e)
             {
@@ -293,6 +339,8 @@ namespace WoLChaosDepths
                 {
                     Vector3 at = player.transform.position + new Vector3(0f, -1.2f, 0f);
                     LootManager.DropItem(at, 1, string.Empty, false, 0f);
+                    Player p = player;
+                    Fx(() => KeystoneFx.Fire(p, "Graduate"));
                     log?.LogInfo($"Talents: Graduate dropped a relic for player {player.playerID + 1}");
                 }
                 catch (Exception e)

@@ -51,8 +51,9 @@ namespace WoLChaosDepths
             }
         };
 
-        // TREES 2-6, APPROVED by Matt 2026-11-02 ("Go ahead", Log - Player 16:45 / 17:00): the
-        // elemental trees, each on the Apprentice template. Nodes marked "(coming soon)" are in the
+        // The ELEMENTAL trees, APPROVED by Matt 2026-11-02 ("Go ahead", Log - Player 16:45 / 17:00),
+        // each on the Apprentice template. Since the archetype trees below (17:12) they're a parts
+        // bin: not mapped to any cloak by default, but usable through [Talents] CloakTrees. Nodes marked "(coming soon)" are in the
         // tree but don't act yet; the rest act through TalentEffects / StatMods.
         private const string Soon = " (coming soon)";
 
@@ -144,7 +145,114 @@ namespace WoLChaosDepths
             }
         };
 
-        public static readonly Tree[] Trees = { Apprentice, Fire, Air, Earth, Lightning, Water };
+        // TREE SET 2, the STAT-ARCHETYPE trees, APPROVED by Matt 2026-11-02 ("Great lets do it",
+        // Log - Player 17:05 + the 17:10 v2 changes): each cloak's tree grows the stats it already
+        // has. These are the default mapping; the elemental trees above stay as a parts bin.
+        public static readonly Tree Bulwark = new Tree
+        {
+            Key = "Bulwark",
+            Name = "Bulwark",
+            Nodes = new[]
+            {
+                new Node { Key = "IronHide", Name = "Iron Hide", Tier = 1, MaxPoints = 2, Effect = "+2% armor" },
+                new Node { Key = "ThickSkin", Name = "Thick Skin", Tier = 1, MaxPoints = 2, Effect = "+4% max health" },
+                new Node { Key = "Mending", Name = "Mending", Tier = 1, MaxPoints = 1, Effect = "+5% healing received" },
+                new Node { Key = "StandFirm", Name = "Stand Firm", Tier = 2, MaxPoints = 1, Effect = "-15% damage taken while standing still or casting" + Soon },
+                new Node { Key = "Retaliate", Name = "Retaliate", Tier = 2, MaxPoints = 1, Effect = "Being hit adds 10% signature charge (3 s cooldown)" + Soon },
+                new Node { Key = "ShieldWall", Name = "Shield Wall", Tier = 2, MaxPoints = 1, Effect = "The first hit in each room deals 50% less" + Soon },
+                new Node { Key = "Juggernaut", Name = "Juggernaut", Tier = 3, MaxPoints = 1, Effect = "Can't be knocked back or staggered, +10% armor" + Soon },
+                new Node { Key = "LastStand", Name = "Last Stand", Tier = 3, MaxPoints = 1, Effect = "Below 30% health: -30% damage taken, +20% damage" + Soon },
+            }
+        };
+
+        public static readonly Tree Duelist = new Tree
+        {
+            Key = "Duelist",
+            Name = "Duelist",
+            Nodes = new[]
+            {
+                new Node { Key = "KeenEye", Name = "Keen Eye", Tier = 1, MaxPoints = 2, Effect = "+2% critical hit chance" },
+                new Node { Key = "DeepCuts", Name = "Deep Cuts", Tier = 1, MaxPoints = 2, Effect = "+8% critical damage" },
+                new Node { Key = "Nimble", Name = "Nimble", Tier = 1, MaxPoints = 1, Effect = "+2% evade" },
+                new Node { Key = "Momentum", Name = "Momentum", Tier = 2, MaxPoints = 1, Effect = "A crit takes 0.3 s off all cooldowns (at most twice a second)" + Soon },
+                new Node { Key = "Exploit", Name = "Exploit", Tier = 2, MaxPoints = 1, Effect = "Crits on burning, frozen or shocked enemies deal 25% more" + Soon },
+                new Node { Key = "Riposte", Name = "Riposte", Tier = 2, MaxPoints = 1, Effect = "After evading a hit, your next hit crits" + Soon },
+                new Node { Key = "Assassin", Name = "Assassin", Tier = 3, MaxPoints = 1, Effect = "The first hit on an enemy at full health always crits, for 50% more" + Soon },
+                new Node { Key = "Flurry", Name = "Flurry", Tier = 3, MaxPoints = 1, Effect = "Each crit gives +3% crit chance for 4 s, stacking to 5" + Soon },
+            }
+        };
+
+        public static readonly Tree Arcanist = new Tree
+        {
+            Key = "Arcanist",
+            Name = "Arcanist",
+            Nodes = new[]
+            {
+                new Node { Key = "Focus", Name = "Focus", Tier = 1, MaxPoints = 2, Effect = "-3% cooldowns" },
+                new Node { Key = "Overflow", Name = "Overflow", Tier = 1, MaxPoints = 2, Effect = "+5% signature charge" },
+                new Node { Key = "Potency", Name = "Potency", Tier = 1, MaxPoints = 1, Effect = "+3% damage" },
+                new Node { Key = "Echo", Name = "Echo", Tier = 2, MaxPoints = 1, Effect = "10% chance a cast doesn't start its cooldown" + Soon },
+                new Node { Key = "Surge", Name = "Surge", Tier = 2, MaxPoints = 1, Effect = "Casting your signature resets the dash and gives +15% damage for 4 s" + Soon },
+                new Node { Key = "Channel", Name = "Channel", Tier = 2, MaxPoints = 1, Effect = "After standing still 1 s, cooldowns recover 10% faster" + Soon },
+                new Node { Key = "Archmage", Name = "Archmage", Tier = 3, MaxPoints = 1, Effect = "Every 4th standard cast has no cooldown" + Soon },
+                new Node { Key = "Cataclysm", Name = "Cataclysm", Tier = 3, MaxPoints = 1, Effect = "Your signature deals 40% more" },
+            }
+        };
+
+        public static readonly Tree Windrunner = new Tree
+        {
+            Key = "Windrunner",
+            Name = "Windrunner",
+            Nodes = new[]
+            {
+                new Node { Key = "Fleet", Name = "Fleet", Tier = 1, MaxPoints = 2, Effect = "+3% move speed" },
+                new Node { Key = "QuickStart", Name = "Quick Start", Tier = 1, MaxPoints = 2, Effect = "The sprint builds up 15% faster" + Soon },
+                new Node { Key = "LongStride", Name = "Long Stride", Tier = 1, MaxPoints = 1, Effect = "+5% dash distance" + Soon },
+                new Node { Key = "Tailspin", Name = "Tailspin", Tier = 2, MaxPoints = 1, Effect = "Dashing through an enemy knocks it aside and slows it 30% for 1.5 s" + Soon },
+                new Node { Key = "HitAndRun", Name = "Hit and Run", Tier = 2, MaxPoints = 1, Effect = "+15% damage for 2 s after a dash" + Soon },
+                new Node { Key = "Evasive", Name = "Evasive", Tier = 2, MaxPoints = 1, Effect = "+5% evade while sprinting" + Soon },
+                new Node { Key = "Afterimage", Name = "Afterimage", Tier = 3, MaxPoints = 1, Effect = "A dash leaves a decoy that enemies attack for 1.5 s" + Soon },
+                new Node { Key = "Velocity", Name = "Velocity", Tier = 3, MaxPoints = 1, Effect = "+1% damage for every 1% move speed above base" + Soon },
+            }
+        };
+
+        public static readonly Tree Mender = new Tree
+        {
+            Key = "Mender",
+            Name = "Mender",
+            Nodes = new[]
+            {
+                new Node { Key = "Vitality", Name = "Vitality", Tier = 1, MaxPoints = 2, Effect = "+4% max health" },
+                new Node { Key = "Remedy", Name = "Remedy", Tier = 1, MaxPoints = 2, Effect = "+8% healing" },
+                new Node { Key = "LuckyHeal", Name = "Lucky Heal", Tier = 1, MaxPoints = 1, Effect = "+3% heal critical chance" },
+                new Node { Key = "Regrowth", Name = "Regrowth", Tier = 2, MaxPoints = 1, Effect = "In a cleared room, regenerate 1% max health a second, up to 50%" + Soon },
+                new Node { Key = "Leech", Name = "Leech", Tier = 2, MaxPoints = 1, Effect = "Kills heal 1% max health" + Soon },
+                new Node { Key = "Overheal", Name = "Overheal", Tier = 2, MaxPoints = 1, Effect = "Healing past max becomes a 5 s shield, up to 10% max health" + Soon },
+                new Node { Key = "Sanctuary", Name = "Sanctuary", Tier = 3, MaxPoints = 1,
+                    Effect = "Casting your signature drops a 4 s healing circle (3% max health a second to wizards inside)" + Soon },
+                new Node { Key = "Lifebloom", Name = "Lifebloom", Tier = 3, MaxPoints = 1, Effect = "Your healing also heals the other wizard for 50% (co-op)" + Soon },
+            }
+        };
+
+        public static readonly Tree Gambler = new Tree
+        {
+            Key = "Gambler",
+            Name = "Gambler",
+            Nodes = new[]
+            {
+                new Node { Key = "Fortune", Name = "Fortune", Tier = 1, MaxPoints = 2, Effect = "+8% gold" },
+                new Node { Key = "GemSense", Name = "Gem Sense", Tier = 1, MaxPoints = 2, Effect = "+5% chance of an extra chaos gem from bosses" + Soon },
+                new Node { Key = "Nerve", Name = "Nerve", Tier = 1, MaxPoints = 1, Effect = "+3% damage" },
+                new Node { Key = "HighRoller", Name = "High Roller", Tier = 2, MaxPoints = 1, Effect = "Relics cost 10% less" + Soon },
+                new Node { Key = "HotStreak", Name = "Hot Streak", Tier = 2, MaxPoints = 1, Effect = "Each kill without taking damage: +2% damage, up to +20%, lost when hit" + Soon },
+                new Node { Key = "Jackpot", Name = "Jackpot", Tier = 2, MaxPoints = 1, Effect = "Elites drop 25% more gold" + Soon },
+                new Node { Key = "AllIn", Name = "All In", Tier = 3, MaxPoints = 1, Effect = "+25% damage, -25% max health" },
+                new Node { Key = "DoubleOrNothing", Name = "Double or Nothing", Tier = 3, MaxPoints = 1,
+                    Effect = "Each floor cleared without being hit doubles the next floor's gold (up to 4x); a hit resets it" + Soon },
+            }
+        };
+
+        public static readonly Tree[] Trees = { Apprentice, Bulwark, Duelist, Arcanist, Windrunner, Mender, Gambler, Fire, Air, Earth, Lightning, Water };
 
         public const int PointsToOpenNextTier = 3;
         private static ConfigEntry<bool> enabled;
@@ -159,14 +267,14 @@ namespace WoLChaosDepths
             enabled = config.Bind("Talents", "Enabled", false,
                 "Phase 1 preview: the character panel's TALENTS tab and cloak talent trees (1 point per wizard level, " +
                 "spent per cloak, free respec in the house). Off: the tab stays locked and no talent does anything.");
-            // The game's cloaks have no element, only stat themes, so this pairing is a first
-            // guess by theme for Matt to change: aggression Fire, speed Air, toughness Earth,
-            // crits Lightning, healing Water. Unlisted cloaks (Hope, Patience, Normal, Greed,
-            // Savile, mod cloaks) use the Apprentice tree.
+            // Matt's stat-archetype mapping (approved 2026-11-02, Log - Player 17:05): each cloak
+            // to the tree of its strongest stat. Hope, Patience and Normal keep Apprentice.
             cloakTrees = config.Bind("Talents", "CloakTrees",
-                "Fury=Fire, Rule=Fire, Venture=Fire, Pace=Air, Tempo=Air, Vigor=Earth, Grit=Earth, Pride=Earth, Fall=Earth, " +
-                "Awe=Lightning, Switch=Lightning, Pink=Water, Level=Water",
-                "Which talent tree each cloak uses: Cloak=Tree pairs, the tree one of Fire, Air, Earth, Lightning, Water. " +
+                "Vigor=Bulwark, Grit=Bulwark, Rule=Bulwark, Awe=Duelist, Switch=Duelist, DuelistCloak=Duelist, " +
+                "Tempo=Arcanist, Fury=Arcanist, Pace=Windrunner, Venture=Windrunner, Savile=Windrunner, Pink=Mender, " +
+                "Greed=Gambler, Level=Gambler, Fall=Gambler, Pride=Gambler",
+                "Which talent tree each cloak uses: Cloak=Tree pairs. Trees: Bulwark, Duelist, Arcanist, Windrunner, Mender, " +
+                "Gambler, Apprentice, and the elemental Fire, Air, Earth, Lightning, Water. " +
                 "Cloaks not listed use the Apprentice tree. Points are kept per cloak, so moving a cloak to another tree " +
                 "leaves its old points unused until it moves back (or a respec).");
         }

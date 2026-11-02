@@ -58,6 +58,9 @@ namespace WoLChaosDepths
                 Skill(category, StatData.critDmgStr, "CritDamage", Get(totals, "CritDamage"), VarStatModType.Additive);
                 Skill(category, StatData.cdStr, "Cooldown", Get(totals, "Cooldown"), VarStatModType.Multiplicative);
                 Skill(category, StatData.kbMultiStr, "Knockback", Get(totals, "Knockback"), VarStatModType.Multiplicative);
+                // The fields the game's Fury cloak uses (OutfitModType.ODRate / ODDamage).
+                Skill(category, StatData.odProgStr, "SignatureCharge", Get(totals, "SignatureCharge"), VarStatModType.Multiplicative);
+                Skill(category, StatData.odDmgStr, "SignatureDamage", Get(totals, "SignatureDamage"), VarStatModType.Multiplicative);
                 // Elemental talents (Phase 1a): only that element's arcana, by the game's own test
                 // (status effects such as burns excluded, as the game's element relics do).
                 foreach (string element in Elements)
@@ -76,6 +79,7 @@ namespace WoLChaosDepths
                     Stat(health.healModifierStat, "Healing", Get(totals, "Healing"), VarStatModType.Multiplicative, false);
                     Stat(health.damageTakenStat, "DamageTaken", Get(totals, "DamageTaken"), VarStatModType.Multiplicative, false);
                     Stat(health.evadeStat, "Evade", Get(totals, "Evade"), VarStatModType.Additive, false);
+                    Stat(health.critHealModStat, "HealCrit", Get(totals, "HealCrit"), VarStatModType.Additive, false);
                 }
                 if (player.movement != null)
                     Stat(player.movement.moveSpeedStat, "MoveSpeed", Get(totals, "MoveSpeed"), VarStatModType.Multiplicative, false);
@@ -102,6 +106,8 @@ namespace WoLChaosDepths
                         StatManager.ModifyAllStatData(new NumVarStatMod(Prefix + name, 0f), category, field, null, false);
                 }
                 StatManager.ModifyAllStatData(new NumVarStatMod(Prefix + "Knockback", 0f), category, StatData.kbMultiStr, null, false);
+                StatManager.ModifyAllStatData(new NumVarStatMod(Prefix + "SignatureCharge", 0f), category, StatData.odProgStr, null, false);
+                StatManager.ModifyAllStatData(new NumVarStatMod(Prefix + "SignatureDamage", 0f), category, StatData.odDmgStr, null, false);
                 foreach (string element in Elements)
                 {
                     StatManager.ModifyAllStatData(new NumVarStatMod(Prefix + element + "Damage", 0f), category, StatData.damageStr, null, false);
@@ -114,6 +120,7 @@ namespace WoLChaosDepths
                     health.healModifierStat?.RemoveMod(Prefix + "Healing");
                     health.damageTakenStat?.RemoveMod(Prefix + "DamageTaken");
                     health.evadeStat?.RemoveMod(Prefix + "Evade");
+                    health.critHealModStat?.RemoveMod(Prefix + "HealCrit");
                 }
                 player.movement?.moveSpeedStat?.RemoveMod(Prefix + "MoveSpeed");
             }
