@@ -28,6 +28,35 @@ namespace WoLChaosDepths
 
         private static Texture2D Piece(string name) => ItemArt.LoadPng(name);
 
+        // #51: the panel's tabs, 44 x 10 at x 16 / 62 / 108 (ui_panel_tab.png's frames: normal,
+        // selected, locked), labels in the game font; a locked tab has ui_lock.png's padlock and a
+        // dim label, lit for a moment when LB / RB tries it.
+        private const int PanelTabW = 44;
+        private static float PanelTabX(int index) => 16 + index * (PanelTabW + 2);
+
+        private void PanelTabRow(Func<float, float, float, float, Rect> R, int font, GUIStyle dim)
+        {
+            Texture2D tabs = Piece("ui_panel_tab"), padlock = Piece("ui_lock");
+            Label(R(4, 2, 12, 9), "LB", dim);
+            for (int i = 0; i < PanelTabNames.Length; i++)
+            {
+                float tx = PanelTabX(i);
+                bool open = PanelTabOpen[i], chosen = i == panelTab;
+                bool lit = i == lockedTab && Time.unscaledTime < lockedUntil;
+                if (tabs != null)
+                    Frame(tabs, 3, chosen ? 1 : open ? 0 : 2, R(tx, 2, PanelTabW, 10));
+                Color colour = chosen ? PixelUI.Accent : open || lit ? PixelUI.Text : PixelUI.Dim;
+                if (open || padlock == null)
+                    Label(R(tx, 3, PanelTabW, 9), PanelTabNames[i], PixelUI.Style(font, colour, TextAnchor.UpperCenter));
+                else
+                {
+                    GUI.DrawTexture(R(tx + 3, 4, 5, 5), padlock);
+                    Label(R(tx + 8, 3, PanelTabW - 9, 9), PanelTabNames[i], PixelUI.Style(font, colour, TextAnchor.UpperCenter));
+                }
+            }
+            Label(R(PanelTabX(PanelTabNames.Length) - 1, 2, 12, 9), "RB", dim);
+        }
+
         // False (so the code-drawn panel is used) when the pieces can't be had.
         private bool DrawArt()
         {
@@ -67,16 +96,28 @@ namespace WoLChaosDepths
                     PixelUI.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.45f));
                 NineSlice(frame, R(0, 0, ArtW, ArtH), s);
 
-                // Header: title, level, dust; the experience along the rule under it.
-                Label(R(6, 2, 100, 9), "CHAOS DEPTHS", PixelUI.Style(font, PixelUI.Accent));
-                Label(R(70, 2, 110, 9), $"LV {save.level}", dim);
+                // Header (#51, character_panel_gear_1x.png): LB [GEAR] [TALENTS] [SKILLS] RB in place
+                // of the title, then the level and dust; the experience along the rule under it,
+                // which the chosen tab opens through.
+                PanelTabRow(R, Mathf.Max(9, 6 * s), dim);
+                Label(R(166, 2, 34, 9), $"LV {save.level}", dimRight);
                 Texture2D dust = Piece("ui_chaos_dust_8");
                 if (dust != null)
                     GUI.DrawTexture(R(202, 3, 8, 8), dust);
                 Label(R(150, 2, 76, 9), save.dust.ToString(), textRight);
                 int need = ChaosDepthsPlugin.XpToNext(save.level);
-                PixelUI.Fill(R(4, 12, 226, 1), Rule);
-                PixelUI.Fill(R(4, 12, 226 * Mathf.Clamp01(save.xp / (float)Mathf.Max(1, need)), 1), PixelUI.Accent);
+                float xpEnd = 4 + 226 * Mathf.Clamp01(save.xp / (float)Mathf.Max(1, need));
+                float opening = PanelTabX(panelTab);
+                void RuleFrom(float a, float b)
+                {
+                    if (b <= a)
+                        return;
+                    PixelUI.Fill(R(a, 12, b - a, 1), Rule);
+                    if (Mathf.Min(b, xpEnd) > a)
+                        PixelUI.Fill(R(a, 12, Mathf.Min(b, xpEnd) - a, 1), PixelUI.Accent);
+                }
+                RuleFrom(4, opening);
+                RuleFrom(opening + PanelTabW, 230);
 
                 // Tab row: < ALL amulet ring charm >, the sort on the right.
                 Texture2D chevL = Piece("ui_chevron_left"), chevR = Piece("ui_chevron_right"), tabArt = Piece("ui_tab");

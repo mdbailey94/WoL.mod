@@ -29,6 +29,17 @@ namespace WoLChaosDepths
         // left / right pick the depth; Down goes back to the list. (A held Y + left / right
         // never reached the depth in testing, so the depth line got its own place instead.)
         private bool depthFocus;
+        // The character panel's own tabs (task sheet #51, WoL Art's tab-row mockup), above the item
+        // tabs: the inventory is the GEAR tab; TALENTS and SKILLS are shown locked until Phase 1.
+        // LB / RB on a pad, Z / C on the keyboard; a locked tab lights up and says so.
+        private static readonly string[] PanelTabNames = { "GEAR", "TALENTS", "SKILLS" };
+        private static readonly bool[] PanelTabOpen = { true, false, false };
+        private static readonly string[] LBNames = { "lb", "left shoulder", "left bumper", "l1" };
+        private static readonly string[] RBNames = { "rb", "right shoulder", "right bumper", "r1" };
+        private const float LockedFlash = 1.2f;
+        private int panelTab;
+        private int lockedTab = -1;
+        private float lockedUntil;
         private static readonly Color Gain = new Color32(0x6f, 0xe0, 0x7a, 0xff), Loss = new Color32(0xff, 0x6a, 0x6a, 0xff), EquippedMark = new Color32(0x6f, 0xe0, 0x7a, 0xff);
 
         public bool Open { get; private set; }
@@ -197,6 +208,11 @@ namespace WoLChaosDepths
 
             Rebuild();
 
+            // LB / RB (Z / C): the panel's tabs (#51).
+            int panelStep = PadButton(pad, 4, LBNames) || KeyDown(KeyCode.Z) ? -1 : PadButton(pad, 5, RBNames) || KeyDown(KeyCode.C) ? 1 : 0;
+            if (panelStep != 0)
+                StepPanelTab(panelStep);
+
             // Left and right: the item-type tab (All / Amulet / Ring / Charm). In the Hub, with
             // Interact (Y) held, or Q / E on the keyboard: the depth the next dive starts at.
             float horizontal = 0f;
@@ -337,6 +353,22 @@ namespace WoLChaosDepths
         }
 
         private static readonly string[] XNames = { "x", "x button", "square" };
+
+        // Moves to the next panel tab that way. A locked one (TALENTS, SKILLS until Phase 1)
+        // lights up for a moment with a notice instead, and GEAR stays.
+        private void StepPanelTab(int step)
+        {
+            int next = ((panelTab + step) % PanelTabNames.Length + PanelTabNames.Length) % PanelTabNames.Length;
+            if (PanelTabOpen[next])
+            {
+                panelTab = next;
+                return;
+            }
+            lockedTab = next;
+            lockedUntil = Time.unscaledTime + LockedFlash;
+            ChaosDepthsPlugin.Notice($"{PanelTabNames[next]}: coming in Phase 1", LockedFlash);
+            ChaosDepthsPlugin.Log($"Panel: {PanelTabNames[next]} tab is locked (Phase 1)");
+        }
 
         // Drops the selected item on the floor at the wizard's feet, a little ahead (taken off
         // first if it's worn). Anyone can pick it up, so it can be handed to the other wizard; left
@@ -572,7 +604,9 @@ namespace WoLChaosDepths
 
                 // Header: name, level, experience bar, dust.
                 Label(new Rect(x, y, w, lineH), $"{save.name}   Level {save.level}", text);
-                Label(new Rect(x, y - 3 * u, w - 10 * u, lineH), "CHAOS DEPTHS", PixelUI.Style(Mathf.Max(10, 3 * u), PixelUI.Accent, TextAnchor.UpperCenter));
+                // The panel's tabs (#51) where the title was.
+                Label(new Rect(x, y - 3 * u, w - 10 * u, lineH), "LB   GEAR   talents (locked)   skills (locked)   RB",
+                    PixelUI.Style(Mathf.Max(10, 3 * u), PixelUI.Accent, TextAnchor.UpperCenter));
                 Label(new Rect(x, y, w - 10 * u, lineH), $"Chaos Dust {save.dust}   Kills {save.kills}", right);
                 y += lineH;
                 bool inHubNow = Depth.Enabled && !ChaosDepthsPlugin.InTrialsNow();
