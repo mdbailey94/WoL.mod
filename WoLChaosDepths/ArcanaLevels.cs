@@ -57,6 +57,81 @@ namespace WoLChaosDepths
             {
                 ChaosDepthsPlugin.LogError($"Arcana levels: couldn't hook casts ({e.Message})");
             }
+            try
+            {
+                var go = new GameObject("ChaosDepths ArcanaLevelBadge");
+                UnityEngine.Object.DontDestroyOnLoad(go);
+                go.AddComponent<SpellBookBadge>();
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"Arcana levels: no spellbook badge ({e.Message})");
+            }
+        }
+
+        // While the spellbook is open: WoL Art's level badge (ui_arcana_level.png, 9x7, normal and
+        // mastery plates, the digits in its 7x5 well) for the arcana under the cursor, with its
+        // step and the casts to the next level, in a strip at the bottom of the screen. A first
+        // version: drawing it on the game's own card needs its layout seen in game.
+        private class SpellBookBadge : MonoBehaviour
+        {
+            private static readonly Color NormalDigits = new Color32(0xd8, 0xda, 0xe4, 0xff);
+            private static readonly Color MasteryDigits = new Color32(0x3a, 0x2a, 0x08, 0xff);
+            private SpellBookUI book;
+            private float nextFind;
+
+            private void OnGUI()
+            {
+                if (!Enabled || ChaosDepthsPlugin.Instance == null)
+                    return;
+                try
+                {
+                    if (book == null && Time.unscaledTime >= nextFind)
+                    {
+                        nextFind = Time.unscaledTime + 0.5f;
+                        book = FindObjectOfType<SpellBookUI>();
+                    }
+                    if (book == null)
+                        return;
+                    var t = Traverse.Create(book);
+                    if (!t.Field("isActive").GetValue<bool>())
+                        return;
+                    Player player = t.Field("player").GetValue<Player>();
+                    Player.SkillState skill = t.Field("currentSkill").GetValue<Player.SkillState>();
+                    if (player == null || skill == null || string.IsNullOrEmpty(skill.skillID))
+                        return;
+                    CharacterSave save = ChaosDepthsPlugin.Instance.SaveOf(player);
+                    if (save == null)
+                        return;
+                    Draw(player, save, skill.skillID);
+                }
+                catch (Exception e)
+                {
+                    if (failed.Add("badge"))
+                        ChaosDepthsPlugin.LogError($"Arcana levels (badge): {e.Message}");
+                }
+            }
+
+            private static void Draw(Player player, CharacterSave save, string arcana)
+            {
+                int s = Mathf.Max(2, Mathf.FloorToInt(Screen.height / 180f));
+                int level = Level(save, arcana), xp = Xp(save, arcana);
+                bool max = level >= MaxLevel;
+                string text = Describe(player, save, arcana).ToUpperInvariant() +
+                    (max ? "   MASTERED" : $"   {xp - XpFor(level)} / {XpFor(level + 1) - XpFor(level)} CASTS TO LV {level + 1}");
+                int font = Mathf.Max(10, 6 * s);
+                GUIStyle style = PixelUI.Style(font, PixelUI.Text);
+                float textW = style.CalcSize(new GUIContent(text)).x;
+                float w = 9 * s + 4 * s + textW + 8 * s, h = 11 * s;
+                var strip = new Rect(Mathf.Floor((Screen.width - w) / 2f), Screen.height - h - 6 * s, w, h);
+                PixelUI.Fill(strip, new Color(0f, 0f, 0f, 0.6f));
+                float bx = strip.x + 4 * s, by = strip.y + 2 * s;
+                if (PixelUI.Sheet("ui_arcana_level", 2, max ? 1 : 0, bx, by, s, Color.white) != Vector2.zero)
+                    GUI.Label(new Rect(bx + s, by + s, 7 * s, 5 * s), level.ToString(),
+                        PixelUI.Style(Mathf.Max(8, 5 * s), max ? MasteryDigits : NormalDigits, TextAnchor.MiddleCenter));
+                GUI.Label(new Rect(bx + 13 * s, strip.y, textW + 4 * s, h), text,
+                    PixelUI.Style(font, PixelUI.Text, TextAnchor.MiddleLeft));
+            }
         }
 
         // ---- Levels ----
