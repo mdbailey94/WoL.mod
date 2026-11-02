@@ -54,30 +54,9 @@ Base config folder: C:\Program Files (x86)\Steam\steamapps\common\Wizard of Lege
 | Signature Advanced | FinalRadius | 3 | 0.5-10 | Final blast hit radius in world units. |
 | Signature Advanced | PillarStep | 0.04 | 0.01-0.15 | Seconds between remaining patch eruptions when the signature ends. |
 
-## WoLStoneCharge 0.7.0
+## WoLStoneCharge 0.8.0
 
-| Section | Key | Default | Range | Meaning |
-|---|---|---:|---|---|
-| Cinema Advanced | SigDim | 0.6 | 0.1-1 | Signature stage-light multiplier; 1 keeps normal brightness. |
-| Cinema Advanced | SigEaseBack | 1 | 0.05-3 | Seconds for camera and light to return after the slam. |
-| Cinema Advanced | SigFlash | 1.6 | 0-3 | Signature slam flash brightness multiplier. |
-| Cinema Advanced | SigHitStopFrames | 6 | 0-15 | Signature slam hit-stop frames; 0 disables it. |
-| Cinema Advanced | SigShake | 2.6 | 0-5 | Signature slam camera-shake strength; 0 disables it. |
-| Cinema Advanced | SigSlowMoScale | 0.05 | 0.01-1 | Signature slam time scale; 1 disables slowdown. |
-| Cinema Advanced | SigSlowMoTime | 0.5 | 0-2 | Real seconds of signature slam slow motion. |
-| Cinema Advanced | SigZoom | 0.3 | 0-0.7 | Signature camera pullback fraction; 0 disables this zoom. |
-| Signature Advanced | ShockwaveAfter | 0.55 | 0.05-2 | Real seconds between signature slam and aftershock. |
-| Signature Advanced | ShockwaveScale | 1.6 | 0.25-3 | Aftershock radius as a multiplier of signature slam radius. |
-| Signature Advanced | SigArcHeight | 2 | 0-8 | Added signature flight-arc height in world units. |
-| Signature Advanced | SigHangHeight | 3.5 | 0-10 | Signature shield hover height in world units. |
-| Signature Advanced | SignatureFlightTime | 0.6 | 0.1-2 | Seconds the signature shield flies before hovering. |
-| Signature Advanced | SignatureSlamTime | 0.18 | 0.04-1 | Seconds for the signature shield to drop to the ground. |
-| Signature Advanced | SigRiseHeight | 6 | 0-15 | Signature shield height at the end of the hover in world units. |
-| Throw Advanced | ArcHeight | 1 | 0-5 | Added standard shield flight-arc height in world units. |
-| Throw Advanced | HangHeight | 1.6 | 0-6 | Standard shield hover height in world units. |
-| Throw Advanced | RiseHeight | 2.6 | 0-10 | Standard shield height at the end of the hover in world units. |
-| Throw Advanced | SlamTime | 0.12 | 0.04-1 | Seconds for a standard or enhanced shield to drop to the ground. |
-| Throw Advanced | StartHeight | 0.5 | 0-3 | Shield height above its ground position at launch in world units. |
+No advanced tuning: 0.8.0 is the 0.4.1 running shield again (#42), and its settings are the [Charge], [Crash], [Look] and [Balance] entries in its own config, described in WoLStoneCharge/README.md. The 0.7.0 [Cinema Advanced] and [Signature Advanced] keys no longer exist.
 
 ## WoLThunderhead 0.10.0
 
