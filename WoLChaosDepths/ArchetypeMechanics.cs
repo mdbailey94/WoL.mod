@@ -13,10 +13,12 @@ namespace WoLChaosDepths
     /// cloak's tree). Hooks: each wizard's own damage events (as TalentEffects), the cast event,
     /// one Harmony postfix on Player.SkillState.StartCooldownTimer, and the run's gold wallet.
     /// Built so far:
-    /// - Bulwark: Stand Firm, Retaliate, Juggernaut (its armor is in TalentEffects.AddStats),
-    ///   Last Stand.
-    /// - Arcanist: Echo, Archmage, Surge.
-    /// - Gambler: Hot Streak, Double or Nothing.
+    /// - Bulwark: Stand Firm, Retaliate, Shield Wall (a "room" ends when no living enemy is within
+    ///   15 u), Juggernaut (its armor is in TalentEffects.AddStats), Last Stand.
+    /// - Duelist: Momentum, Exploit, Riposte, Assassin, Flurry.
+    /// - Arcanist: Echo, Surge, Channel, Archmage.
+    /// - Gambler: Hot Streak, Jackpot (gold banked within 3 s of an elite kill), Double or Nothing.
+    /// Not yet: Gem Sense and High Roller (the boss gem drop and the shop's relic prices).
     /// </summary>
     public static class ArchetypeMechanics
     {
@@ -43,7 +45,14 @@ namespace WoLChaosDepths
         private const float FlurryStep = 0.03f;
         private const float FlurryTime = 4f;
         private const int FlurryMax = 5;
+        // Bulwark, Arcanist: rooms and standing
+        private const float ShieldWallCut = 0.5f;
+        private const float RoomClearRadius = 15f;       // no living enemy this close = between rooms
+        private const float ChannelAfter = 1f;
+        private const float ChannelBonus = 0.10f;        // cooldowns recover this much faster
         // Gambler
+        private const float JackpotBonus = 0.25f;
+        private const float JackpotWindow = 3f;          // gold banked this soon after an elite kill
         private const float HotStreakStep = 0.02f;
         private const int HotStreakMax = 10;
         private const int DoubleMax = 4;
@@ -65,7 +74,11 @@ namespace WoLChaosDepths
             public readonly List<float> flurry = new List<float>();   // when each stack runs out
             public int critApplied = -1;    // Flurry stacks the crit mod holds now
             public int critOn;
+            public bool shieldWallReady = true;
+            public float stillSince = -1f;
         }
+
+        private static float jackpotUntil;
 
         // Hits Assassin forced to crit, to add its bonus when the crit lands (cleared each tick).
         private static readonly HashSet<AttackInfo> assassinHits = new HashSet<AttackInfo>();
@@ -92,6 +105,13 @@ namespace WoLChaosDepths
             UnityEngine.Object.DontDestroyOnLoad(host);
             host.hideFlags = HideFlags.HideAndDontSave;
             host.AddComponent<Runner>();
+        }
+
+        /// <summary>Flurry's live stacks on a wizard (0-5), for KeystoneFx's orbiting shards.</summary>
+        public static int FlurryStacks(Player player)
+        {
+            State s;
+            return player != null && states.TryGetValue(player.playerID, out s) ? s.flurry.Count : 0;
         }
 
         private static State StateOf(Player player)
@@ -209,6 +229,21 @@ namespace WoLChaosDepths
                 Fx(() => KeystoneFx.SetActive(p, "Flurry", s.flurry.Count > 0));
                 if (Talents.Rank(player, "Riposte") <= 0)
                     s.riposteReady = false;
+
+                // Shield Wall: ready again once the room is clear (no living enemy near).
+                if (Talents.Rank(player, "ShieldWall") > 0 && !s.shieldWallReady && !EnemiesNear(player.transform.position))
+                    s.shieldWallReady = true;
+
+                // Channel: standing still a second, running cooldowns recover 10% faster.
+                if (StandingStill(player) && !Casting(player))
+                {
+                    if (s.stillSince < 0f)
+                        s.stillSince = Time.time;
+                }
+                else
+                    s.stillSince = -1f;
+                if (Talents.Rank(player, "Channel") > 0 && s.stillSince >= 0f && Time.time - s.stillSince >= ChannelAfter)
+                    CutCooldowns(player, ChannelBonus * TickInterval);
             }
             assassinHits.Clear();
             HookGold();
@@ -361,6 +396,12 @@ namespace WoLChaosDepths
                     cut += StandFirmCut;
                 if (StateOf(player).lastStand)
                     cut += LastStandCut;
+                if (Talents.Rank(player, "ShieldWall") > 0 && StateOf(player).shieldWallReady && !player.health.invulnerable && !player.health.GuardNextAtk)
+                {
+                    StateOf(player).shieldWallReady = false;
+                    cut += ShieldWallCut;
+                    log?.LogInfo($"Talents: Shield Wall halved player {player.playerID + 1}'s first hit in this room");
+                }
                 if (cut > 0f)
                     info.damage = Mathf.Max(1, Mathf.RoundToInt(info.damage * (1f - Mathf.Min(0.9f, cut))));
                 if (StateOf(player).juggernaut && Time.time >= StateOf(player).juggernautFxAt && info.knockbackMultiplier > 0f)
@@ -415,7 +456,11 @@ namespace WoLChaosDepths
                 if (!Talents.Enabled || info == null || !(hurt is Enemy) || hurt.health == null || hurt.health.CurrentHealthValue > 0)
                     return;
                 Player killer = PlayerOf(info.skillCategory);
-                if (killer == null || Talents.Rank(killer, "HotStreak") <= 0)
+                if (killer == null)
+                    return;
+                if (Talents.Rank(killer, "Jackpot") > 0 && Elites.IsElite(hurt))
+                    jackpotUntil = Time.time + JackpotWindow;
+                if (Talents.Rank(killer, "HotStreak") <= 0)
                     return;
                 State s = StateOf(killer);
                 if (s.streak < HotStreakMax)
@@ -499,8 +544,24 @@ namespace WoLChaosDepths
 
         private static void MoreGold(ref int amount)
         {
-            if (amount > 0 && goldMultiplier > 1 && Talents.Enabled)
+            if (amount <= 0 || !Talents.Enabled)
+                return;
+            if (goldMultiplier > 1)
                 amount *= goldMultiplier;
+            // Jackpot: an elite's gold (banked in the few seconds after it dies) is worth more.
+            if (Time.time < jackpotUntil)
+                amount = Mathf.RoundToInt(amount * (1f + JackpotBonus));
+        }
+
+        private static bool EnemiesNear(Vector2 at)
+        {
+            foreach (Collider2D col in Physics2D.OverlapCircleAll(at, RoomClearRadius))
+            {
+                Enemy enemy = col != null ? col.GetComponentInParent<Enemy>() : null;
+                if (enemy != null && enemy.gameObject.activeInHierarchy && enemy.health != null && enemy.health.CurrentHealthValue > 0)
+                    return true;
+            }
+            return false;
         }
 
         // ---- Helpers ----

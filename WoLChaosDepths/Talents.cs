@@ -159,7 +159,7 @@ namespace WoLChaosDepths
                 new Node { Key = "Mending", Name = "Mending", Tier = 1, MaxPoints = 1, Effect = "+5% healing received" },
                 new Node { Key = "StandFirm", Name = "Stand Firm", Tier = 2, MaxPoints = 1, Effect = "-15% damage taken while standing still or casting" },
                 new Node { Key = "Retaliate", Name = "Retaliate", Tier = 2, MaxPoints = 1, Effect = "Being hit adds 10% signature charge (3 s cooldown)" },
-                new Node { Key = "ShieldWall", Name = "Shield Wall", Tier = 2, MaxPoints = 1, Effect = "The first hit in each room deals 50% less" + Soon },
+                new Node { Key = "ShieldWall", Name = "Shield Wall", Tier = 2, MaxPoints = 1, Effect = "The first hit in each room deals 50% less" },
                 new Node { Key = "Juggernaut", Name = "Juggernaut", Tier = 3, MaxPoints = 1, Effect = "Can't be knocked back or staggered, +10% armor" },
                 new Node { Key = "LastStand", Name = "Last Stand", Tier = 3, MaxPoints = 1, Effect = "Below 30% health: -30% damage taken, +20% damage" },
             }
@@ -193,7 +193,7 @@ namespace WoLChaosDepths
                 new Node { Key = "Potency", Name = "Potency", Tier = 1, MaxPoints = 1, Effect = "+3% damage" },
                 new Node { Key = "Echo", Name = "Echo", Tier = 2, MaxPoints = 1, Effect = "10% chance a cast doesn't start its cooldown" },
                 new Node { Key = "Surge", Name = "Surge", Tier = 2, MaxPoints = 1, Effect = "Casting your signature resets the dash and gives +15% damage for 4 s" },
-                new Node { Key = "Channel", Name = "Channel", Tier = 2, MaxPoints = 1, Effect = "After standing still 1 s, cooldowns recover 10% faster" + Soon },
+                new Node { Key = "Channel", Name = "Channel", Tier = 2, MaxPoints = 1, Effect = "After standing still 1 s, cooldowns recover 10% faster" },
                 new Node { Key = "Archmage", Name = "Archmage", Tier = 3, MaxPoints = 1, Effect = "Every 4th standard cast has no cooldown" },
                 new Node { Key = "Cataclysm", Name = "Cataclysm", Tier = 3, MaxPoints = 1, Effect = "Your signature deals 40% more" },
             }
@@ -206,13 +206,13 @@ namespace WoLChaosDepths
             Nodes = new[]
             {
                 new Node { Key = "Fleet", Name = "Fleet", Tier = 1, MaxPoints = 2, Effect = "+3% move speed" },
-                new Node { Key = "QuickStart", Name = "Quick Start", Tier = 1, MaxPoints = 2, Effect = "The sprint builds up 15% faster" + Soon },
-                new Node { Key = "LongStride", Name = "Long Stride", Tier = 1, MaxPoints = 1, Effect = "+5% dash distance" + Soon },
-                new Node { Key = "Tailspin", Name = "Tailspin", Tier = 2, MaxPoints = 1, Effect = "Dashing through an enemy knocks it aside and slows it 30% for 1.5 s" + Soon },
-                new Node { Key = "HitAndRun", Name = "Hit and Run", Tier = 2, MaxPoints = 1, Effect = "+15% damage for 2 s after a dash" + Soon },
-                new Node { Key = "Evasive", Name = "Evasive", Tier = 2, MaxPoints = 1, Effect = "+5% evade while sprinting" + Soon },
-                new Node { Key = "Afterimage", Name = "Afterimage", Tier = 3, MaxPoints = 1, Effect = "A dash leaves a decoy that enemies attack for 1.5 s" + Soon },
-                new Node { Key = "Velocity", Name = "Velocity", Tier = 3, MaxPoints = 1, Effect = "+1% damage for every 1% move speed above base" + Soon },
+                new Node { Key = "QuickStart", Name = "Quick Start", Tier = 1, MaxPoints = 2, Effect = "The sprint builds up 15% faster" },
+                new Node { Key = "LongStride", Name = "Long Stride", Tier = 1, MaxPoints = 1, Effect = "+5% dash distance" },
+                new Node { Key = "Tailspin", Name = "Tailspin", Tier = 2, MaxPoints = 1, Effect = "Dashing through an enemy knocks it aside and slows it 30% for 1.5 s" },
+                new Node { Key = "HitAndRun", Name = "Hit and Run", Tier = 2, MaxPoints = 1, Effect = "+15% damage for 2 s after a dash" },
+                new Node { Key = "Evasive", Name = "Evasive", Tier = 2, MaxPoints = 1, Effect = "+5% evade while sprinting" },
+                new Node { Key = "Afterimage", Name = "Afterimage", Tier = 3, MaxPoints = 1, Effect = "A dash leaves a decoy that enemies attack for 1.5 s" },
+                new Node { Key = "Velocity", Name = "Velocity", Tier = 3, MaxPoints = 1, Effect = "+1% damage for every 1% move speed above base" },
             }
         };
 
@@ -225,12 +225,12 @@ namespace WoLChaosDepths
                 new Node { Key = "Vitality", Name = "Vitality", Tier = 1, MaxPoints = 2, Effect = "+4% max health" },
                 new Node { Key = "Remedy", Name = "Remedy", Tier = 1, MaxPoints = 2, Effect = "+8% healing" },
                 new Node { Key = "LuckyHeal", Name = "Lucky Heal", Tier = 1, MaxPoints = 1, Effect = "+3% heal critical chance" },
-                new Node { Key = "Regrowth", Name = "Regrowth", Tier = 2, MaxPoints = 1, Effect = "In a cleared room, regenerate 1% max health a second, up to 50%" + Soon },
-                new Node { Key = "Leech", Name = "Leech", Tier = 2, MaxPoints = 1, Effect = "Kills heal 1% max health" + Soon },
-                new Node { Key = "Overheal", Name = "Overheal", Tier = 2, MaxPoints = 1, Effect = "Healing past max becomes a 5 s shield, up to 10% max health" + Soon },
+                new Node { Key = "Regrowth", Name = "Regrowth", Tier = 2, MaxPoints = 1, Effect = "In a cleared room, regenerate 1% max health a second, up to 50%" },
+                new Node { Key = "Leech", Name = "Leech", Tier = 2, MaxPoints = 1, Effect = "Kills heal 1% max health" },
+                new Node { Key = "Overheal", Name = "Overheal", Tier = 2, MaxPoints = 1, Effect = "Healing past max becomes a 5 s shield, up to 10% max health" },
                 new Node { Key = "Sanctuary", Name = "Sanctuary", Tier = 3, MaxPoints = 1,
-                    Effect = "Casting your signature drops a 4 s healing circle (3% max health a second to wizards inside)" + Soon },
-                new Node { Key = "Lifebloom", Name = "Lifebloom", Tier = 3, MaxPoints = 1, Effect = "Your healing also heals the other wizard for 50% (co-op)" + Soon },
+                    Effect = "Casting your signature drops a 4 s healing circle (3% max health a second to wizards inside)" },
+                new Node { Key = "Lifebloom", Name = "Lifebloom", Tier = 3, MaxPoints = 1, Effect = "Your healing also heals the other wizard for 50% (co-op)" },
             }
         };
 
@@ -245,7 +245,7 @@ namespace WoLChaosDepths
                 new Node { Key = "Nerve", Name = "Nerve", Tier = 1, MaxPoints = 1, Effect = "+3% damage" },
                 new Node { Key = "HighRoller", Name = "High Roller", Tier = 2, MaxPoints = 1, Effect = "Relics cost 10% less" + Soon },
                 new Node { Key = "HotStreak", Name = "Hot Streak", Tier = 2, MaxPoints = 1, Effect = "Each kill without taking damage: +2% damage, up to +20%, lost when hit" },
-                new Node { Key = "Jackpot", Name = "Jackpot", Tier = 2, MaxPoints = 1, Effect = "Elites drop 25% more gold" + Soon },
+                new Node { Key = "Jackpot", Name = "Jackpot", Tier = 2, MaxPoints = 1, Effect = "Elites drop 25% more gold" },
                 new Node { Key = "AllIn", Name = "All In", Tier = 3, MaxPoints = 1, Effect = "+25% damage, -25% max health" },
                 new Node { Key = "DoubleOrNothing", Name = "Double or Nothing", Tier = 3, MaxPoints = 1,
                     Effect = "Each floor cleared without being hit doubles the next floor's gold (up to 4x); a hit resets it" },
