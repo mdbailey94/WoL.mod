@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace WoLMomentumSpear
 {
-    [BepInPlugin(PluginGuid, "Momentum Spear", "0.1.1")]
+    [BepInPlugin(PluginGuid, "Momentum Spear", "0.1.2")]
     [BepInDependency("xyz.yekoc.wizardoflegend.LegendAPI")]
     public sealed class SpearPlugin : BaseUnityPlugin
     {
@@ -23,8 +23,8 @@ namespace WoLMomentumSpear
         public static float MomentumCap { get { return SpearRules.Bound(cap != null ? cap.Value : 2f, 2f, 1f, 4f); } }
         public static float ReachScale { get { return SpearRules.Bound(reach != null ? reach.Value : 1.8f, 1.8f, 0.5f, 3f); } }
         public static float WidthScale { get { return SpearRules.Bound(width != null ? width.Value : 0.65f, 0.65f, 0.3f, 1.5f); } }
-        public static float Lunge { get { return SpearRules.Bound(lunge != null ? lunge.Value : 4f, 4f, 0f, 20f); } }
-        public static float FinisherLunge { get { return SpearRules.Bound(finisherLunge != null ? finisherLunge.Value : 8f, 8f, 0f, 20f); } }
+        public static float Lunge { get { return SpearRules.Bound(lunge != null ? lunge.Value : 2.5f, 2.5f, 0f, 20f); } }
+        public static float FinisherLunge { get { return SpearRules.Bound(finisherLunge != null ? finisherLunge.Value : 5f, 5f, 0f, 20f); } }
 
         internal static void Trace(string message)
         {
@@ -38,8 +38,11 @@ namespace WoLMomentumSpear
             cap = Config.Bind("Momentum", "MaximumMultiplier", 2f, "Opening-hit total multiplier cap, 1–4. Default 2 is at most double damage. Other hits are not momentum-scaled.");
             reach = Config.Bind("Spear", "ReachScale", 1.8f, "Native thrust hitbox length multiplier, 0.5–3. Enhanced adds 15%; finisher adds 25%. Applies to future attacks.");
             width = Config.Bind("Spear", "WidthScale", 0.65f, "Native thrust width multiplier, 0.3–1.5. Applies to future attacks.");
-            lunge = Config.Bind("Spear", "Lunge", 4f, "Speed of the forward lunge on the first two thrusts, units a second, 0–20 (the game's melee basics default to 4). Applies after restarting the game.");
-            finisherLunge = Config.Bind("Spear", "FinisherLunge", 8f, "Speed of the finisher's lunge, 0–20 (the game's melee basics default to 8). Applies after restarting the game.");
+            lunge = Config.Bind("Spear", "Lunge", 2.5f, "Speed of the forward lunge on the first two thrusts, units a second, 0–20. Too much carries a chain past its target; too little leaves the target out of reach after a hit. Applies after restarting the game.");
+            finisherLunge = Config.Bind("Spear", "FinisherLunge", 5f, "Speed of the finisher's lunge, 0–20. Applies after restarting the game.");
+            // 0.1.2: shorter (4 and 8 carried a chain past the target). Saved old values move once.
+            if (Mathf.Approximately(lunge.Value, 4f)) lunge.Value = 2.5f;
+            if (Mathf.Approximately(finisherLunge.Value, 8f)) finisherLunge.Value = 5f;
             logThrusts = Config.Bind("Debug", "LogThrusts", false, "Log every thrust that fires (its combo step, level and opening multiplier), to tell a thrust that missed from one that never fired.");
             log = Logger;
             int first = Damage("OpeningDamage", 8), second = Damage("SecondDamage", 10), final = Damage("FinisherDamage", 16);
