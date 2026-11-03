@@ -33,36 +33,67 @@ namespace WoLFlamingWhip
 
     internal static class Whip
     {
-        // Hits 1 and 2: the game's fire burst on every enemy along the lash (a 0.3-unit burst on
-        // each, so one burst per enemy reached).
-        public static void Lash(Player owner, string skillID, Vector2 hand, Vector2 aim, bool enhanced)
+        // #81: the press marks the spot, CrackDistance out along the aim from the hand; the crack
+        // lands there WindUp seconds later (game time, so a pause doesn't fire it).
+        public static void WindUp(Player owner, string skillID, Vector2 hand, Vector2 aim, bool enhanced)
         {
-            float length = FlamingWhipPlugin.LashLength;
-            int hits = 0;
-            foreach (GameObject enemy in EnemiesAlong(hand, aim, length, FlamingWhipPlugin.LashWidth * 0.5f))
-            {
-                Burst(enemy.transform.position, owner.skillCategory, skillID, 1, 0.3f, true);
-                hits++;
-            }
-            Anim.Play(WhipArt.Lash, hand, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg, new Vector3(length / 4f, 1f, 1f), 16f, owner, false);
-            if (enhanced)
-                FireLine.Lay(owner, skillID, hand + aim * 0.5f, aim, length - 0.5f);
-            FlamingWhipPlugin.Log($"Flaming Whip: lash ({length:0.0} u{(enhanced ? ", fire line" : "")}), {hits} hit");
+            var go = new GameObject("FlamingWhip WindUp");
+            Pending p = go.AddComponent<Pending>();
+            p.owner = owner;
+            p.skillID = skillID;
+            p.hand = hand;
+            p.aim = aim;
+            p.enhanced = enhanced;
+            p.at = Time.time + FlamingWhipPlugin.WindUp;
+            Sound("WindSlashBasic", hand, 0.7f);
         }
 
-        // Hit 3: an overhead crack, the game's fire burst in a ring round the wizard. #78: a smaller
-        // ring (1.8 u), with Art's bigger, brighter burst drawn on it and a sharp crack sound. The
-        // burst's ring reaches ~23 px of its 24 by the last frame, so it's drawn so its outer edge
-        // sits on the hit area's edge (Art's suggestion: 1.25x for 1.8 u).
-        public static void Crack(Player owner, string skillID, Vector2 at)
+        private class Pending : MonoBehaviour
         {
-            float radius = FlamingWhipPlugin.CrackRadius;
-            Burst(at, owner.skillCategory, skillID, 2, radius, true);
+            public Player owner;
+            public string skillID;
+            public Vector2 hand, aim;
+            public bool enhanced;
+            public float at;
+
+            private void Update()
+            {
+                if (Time.time < at)
+                    return;
+                Destroy(gameObject);
+                if (owner != null)
+                    Crack(owner, skillID, hand, aim, enhanced);
+            }
+        }
+
+        // The crack: the game's fire burst on a spot SpotSize wide (enhanced EnhancedSpotSize)
+        // exactly CrackDistance out, and nothing between the wizard and it, so you can be too
+        // close or too far. #86: heavy: a camera shake, a crack over a low thud, and the lash drawn
+        // out to the spot with Art's burst on it (drawn so its ring's edge, ~23 px of 24 by the
+        // last frame, sits on the hit area's edge).
+        public static void Crack(Player owner, string skillID, Vector2 hand, Vector2 aim, bool enhanced)
+        {
+            float distance = FlamingWhipPlugin.CrackDistance;
+            float radius = (enhanced ? FlamingWhipPlugin.EnhancedSpotSize : FlamingWhipPlugin.SpotSize) * 0.5f;
+            Vector2 spot = hand + aim * distance;
+            Burst(spot, owner.skillCategory, skillID, 1, radius, true);
+            Anim.Play(WhipArt.Lash, hand, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg, new Vector3((distance + radius) / 4f, 1.5f, 1f), 20f, owner, false);
             float drawn = radius * 16f / 23f;
-            Anim.Play(WhipArt.Crack, at, 0f, new Vector3(drawn, drawn, 1f), 16f, owner, false);
-            Sound("ThunderClap", at, 1.9f);
-            Sound("FlameSlam", at, 1.2f);
-            FlamingWhipPlugin.Log($"Flaming Whip: crack ({radius:0.0} u)");
+            Anim.Play(WhipArt.Crack, spot, 0f, new Vector3(drawn, drawn, 1f), 16f, owner, false);
+            try
+            {
+                CameraController.ShakeCamera(FlamingWhipPlugin.Shake);
+            }
+            catch
+            {
+            }
+            Sound("ThunderClap", spot, 1.9f);
+            Sound("EarthExplosion", spot, 0.7f);
+            Sound("FlameSlam", spot, 1f);
+            // Enhanced: a short line of fire across the spot.
+            if (enhanced)
+                FireLine.Lay(owner, skillID, spot - aim * radius, aim, radius * 2f);
+            FlamingWhipPlugin.Log($"Flaming Whip: crack {distance:0.0} u out, {radius * 2f:0.0} u spot{(enhanced ? ", fire line" : "")}");
         }
 
         private static void Sound(string name, Vector2 at, float pitch)
@@ -158,7 +189,7 @@ namespace WoLFlamingWhip
     }
 
     // Enhanced: a line of fire on the floor where a lash struck, hitting enemies on it every
-    // FireLineTick for FireLineTime (level 3, no burst effect: the tiles are its look).
+    // FireLineTick for FireLineTime (level 2, no burst effect: the tiles are its look).
     internal class FireLine : MonoBehaviour
     {
         private Player owner;
@@ -209,7 +240,7 @@ namespace WoLFlamingWhip
                 return;
             nextTick = Time.time + FlamingWhipPlugin.FireLineTick;
             foreach (GameObject enemy in Whip.EnemiesAlong(from, dir, length, 0.3f))
-                Whip.Burst(enemy.transform.position, owner.skillCategory, skillID, 3, 0.3f, false);
+                Whip.Burst(enemy.transform.position, owner.skillCategory, skillID, 2, 0.3f, false);
         }
     }
 }
