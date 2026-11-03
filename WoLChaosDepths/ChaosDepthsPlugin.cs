@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.33.0";
+        public const string PluginVersion = "0.33.1";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -182,6 +182,7 @@ namespace WoLChaosDepths
             try
             {
                 CloakDust.Install();
+                CloakLooks.Install();
             }
             catch (Exception e)
             {
