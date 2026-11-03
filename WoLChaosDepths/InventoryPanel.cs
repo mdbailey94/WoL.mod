@@ -324,7 +324,8 @@ namespace WoLChaosDepths
                         depthFocus = true;        // Up from the top: onto the depth line
                         return;
                     }
-                    selected = (selected + (vertical < 0f ? 1 : count - 1)) % count;
+                    // Stops at the top and bottom of the list rather than wrapping (Matt 2026-11-03).
+                    selected = Mathf.Clamp(selected + (vertical < 0f ? 1 : -1), 0, count - 1);
                     if (selected < scroll)
                         scroll = selected;
                     if (selected >= scroll + rows)

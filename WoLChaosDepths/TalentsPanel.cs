@@ -72,8 +72,9 @@ namespace WoLChaosDepths
                         talentTier = Mathf.Clamp(talentTier + (vertical < 0f ? 1 : -1), 0, 2);
                     else
                         talentCol += horizontal > 0f ? 1 : -1;
+                    // Stops at the row's ends rather than wrapping (Matt 2026-11-03).
                     int count = Mathf.Max(1, TierNodes(tree, talentTier + 1).Count);
-                    talentCol = (talentCol % count + count) % count;
+                    talentCol = Mathf.Clamp(talentCol, 0, count - 1);
                 }
             }
             else

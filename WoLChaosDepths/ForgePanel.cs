@@ -78,14 +78,14 @@ namespace WoLChaosDepths
                     nextForgeRepeat = Time.unscaledTime + (first ? RepeatFirst : RepeatNext * 2f);
                     if (Mathf.Abs(vertical) > Mathf.Abs(horizontal))
                     {
-                        int actions = TransmuteRow + 1;
-                        forgeCursor = ((forgeCursor + (vertical < 0f ? 1 : -1)) % actions + actions) % actions;
+                        // Stops at the first and last row rather than wrapping (Matt 2026-11-03).
+                        forgeCursor = Mathf.Clamp(forgeCursor + (vertical < 0f ? 1 : -1), 0, TransmuteRow);
                     }
                     else if (view.Count > 0)
                     {
                         // The previous / next item in the list (the list's own order and tab).
                         bool onTransmute = forgeCursor == TransmuteRow;
-                        selected = ((selected + (horizontal > 0f ? 1 : -1)) % view.Count + view.Count) % view.Count;
+                        selected = Mathf.Clamp(selected + (horizontal > 0f ? 1 : -1), 0, view.Count - 1);
                         if (selected < scroll)
                             scroll = selected;
                         if (selected >= scroll + rows)
