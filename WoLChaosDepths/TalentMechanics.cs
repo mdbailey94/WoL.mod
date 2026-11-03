@@ -137,11 +137,10 @@ namespace WoLChaosDepths
                         SetCharge(charged.chargeTimeStat, Talents.Rank(player, "SteadyDraw") > 0 ? -0.15f : 0f);
                     // Deep Reserves: standard arcana (not the basic, the dash or the signature slot).
                     bool standard = skill != basic && skill != dash && !skill.isUltimate;
+                    // (Deep Reserves / Second Gust were +1 charge; Matt kept the ExtraSkillCharge
+                    // relic instead, so they're now kill chances, in OnKillCharge. Clear any old mod.)
                     if (skill.cooldownRef != null && skill.cooldownRef.maxChargeStat != null)
-                    {
-                        int extra = standard ? Talents.Rank(player, "DeepReserves") : skill == dash ? Talents.Rank(player, "SecondGust") : 0;
-                        SetMod(skill.cooldownRef.maxChargeStat, "Charges", extra, false);
-                    }
+                        SetMod(skill.cooldownRef.maxChargeStat, "Charges", 0f, false);
                 }
             }
             // Spellweaver: activation speed; Quickdraw: the basic arcana's swings just after one starts.
@@ -472,11 +471,37 @@ namespace WoLChaosDepths
                 if (enemy == null || enemy.health == null || enemy.health.CurrentHealthValue > 0 || !killed.Add(enemy.GetInstanceID()))
                     return;
                 Player player = PlayerOf(info.skillCategory);
-                if (player == null || player.health == null || player.health.CurrentHealthValue <= 0 || Talents.Rank(player, "Leech") <= 0)
+                if (player == null || player.health == null || player.health.CurrentHealthValue <= 0)
+                    return;
+                OnKillCharge(player);
+                if (Talents.Rank(player, "Leech") <= 0)
                     return;
                 Heal(player, Mathf.Max(1, Mathf.RoundToInt(LeechShare * player.health.healthStat.ModifiedValue)));
                 Say(player, "Leech", "Leech: a kill healed 1% max health");
             });
+        }
+
+        // Deep Reserves: a kill has a 15% chance to give a charge back: one standard arcana on
+        // cooldown is ready again. Second Gust: a 20% chance the dash is (Matt, 2026-11-02 20:35).
+        private static void OnKillCharge(Player player)
+        {
+            Player.SkillState basic = player.GetBasicSkill(), dash = player.GetDashSkill();
+            if (Talents.Rank(player, "SecondGust") > 0 && dash != null && dash.cooldownRef != null && !dash.cooldownRef.Ready
+                && UnityEngine.Random.value < 0.20f)
+            {
+                dash.cooldownRef.Reset();
+                Say(player, "SecondGust", "Second Gust: a kill gave the dash back");
+            }
+            if (Talents.Rank(player, "DeepReserves") <= 0 || player.skillsDict == null || UnityEngine.Random.value >= 0.15f)
+                return;
+            var waiting = new List<Player.SkillState>();
+            foreach (Player.SkillState s in player.skillsDict.Values)
+                if (s != null && s != basic && s != dash && !s.isUltimate && s.cooldownRef != null && !s.cooldownRef.Ready)
+                    waiting.Add(s);
+            if (waiting.Count == 0)
+                return;
+            waiting[UnityEngine.Random.Range(0, waiting.Count)].cooldownRef.Reset();
+            Say(player, "DeepReserves", "Deep Reserves: a kill gave an arcana charge back");
         }
 
         private static Player PlayerOf(string category)

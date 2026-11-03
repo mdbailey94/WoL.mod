@@ -195,7 +195,7 @@ namespace WoLChaosDepths
             Nodes = new[]
             {
                 new Node { Key = "Focus", Name = "Focus", Tier = 1, MaxPoints = 2, Effect = "-3% cooldowns" },
-                new Node { Key = "DeepReserves", Name = "Deep Reserves", Tier = 1, MaxPoints = 1, Effect = "+1 charge on your standard arcana" },
+                new Node { Key = "DeepReserves", Name = "Deep Reserves", Tier = 1, MaxPoints = 1, Effect = "Kills have a 15% chance to give a standard arcana its charge back" },
                 new Node { Key = "Spellweaver", Name = "Spellweaver", Tier = 1, MaxPoints = 2, Effect = "+5% activation (cast) speed" },
                 new Node { Key = "Prolong", Name = "Prolong", Tier = 2, MaxPoints = 1, Effect = "Your signature lasts 20% longer" },
                 new Node { Key = "Echo", Name = "Echo", Tier = 2, MaxPoints = 1, Effect = "10% chance a cast doesn't start its cooldown" },
@@ -217,7 +217,7 @@ namespace WoLChaosDepths
                 new Node { Key = "LongStride", Name = "Long Stride", Tier = 1, MaxPoints = 1, Effect = "+5% dash distance" },
                 new Node { Key = "Tailspin", Name = "Tailspin", Tier = 2, MaxPoints = 1, Effect = "Dashing through an enemy knocks it aside and slows it 30% for 1.5 s" },
                 new Node { Key = "HitAndRun", Name = "Hit and Run", Tier = 2, MaxPoints = 1, Effect = "+15% damage for 2 s after a dash" },
-                new Node { Key = "SecondGust", Name = "Second Gust", Tier = 2, MaxPoints = 1, Effect = "+1 dash charge" },
+                new Node { Key = "SecondGust", Name = "Second Gust", Tier = 2, MaxPoints = 1, Effect = "Kills have a 20% chance to give your dash back" },
                 new Node { Key = "Afterimage", Name = "Afterimage", Tier = 3, MaxPoints = 1, Effect = "A dash leaves a decoy that enemies attack for 1.5 s" },
                 new Node { Key = "Velocity", Name = "Velocity", Tier = 3, MaxPoints = 1, Effect = "+1% damage for every 1% move speed above base" },
             }
