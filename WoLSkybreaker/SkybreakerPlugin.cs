@@ -17,7 +17,7 @@ namespace WoLSkybreaker
     {
         public const string PluginGuid = "mdbailey94.wol.skybreaker";
         public const string PluginName = "Skybreaker";
-        public const string PluginVersion = "0.2.0";
+        public const string PluginVersion = "0.2.1";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;

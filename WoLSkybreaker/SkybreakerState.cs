@@ -19,6 +19,8 @@ namespace WoLSkybreaker
             // Lets the arcana into the signature slot (SpellBookUI.LoadEleSkillDict, Player.InitSkills).
             hasSignatureVariant = true;
             applyStopElementStatus = true;
+            // 0.2.1 (Matt, 2026-11-03): a projectile arcana, for gear affixes and relics that go by type.
+            isProjectileSkill = true;
             SetAnimTimes(
                 0.1f,  // start
                 0.15f, // hold

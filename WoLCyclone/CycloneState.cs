@@ -92,6 +92,10 @@ namespace WoLCyclone
             // Lets the arcana into the signature slot (the spellbook's Signature page); see
             // SignatureUnlock.cs for when that's unlocked.
             hasSignatureVariant = true;
+            // 0.8.1 (Matt, 2026-11-03): a hold and a projectile arcana, for gear affixes and relics
+            // that go by type. The twister runs its own hold (see Update).
+            isHoldSkill = true;
+            isProjectileSkill = true;
             SetAnimTimes(
                 0.05f, // start
                 0.1f,  // hold
@@ -99,6 +103,16 @@ namespace WoLCyclone
                 0.4f,  // cancel
                 0.5f,  // run
                 0.6f); // exit
+        }
+
+        // The game's own hold path would wait for the button to be let go before the twister even
+        // starts; Cyclone handles the hold itself once it's cast, so the cast runs as before.
+        public override void Update()
+        {
+            bool hold = isHoldSkill;
+            isHoldSkill = false;
+            try { base.Update(); }
+            finally { isHoldSkill = hold; }
         }
 
         private bool EnhancedTier => IsEmpowered || signature;
