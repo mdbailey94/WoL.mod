@@ -1,6 +1,6 @@
-# Cactus Waltz
+# Cactus Tango
 
-> **Cactus Waltz** (Earth dash arcana, tier 2): dash away and leave a cactus behind you,
+> **Cactus Tango** (Earth dash arcana, tier 2): dash away and leave a cactus behind you,
 > needling everyone close!
 
 - The **dash** is the game's normal dash: same distance and speed, evade, and the dash relics count.
@@ -23,6 +23,8 @@ its whole loadout reset.
 - `[Cactus]` (next dash): `Lifetime`, `Every`, `HitEvery`.
 - `[Cactus Enhanced]` (next dash): `Lifetime`, `Every`.
 - `[Balance]` (after a restart): `PrickDamage`, `PrickKnockback`, `Cooldown`.
+
+**0.2.1** (#77): renamed Cactus Tango, Matt's final pick.
 
 **0.2.0** (#77): renamed Cactus Waltz (the base game already has a Prickly Ballet); the cactus is
 now the game's own instead of WoL Art's dancer, a cactus every 6 s (enhanced 4.5 s), and the

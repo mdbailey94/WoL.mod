@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace WoLPricklyBallet
 {
-    // Cactus Waltz (#68, renamed in #77; 0.1.0 was "Prickly Ballet", which is the base game's own
+    // Cactus Tango (#68, renamed in #77; 0.1.0 was "Prickly Ballet", which is the base game's own
     // cactus arcana): a new Earth dash arcana. The dash is the normal dash; where it started, the
     // base game's cactus (from its Prickly Ballet) pops out of the ground and needles everyone
     // round it. A dash can't be a signature (the spellbook files every dash under the dash slot
@@ -18,8 +18,8 @@ namespace WoLPricklyBallet
     public class PricklyBalletPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "mdbailey94.wol.pricklyballet";
-        public const string PluginName = "Cactus Waltz";
-        public const string PluginVersion = "0.2.0";
+        public const string PluginName = "Cactus Tango";
+        public const string PluginVersion = "0.2.1";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -46,14 +46,14 @@ namespace WoLPricklyBallet
         {
             log = Logger;
             modEnabled = Config.Bind("General", "Enabled", true,
-                "Offer Cactus Waltz in the arcana shop (also in the title screen Mods menu). " +
+                "Offer Cactus Tango in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
             BindSettings();
 
             Skills.Register(new SkillInfo
             {
                 ID = PricklyBalletState.staticID,
-                displayName = "Cactus Waltz",
+                displayName = "Cactus Tango",
                 description = "Dash away and leave a cactus behind you, needling everyone close!",
                 enhancedDescription = "The cactus stays longer and comes back sooner!",
                 icon = LoadIcon("prickly_ballet_icon.png"),

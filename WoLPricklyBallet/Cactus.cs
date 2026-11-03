@@ -15,7 +15,7 @@ namespace WoLPricklyBallet
             {
                 if (PlantBarrage.Prefab == null)
                 {
-                    PricklyBalletPlugin.Log("Cactus Waltz: the game's cactus prefab wasn't found");
+                    PricklyBalletPlugin.Log("Cactus Tango: the game's cactus prefab wasn't found");
                     return;
                 }
                 float every = PricklyBalletPlugin.HitEvery;
@@ -24,11 +24,11 @@ namespace WoLPricklyBallet
                 cactus.attack.SetAttackInfo(owner.skillCategory, skillID, 1, false);
                 // From and to the same spot with no trips: it stays put.
                 cactus.Initialize(enhanced, at, at, 0, hits, every);
-                PricklyBalletPlugin.Log($"Cactus Waltz: cactus at ({at.x:0.0}, {at.y:0.0}), {hits} hits every {every:0.0#} s");
+                PricklyBalletPlugin.Log($"Cactus Tango: cactus at ({at.x:0.0}, {at.y:0.0}), {hits} hits every {every:0.0#} s");
             }
             catch (System.Exception e)
             {
-                PricklyBalletPlugin.Log($"Cactus Waltz: couldn't raise the cactus: {e.Message}");
+                PricklyBalletPlugin.Log($"Cactus Tango: couldn't raise the cactus: {e.Message}");
             }
         }
     }

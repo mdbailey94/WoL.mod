@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace WoLPricklyBallet
 {
-    // Cactus Waltz. The dash is the game's own (BaseDashState: same distance, speed, evade, and the
+    // Cactus Tango. The dash is the game's own (BaseDashState: same distance, speed, evade, and the
     // dash relics count). Where it started, the game's cactus pops up, at most one every Every
     // seconds. The skill ID stays "PricklyBallet" from 0.1.0: a save holding an ID the game no
     // longer knows has its whole loadout reset (Player.InitSkills).
