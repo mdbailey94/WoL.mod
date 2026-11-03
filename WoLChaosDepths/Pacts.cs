@@ -147,6 +147,15 @@ namespace WoLChaosDepths
                     SetStat(dash.skillData, StatData.cdStr, "EngineDash", engine ? -0.5f : 0f, true);
                 SetAnim(p, "Overchannel", anim);
 
+                // The pacts' lasting looks (WoL Art's #76).
+                Player me = p;
+                bool slowed = bastion && Time.time - st.lastDash > BastionDashGrace;
+                Fx(() => KeystoneFx.SetActive(me, "Pact_BorrowedTime", borrowed && inRun));
+                Fx(() => KeystoneFx.SetActive(me, "Pact_Bastion", slowed));
+                Fx(() => KeystoneFx.SetActive(me, "Pact_Overchannel", over && st.streak > 0));
+                Fx(() => KeystoneFx.SetActive(me, "Pact_MomentumEngine", engine && Time.time < st.rootUntil));
+                Fx(() => KeystoneFx.SetActive(me, "Pact_Martyr", Has(me, "Martyr")));
+
                 // Martyr's regen in cleared rooms.
                 Martyr(p, st, inRun, dt);
                 // Double Down: half-price relics and the curse on purchase.
@@ -223,7 +232,7 @@ namespace WoLChaosDepths
                 if (p == null || !Has(p, "MarkedForDeath"))
                     return;
                 StateOf(p).evadeOffUntil = Time.time + MarkedEvadeOff;
-                KeystoneFx.Fire(hurt, "Assassin_mark");
+                KeystoneFx.Fire(hurt, "Pact_MarkedForDeath");
                 Say(p, "MarkedForDeath", "Marked for Death: crit marked the target, evade 0 for 6 s");
             });
         }
@@ -289,6 +298,8 @@ namespace WoLChaosDepths
                         string curse = pick[UnityEngine.Random.Range(0, pick.Count)];
                         p.inventory.AddItem(curse, true, true);
                         count++;
+                        Player me = p;
+                        Fx(() => KeystoneFx.Fire(me, "Pact_DoubleDown"));
                         Say(p, "DoubleDown" + curse, $"Double Down: the bought relic brought the curse {curse}");
                     }
                 }
@@ -426,6 +437,8 @@ namespace WoLChaosDepths
                 p.animSpeedHandler.Modify(new NumVarStatMod(id, value, 10, VarStatModType.Multiplicative, false), true);
             applied[key] = value;
         }
+
+        private static void Fx(Action show) => Guard("fx", show);
 
         private static void Say(Player p, string key, string message)
         {

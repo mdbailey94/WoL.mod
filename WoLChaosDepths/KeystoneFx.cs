@@ -54,6 +54,14 @@ namespace WoLChaosDepths
             { "AllIn", new Spec { w = 32, h = 40, n = 6, fps = 10, ax = 16, ay = 35, behind = true } },
             { "DoubleOrNothing", new Spec { w = 12, h = 12, n = 6, fps = 10, ax = 6, ay = 6, lift = 1.9f } },
             { "DoubleOrNothing!", new Spec { file = "fx_ks_DoubleOrNothing_shatter", w = 16, h = 16, n = 4, fps = 12, ax = 8, ay = 8, lift = 1.9f } },
+            // #76 pact effects (Log - Art 2026-11-03 10:40).
+            { "Pact_BorrowedTime", new Spec { file = "fx_pact_BorrowedTime", w = 16, h = 24, n = 6, fps = 8, ax = 8, ay = 24, lift = 1.3f } },
+            { "Pact_Bastion", new Spec { file = "fx_pact_Bastion", w = 40, h = 16, n = 4, fps = 6, ax = 20, ay = 9, behind = true } },
+            { "Pact_MarkedForDeath", new Spec { file = "fx_pact_MarkedForDeath", w = 9, h = 9, n = 2, fps = 3, ax = 4.5f, ay = 4.5f, lift = 1.7f } },
+            { "Pact_Overchannel", new Spec { file = "fx_pact_Overchannel", w = 24, h = 24, n = 4, fps = 10, ax = 12, ay = 12, lift = 0.6f } },
+            { "Pact_MomentumEngine", new Spec { file = "fx_pact_MomentumEngine", w = 16, h = 8, n = 4, fps = 12, ax = 8, ay = 4, lift = 1.9f } },
+            { "Pact_Martyr", new Spec { file = "fx_pact_Martyr", w = 32, h = 14, n = 4, fps = 8, ax = 16, ay = 7, behind = true } },
+            { "Pact_DoubleDown", new Spec { file = "fx_pact_DoubleDown", w = 12, h = 12, n = 6, fps = 10, ax = 6, ay = 6, lift = 1.9f } },
         };
 
         // The looping effects showing now, per wizard and keystone (Flurry: one per shard).
