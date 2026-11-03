@@ -32,4 +32,6 @@ stats, so gear, crits, statuses and talents apply. WoL Art's sprites are hooked 
 `BepInEx\config\mdbailey94.wol.giantweapons.cfg`: `[Ice Sword]`, `[Flail]` (next attack) and
 `[Balance]` (after a restart); `[General]` turns each one's shop offer off.
 
+**0.2.0** (Matt: 'reusing the ice boss's sword would be good'): the Ice Sword's swings, chop and spin show the game's own ice boss greatsword (its IceSword prefab, as the game lends it to a player arcana), appearing, swinging and shattering into ice; [Ice Sword] SwordScale and SwordSwingSpeed size and pace it. The hits are unchanged.
+
 **0.1.0** (#83, #84): first version.

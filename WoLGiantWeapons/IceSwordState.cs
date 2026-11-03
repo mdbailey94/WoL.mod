@@ -110,7 +110,7 @@ namespace WoLGiantWeapons
                 Heavy.Ice(enemy.transform.position, parent, skillID, 1, 0.3f);
                 hits++;
             }
-            Heavy.Dust(hand + aim * (GiantWeaponsPlugin.SwingReach * 0.6f), 8, 0.6f);
+            FrostBlade.Show(parent, skillID, aim, false, 0f);
             GiantWeaponsPlugin.Log($"Giant Ice Sword: swing {comboCounter}, {hits} hit");
         }
 
@@ -124,6 +124,7 @@ namespace WoLGiantWeapons
                 hits++;
             }
             Heavy.Ice(hand + aim * GiantWeaponsPlugin.ChopReach, parent, skillID, 2, 0.5f);
+            FrostBlade.Show(parent, skillID, aim, false, 0f);
             Heavy.Shake(0.8f);
             Heavy.Sound("EarthExplosion", hand + aim * GiantWeaponsPlugin.ChopReach, 0.8f);
             GiantWeaponsPlugin.Log($"Giant Ice Sword: chop, {hits} hit");
@@ -149,6 +150,7 @@ namespace WoLGiantWeapons
                     Heavy.Sound("WindSlashBasic", p.transform.position, 0.6f);
                 });
             }
+            FrostBlade.Show(p, id, Heavy.Aim(this, p), true, GiantWeaponsPlugin.SpinTime);
             Heavy.Shake(fullCharge ? 1f : 0.6f);
             if (enhanced)
                 FrostRing.Lay(p, id, p.transform.position, radius);

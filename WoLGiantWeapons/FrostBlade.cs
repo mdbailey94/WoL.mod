@@ -1,0 +1,96 @@
+using System;
+using UnityEngine;
+
+namespace WoLGiantWeapons
+{
+    // The Giant Ice Sword's look (Matt: "reusing the ice boss's sword would be good"): the game's
+    // own IceSword prefab, the ice boss's greatsword, which the game also lends a player arcana. It
+    // spawns on a rotator at the hand ("IceSwordRotator", so its EndSwing takes the rotator with
+    // it), aimed as the game aims it, then swings and shatters into ice. Its own hit box is
+    // switched off: the arcana's hits stay IceSwordState's (the numbers Matt approved).
+    internal static class FrostBlade
+    {
+        // A swing along `aim` (or, spin = true, two whole turns round the wizard over `spinTime`).
+        public static void Show(Player p, string skillID, Vector2 aim, bool spin, float spinTime)
+        {
+            try
+            {
+                GameObject prefab = IceSword.Prefab;
+                if (prefab == null || p == null)
+                    return;
+                var rotator = new GameObject("IceSwordRotator").transform;
+                rotator.position = Heavy.Hand(p);
+                rotator.localEulerAngles = Globals.GetRotationVector(-aim);
+                float scale = GiantWeaponsPlugin.SwordScale;
+                // As the game does: mirrored unless the wizard faces left.
+                rotator.localScale = new Vector3(p.facingDirection != FacingDirection.Left ? -scale : scale, scale, 1f);
+                GameObject go = UnityEngine.Object.Instantiate(prefab, rotator, false);
+                IceSword sword = go.GetComponent<IceSword>();
+                if (sword == null)
+                {
+                    UnityEngine.Object.Destroy(rotator.gameObject);
+                    return;
+                }
+                // Its Start reads the attack's category (Player: the player's Spawn animation).
+                sword.attack.SetAttackInfo(p.skillCategory, skillID, 1);
+                sword.attack.gameObject.SetActive(false);
+                sword.initAnimTime = 0.5f;   // straight into the end of its appearing
+                Driver d = rotator.gameObject.AddComponent<Driver>();
+                d.sword = sword;
+                d.spin = spin;
+                d.spinTime = Mathf.Max(0.1f, spinTime);
+                d.turnFrom = rotator.localEulerAngles.z;
+            }
+            catch (Exception e)
+            {
+                GiantWeaponsPlugin.Log($"Giant Ice Sword: the ice boss's sword couldn't be shown ({e.Message})");
+            }
+        }
+
+        // Plays the swing once it has appeared (or spins it), then shatters it; never lingers past
+        // a few seconds.
+        private class Driver : MonoBehaviour
+        {
+            public IceSword sword;
+            public bool spin;
+            public float spinTime, turnFrom;
+            private float born = -1f;
+            private bool swinging;
+
+            private void Update()
+            {
+                if (born < 0f)
+                    born = Time.time;
+                float age = Time.time - born;
+                if (sword == null || age > 3f)
+                {
+                    if (sword != null)
+                        sword.EndSwing();
+                    else
+                        Destroy(gameObject);
+                    return;
+                }
+                if (spin)
+                {
+                    float t = Mathf.Clamp01(age / spinTime);
+                    var e = transform.localEulerAngles;
+                    transform.localEulerAngles = new Vector3(e.x, e.y, turnFrom + 720f * t);
+                    if (t >= 1f)
+                        sword.EndSwing();
+                    return;
+                }
+                if (!swinging)
+                {
+                    if (age < 0.06f)
+                        return;
+                    swinging = true;
+                    sword.anim.speed = GiantWeaponsPlugin.SwordSwingSpeed;
+                    sword.anim.Play("Swing", -1, 0f);
+                    return;
+                }
+                if (sword.anim.GetCurrentAnimatorStateInfo(0).normalizedTime >= 1f)
+                    sword.EndSwing();
+            }
+        }
+    }
+}

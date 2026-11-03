@@ -17,7 +17,7 @@ namespace WoLGiantWeapons
     {
         public const string PluginGuid = "mdbailey94.wol.giantweapons";
         public const string PluginName = "Giant Weapons";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.2.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> swordEnabled, flailEnabled;
@@ -29,6 +29,7 @@ namespace WoLGiantWeapons
         private static ConfigEntry<float> swordPace, swingReach, swingArc, chopReach, spinMin, spinFull, spinRadius, fullSpinRadius,
             spinTime, enhancedSpinWidth, frostRingTime;
         private static ConfigEntry<int> spinHits;
+        private static ConfigEntry<float> swordScale, swordSwingSpeed;
         private static ConfigEntry<float> flailPace, circleRadius, slamDistance, slamRadius, slamWindUp, arcReach;
         private static ConfigEntry<int> arcTargets;
         private static ConfigEntry<int> swingDamage, chopDamage, spinDamage, fullSpinDamage, circleDamage, slamDamage, arcDamage;
@@ -45,6 +46,8 @@ namespace WoLGiantWeapons
         public static float SpinTime => Get(spinTime, 0.6f, 0f, 3f);
         public static float EnhancedSpinWidth => Get(enhancedSpinWidth, 1.3f, 1f, 3f);
         public static float FrostRingTime => Get(frostRingTime, 1.5f, 0.2f, 6f);
+        public static float SwordScale => Get(swordScale, 0.7f, 0.2f, 2f);
+        public static float SwordSwingSpeed => Get(swordSwingSpeed, 1f, 0.2f, 4f);
         public static float FlailPace => Get(flailPace, 0.7f, 0.3f, 1f);
         public static float CircleRadius => Get(circleRadius, 2f, 0.5f, 6f);
         public static float SlamDistance => Get(slamDistance, 2.5f, 0.5f, 6f);
@@ -145,6 +148,8 @@ namespace WoLGiantWeapons
             spinTime = Float("Ice Sword", "SpinTime", 0.6f, 0f, 3f, "Seconds from the spin's first hit to its last.");
             enhancedSpinWidth = Float("Ice Sword", "EnhancedSpinWidth", 1.3f, 1f, 3f, "How much wider the spin is when enhanced.");
             frostRingTime = Float("Ice Sword", "FrostRingTime", 1.5f, 0.2f, 6f, "Seconds the enhanced frost ring stays on the floor, slowing enemies.");
+            swordScale = Float("Ice Sword", "SwordScale", 0.7f, 0.2f, 2f, "Size of the drawn sword (the game's ice boss greatsword; 1 = the boss's own size). Looks only; the hits are the reaches above.");
+            swordSwingSpeed = Float("Ice Sword", "SwordSwingSpeed", 1f, 0.2f, 4f, "How fast the drawn sword's swing plays (the game's player version uses 1.25).");
 
             flailPace = Float("Flail", "Pace", 0.7f, 0.3f, 1f, "How fast the wizard's swings play (0.7 = 30% slower; 1 = normal).");
             circleRadius = Float("Flail", "CircleRadius", 2f, 0.5f, 6f, "Radius round the wizard of hits 1 and 2 (the circle swings).");
