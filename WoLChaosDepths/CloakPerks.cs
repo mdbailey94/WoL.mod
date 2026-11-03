@@ -129,7 +129,9 @@ namespace WoLChaosDepths
                 "QuickSpark", "Quick Spark", "Co-op: your crits take 0.3 s off your partner's dash cooldown") },
             { "Switch", P("GaleReflex", "Gale Reflex", "After an evade, your next cast is 30% faster",
                 "SharedFooting", "Shared Footing", "Co-op: your evade gives your partner +10% evade for 2 s") },
-            { "DuelistCloak", P("SwiftEdge", "Swift Edge", "Dash cooldown -20%",
+            // Matt, 2026-11-03: crit chance over 100% turning into crit damage is a cloak perk, not
+            // for everyone; it replaced Swift Edge (dash cooldown -20%). ArchetypeMechanics applies it.
+            { "DuelistCloak", P("Overedge", "Overedge", "Crit chance over 100% becomes crit damage (+1% for each 1% over)",
                 "Pincer", "Pincer", "Co-op: an enemy you both hit within 1 s takes +15% from both") },
             { "Tempo", P("Rimeweave", "Rimeweave", "Freezes last 0.5 s longer; cooldowns tick 15% faster near a frozen enemy",
                 "SharedSpark", "Shared Spark", "Co-op: your signature gives your partner 15% signature charge") },
@@ -385,7 +387,7 @@ namespace WoLChaosDepths
             SetSkillMods(p, StatData.frzDurStr, "Freeze", E(p, "Tempo") ? 0.5f : 0f, false);
             SetSkillMods(p, StatData.odProgStr, "Charge", E(p, "Pride") ? 0.25f : 0f, true);
             SetSkillMods(p, StatData.cdStr, "Cooldown", E(p, cloak) && PairOf(cloak) == starter ? -0.05f : 0f, true);
-            float dashCd = E(p, "DuelistCloak") ? -0.20f : 0f;
+            float dashCd = 0f;   // Swift Edge's old -20% dash cooldown, cleared (Overedge replaced it)
             Player.SkillState dash = p.GetDashSkill();
             if (dash != null && dash.skillData != null)
                 SetStatData(dash.skillData, StatData.cdStr, "DashCooldown", dashCd, true);

@@ -92,6 +92,7 @@ namespace WoLChaosDepths
                 }
                 if (player.movement != null)
                     Stat(player.movement.moveSpeedStat, "MoveSpeed", Get(totals, "MoveSpeed"), VarStatModType.Multiplicative, false);
+                Activation(player, Get(totals, "ActivationSpeed"));
                 applied[key] = signature;
                 ChaosDepthsPlugin.Log($"Stats applied to player {player.playerID + 1}: level {save.level} (+{levelHealth * 100f:0}% health), items: " +
                     (totals.Count == 0 ? "none" : Join(totals)));
@@ -132,6 +133,7 @@ namespace WoLChaosDepths
                     health.critHealModStat?.RemoveMod(Prefix + "HealCrit");
                 }
                 player.movement?.moveSpeedStat?.RemoveMod(Prefix + "MoveSpeed");
+                Activation(player, 0f);
             }
             catch (Exception e)
             {
@@ -141,6 +143,19 @@ namespace WoLChaosDepths
         }
 
         private static readonly string[] Elements = { "Fire", "Air", "Earth", "Lightning", "Water" };
+
+        // Activation speed (gear affix "ActivationSpeed", Matt 2026-11-03): the wizard's animation
+        // speed handler, the way the game's own attack-speed relic speeds casts. Off, then on at the
+        // new value.
+        private static void Activation(Player player, float value)
+        {
+            if (player == null || player.animSpeedHandler == null)
+                return;
+            string id = Prefix + "ActivationSpeed";
+            player.animSpeedHandler.Modify(new NumVarStatMod(id, 0f, 10, VarStatModType.Multiplicative, false), false);
+            if (!Mathf.Approximately(value, 0f))
+                player.animSpeedHandler.Modify(new NumVarStatMod(id, value, 10, VarStatModType.Multiplicative, false), true);
+        }
 
         // [Signature] ChargeGain (#66), bound on first use in Chaos Depths' own config.
         private static BepInEx.Configuration.ConfigEntry<float> signatureGain;

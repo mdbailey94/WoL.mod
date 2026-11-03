@@ -64,6 +64,13 @@ namespace WoLChaosDepths
                     Current = Json.Read<Data>(text);
                     if (Current != null && Current.rarities.Count > 0 && Current.affixes.Count > 0)
                     {
+                        // A loot.json from before activation speed gets it added (and kept in the file).
+                        if (!Current.affixes.Exists(a => a.key == "ActivationSpeed"))
+                        {
+                            Current.affixes.Add(ActivationSpeed());
+                            File.WriteAllText(FilePath, Json.Write(Current));
+                            ChaosDepthsPlugin.Log($"Loot table: added the ActivationSpeed affix to {FilePath}");
+                        }
                         ChaosDepthsPlugin.Log($"Loot table: {Current.rarities.Count} rarities, {Current.affixes.Count} affixes from {FilePath}");
                         return;
                     }
@@ -90,6 +97,12 @@ namespace WoLChaosDepths
             }
         }
 
+        private static AffixDef ActivationSpeed() => new AffixDef
+        {
+            key = "ActivationSpeed", label = "+{0} activation speed", percent = true, min = 0.04f, max = 0.10f, perLevel = 0.002f,
+            suffix = "Swiftness", weight = 14
+        };
+
         public static Data Defaults()
         {
             var data = new Data();
@@ -100,6 +113,8 @@ namespace WoLChaosDepths
             data.rarities.Add(new RarityDef { name = "Magic", weight = fresh ? 56 : 30, affixes = 2, valueScale = 1f });
             data.rarities.Add(new RarityDef { name = "Rare", weight = fresh ? 17 : 12, affixes = 3, valueScale = 1.25f });
             data.rarities.Add(new RarityDef { name = "Legendary", weight = 3, affixes = 4, valueScale = 1.6f });
+            // Activation (cast) speed, one of the commonest rolls (Matt, 2026-11-03).
+            data.affixes.Add(ActivationSpeed());
             data.affixes.Add(new AffixDef { key = "Damage", label = "+{0} damage", percent = true, min = 0.04f, max = 0.10f, perLevel = 0.002f, suffix = "Might", weight = 12 });
             data.affixes.Add(new AffixDef { key = "CritChance", label = "+{0} critical chance", percent = true, min = 0.02f, max = 0.05f, perLevel = 0.001f, suffix = "Precision", weight = 10 });
             data.affixes.Add(new AffixDef { key = "CritDamage", label = "+{0} critical damage", percent = true, min = 0.10f, max = 0.25f, perLevel = 0.005f, suffix = "Ruin", weight = 8 });

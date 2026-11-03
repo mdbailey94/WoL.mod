@@ -300,8 +300,8 @@ namespace WoLChaosDepths
 
         // Before the game copies the attack's AttackInfo and rolls the crit:
         // - Assassin (first hit on an enemy at full health) and a ready Riposte make it a sure crit;
-        // - crit chance over 100% on a wizard's attack goes into crit damage ([Crit]
-        //   OverflowToCritDamage per point; Matt, #65), so it isn't wasted.
+        // - crit chance over 100% goes into crit damage ([Crit] OverflowToCritDamage per point;
+        //   Matt, #65), only for a wizard with Duelist's Cloak's Overedge perk (Matt, 2026-11-03).
         private static void BeforeAttack(Attack __instance, Collider2D col)
         {
             try
@@ -327,7 +327,8 @@ namespace WoLChaosDepths
                         sure = true;
                     }
                 }
-                float overflow = Mathf.Max(0f, info.critHitChance - 1f) * CritOverflowToDamage;
+                float overflow = player != null && Talents.Enabled && Talents.Rank(player, "Overedge") > 0
+                    ? Mathf.Max(0f, info.critHitChance - 1f) * CritOverflowToDamage : 0f;
                 if (!sure && overflow <= 0f)
                     return;
                 changedAttack = __instance;
