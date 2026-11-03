@@ -37,11 +37,16 @@ namespace WoLBuckler
 
     internal static class Buckler
     {
+        // Where the wizard's hands are (the game's attack origin); the feet were too low (Matt,
+        // 0.2.0).
+        public static Vector2 Hand(Player owner) =>
+            owner.attackOriginTrans != null ? (Vector2)owner.attackOriginTrans.position : (Vector2)owner.transform.position;
+
         // A punch: the game's earth burst where the buckler lands, and the buckler out in front
         // (breaking shots) for GuardTime.
         public static void Punch(Player owner, string skillID, Vector2 aim, bool finisher, bool enhanced)
         {
-            Vector2 at = (Vector2)owner.transform.position + aim * BucklerPlugin.PunchReach;
+            Vector2 at = Hand(owner) + aim * BucklerPlugin.PunchReach;
             float radius = finisher ? BucklerPlugin.FinisherRadius : BucklerPlugin.PunchRadius;
             try
             {
@@ -67,8 +72,9 @@ namespace WoLBuckler
         }
     }
 
-    // The buckler out in front of the wizard for one punch: it shoots forward and back again,
-    // and any enemy shot that reaches it breaks, with the checks of Stone Charge's shield
+    // The buckler out in front of the wizard's hands for one punch: it shoots forward and back
+    // again, turned to face the punch, and any enemy shot that reaches it from the front (0.2.0:
+    // the shield is directional, Matt) breaks, with the checks of Stone Charge's shield
     // (WoLStoneCharge NegateShots): not one that ignores negation, is already returning, or is a
     // wizard's own; a boomerang is sent back instead. Enhanced: each break bursts into shrapnel.
     internal class BucklerGuard : MonoBehaviour
@@ -95,8 +101,10 @@ namespace WoLBuckler
             go.transform.localScale = new Vector3(1.15f, 1.15f, 1f);
             guard.look = go.AddComponent<SpriteRenderer>();
             guard.look.sprite = BucklerArt.PunchAt(0f);
-            // The smash's sparks are drawn on the right edge.
-            guard.look.flipX = aim.x < -0.01f;
+            // The smash's sparks are drawn on the right edge: turned to the aim, and mirrored
+            // top to bottom when punching left so its light stays on top.
+            go.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg);
+            guard.look.flipY = aim.x < -0.01f;
             SpriteRenderer wizard = owner.GetComponentInChildren<SpriteRenderer>();
             if (wizard != null)
             {
@@ -112,7 +120,7 @@ namespace WoLBuckler
             float t = Mathf.Clamp01((Time.time - born) / BucklerPlugin.GuardTime);
             float reach = BucklerPlugin.PunchReach;
             float d = t < 0.4f ? Mathf.Lerp(0.3f, reach, t / 0.4f) : Mathf.Lerp(reach, reach * 0.6f, (t - 0.4f) / 0.6f);
-            Vector2 at = (Vector2)owner.transform.position + aim * d;
+            Vector2 at = Buckler.Hand(owner) + aim * d;
             transform.position = at;
             return at;
         }
@@ -146,6 +154,10 @@ namespace WoLBuckler
                     continue;
                 Vector2 spot = p.transform.position;
                 if (Vector2.Distance(spot, at) > BucklerPlugin.GuardRadius + p.thickness)
+                    continue;
+                // Only the shield's face blocks: a shot behind the buckler (on the wizard's side
+                // of it) gets through.
+                if (Vector2.Dot(spot - Buckler.Hand(owner), aim) < 0.1f)
                     continue;
                 try
                 {

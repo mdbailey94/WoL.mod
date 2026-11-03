@@ -11,7 +11,9 @@ namespace WoLGiantSpear
     {
         public new static string staticID = "GiantAirSpearBasic";
 
-        private const float StabExecTime = 0.24f, ThrowExecTime = 0.32f;
+        // 0.2.0 (Matt: 'slower hit time, heavy feel'): was 0.24 / 0.32 with the windows below
+        // about a third shorter.
+        private const float StabExecTime = 0.38f, ThrowExecTime = 0.5f;
 
         public GiantSpearState(FSM fsm, Player player) : base(staticID, fsm, player)
         {
@@ -22,15 +24,15 @@ namespace WoLGiantSpear
             maxComboCount = 3;
             animStartTime = 0.05f;
             animExecTime = StabExecTime;
-            baseCancelThreshold = 0.42f;
-            finalCancelThreshold = 0.55f;
-            baseRunThreshold = 0.55f;
-            finalRunThreshold = 0.7f;
-            baseExitThreshold = 0.75f;
-            finalExitThreshold = 0.95f;
+            baseCancelThreshold = 0.58f;
+            finalCancelThreshold = 0.75f;
+            baseRunThreshold = 0.72f;
+            finalRunThreshold = 0.9f;
+            baseExitThreshold = 0.95f;
+            finalExitThreshold = 1.2f;
             alwaysStartForehand = true;
-            // A heavy step into each stab; the throw is made standing.
-            attackMoveSpeedMod = new NumVarStatMod(atkMoveModStr, 1.5f, 10, VarStatModType.OverrideWithMods);
+            // A short, heavy step into each stab; the throw is made standing.
+            attackMoveSpeedMod = new NumVarStatMod(atkMoveModStr, 1f, 10, VarStatModType.OverrideWithMods);
             finalAttackMoveSpeedMod = new NumVarStatMod(atkMoveModStr, 0f, 10, VarStatModType.OverrideWithMods);
             autoHoldStat.BaseValue = true;
             sfxNames = new[] { "WindSlashBasic", "WindSlashBasic", "WindSlashBasic" };

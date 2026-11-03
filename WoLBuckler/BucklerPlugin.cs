@@ -8,16 +8,18 @@ using UnityEngine;
 namespace WoLBuckler
 {
     // Buckler (#87, Matt 2026-11-03, the GIANT WEAPON set): a new Earth basic arcana, a small
-    // stone shield worn for punching. Three fast, short punches, no charge; the buckler breaks any
-    // enemy shot it meets while it's out (Stone Charge's shot-break). Enhanced: a shot it breaks
-    // bursts into rock shrapnel. A basic can't be a signature, so there is none.
+    // stone shield worn for punching. Two fast, short punches from the hands, no charge; the
+    // buckler faces the punch and breaks any enemy shot it meets from the front while it's out
+    // (Stone Charge's shot-break). Enhanced: a shot it breaks bursts into rock shrapnel. A basic
+    // can't be a signature, so there is none. 0.2.0 (Matt's play-test): at hand height (was at
+    // the feet), 2 hits (was 3), directional.
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency("xyz.yekoc.wizardoflegend.LegendAPI")]
     public class BucklerPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "mdbailey94.wol.buckler";
         public const string PluginName = "Buckler";
-        public const string PluginVersion = "0.1.1";
+        public const string PluginVersion = "0.2.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -53,7 +55,7 @@ namespace WoLBuckler
             {
                 ID = BucklerState.staticID,
                 displayName = "Buckler",
-                description = "Punch with a stone buckler: three quick blows, and any shot it meets breaks on the stone!",
+                description = "Punch with a stone buckler: two quick blows, and any shot it meets head-on breaks on the stone!",
                 enhancedDescription = "Shots the buckler breaks burst into rock shrapnel!",
                 icon = LoadIcon("buckler_icon.png"),
                 tier = 2,
@@ -64,7 +66,7 @@ namespace WoLBuckler
                     elementType = new[] { "Earth" },
                     subElementType = new[] { "Earth" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
-                    // Levels: 1 a punch (hits 1 and 2), 2 the last punch, 3 the enhanced shrapnel.
+                    // Levels: 1 the first punch, 2 the last punch, 3 the enhanced shrapnel.
                     damage = new[]
                     {
                         Mathf.Clamp(punchDamage.Value, 0, 200), Mathf.Clamp(finisherDamage.Value, 0, 200), Mathf.Clamp(shrapnelDamage.Value, 0, 200)
@@ -87,14 +89,14 @@ namespace WoLBuckler
         private void BindSettings()
         {
             punchReach = Float("Buckler", "PunchReach", 1.0f, 0.4f, 3f, "How far in front of you a punch lands, in units.");
-            punchRadius = Float("Buckler", "PunchRadius", 0.75f, 0.3f, 2f, "Radius of a punch's hit (hits 1 and 2).");
+            punchRadius = Float("Buckler", "PunchRadius", 0.75f, 0.3f, 2f, "Radius of the first punch's hit.");
             finisherRadius = Float("Buckler", "FinisherRadius", 1.0f, 0.3f, 3f, "Radius of the last punch's hit.");
             guardRadius = Float("Buckler", "GuardRadius", 0.8f, 0.3f, 2f, "How close to the buckler an enemy shot breaks, in units.");
             guardTime = Float("Buckler", "GuardTime", 0.3f, 0.1f, 1f, "Seconds the buckler stays out (and breaks shots) per punch.");
             shrapnelRadius = Float("Enhanced", "ShrapnelRadius", 0.8f, 0.3f, 2f, "Enhanced: radius of the shrapnel burst where a shot breaks.");
 
             const string restart = " Applies after restarting the game.";
-            punchDamage = Int("Balance", "PunchDamage", 7, 200, "Damage of each punch (hits 1 and 2)." + restart);
+            punchDamage = Int("Balance", "PunchDamage", 7, 200, "Damage of the first punch." + restart);
             finisherDamage = Int("Balance", "FinisherDamage", 11, 200, "Damage of the last punch." + restart);
             shrapnelDamage = Int("Balance", "ShrapnelDamage", 5, 200, "Damage of the enhanced shrapnel burst." + restart);
             punchKnockback = Float("Balance", "PunchKnockback", 5f, 0f, 100f, "Knockback of a punch (small, so the next one still lands)." + restart);

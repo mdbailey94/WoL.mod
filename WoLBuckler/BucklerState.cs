@@ -18,7 +18,8 @@ namespace WoLBuckler
             isMeleeSkill = true;
             skipAtkObjSpawn = true;
             destroyAttackObjectOnExit = false;
-            maxComboCount = 3;
+            // 0.2.0 (Matt): a 2-hit combo, a punch and the heavier last punch.
+            maxComboCount = 2;
             animStartTime = 0.03f;
             animExecTime = PunchExecTime;
             baseCancelThreshold = 0.20f;

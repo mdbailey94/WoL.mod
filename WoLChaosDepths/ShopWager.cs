@@ -59,6 +59,7 @@ namespace WoLChaosDepths
                 applied.Clear();
                 keeperShop.Clear();
                 asking = null;
+                releasing = null;
             };
             new Harmony("mdbailey94.wol.chaosdepths.shopwager").Patch(AccessTools.Method(typeof(Npc), nameof(Npc.Interacted)),
                 prefix: new HarmonyMethod(typeof(ShopWager), nameof(InteractedPrefix)));
@@ -70,6 +71,7 @@ namespace WoLChaosDepths
             {
                 Guard(Tick);
                 Guard(Answer);
+                Guard(Release);
             }
 
             private void OnGUI()
@@ -144,12 +146,33 @@ namespace WoLChaosDepths
                 Close(q, false);
         }
 
+        // The wizard stays paused until the answering button is let go (and at least QuietAfter):
+        // on a pad A is both Confirm and the dash, so freeing them on the press dashed (Matt
+        // 2026-11-03).
+        private static Player releasing;
+        private static float releaseAfter;
+
+        private static void Release()
+        {
+            Player p = releasing;
+            if (p == null)
+                return;
+            ChaosInputDevice input = p.inputDevice;
+            bool held = Input.GetKey(KeyCode.Y) || Input.GetKey(KeyCode.N)
+                || (input != null && (input.GetButton("Confirm") || input.GetButton("Interact") || input.GetButton("Cancel")));
+            if (Time.unscaledTime < releaseAfter || (held && Time.unscaledTime < releaseAfter + 2f))
+                return;
+            releasing = null;
+            if (p.fsm != null && p.fsm.currentStateName != null && p.fsm.currentStateName.Contains("Paused"))
+                p.fsm.ChangeState(p.fsm.defaultStateName);
+        }
+
         private static void Close(Question q, bool take)
         {
             asking = null;
             quietUntil = Time.unscaledTime + QuietAfter;
-            if (q.player != null && q.player.fsm != null)
-                q.player.fsm.ChangeState(q.player.fsm.defaultStateName);
+            releasing = q.player;
+            releaseAfter = Time.unscaledTime + QuietAfter;
             if (take)
                 Flip(q.player, q.shop, q.keeper);
             else if (q.player != null)

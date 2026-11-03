@@ -37,6 +37,11 @@ namespace WoLGiantSpear
 
     internal static class Spear
     {
+        // 0.2.0 (Matt: 'look more wind spell'): the spear is drawn as wind, a pale see-through cyan,
+        // and leaves fading wind ghosts of itself behind as it moves.
+        public static readonly Color WindTint = new Color(0.72f, 1f, 1f, 0.8f);
+        private const float StabFps = 10f;
+
         // Hits 1 and 2: the game's wind burst on every enemy along the spear.
         public static void Stab(Player owner, string skillID, Vector2 hand, Vector2 aim, bool enhanced)
         {
@@ -48,8 +53,28 @@ namespace WoLGiantSpear
                 hits++;
             }
             float scale = SpearArt.ScaleFor(reach);
-            Anim.Play(SpearArt.Thrust, hand, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg, new Vector3(scale, scale, 1f), 16f, owner);
+            float angle = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
+            Anim.Play(SpearArt.Thrust, hand, angle, new Vector3(scale, scale, 1f), StabFps, owner);
+            // Two wind ghosts trailing the thrust.
+            if (SpearArt.Thrust.Length > 0)
+                for (int i = 1; i <= 2; i++)
+                    Ghost.Leave(SpearArt.Thrust[0], hand - aim * (0.45f * i), angle, new Vector3(scale, scale, 1f), owner, 0.5f / i, 0.3f);
+            Trail(hand, hand + aim * reach);
+            Sound("WindBlastSharp", hand, 0.75f);
             GiantSpearPlugin.Log($"Giant Air Spear: stab ({reach:0.0} u), {hits} hit");
+        }
+
+        // The game's own wind streaks (the "WindTrail" emitter its air arcana and the Air boss
+        // use) along a line.
+        internal static void Trail(Vector2 from, Vector2 to)
+        {
+            try
+            {
+                PoolManager.GetPoolItem<SectionedTrailEmitter>("WindTrail").Emit(from, to, -1, false, -1f, true, 0.3f);
+            }
+            catch
+            {
+            }
         }
 
         internal static void Burst(Vector2 at, string category, string skillID, int level, float radius)
@@ -128,6 +153,7 @@ namespace WoLGiantSpear
             a.born = Time.time;
             a.look = go.AddComponent<SpriteRenderer>();
             a.look.sprite = frames[0];
+            a.look.color = Spear.WindTint;
             Spear.Sort(a.look, owner, 1);
         }
 
@@ -143,16 +169,54 @@ namespace WoLGiantSpear
         }
     }
 
-    // Hit 3: the spear flies out along the aim, piercing (a wind burst on each enemy it passes,
-    // once each way), turns at its range (enhanced: a gust there) and flies back to the wizard,
-    // who catches it.
+    // A fading copy of a wind sprite left behind (the spear's wind ghosts).
+    internal class Ghost : MonoBehaviour
+    {
+        private SpriteRenderer look;
+        private float born, life, alpha;
+
+        public static void Leave(Sprite sprite, Vector2 at, float angle, Vector3 scale, Player owner, float alpha, float life)
+        {
+            if (sprite == null)
+                return;
+            var go = new GameObject("GiantSpear Ghost");
+            go.transform.position = at;
+            go.transform.rotation = Quaternion.Euler(0f, 0f, angle);
+            go.transform.localScale = scale;
+            Ghost g = go.AddComponent<Ghost>();
+            g.look = go.AddComponent<SpriteRenderer>();
+            g.look.sprite = sprite;
+            g.born = Time.time;
+            g.life = life;
+            g.alpha = alpha;
+            Spear.Sort(g.look, owner, 0);
+            g.Update();
+        }
+
+        private void Update()
+        {
+            float t = (Time.time - born) / life;
+            if (t >= 1f)
+            {
+                Destroy(gameObject);
+                return;
+            }
+            Color c = Spear.WindTint;
+            c.a = alpha * (1f - t);
+            look.color = c;
+        }
+    }
+
+    // Hit 3: the spear flies out along the aim, piercing (a wind burst on each enemy it passes),
+    // and at its range blows away into wind (enhanced: a gust there). 0.2.0: it no longer comes
+    // back (Matt); [Spear] ReturnToHand brings back 0.1's return, hitting again on the way.
     internal class ThrownSpear : MonoBehaviour
     {
-        private const float MaxLife = 4f, CatchDistance = 0.6f, ReleaseTime = 0.08f;
+        private const float MaxLife = 4f, CatchDistance = 0.6f, ReleaseTime = 0.08f, GhostEvery = 0.04f, FadeTime = 0.2f, TrailEvery = 0.1f;
         private Player owner;
         private string skillID;
         private Vector2 dir;
-        private float range, born, distance;
+        private float range, born, distance, nextGhost, nextTrail, fadeFrom = -1f;
         private bool returning, enhanced;
         private SpriteRenderer look;
         private readonly HashSet<int> hitOut = new HashSet<int>(), hitBack = new HashSet<int>();
@@ -173,6 +237,7 @@ namespace WoLGiantSpear
             spear.look = go.AddComponent<SpriteRenderer>();
             if (SpearArt.Throw.Length > 0)
                 spear.look.sprite = SpearArt.Throw[0];
+            spear.look.color = Spear.WindTint;
             Spear.Sort(spear.look, owner, 1);
             spear.Face(aim);
             Spear.Sound("WindBoomerang", hand, 0.8f);
@@ -195,6 +260,33 @@ namespace WoLGiantSpear
             float age = Time.time - born;
             if (SpearArt.Throw.Length >= 4)
                 look.sprite = age < ReleaseTime ? SpearArt.Throw[0] : SpearArt.Throw[1 + (int)((age - ReleaseTime) * 14f) % 3];
+            if (Time.time >= nextGhost)
+            {
+                nextGhost = Time.time + GhostEvery;
+                Ghost.Leave(look.sprite, transform.position, transform.eulerAngles.z, transform.localScale, owner, 0.45f, 0.22f);
+            }
+            if (Time.time >= nextTrail && fadeFrom < 0f)
+            {
+                nextTrail = Time.time + TrailEvery;
+                Vector2 now = transform.position;
+                Spear.Trail(now - (Vector2)(transform.rotation * Vector3.right) * 1.5f, now);
+            }
+
+            // Blowing away at the end of its flight: it drifts on a little, fading.
+            if (fadeFrom >= 0f)
+            {
+                float t = (Time.time - fadeFrom) / FadeTime;
+                if (t >= 1f)
+                {
+                    Destroy(gameObject);
+                    return;
+                }
+                Color c = Spear.WindTint;
+                c.a *= 1f - t;
+                look.color = c;
+                transform.position = (Vector2)transform.position + dir * GiantSpearPlugin.ThrowSpeed * 0.3f * Time.deltaTime;
+                return;
+            }
 
             Vector2 from = transform.position;
             Vector2 to;
@@ -205,11 +297,17 @@ namespace WoLGiantSpear
                 distance += step;
                 if (distance >= range)
                 {
-                    returning = true;
                     if (enhanced)
                     {
                         Spear.Burst(to, owner.skillCategory, skillID, 3, GiantSpearPlugin.GustRadius);
                         Spear.Sound("WindBlastDeep", to, 1f);
+                    }
+                    if (GiantSpearPlugin.ReturnToHand)
+                        returning = true;
+                    else
+                    {
+                        fadeFrom = Time.time;
+                        Spear.Sound("WindHowlShort", to, 1.2f);
                     }
                 }
             }
