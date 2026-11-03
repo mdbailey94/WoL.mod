@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.29.10";
+        public const string PluginVersion = "0.30.0";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -178,6 +178,14 @@ namespace WoLChaosDepths
             catch (Exception e)
             {
                 Logger.LogError($"Gear type stats failed to install: {e.Message}");
+            }
+            try
+            {
+                Pacts.Install();
+            }
+            catch (Exception e)
+            {
+                Logger.LogError($"Pacts failed to install: {e.Message}");
             }
             try
             {

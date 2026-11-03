@@ -167,9 +167,11 @@ namespace WoLChaosDepths
                 }
                 if (tier == 3)
                 {
-                    Label(R(160, ty + 1, 66, 9), "PICK 1", dim);
+                    // Right of the keystones (three with a pact, #75).
+                    float lx = row.Count > 2 ? 182 : 160;
+                    Label(R(lx, ty + 1, 226 - lx, 9), "PICK 1", dim);
                     if (!open)
-                        Label(R(160, ty + 9, 66, 9), $"NEEDS {Talents.PointsToOpenNextTier} IN TIER 2", dim);
+                        Label(R(lx, ty + 9, 226 - lx, 9), $"NEEDS {Talents.PointsToOpenNextTier} IN T2", dim);
                 }
             }
 

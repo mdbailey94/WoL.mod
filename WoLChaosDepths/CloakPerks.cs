@@ -547,7 +547,7 @@ namespace WoLChaosDepths
             sharing = true;
             try
             {
-                partner.health.RestoreHealth(Mathf.CeilToInt(value * 0.3f), false, false);
+                partner.health.RestoreHealth(Mathf.CeilToInt(value * 0.3f * Pacts.PartnerHealScale(p)), false, false);
             }
             finally
             {

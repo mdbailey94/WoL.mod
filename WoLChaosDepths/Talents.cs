@@ -48,6 +48,7 @@ namespace WoLChaosDepths
                 new Node { Key = "Graduate", Name = "Graduate", Tier = 3, MaxPoints = 1, Effect = "+1 relic slot at the start of each run" },
                 new Node { Key = "Survivor", Name = "Survivor", Tier = 3, MaxPoints = 1,
                     Effect = "Once per stage (floor), a killing blow leaves you at 1 health instead" },
+                new Node { Key = "BorrowedTime", Name = "Borrowed Time", Tier = 3, MaxPoints = 1, Effect = "PACT: all cooldowns 30% shorter, but max health drops 1% every 30 s in a run (to 40%)" },
             }
         };
 
@@ -166,6 +167,7 @@ namespace WoLChaosDepths
                 new Node { Key = "ShieldWall", Name = "Shield Wall", Tier = 2, MaxPoints = 1, Effect = "The first hit in each room deals 50% less" },
                 new Node { Key = "Juggernaut", Name = "Juggernaut", Tier = 3, MaxPoints = 1, Effect = "Can't be knocked back or staggered, +10% armor" },
                 new Node { Key = "LastStand", Name = "Last Stand", Tier = 3, MaxPoints = 1, Effect = "Below 30% health: -30% damage taken, +20% damage" },
+                new Node { Key = "Bastion", Name = "Bastion", Tier = 3, MaxPoints = 1, Effect = "PACT: +25% armor, a hit takes at most 20% of max health, no knockback; but -20% move speed except 2 s after a dash" },
             }
         };
 
@@ -185,6 +187,7 @@ namespace WoLChaosDepths
                 new Node { Key = "Riposte", Name = "Riposte", Tier = 2, MaxPoints = 1, Effect = "After evading a hit, your next hit crits" },
                 new Node { Key = "Assassin", Name = "Assassin", Tier = 3, MaxPoints = 1, Effect = "The first hit on an enemy at full health always crits, for 50% more" },
                 new Node { Key = "Flurry", Name = "Flurry", Tier = 3, MaxPoints = 1, Effect = "Each crit gives +3% crit chance for 4 s, stacking to 5" },
+                new Node { Key = "MarkedForDeath", Name = "Marked for Death", Tier = 3, MaxPoints = 1, Effect = "PACT: crits deal +60% crit damage and mark the target; but your evade is 0 for 6 s after each crit" },
             }
         };
 
@@ -203,6 +206,7 @@ namespace WoLChaosDepths
                 new Node { Key = "Channel", Name = "Channel", Tier = 2, MaxPoints = 1, Effect = "After standing still 1 s, cooldowns recover 10% faster" },
                 new Node { Key = "Archmage", Name = "Archmage", Tier = 3, MaxPoints = 1, Effect = "Every 4th standard cast has no cooldown" },
                 new Node { Key = "Cataclysm", Name = "Cataclysm", Tier = 3, MaxPoints = 1, Effect = "Your signature deals 40% more" },
+                new Node { Key = "Overchannel", Name = "Overchannel", Tier = 3, MaxPoints = 1, Effect = "PACT: arcana +40% damage and cast speed; but each cast adds 1 s more cooldown than the last (+1, +2, +3...) until 3 s without casting" },
             }
         };
 
@@ -220,6 +224,7 @@ namespace WoLChaosDepths
                 new Node { Key = "SecondGust", Name = "Second Gust", Tier = 2, MaxPoints = 1, Effect = "Kills have a 20% chance to give your dash back" },
                 new Node { Key = "Afterimage", Name = "Afterimage", Tier = 3, MaxPoints = 1, Effect = "A dash leaves a decoy that enemies attack for 1.5 s" },
                 new Node { Key = "Velocity", Name = "Velocity", Tier = 3, MaxPoints = 1, Effect = "+1% damage for every 1% move speed above base" },
+                new Node { Key = "MomentumEngine", Name = "Momentum Engine", Tier = 3, MaxPoints = 1, Effect = "PACT: +2% damage for every 1% move speed above base, dash cooldown halved; but every hit you take roots you 0.5 s" },
             }
         };
 
@@ -238,6 +243,7 @@ namespace WoLChaosDepths
                 new Node { Key = "Sanctuary", Name = "Sanctuary", Tier = 3, MaxPoints = 1,
                     Effect = "Casting your signature drops a 4 s healing circle (3% max health a second to wizards inside)" },
                 new Node { Key = "Lifebloom", Name = "Lifebloom", Tier = 3, MaxPoints = 1, Effect = "Your healing also heals the other wizard for 50% (co-op)" },
+                new Node { Key = "Martyr", Name = "Martyr", Tier = 3, MaxPoints = 1, Effect = "PACT: heals you pass to your partner are doubled, regenerate 4%/s in cleared rooms; but your max health is halved" },
             }
         };
 
@@ -258,6 +264,7 @@ namespace WoLChaosDepths
                 new Node { Key = "AllIn", Name = "All In", Tier = 3, MaxPoints = 1, Effect = "+25% damage, -25% max health" },
                 new Node { Key = "DoubleOrNothing", Name = "Double or Nothing", Tier = 3, MaxPoints = 1,
                     Effect = "Each floor cleared without being hit doubles the next floor's gold (up to 4x); a hit resets it" },
+                new Node { Key = "DoubleDown", Name = "Double Down", Tier = 3, MaxPoints = 1, Effect = "PACT: relics cost half price, but every relic bought also gives a random curse relic" },
             }
         };
 

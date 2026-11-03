@@ -548,7 +548,7 @@ namespace WoLChaosDepths
             // Lifebloom: half of it to the other wizard (not passed back).
             if (value > 0 && !relaying && Talents.Rank(player, "Lifebloom") > 0)
             {
-                int share = Mathf.CeilToInt(value * LifebloomShare);
+                int share = Mathf.CeilToInt(value * LifebloomShare * Pacts.PartnerHealScale(player));
                 Player[] players = GameController.activePlayers;
                 if (players == null)
                     return;
