@@ -20,16 +20,18 @@ namespace WoLChaosDepths
     //             Co-op: your signature cast gives your partner 15% signature charge.
     //   Fury      Fire: your signature's cast plays 30% faster.  Co-op: your partner's signature gives you 10% charge.
     //   Pace      Air: a cast keeps your momentum: +10% move speed for 2 s.  Co-op: within 4 u of each other, both +5% move speed.
-    //   Venture   Lightning: a dash leaves a short static trail that shocks.
-    //   Savile    Co-op: dashing through your partner resets their dash.
+    //   Venture   Lightning: a dash leaves a short static trail that shocks.  Co-op: your partner crossing it gets +15% move speed for 2 s.
+    //   Savile    Water: a water arcana cast within 1 s of a dash comes back 15% sooner.  Co-op: dashing through your partner resets their dash.
+    //   Greed     Earth: an earth arcana kill has a 15% chance to knock 5 gold loose.  Co-op: every 100 gold the team banks heals both 3%.
+    //   Level     Chaos: every 10 kills on a floor, +1% cast speed (up to +10%), reset each floor.  Co-op: your partner's kills count half.
     //   Pink      Water: healing +25%.  Co-op: a big heal (10% of your health or more: an orb) heals your partner 30% of it.
     //   Fall      Air: you can't fall into a pit for 1 s after a dash.
     //             Co-op: once a minute, when your partner falls into a pit, a tether pulls them to your side, untargetable.
     //   Pride     Fire: signature charge builds 25% faster, but each hit you take empties 10% of it.
     //             Co-op: while you're alive, your partner deals +10%.
     //   Hope / Patience  Earth / Water: cooldowns -5%.  Co-op: within 3 u of each other, both regain 1% health every 5 s.
-    // Not built (they need systems this file doesn't reach, or clash with how co-op works): Venture's
-    // co-op (the gold wallet is already shared), Savile's puddle refund, and Greed's and Level's perks.
+    // Venture's co-op, Savile's elemental, and Greed's and Level's perks are Matt's picks of
+    // 2026-11-02 21:00 ("Pick one for me"), replacing drafts the game can't support as written.
     public static class CloakPerks
     {
         private const string Prefix = "ChaosDepths_CP_";
@@ -56,7 +58,18 @@ namespace WoLChaosDepths
             public bool wasDead, prevented;
             public Vector2 dashFrom;
             public bool partnerDashReset;
+            public float lastDash = -10f, trailSpeedUntil = -1f, floorKills;
+            public readonly List<Vector3> trail = new List<Vector3>();   // x, y, until
         }
+
+        // Matt's picks, 2026-11-02 21:00 ("Pick one for me").
+        private const float GreedGoldChance = 0.15f;
+        private const int GreedGold = 5;
+        private const int GreedHealEvery = 100;
+        private const float SavileWindow = 1f, SavileRefund = 0.15f;
+        private static readonly HashSet<int> killed = new HashSet<int>();
+        private static readonly List<Player.SkillState> refunds = new List<Player.SkillState>();
+        private static int lastBalance = -1, goldSinceHeal;
 
         public static void Install()
         {
@@ -67,6 +80,9 @@ namespace WoLChaosDepths
             GameController.levelLoadEventHandlers += (next, previous) =>
             {
                 said.Clear();
+                killed.Clear();
+                foreach (State s in states.Values)
+                    s.floorKills = 0f;   // Level's stacks are per floor
                 lastHits.Clear();
                 shockedUntil.Clear();
                 statusHooked.Clear();
@@ -127,6 +143,11 @@ namespace WoLChaosDepths
             Player[] players = GameController.activePlayers;
             if (players == null)
                 return;
+            foreach (Player.SkillState s in refunds)
+                if (s != null && s.cooldownRef != null && !s.cooldownRef.Ready)
+                    s.cooldownRef.ReduceRemainingTime(SavileRefund * s.cooldownRef.MaxTime);
+            refunds.Clear();
+            GreedHeal(players);
             foreach (Player p in players)
             {
                 if (p == null || p.health == null || p.movement == null)
@@ -137,9 +158,28 @@ namespace WoLChaosDepths
                 Player partner = Partner(p);
                 SkillStats(p, cloak);
 
-                // Cast speed (Vigor's earth casts, Switch after an evade, Fury's signature).
+                // Cast speed (Vigor's earth casts, Switch after an evade, Fury's signature), and
+                // Level's stacks: +1% for every 10 kills on this floor, up to +10%.
                 bool fast = Time.time < st.castFastUntil;
                 SetMod(p.animSpeedHandler, "CastSpeed", fast ? st.dashFrom.x : 0f);
+                int stacks = cloak == "Level" ? Mathf.Min(10, Mathf.FloorToInt(st.floorKills / 10f)) : 0;
+                SetMod(p.animSpeedHandler, "LevelSpeed", 0.01f * stacks);
+                if (stacks > 0)
+                    Say(p, "Level", "Level: kills on this floor speed up casting");
+
+                // Venture's co-op: crossing your partner's static trail.
+                if (partner != null && Cloak(partner) == "Venture")
+                {
+                    State ps = StateOf(partner);
+                    ps.trail.RemoveAll(v => Time.time >= v.z);
+                    foreach (Vector3 v in ps.trail)
+                        if (((Vector2)p.transform.position - new Vector2(v.x, v.y)).magnitude <= 0.8f)
+                        {
+                            st.trailSpeedUntil = Time.time + 2f;
+                            Say(partner, "VentureCoop", "Venture: partner crossed the static trail, +15% speed");
+                            break;
+                        }
+                }
 
                 // Speed: Pace's momentum and the partners-close bonus.
                 float speed = 0f;
@@ -152,6 +192,8 @@ namespace WoLChaosDepths
                 }
                 if (partner != null && Cloak(partner) == "Pace" && Close(p, partner, 4f))
                     speed += 0.05f;
+                if (Time.time < st.trailSpeedUntil)
+                    speed += 0.15f;
                 SetMod(p.movement.moveSpeedStat, "Speed", speed);
 
                 // Switch's partner evade.
@@ -201,6 +243,32 @@ namespace WoLChaosDepths
                     Heal(partner, 0.01f);
                     Say(p, cloak, $"{cloak}: close together, both regain 1%");
                 }
+            }
+        }
+
+        // Greed's co-op: every 100 gold the team banks (one shared wallet) heals both wizards 3%,
+        // while a wizard wears Greed.
+        private static void GreedHeal(Player[] players)
+        {
+            GoldWallet wallet = Player.goldWallet;
+            if (wallet == null)
+                return;
+            int balance = wallet.balance;
+            int gained = lastBalance >= 0 ? balance - lastBalance : 0;
+            lastBalance = balance;
+            Player greedy = null;
+            foreach (Player p in players)
+                if (p != null && Cloak(p) == "Greed")
+                    greedy = p;
+            if (greedy == null || Partner(greedy) == null || gained <= 0)
+                return;
+            goldSinceHeal += gained;
+            while (goldSinceHeal >= GreedHealEvery)
+            {
+                goldSinceHeal -= GreedHealEvery;
+                foreach (Player p in players)
+                    Heal(p, 0.03f);
+                Say(greedy, "GreedCoop", "Greed: 100 team gold healed both 3%");
             }
         }
 
@@ -277,6 +345,15 @@ namespace WoLChaosDepths
             }
             if (cloak == "Pace" && !isDash)
                 st.momentumUntil = Time.time + 2f;
+            // Savile: a water arcana cast soon after a dash comes back 15% sooner (its cooldown
+            // starts after this event, so it's shortened on the next tick).
+            if (cloak == "Savile" && !isDash && Time.time - st.lastDash <= SavileWindow && Element(state) == "Water")
+            {
+                refunds.Add(state);
+                Say(p, "Savile", "Savile: water cast after a dash, cooldown 15% shorter");
+            }
+            if (isDash)
+                st.lastDash = Time.time;
             if (isDash)
             {
                 st.dashUntil = Time.time + 0.3f;
@@ -415,8 +492,29 @@ namespace WoLChaosDepths
             });
         }
 
+        // Kills: Greed's earth gold and Level's floor stacks.
         private static void AfterAnyHit(AttackInfo info, Entity attacker, Entity hurt)
         {
+            if (!Talents.Enabled || info == null)
+                return;
+            Enemy enemy = hurt as Enemy;
+            if (enemy == null || enemy.health == null || enemy.health.CurrentHealthValue > 0 || !killed.Add(enemy.GetInstanceID()))
+                return;
+            Guard("kill", () =>
+            {
+                Player killer = PlayerOf(info.skillCategory);
+                if (killer == null)
+                    return;
+                if (Cloak(killer) == "Greed" && info.elementType == ElementType.Earth && UnityEngine.Random.value < GreedGoldChance)
+                {
+                    Player.goldWallet?.Deposit(GreedGold);
+                    Say(killer, "Greed", $"Greed: an earth kill knocked {GreedGold} gold loose");
+                }
+                StateOf(killer).floorKills += 1f;
+                Player partner = Partner(killer);
+                if (partner != null)
+                    StateOf(partner).floorKills += 0.5f;   // Level's co-op: a partner's kill counts half
+            });
         }
 
         // Shocks are seen through the enemy's own status events.
@@ -574,10 +672,12 @@ namespace WoLChaosDepths
         {
             Vector2 start = p.transform.position;
             Vector2 dir = p.movement.dashVector.sqrMagnitude > 0.0001f ? p.movement.dashVector.normalized : Entity.GetFacingDirectionVector(p.facingDirection);
+            State st = StateOf(p);
             for (int i = 0; i < 3; i++)
             {
                 Vector2 at = start + dir * (0.8f * i);
                 Guard("venture", () => LightningBurst.CreateBurst(at, p.skillCategory, dash.skillID, 1, 0.5f, false));
+                st.trail.Add(new Vector3(at.x, at.y, Time.time + 1.5f));   // the partner's speed boost spots
             }
             Say(p, "Venture", "Venture: static trail");
         }
