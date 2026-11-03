@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net35</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+    <!-- The reference Assembly-CSharp is publicized (private members made public). Unsafe mode
+         marks this DLL unverifiable, which makes Mono skip access checks so those members work. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>WoLPricklyBallet</AssemblyName>
+    <RootNamespace>WoLPricklyBallet</RootNamespace>
+
+    <!-- Folder holding the reference DLLs listed below (the repo's lib/ folder by default). -->
+    <LibDir Condition="'$(LibDir)' == ''">$(MSBuildThisFileDirectory)..\lib</LibDir>
+    <!-- Optional: set to your Wizard of Legend install to copy the build into BepInEx\plugins. -->
+    <GameDir Condition="'$(GameDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Wizard of Legend</GameDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="BepInEx">
+      <HintPath>$(LibDir)\BepInEx.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(LibDir)\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(LibDir)\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="LegendApi">
+      <HintPath>$(LibDir)\LegendApi.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- Harmony ships with BepInEx; not used yet. -->
+    <Reference Include="0Harmony">
+      <HintPath>$(LibDir)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\prickly_ballet_icon.png" LogicalName="WoLPricklyBallet.Assets.prickly_ballet_icon.png" />
+    <EmbeddedResource Include="Assets\prickly_dancer_rise.png" LogicalName="WoLPricklyBallet.Assets.prickly_dancer_rise.png" />
+    <EmbeddedResource Include="Assets\prickly_dancer_spin.png" LogicalName="WoLPricklyBallet.Assets.prickly_dancer_spin.png" />
+    <EmbeddedResource Include="Assets\prickly_dancer_burst.png" LogicalName="WoLPricklyBallet.Assets.prickly_dancer_burst.png" />
+    <EmbeddedResource Include="Assets\prickly_needle.png" LogicalName="WoLPricklyBallet.Assets.prickly_needle.png" />
+  </ItemGroup>
+
+  <Target Name="CopyToPlugins" AfterTargets="Build" Condition="Exists('$(GameDir)\BepInEx\plugins')">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(GameDir)\BepInEx\plugins\WoLPricklyBallet" />
+  </Target>
+
+</Project>
