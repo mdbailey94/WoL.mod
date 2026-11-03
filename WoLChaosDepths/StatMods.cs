@@ -34,6 +34,15 @@ namespace WoLChaosDepths
             }
             // Phase 1a: the worn cloak's talents count like gear (nothing while [Talents] is off).
             TalentEffects.AddStats(player, totals);
+            // #66 (Matt): the signature is harder to earn, for every wizard; it adds to the same
+            // stat cloaks and talents change (the hit's signature charge multiplier).
+            float gain = SignatureGain;
+            if (!Mathf.Approximately(gain, 0f))
+            {
+                float current;
+                totals.TryGetValue("SignatureCharge", out current);
+                totals["SignatureCharge"] = current + gain;
+            }
             float levelHealth = HealthPerLevel * (save.level - 1);
 
             // Only touch the game when something changed.
@@ -132,6 +141,22 @@ namespace WoLChaosDepths
         }
 
         private static readonly string[] Elements = { "Fire", "Air", "Earth", "Lightning", "Water" };
+
+        // [Signature] ChargeGain (#66), bound on first use in Chaos Depths' own config.
+        private static BepInEx.Configuration.ConfigEntry<float> signatureGain;
+        public static float SignatureGain
+        {
+            get
+            {
+                if (signatureGain == null && ChaosDepthsPlugin.Instance != null)
+                    signatureGain = ChaosDepthsPlugin.Instance.Config.Bind("Signature", "ChargeGain", -0.25f,
+                        new BepInEx.Configuration.ConfigDescription(
+                            "How fast every wizard's signature bar fills from hits, against the game's own rate: -0.25 = 25% slower " +
+                            "(Matt, #66), 0 = the game's rate. Cloak, talent and perk bonuses add on top.",
+                            new BepInEx.Configuration.AcceptableValueRange<float>(-0.9f, 1f)));
+                return signatureGain != null ? Mathf.Clamp(signatureGain.Value, -0.9f, 1f) : -0.25f;
+            }
+        }
 
         private static void Skill(string category, string field, string name, float value, VarStatModType type,
             StatManager.ModApplyConditional only = null)
