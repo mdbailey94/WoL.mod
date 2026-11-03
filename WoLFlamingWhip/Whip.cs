@@ -45,7 +45,9 @@ namespace WoLFlamingWhip
             p.aim = aim;
             p.enhanced = enhanced;
             p.at = Time.time + FlamingWhipPlugin.WindUp;
-            Sound("WindSlashBasic", hand, 0.7f);
+            Sound("WindSlashBasic", hand, 0.35f, 0.7f);
+            // 0.4.0 (Matt: "more spell like"): fire gathers at the hand while it winds up.
+            Flames("FlameCircleBurstEmitter", 4, hand);
         }
 
         private class Pending : MonoBehaviour
@@ -68,9 +70,11 @@ namespace WoLFlamingWhip
 
         // The crack: the game's fire burst on a spot SpotSize wide (enhanced EnhancedSpotSize)
         // exactly CrackDistance out, and nothing between the wizard and it, so you can be too
-        // close or too far. #86: heavy: a camera shake, a crack over a low thud, and the lash drawn
-        // out to the spot with Art's burst on it (drawn so its ring's edge, ~23 px of 24 by the
-        // last frame, sits on the hit area's edge).
+        // close or too far. #86: heavy: a camera shake, a crack, and the lash drawn out to the
+        // spot with Art's burst on it (drawn so its ring's edge, ~23 px of 24 by the last frame,
+        // sits on the hit area's edge). 0.4.0 (Matt: "extend range, reduce sound, more spell
+        // like"): 3 tiles out, quieter (no low thud, the crack and flame at about half volume),
+        // and flames burst along the lash's path and round the spot, leaving a scorch mark.
         public static void Crack(Player owner, string skillID, Vector2 hand, Vector2 aim, bool enhanced)
         {
             float distance = FlamingWhipPlugin.CrackDistance;
@@ -80,6 +84,10 @@ namespace WoLFlamingWhip
             Anim.Play(WhipArt.Lash, hand, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg, new Vector3((distance + radius) / 4f, 1.5f, 1f), 20f, owner, false);
             float drawn = radius * 16f / 23f;
             Anim.Play(WhipArt.Crack, spot, 0f, new Vector3(drawn, drawn, 1f), 16f, owner, false);
+            for (float d = 0.6f; d < distance - 0.3f; d += 0.6f)
+                Flames("FlameCircleBurstEmitter", 2, hand + aim * d);
+            Flames("FlameCircleBurstEmitter", 10, spot);
+            Flames("BurnMarkMedEmitter", 1, spot);
             try
             {
                 CameraController.ShakeCamera(FlamingWhipPlugin.Shake);
@@ -87,20 +95,31 @@ namespace WoLFlamingWhip
             catch
             {
             }
-            Sound("ThunderClap", spot, 1.9f);
-            Sound("EarthExplosion", spot, 0.7f);
-            Sound("FlameSlam", spot, 1f);
+            Sound("ThunderClap", spot, 0.35f, 1.9f);
+            Sound("FlameSlam", spot, 0.5f, 1f);
             // Enhanced: a short line of fire across the spot.
             if (enhanced)
                 FireLine.Lay(owner, skillID, spot - aim * radius, aim, radius * 2f);
             FlamingWhipPlugin.Log($"Flaming Whip: crack {distance:0.0} u out, {radius * 2f:0.0} u spot{(enhanced ? ", fire line" : "")}");
         }
 
-        private static void Sound(string name, Vector2 at, float pitch)
+        private static void Sound(string name, Vector2 at, float volume, float pitch)
         {
             try
             {
-                SoundManager.PlayAudioWithDistance(name, at, null, 24f, -1f, pitch);
+                SoundManager.PlayAudioWithDistance(name, at, null, 24f, volume, pitch);
+            }
+            catch
+            {
+            }
+        }
+
+        // One of the game's pooled particle effects (its fire bursts and scorch marks).
+        private static void Flames(string pool, int count, Vector2 at)
+        {
+            try
+            {
+                PoolManager.GetPoolItem<ParticleEffect>(pool).Emit(count, (Vector3?)(Vector3)at);
             }
             catch
             {

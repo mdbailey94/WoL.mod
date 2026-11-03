@@ -19,7 +19,7 @@ namespace WoLFlamingWhip
     {
         public const string PluginGuid = "mdbailey94.wol.flamingwhip";
         public const string PluginName = "Flaming Whip";
-        public const string PluginVersion = "0.3.0";
+        public const string PluginVersion = "0.4.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -34,7 +34,7 @@ namespace WoLFlamingWhip
         private static ConfigEntry<int> crackDamage, fireLineDamage;
         private static ConfigEntry<float> crackBurn, crackKnockback;
 
-        public static float CrackDistance => Get(crackDistance, 2f, 0.5f, 6f);
+        public static float CrackDistance => Get(crackDistance, 3f, 0.5f, 6f);
         public static float SpotSize => Get(spotSize, 1f, 0.3f, 4f);
         public static float EnhancedSpotSize => Get(enhancedSpotSize, 1.5f, 0.3f, 4f);
         public static float WindUp => Get(windUp, 0.3f, 0f, 1.5f);
@@ -49,17 +49,26 @@ namespace WoLFlamingWhip
         private void Awake()
         {
             log = Logger;
+            bool hadConfig = File.Exists(Config.ConfigFilePath);
             modEnabled = Config.Bind("General", "Enabled", true,
                 "Offer Flaming Whip in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
             BindSettings();
+            // 0.4.0 (Matt: "extend range"): the crack lands 3 tiles out; a 0.3.0 config holds 2.
+            var revision = Config.Bind("General", "SettingsRevision", 0, "Which version's defaults this file was last updated to. Leave it alone.");
+            if (hadConfig && revision.Value < 3)
+            {
+                crackDistance.Value = (float)crackDistance.DefaultValue;
+                Logger.LogInfo("Flaming Whip: settings moved to 0.4.0's longer reach (Distance 3)");
+            }
+            revision.Value = 3;
             WhipArt.Load(Logger);
 
             Skills.Register(new SkillInfo
             {
                 ID = WhipState.staticID,
                 displayName = "Flaming Whip",
-                description = "Heave a giant blazing whip overhead and crack it down on the spot two steps ahead: too close or too far and it misses!",
+                description = "Conjure a giant blazing whip and crack it down on the spot three steps ahead: too close or too far and it misses!",
                 enhancedDescription = "A wider crack that leaves a line of fire on the floor!",
                 icon = LoadIcon("flaming_whip_icon.png"),
                 tier = 2,
@@ -91,7 +100,7 @@ namespace WoLFlamingWhip
 
         private void BindSettings()
         {
-            crackDistance = Float("Crack", "Distance", 2f, 0.5f, 6f, "How far out along your aim the crack lands, in units (tiles), from the hand.");
+            crackDistance = Float("Crack", "Distance", 3f, 0.5f, 6f, "How far out along your aim the crack lands, in units (tiles), from the hand.");
             spotSize = Float("Crack", "SpotSize", 1f, 0.3f, 4f, "Width of the spot the crack hits, in units (tiles).");
             windUp = Float("Crack", "WindUp", 0.3f, 0f, 1.5f, "Seconds from the press to the crack (the cast time).");
             windUpPace = Float("Crack", "WindUpPace", 0.7f, 0.3f, 1f, "How fast the wizard's swing plays (0.7 = 30% slower, for a heavy feel; 1 = normal).");
