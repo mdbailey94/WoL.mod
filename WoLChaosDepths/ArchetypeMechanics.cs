@@ -17,8 +17,9 @@ namespace WoLChaosDepths
     ///   15 u), Juggernaut (its armor is in TalentEffects.AddStats), Last Stand.
     /// - Duelist: Momentum, Exploit, Riposte, Assassin, Flurry.
     /// - Arcanist: Echo, Surge, Channel, Archmage.
-    /// - Gambler: Hot Streak, Jackpot (gold banked within 3 s of an elite kill), Double or Nothing.
-    /// Not yet: Gem Sense and High Roller (the boss gem drop and the shop's relic prices).
+    /// - Gambler: Hot Streak, Jackpot (gold banked within 3 s of an elite kill), Double or Nothing,
+    ///   Gem Sense (the game's boss-dead event: a chance of an extra chaos gem), High Roller (the
+    ///   shop's relic prices, as the game's own discount relics do it).
     /// </summary>
     public static class ArchetypeMechanics
     {
@@ -56,6 +57,8 @@ namespace WoLChaosDepths
         private const float HotStreakStep = 0.02f;
         private const int HotStreakMax = 10;
         private const int DoubleMax = 4;
+        private const float GemSenseChance = 0.05f;      // per point, per wizard
+        private const float HighRollerDiscount = 0.10f;
 
         private class State
         {
@@ -87,6 +90,11 @@ namespace WoLChaosDepths
         private static int goldMultiplier = 1;      // Double or Nothing (shared, like the wallet)
         private static bool anyHitThisFloor;
         private static GoldWallet hookedWallet;
+        // High Roller: on every gold-priced relic in the shop while any wizard has it. Its own ID,
+        // so it stacks with the game's discounts and Double Down's (each multiplies the price).
+        private static readonly NumVarStatMod highRollerMod =
+            new NumVarStatMod(ModPrefix + "HighRoller", -HighRollerDiscount, 10, VarStatModType.Multiplicative);
+        private static bool highRollerOn;
 
         public static void Install(ManualLogSource logger)
         {
@@ -94,6 +102,8 @@ namespace WoLChaosDepths
             GameController.levelLoadEventHandlers += OnLevelLoad;
             Health.globalTakeDamageActualHandlers += OnAnyHit;
             Attack.globalCritEventHandlers += OnCrit;
+            Boss.bossDeadEventHandlers += OnBossDead;
+            ItemStoreItem.spawnEventHandlers += OnRelicSpawn;
             var harmony = new Harmony("mdbailey94.wol.chaosdepths.archetypes");
             harmony.Patch(AccessTools.Method(typeof(Player.SkillState), nameof(Player.SkillState.StartCooldownTimer)),
                 postfix: new HarmonyMethod(typeof(ArchetypeMechanics), nameof(AfterCooldownStart)));
@@ -129,6 +139,8 @@ namespace WoLChaosDepths
 
             private void Update()
             {
+                if (!Talents.Enabled && highRollerOn)
+                    SetHighRoller(false);
                 if (!Talents.Enabled || Time.unscaledTime < nextTick)
                     return;
                 nextTick = Time.unscaledTime + TickInterval;
@@ -178,11 +190,70 @@ namespace WoLChaosDepths
             }
         }
 
+        // Gem Sense: each wizard with it rolls for one extra chaos gem when a boss dies.
+        private static void OnBossDead(Boss boss)
+        {
+            try
+            {
+                Player[] players = GameController.activePlayers;
+                if (boss == null || players == null || !Talents.Enabled)
+                    return;
+                foreach (Player p in players)
+                {
+                    int rank = p != null ? Talents.Rank(p, "GemSense") : 0;
+                    if (rank <= 0 || UnityEngine.Random.value >= GemSenseChance * rank)
+                        continue;
+                    LootManager.DropPlat(boss.transform.position, 1);
+                    log?.LogInfo($"Talents: Gem Sense, an extra chaos gem from the boss for player {p.playerID + 1}");
+                }
+            }
+            catch (Exception e)
+            {
+                LogOnce("gem sense", $"Talents: Gem Sense failed ({e.Message})");
+            }
+        }
+
+        private static void OnRelicSpawn(ItemStoreItem item)
+        {
+            if (highRollerOn)
+                Discount(item, true);
+        }
+
+        private static void SetHighRoller(bool on)
+        {
+            highRollerOn = on;
+            foreach (ItemStoreItem item in ItemStoreItem.currentItems)
+                Discount(item, on);
+            log?.LogInfo($"Talents: High Roller {(on ? "on, relics 10% cheaper" : "off")}");
+        }
+
+        // As the game's discount relics: gold prices only (not ones paid in chaos gems).
+        private static void Discount(ItemStoreItem item, bool on)
+        {
+            try
+            {
+                if (item == null || item.usePlatinumCost)
+                    return;
+                item.costStat.Modify(highRollerMod, on);
+                item.UpdatePrice();
+            }
+            catch (Exception e)
+            {
+                LogOnce("high roller", $"Talents: High Roller failed ({e.Message})");
+            }
+        }
+
         private static void Tick()
         {
             Player[] players = GameController.activePlayers;
             if (players == null)
                 return;
+            bool roller = false;
+            foreach (Player p in players)
+                if (p != null && Talents.Rank(p, "HighRoller") > 0)
+                    roller = true;
+            if (roller != highRollerOn)
+                SetHighRoller(roller);
             foreach (Player player in players)
             {
                 if (player == null || player.health == null)
