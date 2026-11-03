@@ -70,6 +70,79 @@ namespace WoLChaosDepths
             foreach (Sprite s in new List<Sprite>(shapes.Keys))
                 if (s == null)
                     shapes.Remove(s);
+            foreach (Sprite s in new List<Sprite>(edges.Keys))
+                if (s == null)
+                    edges.Remove(s);
+        }
+
+        // #80: the cloak's edges in a frame, for the cloak upgrade trim (CloakLooks). The sheet
+        // is palette-indexed greys: the cloak is every grey of CloakGrey and up (the body, face
+        // and hands are darker; WoL Art's #73 mockup worked from the same split). The hem is each
+        // column's lowest cloak pixel; the hood rim each column's highest within the picture's
+        // top 8 rows. Pixel indices are y * width + x in the frame's texture rect (y from the
+        // bottom).
+        public const int CloakGrey = 95;
+
+        public class Edges
+        {
+            public readonly List<int> hem = new List<int>(), rim = new List<int>();
+            public int width, height;
+        }
+
+        private static readonly Dictionary<Sprite, Edges> edges = new Dictionary<Sprite, Edges>();
+
+        public static Edges CloakEdges(Sprite sprite)
+        {
+            if (sprite == null)
+                return null;
+            Edges e;
+            if (edges.TryGetValue(sprite, out e))
+                return e;
+            e = null;
+            try
+            {
+                Shape shape = Of(sprite);
+                if (shape != null)
+                    e = ScanEdges(sprite, shape);
+            }
+            catch
+            {
+            }
+            edges[sprite] = e;
+            return e;
+        }
+
+        private static Edges ScanEdges(Sprite sprite, Shape shape)
+        {
+            Texture2D tex = sprite.texture;
+            Color32[] px = Texels(tex);
+            if (px == null)
+                return null;
+            Rect r = sprite.textureRect;
+            int x0 = Mathf.RoundToInt(r.x), y0 = Mathf.RoundToInt(r.y), w = Mathf.RoundToInt(r.width), h = Mathf.RoundToInt(r.height);
+            bool Cloak(int x, int y)
+            {
+                Color32 c = px[(y0 + y) * tex.width + x0 + x];
+                return c.a > 127 && c.r >= CloakGrey && c.r == c.g && c.g == c.b;
+            }
+            var e = new Edges { width = w, height = h };
+            int rimFrom = Mathf.Max(0, shape.top - 7);
+            for (int x = 0; x < w; x++)
+            {
+                for (int y = 0; y < h; y++)
+                    if (Cloak(x, y))
+                    {
+                        e.hem.Add(y * w + x);
+                        break;
+                    }
+                for (int y = shape.top; y >= rimFrom; y--)
+                    if (Cloak(x, y))
+                    {
+                        e.rim.Add(y * w + x);
+                        break;
+                    }
+            }
+            return e;
         }
 
         private static Shape Scan(Sprite sprite)
