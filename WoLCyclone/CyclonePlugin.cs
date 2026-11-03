@@ -13,7 +13,7 @@ namespace WoLCyclone
     {
         public const string PluginGuid = "mdbailey94.wol.cyclone";
         public const string PluginName = "Cyclone";
-        public const string PluginVersion = "0.7.1";
+        public const string PluginVersion = "0.8.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -75,6 +75,50 @@ namespace WoLCyclone
         public static float BurstEaseBack => Get(burstEaseBack, 0.9f, 0.1f, 3f);
         public static float LetGoEaseBack => Get(letGoEaseBack, 0.5f, 0.1f, 3f);
 
+        // ---- 0.8.0 [Tornado] (#67, Matt): pull enemies in, lift and spin them round ----
+        private static ConfigEntry<float> pullReach, pullSpeed, fullPullSpeed, coreReach, spinTime, spinHeight, spinTurns,
+            sigSpinTime, sigSpinHeight, lookSize;
+        private static ConfigEntry<int> spinDamage, enhSpinDamage, maxSpinning, sigMaxSpinning;
+        public static float PullReach => Get(pullReach, 1.6f, 0.5f, 4f);
+        public static float PullSpeed => Get(pullSpeed, 1.5f, 0f, 15f);
+        public static float FullPullSpeed => Get(fullPullSpeed, 4.5f, 0f, 15f);
+        public static float CoreReach => Get(coreReach, 0.55f, 0.1f, 2f);
+        public static float SpinTime => Get(spinTime, 1.4f, 0.3f, 6f);
+        public static float SpinHeight => Get(spinHeight, 1.2f, 0f, 6f);
+        public static float SpinTurns => Get(spinTurns, 1.5f, 0.2f, 5f);
+        public static float SignatureSpinTime => Get(sigSpinTime, 2.5f, 0.3f, 8f);
+        public static float SignatureSpinHeight => Get(sigSpinHeight, 3f, 0f, 10f);
+        public static float LookSize => Get(lookSize, 0.8f, 0.3f, 2f);
+        public static int SpinDamage => Mathf.Clamp(spinDamage?.Value ?? 4, 0, 200);
+        public static int EnhancedSpinDamage => Mathf.Clamp(enhSpinDamage?.Value ?? 6, 0, 200);
+        public static int MaxSpinning => Mathf.Clamp(maxSpinning?.Value ?? 6, 0, 30);
+        public static int SignatureMaxSpinning => Mathf.Clamp(sigMaxSpinning?.Value ?? 14, 0, 40);
+
+        private void BindTornado()
+        {
+            const string next = " Applies to the next cast.";
+            pullReach = Float("Tornado", "PullReach", 1.6f, 0.5f, 4f, "Enemies within this times the twister's hit size are pulled in." + next);
+            pullSpeed = Float("Tornado", "PullSpeed", 1.5f, 0f, 15f, "Pull speed (units a second) while the twister is small." + next);
+            fullPullSpeed = Float("Tornado", "FullPullSpeed", 4.5f, 0f, 15f, "Pull speed once it's fully grown." + next);
+            coreReach = Float("Tornado", "CoreReach", 0.55f, 0.1f, 2f,
+                "Enemies this close (times the hit size) are lifted and spun round it (never bosses)." + next);
+            spinTime = Float("Tornado", "SpinTime", 1.4f, 0.3f, 6f, "Seconds an enemy spins before it drops." + next);
+            spinHeight = Float("Tornado", "SpinHeight", 1.2f, 0f, 6f, "How high a spun enemy is lifted (units)." + next);
+            spinTurns = Float("Tornado", "SpinTurns", 1.5f, 0.2f, 5f, "Turns a second round the twister." + next);
+            sigSpinTime = Float("Tornado", "SignatureSpinTime", 2.5f, 0.3f, 8f, "SpinTime in the signature (its burst then flings them high)." + next);
+            sigSpinHeight = Float("Tornado", "SignatureSpinHeight", 3f, 0f, 10f, "SpinHeight in the signature." + next);
+            lookSize = Float("Tornado", "LookSize", 0.8f, 0.3f, 2f,
+                "The drawn twister's size against 0.7's (0.8 = a little smaller, as Matt asked); the hit area doesn't change." + next);
+            spinDamage = Config.Bind("Tornado", "SpinDamage", 4,
+                new ConfigDescription("Damage a spun enemy takes when it drops (standard)." + next, new AcceptableValueRange<int>(0, 200)));
+            enhSpinDamage = Config.Bind("Tornado", "EnhancedSpinDamage", 6,
+                new ConfigDescription("SpinDamage when enhanced (the signature's drop is [Signature] TossDamage)." + next, new AcceptableValueRange<int>(0, 200)));
+            maxSpinning = Config.Bind("Tornado", "MaxSpinning", 6,
+                new ConfigDescription("Most enemies spinning at once (standard and enhanced)." + next, new AcceptableValueRange<int>(0, 30)));
+            sigMaxSpinning = Config.Bind("Tornado", "SignatureMaxSpinning", 14,
+                new ConfigDescription("Most enemies spinning at once in the signature." + next, new AcceptableValueRange<int>(0, 40)));
+        }
+
         private static float Get(ConfigEntry<float> entry, float fallback, float min, float max) =>
             Mathf.Clamp(entry?.Value ?? fallback, min, max);
 
@@ -113,6 +157,7 @@ namespace WoLCyclone
             if (tossDamage.Value == 12)
                 tossDamage.Value = 25;
             BindSettings();
+            BindTornado();
             SignatureUnlock.Install(new HarmonyLib.Harmony(PluginGuid), CycloneState.staticID,
                 () => signatureWithArcana.Value, message => Log("Cyclone: " + message));
 

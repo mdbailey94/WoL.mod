@@ -18,6 +18,12 @@ namespace WoLCyclone
     // - signature (isUltimate, the game's flag for a signature cast; the signature slot is always
     //   empowered, so it has everything enhanced has): a much wider twister that throws enemies
     //   (not bosses) caught in it up into the air; each takes damage when it lands (Toss).
+    //
+    // 0.8.0, a tornado (#67, Matt): every tier pulls enemies in reach toward it (PullReach, harder
+    // as it grows), lifts the ones in its core and spins them round it (Spin), dropping them for
+    // SpinDamage when their spin ends or it does; the signature spins them higher and its burst
+    // flings them all high (the old throw, TossHeight / TossDamage). The drawn twister is a little
+    // smaller (LookSize 0.8); the hit area is unchanged. Bosses are never pulled or caught.
     public class CycloneState : Player.SkillState
     {
         public new static string staticID = "Cyclone";
@@ -76,6 +82,9 @@ namespace WoLCyclone
         private float nextBolt, firstTossAt;
         private bool tossSlowMoDone;
         private readonly System.Collections.Generic.Dictionary<Entity, float> landedAt = new System.Collections.Generic.Dictionary<Entity, float>();
+        // 0.8.0 tornado (#67): the enemies spinning round it now, and how many it has caught.
+        private readonly System.Collections.Generic.List<Spin> spins = new System.Collections.Generic.List<Spin>();
+        private int caught;
 
         public CycloneState(FSM newFSM, Player newEnt) : base(staticID, newFSM, newEnt)
         {
@@ -103,6 +112,8 @@ namespace WoLCyclone
             base.OnEnter();
             signature = isUltimate;
             tossed = 0;
+            caught = 0;
+            spins.Clear();
             landedAt.Clear();
             firstTossAt = 0f;
             tossSlowMoDone = false;
@@ -123,7 +134,8 @@ namespace WoLCyclone
                 distance = Mathf.Max(0.8f, wall.distance - 0.4f);
             center = (Vector2)parent.transform.position + aim * distance;
             look?.Remove();
-            look = new CycloneLook(center, parent, EnhancedTier, Wide, signature ? Mathf.Sqrt(Wide) : 1f);
+            // 0.8.0: the drawn twister a little smaller (LookSize); the hit area is unchanged.
+            look = new CycloneLook(center, parent, EnhancedTier, Wide * CyclonePlugin.LookSize, (signature ? Mathf.Sqrt(Wide) : 1f) * CyclonePlugin.LookSize);
             CyclonePlugin.Log($"Cyclone: cast ({(signature ? IsEmpowered ? "signature + enhanced" : "signature" : IsEmpowered ? "enhanced" : "standard")}" +
                 $"{(signature ? $", {Wide:0.#}x wide, throwing enemies" : "")})");
         }
@@ -155,12 +167,12 @@ namespace WoLCyclone
             look?.Update(center, progress);
             if (signature)
                 SignatureBeats(progress);
+            Pull(progress);
             if (Time.time >= nextHit)
             {
                 nextHit = Time.time + Mathf.Lerp(SlowHit, FastHit, progress);
                 Hit(progress);
-                if (signature && progress >= TossFrom)
-                    TossCaught(progress);
+                CatchCore(progress);
             }
             if (Time.time >= nextSwirl)
             {
@@ -182,6 +194,7 @@ namespace WoLCyclone
 
         public override void OnExit()
         {
+            ReleaseSpins(false);
             RemoveLook();
             // Cut short (a dash, a hit, a level load): the camera and light still ease back.
             if (signature)
@@ -210,9 +223,111 @@ namespace WoLCyclone
             }
         }
 
+        // ---- The tornado (0.8.0, #67) ----
+
+        // Every frame: enemies in reach (not bosses, not ones already spinning) are dragged toward
+        // the twister, harder as it grows; a wall in the way stops them.
+        private void Pull(float progress)
+        {
+            try
+            {
+                if (GameController.enemies == null)
+                    return;
+                float reach = HitScaleAt(progress) * CyclonePlugin.PullReach;
+                float core = HitScaleAt(progress) * CyclonePlugin.CoreReach;
+                float speed = Mathf.Lerp(CyclonePlugin.PullSpeed, CyclonePlugin.FullPullSpeed, progress) * Time.deltaTime;
+                foreach (GameObject go in GameController.enemies)
+                {
+                    if (go == null || !go.activeInHierarchy)
+                        continue;
+                    Vector2 at = go.transform.position;
+                    Vector2 to = center - at;
+                    float d = to.magnitude;
+                    if (d > reach || d <= core * 0.5f)
+                        continue;
+                    Entity e = go.GetComponent<Entity>();
+                    if (e == null || e is Boss || e is MiniBoss || e.health == null || e.health.CurrentHealthValue <= 0
+                        || Spin.Spinning(e) || Toss.Airborne(e))
+                        continue;
+                    float step = Mathf.Min(speed, d - core * 0.5f);
+                    Vector2 dir = to / d;
+                    if (Physics2D.Raycast(at, dir, step + 0.2f, ChaosCollisions.layerAllWallAndObst).collider != null)
+                        continue;
+                    go.transform.position += (Vector3)(dir * step);
+                }
+            }
+            catch (System.Exception ex)
+            {
+                CyclonePlugin.Log($"Cyclone: couldn't pull enemies in: {ex.Message}");
+            }
+        }
+
+        // With each hit: enemies in the core are lifted and spun round it (up to MaxSpinning).
+        private void CatchCore(float progress)
+        {
+            try
+            {
+                spins.RemoveAll(s => s == null);
+                int max = signature ? CyclonePlugin.SignatureMaxSpinning : CyclonePlugin.MaxSpinning;
+                if (GameController.enemies == null || spins.Count >= max)
+                    return;
+                float core = HitScaleAt(progress) * CyclonePlugin.CoreReach;
+                foreach (GameObject go in new System.Collections.Generic.List<GameObject>(GameController.enemies))
+                {
+                    if (spins.Count >= max)
+                        break;
+                    if (go == null || !go.activeInHierarchy || Vector2.Distance(go.transform.position, center) > core)
+                        continue;
+                    Entity e = go.GetComponent<Entity>();
+                    if (e == null || e is Boss || e is MiniBoss || e.health == null || e.health.CurrentHealthValue <= 0)
+                        continue;
+                    float landed;
+                    if (landedAt.TryGetValue(e, out landed) && Time.time < landed)
+                        continue;
+                    int damage = signature ? 0 : IsEmpowered ? CyclonePlugin.EnhancedSpinDamage : CyclonePlugin.SpinDamage;
+                    Spin s = Spin.Catch(e, parent, () => center, Mathf.Max(0.3f, core * Random.Range(0.45f, 0.9f)),
+                        signature ? CyclonePlugin.SignatureSpinHeight : CyclonePlugin.SpinHeight,
+                        signature ? CyclonePlugin.SignatureSpinTime : CyclonePlugin.SpinTime,
+                        CyclonePlugin.SpinTurns * (signature ? 1.4f : 1f), damage, skillID);
+                    if (s == null)
+                        continue;
+                    spins.Add(s);
+                    landedAt[e] = Time.time + (signature ? CyclonePlugin.SignatureSpinTime : CyclonePlugin.SpinTime) + TossAgain;
+                    caught++;
+                    if (signature && firstTossAt <= 0f)
+                        firstTossAt = Time.time;
+                }
+            }
+            catch (System.Exception ex)
+            {
+                CyclonePlugin.Log($"Cyclone: couldn't catch enemies: {ex.Message}");
+            }
+        }
+
+        // The twister ends: everyone spinning drops. On the signature's burst they're flung high
+        // instead (the old throw: TossHeight up, TossDamage on landing).
+        private void ReleaseSpins(bool fling)
+        {
+            foreach (Spin s in spins)
+            {
+                if (s == null)
+                    continue;
+                Entity e = s.GetComponent<Entity>();
+                s.Release();
+                if (fling && e != null && e.health != null && e.health.CurrentHealthValue > 0)
+                {
+                    Toss.Launch(e, parent, CyclonePlugin.TossHeight, TossTime, CyclonePlugin.TossDamage, skillID);
+                    tossed++;
+                }
+            }
+            spins.Clear();
+        }
+
         private void Finish()
         {
             done = true;
+            ReleaseSpins(false);
+            CyclonePlugin.Log($"Cyclone: the tornado caught {caught} enem{(caught == 1 ? "y" : "ies")}");
             RemoveLook();
             base.ExecuteSkill();
         }
@@ -224,38 +339,6 @@ namespace WoLCyclone
             float t = Mathf.Clamp01(progress / (enhanced ? EnhancedHeavyAt : HeavyAt));
             return Mathf.Lerp(enhanced ? EnhancedSteerSpeed : SteerSpeed, enhanced ? EnhancedHeavySteerSpeed : HeavySteerSpeed,
                 1f - (1f - t) * (1f - t));
-        }
-
-        // The signature throws every enemy in its reach up into the air (not bosses, not one
-        // already up or just landed); each lands for TossDamage.
-        private void TossCaught(float progress)
-        {
-            try
-            {
-                if (GameController.enemies == null)
-                    return;
-                float reach = HitScaleAt(progress) * TossReach;
-                foreach (GameObject go in new System.Collections.Generic.List<GameObject>(GameController.enemies))
-                {
-                    if (go == null || !go.activeInHierarchy || Vector2.Distance(go.transform.position, center) > reach)
-                        continue;
-                    Entity e = go.GetComponent<Entity>();
-                    if (e == null || e is Boss || e is MiniBoss || e.health == null || e.health.CurrentHealthValue <= 0 || Toss.Airborne(e))
-                        continue;
-                    float landed;
-                    if (landedAt.TryGetValue(e, out landed) && Time.time < landed)
-                        continue;
-                    landedAt[e] = Time.time + TossTime + TossAgain;
-                    Toss.Launch(e, parent, CyclonePlugin.TossHeight, TossTime, CyclonePlugin.TossDamage, skillID);
-                    tossed++;
-                    if (firstTossAt <= 0f)
-                        firstTossAt = Time.time;
-                }
-            }
-            catch (System.Exception ex)
-            {
-                CyclonePlugin.Log($"Cyclone: couldn't throw enemies: {ex.Message}");
-            }
         }
 
         // Moves the twister, but not through walls or too far from the wizard.
@@ -373,6 +456,9 @@ namespace WoLCyclone
         // Held to the end: the hurricane bursts and throws everyone away.
         private void Burst()
         {
+            // 0.8.0: the signature's burst flings everyone it's spinning high into the air.
+            if (signature)
+                ReleaseSpins(true);
             float scale = EndHitScale * Wide * (EnhancedTier ? EnhancedBurstScale : BurstScale);
             if (signature)
             {
