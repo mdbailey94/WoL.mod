@@ -7,18 +7,19 @@ using UnityEngine;
 
 namespace WoLPricklyBallet
 {
-    // Prickly Ballet (#68, Matt's request): a new Earth dash arcana. The dash is the normal dash;
-    // where it started, a cactus dancer pops out of the ground and pirouettes, pricking enemies
-    // round it, then bursts into a ring of needles. A dash can't be a signature (the spellbook
-    // files every dash under the dash slot before it looks for a signature), so there is no
-    // signature version.
+    // Cactus Waltz (#68, renamed in #77; 0.1.0 was "Prickly Ballet", which is the base game's own
+    // cactus arcana): a new Earth dash arcana. The dash is the normal dash; where it started, the
+    // base game's cactus (from its Prickly Ballet) pops out of the ground and needles everyone
+    // round it. A dash can't be a signature (the spellbook files every dash under the dash slot
+    // before it looks for a signature), so there is no signature version. The mod's folder, GUID
+    // and skill ID keep their 0.1.0 names so installs, configs and saves carry over.
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency("xyz.yekoc.wizardoflegend.LegendAPI")]
     public class PricklyBalletPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "mdbailey94.wol.pricklyballet";
-        public const string PluginName = "Prickly Ballet";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginName = "Cactus Waltz";
+        public const string PluginVersion = "0.2.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -26,22 +27,17 @@ namespace WoLPricklyBallet
         public static void Log(string message) => log?.LogInfo(message);
 
         // ---- Settings (BepInEx\config\mdbailey94.wol.pricklyballet.cfg) ----
-        // [Dancer] and [Enhanced] apply the next dash; [Balance] after restarting the game.
-        private static ConfigEntry<float> lifetime, every, reach, prickEvery, needleRange, needleSpeed;
+        // [Cactus] and [Enhanced] apply the next dash; [Balance] after restarting the game.
+        private static ConfigEntry<float> lifetime, every, hitEvery;
         private static ConfigEntry<float> enhancedLifetime, enhancedEvery;
-        private static ConfigEntry<int> needles;
-        private static ConfigEntry<int> prickDamage, needleDamage;
-        private static ConfigEntry<float> prickKnockback, needleKnockback, cooldown;
+        private static ConfigEntry<int> hitDamage;
+        private static ConfigEntry<float> hitKnockback, cooldown;
 
         public static float Lifetime => Get(lifetime, 3f, 0.5f, 10f);
-        public static float Every => Get(every, 4f, 0f, 30f);
+        public static float Every => Get(every, 6f, 0f, 30f);
         public static float EnhancedLifetime => Get(enhancedLifetime, 4f, 0.5f, 10f);
-        public static float EnhancedEvery => Get(enhancedEvery, 3f, 0f, 30f);
-        public static float Reach => Get(reach, 1.2f, 0.3f, 4f);
-        public static float PrickEvery => Get(prickEvery, 0.4f, 0.1f, 2f);
-        public static int Needles => Mathf.Clamp(needles?.Value ?? 8, 0, 32);
-        public static float NeedleRange => Get(needleRange, 4f, 0.5f, 12f);
-        public static float NeedleSpeed => Get(needleSpeed, 14f, 2f, 40f);
+        public static float EnhancedEvery => Get(enhancedEvery, 4.5f, 0f, 30f);
+        public static float HitEvery => Get(hitEvery, 0.4f, 0.1f, 2f);
 
         private static float Get(ConfigEntry<float> entry, float fallback, float min, float max) =>
             Mathf.Clamp(entry?.Value ?? fallback, min, max);
@@ -50,17 +46,16 @@ namespace WoLPricklyBallet
         {
             log = Logger;
             modEnabled = Config.Bind("General", "Enabled", true,
-                "Offer Prickly Ballet in the arcana shop (also in the title screen Mods menu). " +
+                "Offer Cactus Waltz in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
             BindSettings();
-            DancerArt.Load(Logger);
 
             Skills.Register(new SkillInfo
             {
                 ID = PricklyBalletState.staticID,
-                displayName = "Prickly Ballet",
-                description = "Dash away and leave a cactus dancer pirouetting behind you, pricking everyone close, then bursting into needles!",
-                enhancedDescription = "The dancer spins longer and comes back sooner!",
+                displayName = "Cactus Waltz",
+                description = "Dash away and leave a cactus behind you, needling everyone close!",
+                enhancedDescription = "The cactus stays longer and comes back sooner!",
                 icon = LoadIcon("prickly_ballet_icon.png"),
                 tier = 2,
                 stateType = typeof(PricklyBalletState),
@@ -70,13 +65,13 @@ namespace WoLPricklyBallet
                     elementType = new[] { "Earth" },
                     subElementType = new[] { "Earth" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
-                    // Levels (Dancer): 1 a prick, 2 a needle.
-                    damage = new[] { Mathf.Clamp(prickDamage.Value, 0, 200), Mathf.Clamp(needleDamage.Value, 0, 200) },
+                    // Level 1: each of the cactus's hits.
+                    damage = new[] { Mathf.Clamp(hitDamage.Value, 0, 200) },
                     cooldown = new[] { Mathf.Clamp(cooldown.Value, 0.1f, 5f) },
-                    knockbackMultiplier = new[] { Mathf.Clamp(prickKnockback.Value, 0f, 200f), Mathf.Clamp(needleKnockback.Value, 0f, 200f) },
-                    hitStunDurationModifier = new[] { 0.6f, 1f },
-                    showDamageNumber = new[] { true, true },
-                    // Shorter than a prick's interval, so each prick lands.
+                    knockbackMultiplier = new[] { Mathf.Clamp(hitKnockback.Value, 0f, 200f) },
+                    hitStunDurationModifier = new[] { 0.6f },
+                    showDamageNumber = new[] { true },
+                    // Shorter than the hit interval, so each hit lands.
                     sameAttackImmunityTime = new[] { 0.1f }
                 },
                 priceMultiplier = 3,
@@ -89,22 +84,17 @@ namespace WoLPricklyBallet
 
         private void BindSettings()
         {
-            lifetime = Float("Dancer", "Lifetime", 3f, 0.5f, 10f, "Seconds the cactus dancer pirouettes before it bursts.");
-            every = Float("Dancer", "Every", 4f, 0f, 30f, "At most one dancer every this many seconds (dashes in between are plain dashes).");
-            reach = Float("Dancer", "Reach", 1.2f, 0.3f, 4f, "Radius in units round the dancer that its pricks hit.");
-            prickEvery = Float("Dancer", "PrickEvery", 0.4f, 0.1f, 2f, "Seconds between pricks.");
-            needles = Config.Bind("Dancer", "Needles", 8,
-                new ConfigDescription("Needles it bursts into at the end (0 = none).", new AcceptableValueRange<int>(0, 32)));
-            needleRange = Float("Dancer", "NeedleRange", 4f, 0.5f, 12f, "How far the needles fly, in units.");
-            needleSpeed = Float("Dancer", "NeedleSpeed", 14f, 2f, 40f, "Needle speed, units per second.");
-            enhancedLifetime = Float("Enhanced", "Lifetime", 4f, 0.5f, 10f, "Dancer lifetime when enhanced.");
-            enhancedEvery = Float("Enhanced", "Every", 3f, 0f, 30f, "At most one dancer every this many seconds when enhanced.");
+            // New sections in 0.2.0 ([Dancer] is 0.1.0's), so the new cooldowns (6 s, enhanced
+            // 4.5 s) take effect on an existing config too.
+            lifetime = Float("Cactus", "Lifetime", 3f, 0.5f, 10f, "Seconds the cactus stays and needles enemies.");
+            every = Float("Cactus", "Every", 6f, 0f, 30f, "At most one cactus every this many seconds (dashes in between are plain dashes).");
+            hitEvery = Float("Cactus", "HitEvery", 0.4f, 0.1f, 2f, "Seconds between the cactus's hits.");
+            enhancedLifetime = Float("Cactus Enhanced", "Lifetime", 4f, 0.5f, 10f, "Cactus lifetime when enhanced.");
+            enhancedEvery = Float("Cactus Enhanced", "Every", 4.5f, 0f, 30f, "At most one cactus every this many seconds when enhanced.");
 
             const string restart = " Applies after restarting the game.";
-            prickDamage = Int("Balance", "PrickDamage", 4, 200, "Damage of each prick." + restart);
-            needleDamage = Int("Balance", "NeedleDamage", 6, 200, "Damage of each needle." + restart);
-            prickKnockback = Float("Balance", "PrickKnockback", 6f, 0f, 200f, "Knockback of a prick (small)." + restart);
-            needleKnockback = Float("Balance", "NeedleKnockback", 10f, 0f, 200f, "Knockback of a needle." + restart);
+            hitDamage = Int("Balance", "PrickDamage", 4, 200, "Damage of each of the cactus's hits." + restart);
+            hitKnockback = Float("Balance", "PrickKnockback", 6f, 0f, 200f, "Knockback of a hit (small)." + restart);
             cooldown = Float("Balance", "Cooldown", 0.6f, 0.1f, 5f, "Cooldown of the dash itself, in seconds." + restart);
         }
 
@@ -114,33 +104,22 @@ namespace WoLPricklyBallet
         private ConfigEntry<int> Int(string section, string key, int value, int max, string description) =>
             Config.Bind(section, key, value, new ConfigDescription(description, new AcceptableValueRange<int>(0, max)));
 
-        internal static Texture2D LoadTexture(string fileName)
+        private Sprite LoadIcon(string fileName)
         {
             string resourceName = $"{nameof(WoLPricklyBallet)}.Assets.{fileName}";
             using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName))
             {
                 if (stream == null)
                 {
-                    log?.LogWarning($"Resource {resourceName} not found");
+                    Logger.LogWarning($"Icon resource {resourceName} not found, using the default icon");
                     return null;
                 }
                 byte[] data = new byte[stream.Length];
                 stream.Read(data, 0, data.Length);
                 var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
                 texture.LoadImage(data);
-                return texture;
+                return GameIcon.Create(texture, Logger);
             }
-        }
-
-        private Sprite LoadIcon(string fileName)
-        {
-            Texture2D texture = LoadTexture(fileName);
-            if (texture == null)
-            {
-                Logger.LogWarning("Icon not found, using the default icon");
-                return null;
-            }
-            return GameIcon.Create(texture, Logger);
         }
     }
 }

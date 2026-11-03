@@ -45,10 +45,6 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Assets\prickly_ballet_icon.png" LogicalName="WoLPricklyBallet.Assets.prickly_ballet_icon.png" />
-    <EmbeddedResource Include="Assets\prickly_dancer_rise.png" LogicalName="WoLPricklyBallet.Assets.prickly_dancer_rise.png" />
-    <EmbeddedResource Include="Assets\prickly_dancer_spin.png" LogicalName="WoLPricklyBallet.Assets.prickly_dancer_spin.png" />
-    <EmbeddedResource Include="Assets\prickly_dancer_burst.png" LogicalName="WoLPricklyBallet.Assets.prickly_dancer_burst.png" />
-    <EmbeddedResource Include="Assets\prickly_needle.png" LogicalName="WoLPricklyBallet.Assets.prickly_needle.png" />
   </ItemGroup>
 
   <Target Name="CopyToPlugins" AfterTargets="Build" Condition="Exists('$(GameDir)\BepInEx\plugins')">

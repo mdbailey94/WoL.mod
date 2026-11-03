@@ -3,8 +3,10 @@ using UnityEngine;
 
 namespace WoLPricklyBallet
 {
-    // The dash is the game's own (BaseDashState: same distance, speed, evade, and the dash relics
-    // count). Where it started, a cactus dancer pops up, at most one every Every seconds.
+    // Cactus Waltz. The dash is the game's own (BaseDashState: same distance, speed, evade, and the
+    // dash relics count). Where it started, the game's cactus pops up, at most one every Every
+    // seconds. The skill ID stays "PricklyBallet" from 0.1.0: a save holding an ID the game no
+    // longer knows has its whole loadout reset (Player.InitSkills).
     public class PricklyBalletState : Player.BaseDashState
     {
         public new static string staticID = "PricklyBallet";
@@ -32,7 +34,7 @@ namespace WoLPricklyBallet
                 return;
             bool enhanced = IsEmpowered;
             nextDancer[key] = Time.time + (enhanced ? PricklyBalletPlugin.EnhancedEvery : PricklyBalletPlugin.Every);
-            Dancer.Spawn(parent, skillID, start, enhanced ? PricklyBalletPlugin.EnhancedLifetime : PricklyBalletPlugin.Lifetime);
+            Cactus.Spawn(parent, skillID, start, enhanced ? PricklyBalletPlugin.EnhancedLifetime : PricklyBalletPlugin.Lifetime, enhanced);
         }
     }
 }
