@@ -96,14 +96,11 @@ namespace WoLChaosDepths
             Add(totals, "Knockback", 0.25f * Talents.Rank(player, "Updraft"));
             // The stat-archetype trees (approved 2026-11-02 17:12, the default mapping).
             Add(totals, "DamageTaken", -0.02f * Talents.Rank(player, "IronHide") - 0.10f * Talents.Rank(player, "Juggernaut")); // Bulwark
-            Add(totals, "Health", 0.04f * (Talents.Rank(player, "ThickSkin") + Talents.Rank(player, "Vitality")));
-            Add(totals, "Healing", 0.05f * Talents.Rank(player, "Mending") + 0.08f * Talents.Rank(player, "Remedy"));
+            Add(totals, "Health", 0.04f * Talents.Rank(player, "ThickSkin"));
+            Add(totals, "Healing", 0.08f * Talents.Rank(player, "Remedy"));
             Add(totals, "CritChance", 0.02f * Talents.Rank(player, "KeenEye"));                         // Duelist
             Add(totals, "CritDamage", 0.08f * Talents.Rank(player, "DeepCuts"));
-            Add(totals, "Evade", 0.02f * Talents.Rank(player, "Nimble"));
             Add(totals, "Cooldown", -0.03f * Talents.Rank(player, "Focus"));                            // Arcanist
-            Add(totals, "SignatureCharge", 0.05f * Talents.Rank(player, "Overflow"));
-            Add(totals, "Damage", 0.03f * (Talents.Rank(player, "Potency") + Talents.Rank(player, "Nerve")));
             Add(totals, "SignatureDamage", 0.4f * Talents.Rank(player, "Cataclysm"));
             Add(totals, "MoveSpeed", 0.03f * Talents.Rank(player, "Fleet"));                            // Windrunner
             Add(totals, "HealCrit", 0.03f * Talents.Rank(player, "LuckyHeal"));                         // Mender

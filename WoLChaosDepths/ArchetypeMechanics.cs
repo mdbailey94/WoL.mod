@@ -429,7 +429,7 @@ namespace WoLChaosDepths
                 if (left <= 0.05f)
                     player.cooldownManager.ResetCooldown(cd.ID);
                 else
-                    ChaosStopwatch.Refresh(cd.remainingTimeStopwatchID, left);
+                    cd.ReduceRemainingTime(seconds);   // the game's own cut: the cooldown icon keeps its fill
             }
         }
 
