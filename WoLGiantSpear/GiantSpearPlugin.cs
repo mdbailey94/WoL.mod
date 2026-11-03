@@ -11,7 +11,8 @@ namespace WoLGiantSpear
     // spear wielded slowly. Two long stabs along the aim, then a throw: the spear flies out,
     // piercing everything on its way, and comes back to the wizard's hand, hitting again on the
     // way back. Enhanced: a longer reach, and the thrown spear bursts into a gust where it turns.
-    // Drawn with WoL Art's spear (#44, Finished Art 'Spear (2026-11-02)') at giant scale. A basic
+    // Drawn with WoL Art's spear (#44 for the stabs, 'Giant weapons (2026-11-03)' for the throw and
+    // the icon) at giant scale. A basic
     // can't be a signature, so there is none.
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency("xyz.yekoc.wizardoflegend.LegendAPI")]
@@ -19,7 +20,7 @@ namespace WoLGiantSpear
     {
         public const string PluginGuid = "mdbailey94.wol.giantspear";
         public const string PluginName = "Giant Air Spear";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.1.1";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;

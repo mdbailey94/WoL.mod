@@ -10,4 +10,4 @@ A new **Earth basic arcana** (#87, part of the giant weapon set). It's a small s
 
 It's fast: 0.08 s wind-up and an early cancel, with a step into each punch. The buckler stays out for 0.3 s per punch and breaks shots within 0.8 u of it.
 
-The buckler sprite and icon are placeholders until WoL Art's buckler and punch frames are in. All numbers are in `BepInEx\config\mdbailey94.wol.buckler.cfg`. Requires LegendAPI.
+Art: WoL Art's buckler, 4-frame punch and icon ('Giant weapons (2026-11-03)'). All numbers are in `BepInEx\config\mdbailey94.wol.buckler.cfg`. Requires LegendAPI.

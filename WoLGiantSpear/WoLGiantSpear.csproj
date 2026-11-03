@@ -41,7 +41,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Assets\giant_spear_icon.png" LogicalName="WoLGiantSpear.Assets.giant_spear_icon.png" />
     <EmbeddedResource Include="Assets\spear_thrust.png" LogicalName="WoLGiantSpear.Assets.spear_thrust.png" />
-    <EmbeddedResource Include="Assets\spear_throw.png" LogicalName="WoLGiantSpear.Assets.spear_throw.png" />
+    <EmbeddedResource Include="Assets\giant_spear_throw.png" LogicalName="WoLGiantSpear.Assets.giant_spear_throw.png" />
   </ItemGroup>
 
   <Target Name="CopyToPlugins" AfterTargets="Build" Condition="Exists('$(GameDir)\BepInEx\plugins')">

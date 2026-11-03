@@ -3,9 +3,10 @@ using UnityEngine;
 
 namespace WoLGiantSpear
 {
-    // WoL Art's spear (#44), 16 px per unit, Point filter, pointing right: the thrust (4 x 48x15)
-    // and the finisher (5 x 48x15). The shaft runs from x 2 (the butt) to x 33 (the tip) on row 7.
-    // Drawn at giant scale: big enough that the tip lands on the stab's reach.
+    // WoL Art's spear, 16 px per unit, Point filter, pointing right: the thrust (#44, 4 x 48x15)
+    // and the giant thrown spear (Log - Art 13:48, 4 x 48x15: frame 0 the release burst, 1-3 wind
+    // streaks and a sliding wind ring). The shaft runs from x 2 (the butt) to x 33 (the tip) on
+    // row 7. Drawn at giant scale: big enough that the tip lands on the stab's reach.
     internal static class SpearArt
     {
         public const float ButtX = 2f, TipX = 33f, FrameWidth = 48f;
@@ -15,7 +16,7 @@ namespace WoLGiantSpear
         {
             Thrust = Frames("spear_thrust.png", 48, new Vector2(ButtX / FrameWidth, 0.5f));
             // The thrown spear turns round its middle.
-            Throw = Frames("spear_throw.png", 48, new Vector2((ButtX + TipX) / 2f / FrameWidth, 0.5f));
+            Throw = Frames("giant_spear_throw.png", 48, new Vector2((ButtX + TipX) / 2f / FrameWidth, 0.5f));
             log?.LogInfo($"Giant Air Spear art: thrust {Thrust.Length}, throw {Throw.Length} frames");
         }
 
@@ -147,7 +148,7 @@ namespace WoLGiantSpear
     // who catches it.
     internal class ThrownSpear : MonoBehaviour
     {
-        private const float MaxLife = 4f, CatchDistance = 0.6f;
+        private const float MaxLife = 4f, CatchDistance = 0.6f, ReleaseTime = 0.08f;
         private Player owner;
         private string skillID;
         private Vector2 dir;
@@ -190,9 +191,10 @@ namespace WoLGiantSpear
                 Destroy(gameObject);
                 return;
             }
-            // Frames 1-3 of the finisher carry the wind streaks: they loop in flight.
+            // The release burst first, then the wind-streak frames 1-3 loop in flight.
+            float age = Time.time - born;
             if (SpearArt.Throw.Length >= 4)
-                look.sprite = SpearArt.Throw[1 + (int)((Time.time - born) * 14f) % 3];
+                look.sprite = age < ReleaseTime ? SpearArt.Throw[0] : SpearArt.Throw[1 + (int)((age - ReleaseTime) * 14f) % 3];
 
             Vector2 from = transform.position;
             Vector2 to;

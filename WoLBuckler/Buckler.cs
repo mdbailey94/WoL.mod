@@ -2,18 +2,36 @@ using UnityEngine;
 
 namespace WoLBuckler
 {
-    // The buckler (14x14, 16 px per unit, Point filter; a stand-in drawn by WoL Player until WoL
-    // Art's buckler and punch frames are in).
+    // WoL Art's buckler (Log - Art 13:48, 'Giant weapons (2026-11-03)'), 16 px per unit, Point
+    // filter, centre pivot: the buckler (14x14) and the punch (4 x 14x14: pull back, the smash with
+    // sparks on its right edge, hold, recover; flipped for a punch to the left).
     internal static class BucklerArt
     {
         public static Sprite Shield;
+        public static Sprite[] Punch = new Sprite[0];
 
         public static void Load(BepInEx.Logging.ManualLogSource log)
         {
             Texture2D texture = BucklerPlugin.LoadTexture("buckler.png");
             if (texture != null)
                 Shield = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f), 16f);
-            log?.LogInfo($"Buckler art: {(Shield != null ? "loaded" : "missing")}");
+            Texture2D strip = BucklerPlugin.LoadTexture("buckler_punch.png");
+            if (strip != null && strip.height > 0 && strip.width >= strip.height)
+            {
+                Punch = new Sprite[strip.width / strip.height];
+                for (int i = 0; i < Punch.Length; i++)
+                    Punch[i] = Sprite.Create(strip, new Rect(i * strip.height, 0, strip.height, strip.height), new Vector2(0.5f, 0.5f), 16f);
+            }
+            log?.LogInfo($"Buckler art: buckler {(Shield != null ? "loaded" : "missing")}, punch {Punch.Length} frames");
+        }
+
+        // The punch frame for this far through the guard (0-1): a quick pull back, the smash while
+        // the buckler flies out, the hold, then the recover.
+        public static Sprite PunchAt(float t)
+        {
+            if (Punch.Length < 4)
+                return Shield;
+            return Punch[t < 0.1f ? 0 : t < 0.45f ? 1 : t < 0.75f ? 2 : 3];
         }
     }
 
@@ -76,7 +94,9 @@ namespace WoLBuckler
             guard.born = Time.time;
             go.transform.localScale = new Vector3(1.15f, 1.15f, 1f);
             guard.look = go.AddComponent<SpriteRenderer>();
-            guard.look.sprite = BucklerArt.Shield;
+            guard.look.sprite = BucklerArt.PunchAt(0f);
+            // The smash's sparks are drawn on the right edge.
+            guard.look.flipX = aim.x < -0.01f;
             SpriteRenderer wizard = owner.GetComponentInChildren<SpriteRenderer>();
             if (wizard != null)
             {
@@ -105,6 +125,7 @@ namespace WoLBuckler
                 return;
             }
             Vector2 at = Place();
+            look.sprite = BucklerArt.PunchAt((Time.time - born) / BucklerPlugin.GuardTime);
             BreakShots(at);
         }
 

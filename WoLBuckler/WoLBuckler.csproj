@@ -41,6 +41,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Assets\buckler_icon.png" LogicalName="WoLBuckler.Assets.buckler_icon.png" />
     <EmbeddedResource Include="Assets\buckler.png" LogicalName="WoLBuckler.Assets.buckler.png" />
+    <EmbeddedResource Include="Assets\buckler_punch.png" LogicalName="WoLBuckler.Assets.buckler_punch.png" />
   </ItemGroup>
 
   <Target Name="CopyToPlugins" AfterTargets="Build" Condition="Exists('$(GameDir)\BepInEx\plugins')">

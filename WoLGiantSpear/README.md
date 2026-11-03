@@ -10,4 +10,4 @@ A new **Air basic arcana** (#85, part of the giant weapon set). It's a huge spea
 
 Enhanced also gives +25% stab reach and throw range. It's slow, as a giant weapon should be: a 0.24 s wind-up on each stab and 0.32 s on the throw, with a late cancel. Gear activation speed shortens all of it.
 
-It uses WoL Art's spear (#44) drawn at giant scale. All numbers are in `BepInEx\config\mdbailey94.wol.giantspear.cfg`. Requires LegendAPI.
+It uses WoL Art's spear at giant scale: the #44 thrust for the stabs, plus the giant thrown spear and icon ('Giant weapons (2026-11-03)'). All numbers are in `BepInEx\config\mdbailey94.wol.giantspear.cfg`. Requires LegendAPI.
