@@ -95,6 +95,11 @@ namespace WoLChaosDepths
                 }
                 if (s.isSummonSkill)
                     damage += Get(totals, "SummonDamage");
+                if (s.isHoldSkill)
+                {
+                    damage += Get(totals, "HoldDamage");
+                    cooldown += Get(totals, "HoldCooldown");
+                }
                 Set(s.skillData, StatData.damageStr, "Damage", damage);
                 Set(s.skillData, StatData.cdStr, "Cooldown", cooldown);
             }

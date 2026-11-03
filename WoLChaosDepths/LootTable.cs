@@ -137,6 +137,9 @@ namespace WoLChaosDepths
             Dmg("MovementDamage", "movement arcana", "the Comet"),
             Cd("MovementCooldown", "movement arcana", "Flight"),
             Dmg("SummonDamage", "summon arcana", "the Caller"),
+            // Hold-to-cast arcana (Matt, 2026-11-03: "buffs for hold type abilities").
+            Dmg("HoldDamage", "held arcana", "Persistence"),
+            Cd("HoldCooldown", "held arcana", "Endurance"),
         };
 
         public static Data Defaults()
