@@ -178,7 +178,7 @@ namespace WoLChaosDepths
                 new Node { Key = "KeenEye", Name = "Keen Eye", Tier = 1, MaxPoints = 2, Effect = "+2% critical hit chance" },
                 new Node { Key = "DeepCuts", Name = "Deep Cuts", Tier = 1, MaxPoints = 2, Effect = "+8% critical damage" },
                 new Node { Key = "Quickdraw", Name = "Quickdraw", Tier = 1, MaxPoints = 1, Effect = "Your basic arcana attacks 8% faster" },
-                new Node { Key = "SteadyDraw", Name = "Steady Draw", Tier = 1, MaxPoints = 1, Effect = "Your basic arcana charges 15% faster" + Soon },
+                new Node { Key = "SteadyDraw", Name = "Steady Draw", Tier = 1, MaxPoints = 1, Effect = "Your charged basic arcana charge 15% faster" },
                 new Node { Key = "Ricochet", Name = "Ricochet", Tier = 2, MaxPoints = 1, Effect = "Your projectiles fly 10% faster and deal 10% more" },
                 new Node { Key = "Momentum", Name = "Momentum", Tier = 2, MaxPoints = 1, Effect = "A crit takes 0.3 s off all cooldowns (at most twice a second)" },
                 new Node { Key = "Exploit", Name = "Exploit", Tier = 2, MaxPoints = 1, Effect = "Crits on burning, frozen or shocked enemies deal 25% more" },

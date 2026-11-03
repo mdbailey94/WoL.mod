@@ -130,6 +130,11 @@ namespace WoLChaosDepths
                     SetStat(sd, StatData.intervalStr, "Fester", -0.15f * fester, true);
                     foreach (string chance in StatusChances)
                         SetStat(sd, chance, "LoadedDice", 0.05f * dice, false);
+                    // Steady Draw: a charged basic (the game's NegMeleeState) charges 15% faster,
+                    // on its own charge-time stat, as the game's ReduceBasicChargeTime relic does.
+                    Player.NegMeleeState charged = skill as Player.NegMeleeState;
+                    if (charged != null && charged.chargeTimeStat != null)
+                        SetCharge(charged.chargeTimeStat, Talents.Rank(player, "SteadyDraw") > 0 ? -0.15f : 0f);
                     // Deep Reserves: standard arcana (not the basic, the dash or the signature slot).
                     bool standard = skill != basic && skill != dash && !skill.isUltimate;
                     if (skill.cooldownRef != null && skill.cooldownRef.maxChargeStat != null)
@@ -218,6 +223,20 @@ namespace WoLChaosDepths
             data.RemoveMod(field, id);
             if (!Mathf.Approximately(value, 0f))
                 data.AddMod(field, new NumVarStatMod(id, value, 10, multiplicative ? VarStatModType.Multiplicative : VarStatModType.Additive, false));
+            applied[key] = value;
+        }
+
+        private static void SetCharge(NumVarStat stat, float value)
+        {
+            string id = Prefix + "SteadyDraw";
+            var key = new KeyValuePair<object, string>(stat, id);
+            float had;
+            if (applied.TryGetValue(key, out had) && Mathf.Approximately(had, value))
+                return;
+            if (applied.ContainsKey(key))
+                stat.Modify(new NumVarStatMod(id, had, 10, VarStatModType.Multiplicative), false);
+            if (!Mathf.Approximately(value, 0f))
+                stat.Modify(new NumVarStatMod(id, value, 10, VarStatModType.Multiplicative), true);
             applied[key] = value;
         }
 
