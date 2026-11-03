@@ -156,7 +156,7 @@ namespace WoLChaosDepths
 
         // The starter cloaks (Hope, Patience, the Normal cloak) share one pair.
         private static readonly Perk[] starter = P("Fundamentals", "Fundamentals", "Cooldowns -5%",
-            "Together", "Together", "Co-op: within 3 u of each other, both regain 1% health every 5 s (up to 20% of max a floor)");
+            "Together", "Together", "Co-op: within 3 u of each other, both regain 1% health every 5 s while below 20% health");
 
         // Matt's numbers, 2026-11-02 21:00.
         private const float InspireRange = 5f;
@@ -655,17 +655,17 @@ namespace WoLChaosDepths
             }
         }
 
-        // Together: 1% of max health, but no more than 20% of max on a floor.
+        // Together: 1% of max health, only while below 20% of max (Matt: "below 20% health"),
+        // never past it.
         private static void TogetherHeal(Player p)
         {
             if (!Alive(p))
                 return;
-            State st = StateOf(p);
-            if (st.togetherHealed >= TogetherCap)
-                return;
-            float share = Mathf.Min(0.01f, TogetherCap - st.togetherHealed);
-            st.togetherHealed += share;
-            Heal(p, share);
+            float max = p.health.healthStat.ModifiedValue;
+            int cap = Mathf.FloorToInt(TogetherCap * max);
+            int amount = Mathf.Min(Mathf.Max(1, Mathf.RoundToInt(0.01f * max)), cap - p.health.CurrentHealthValue);
+            if (amount > 0)
+                p.health.RestoreHealth(amount, false, false);
         }
 
         // Shocks are seen through the enemy's own status events.
