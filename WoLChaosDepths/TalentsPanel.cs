@@ -137,9 +137,9 @@ namespace WoLChaosDepths
                 for (int i = 0; i < row.Count; i++)
                 {
                     Talents.Node node = row[i];
-                    // Three nodes a row 52 px apart, four 40 apart, five or six (with the cloak's
-                    // own perk nodes) 32 apart.
-                    float nx = 52 + i * (row.Count > 4 ? 32 : row.Count > 3 ? 40 : 52);
+                    // Three nodes a row 52 px apart, four 40 apart, five (with the cloak's own perk
+                    // nodes) 32 apart, six 29 apart (the last pips end at 221, inside the inset).
+                    float nx = 52 + i * (row.Count > 5 ? 29 : row.Count > 4 ? 32 : row.Count > 3 ? 40 : 52);
                     int points = Talents.Points(save, cloak, node.Key);
                     bool canLearn = Talents.CantLearn(save, cloak, node) == null;
                     // ui_slot_frames: 0 empty, 2 blue (can learn), 3 gold (learned).

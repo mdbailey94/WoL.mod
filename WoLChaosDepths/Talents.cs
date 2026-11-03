@@ -261,6 +261,8 @@ namespace WoLChaosDepths
                 new Node { Key = "HighRoller", Name = "High Roller", Tier = 2, MaxPoints = 1, Effect = "Relics cost 10% less" },
                 new Node { Key = "HotStreak", Name = "Hot Streak", Tier = 2, MaxPoints = 1, Effect = "Each kill without taking damage: +2% damage, up to +20%, lost when hit" },
                 new Node { Key = "Jackpot", Name = "Jackpot", Tier = 2, MaxPoints = 1, Effect = "Elites drop 25% more gold" },
+                new Node { Key = "ShopkeepersWager", Name = "Shopkeeper's Wager", Tier = 2, MaxPoints = 1,
+                    Effect = "Make a deal at each shop: a coin flip halves its prices (heads) or doubles them (tails)" },
                 new Node { Key = "AllIn", Name = "All In", Tier = 3, MaxPoints = 1, Effect = "+25% damage, -25% max health" },
                 new Node { Key = "DoubleOrNothing", Name = "Double or Nothing", Tier = 3, MaxPoints = 1,
                     Effect = "Each floor cleared without being hit doubles the next floor's gold (up to 4x); a hit resets it" },

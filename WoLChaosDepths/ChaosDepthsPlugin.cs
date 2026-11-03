@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.30.2";
+        public const string PluginVersion = "0.31.0";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -202,6 +202,14 @@ namespace WoLChaosDepths
             catch (Exception e)
             {
                 Logger.LogError($"Cloak perks failed to install: {e.Message}");
+            }
+            try
+            {
+                ShopWager.Install();
+            }
+            catch (Exception e)
+            {
+                Logger.LogError($"Shop wager failed to install: {e.Message}");
             }
             diveEnabled = Config.Bind("Dive", "Enabled", true,
                 "Shape the run as a dive (the settings below) and log what the game does with it.");
