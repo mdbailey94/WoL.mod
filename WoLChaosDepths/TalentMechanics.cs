@@ -486,22 +486,34 @@ namespace WoLChaosDepths
         private static void OnKillCharge(Player player)
         {
             Player.SkillState basic = player.GetBasicSkill(), dash = player.GetDashSkill();
-            if (Talents.Rank(player, "SecondGust") > 0 && dash != null && dash.cooldownRef != null && !dash.cooldownRef.Ready
-                && UnityEngine.Random.value < 0.20f)
+            if (Talents.Rank(player, "SecondGust") > 0 && dash != null && Missing(dash.cooldownRef) && UnityEngine.Random.value < 0.20f)
             {
-                dash.cooldownRef.Reset();
-                Say(player, "SecondGust", "Second Gust: a kill gave the dash back");
+                GiveCharge(dash.cooldownRef);
+                Say(player, "SecondGust", "Second Gust: a kill gave a dash charge back");
             }
             if (Talents.Rank(player, "DeepReserves") <= 0 || player.skillsDict == null || UnityEngine.Random.value >= 0.15f)
                 return;
             var waiting = new List<Player.SkillState>();
             foreach (Player.SkillState s in player.skillsDict.Values)
-                if (s != null && s != basic && s != dash && !s.isUltimate && s.cooldownRef != null && !s.cooldownRef.Ready)
+                if (s != null && s != basic && s != dash && !s.isUltimate && Missing(s.cooldownRef))
                     waiting.Add(s);
             if (waiting.Count == 0)
                 return;
-            waiting[UnityEngine.Random.Range(0, waiting.Count)].cooldownRef.Reset();
+            GiveCharge(waiting[UnityEngine.Random.Range(0, waiting.Count)].cooldownRef);
             Say(player, "DeepReserves", "Deep Reserves: a kill gave an arcana charge back");
+        }
+
+        // A charge to give back: a charge skill short of its maximum, or a plain one cooling down.
+        private static bool Missing(Cooldown cd) =>
+            cd != null && (cd.isChargeSkill ? cd.chargeCount < cd.MaxChargeCount : !cd.Ready);
+
+        // Exactly one charge back (Reset() would refill every charge of a charge skill).
+        private static void GiveCharge(Cooldown cd)
+        {
+            if (cd.isChargeSkill)
+                cd.chargeCount = Mathf.Min(cd.MaxChargeCount, cd.chargeCount + 1);
+            else
+                cd.Reset();
         }
 
         private static Player PlayerOf(string category)
