@@ -58,7 +58,7 @@ namespace WoLChaosDepths
             public bool wasDead, prevented;
             public Vector2 dashFrom;
             public bool partnerDashReset;
-            public float lastDash = -10f, trailSpeedUntil = -1f, floorKills;
+            public float lastDash = -10f, trailSpeedUntil = -1f, floorKills, togetherHealed;
             public readonly List<Vector3> trail = new List<Vector3>();   // x, y, until
         }
 
@@ -81,6 +81,9 @@ namespace WoLChaosDepths
             {
                 said.Clear();
                 killed.Clear();
+                elementsOn.Clear();
+                foreach (State s in states.Values)
+                    s.togetherHealed = 0f;   // Together's cap is per floor
                 foreach (State s in states.Values)
                     s.floorKills = 0f;   // Level's stacks are per floor
                 lastHits.Clear();
@@ -138,7 +141,8 @@ namespace WoLChaosDepths
                 "Tailcurrent", "Tailcurrent", "Co-op: your partner crossing your static trail gets +15% move speed for 2 s") },
             { "Savile", P("TidalStep", "Tidal Step", "A water arcana cast within 1 s of a dash comes back 15% sooner",
                 "Relay", "Relay", "Co-op: dashing through your partner resets their dash") },
-            { "Pink", P("SoothingWaters", "Soothing Waters", "+25% healing",
+            // Matt, 2026-11-02 21:00: Soothing Waters (+25% healing) became Confluence.
+            { "Pink", P("Confluence", "Confluence", "Each different element you hit an enemy with: +15% chance it heals you 3% when it dies",
                 "SharedDraught", "Shared Draught", "Co-op: a big heal (an orb) also heals your partner 30% of it") },
             { "Greed", P("Prospector", "Prospector", "Earth arcana kills have a 15% chance to bank 5 gold",
                 "Dividend", "Dividend", "Co-op: every 100 gold the team banks heals you both 3%") },
@@ -147,12 +151,19 @@ namespace WoLChaosDepths
             { "Fall", P("SureFooting", "Sure Footing", "You can't fall into a pit for 1 s after a dash",
                 "Lifeline", "Lifeline", "Co-op: once a minute, a falling partner is tethered to your side, untargetable") },
             { "Pride", P("Brinkmanship", "Brinkmanship", "Signature charge +25%, but each hit you take empties 10% of it",
-                "Inspire", "Inspire", "Co-op: while you're alive, your partner deals +10%") },
+                "Inspire", "Inspire", "Co-op: your partner deals +10% while within 5 u of you") },
         };
 
         // The starter cloaks (Hope, Patience, the Normal cloak) share one pair.
         private static readonly Perk[] starter = P("Fundamentals", "Fundamentals", "Cooldowns -5%",
-            "Together", "Together", "Co-op: within 3 u of each other, both regain 1% health every 5 s");
+            "Together", "Together", "Co-op: within 3 u of each other, both regain 1% health every 5 s (up to 20% of max a floor)");
+
+        // Matt's numbers, 2026-11-02 21:00.
+        private const float InspireRange = 5f;
+        private const float TogetherCap = 0.20f;
+        private const float ConfluenceChance = 0.15f, ConfluenceHeal = 0.03f;
+        // Confluence: the elements each wizard has hit each enemy with (by enemy, then player).
+        private static readonly Dictionary<int, Dictionary<int, HashSet<ElementType>>> elementsOn = new Dictionary<int, Dictionary<int, HashSet<ElementType>>>();
 
         private static Perk[] P(string ek, string en, string ee, string ck, string cn, string ce) =>
             new[] { new Perk { Key = ek, Name = en, Effect = ee }, new Perk { Key = ck, Name = cn, Effect = ce } };
@@ -291,7 +302,7 @@ namespace WoLChaosDepths
                 SetMod(p.health.evadeStat, "Evade", evadeBuff ? 0.10f : 0f, false);
 
                 // Pride's partner damage, and Tempo's cooldowns near a frozen enemy.
-                float partnerDamage = C(partner, "Pride") && Alive(partner) ? 0.10f : 0f;
+                float partnerDamage = C(partner, "Pride") && Close(p, partner, InspireRange) ? 0.10f : 0f;
                 SetSkillMods(p, StatData.damageStr, "PartnerDamage", partnerDamage, true);
                 if (E(p, "Tempo") && FrozenNear(p, 6f))
                 {
@@ -329,8 +340,8 @@ namespace WoLChaosDepths
                 if (PairOf(cloak) == starter && C(p, cloak) && Close(p, partner, 3f) && Time.time >= st.regenNext)
                 {
                     st.regenNext = Time.time + 5f;
-                    Heal(p, 0.01f);
-                    Heal(partner, 0.01f);
+                    TogetherHeal(p);
+                    TogetherHeal(partner);
                     Say(p, cloak, $"{cloak}: close together, both regain 1%");
                 }
             }
@@ -378,7 +389,7 @@ namespace WoLChaosDepths
             Player.SkillState dash = p.GetDashSkill();
             if (dash != null && dash.skillData != null)
                 SetStatData(dash.skillData, StatData.cdStr, "DashCooldown", dashCd, true);
-            SetMod(p.health.healModifierStat, "Heal", E(p, "Pink") ? 0.25f : 0f);
+            SetMod(p.health.healModifierStat, "Heal", 0f);   // Soothing Waters' old +25%, cleared
         }
 
         // ---- Hooks on each wizard ----
@@ -580,6 +591,17 @@ namespace WoLChaosDepths
                 else
                     last.time = Time.time;
                 HookStatus(hurt);
+                // Confluence: remember each element this wizard has hit this enemy with.
+                if (E(hitter, "Pink") && info.elementType != ElementType.Neutral)
+                {
+                    Dictionary<int, HashSet<ElementType>> byPlayer;
+                    if (!elementsOn.TryGetValue(id, out byPlayer))
+                        elementsOn[id] = byPlayer = new Dictionary<int, HashSet<ElementType>>();
+                    HashSet<ElementType> set;
+                    if (!byPlayer.TryGetValue(hitter.playerID, out set))
+                        byPlayer[hitter.playerID] = set = new HashSet<ElementType>();
+                    set.Add(info.elementType);
+                }
             });
         }
 
@@ -601,11 +623,49 @@ namespace WoLChaosDepths
                     Player.goldWallet?.Deposit(GreedGold);
                     Say(killer, "Greed", $"Greed: an earth kill knocked {GreedGold} gold loose");
                 }
+                Confluence(enemy);
                 StateOf(killer).floorKills += 1f;
                 Player partner = Partner(killer);
                 if (C(partner, "Level"))
                     StateOf(partner).floorKills += 0.5f;   // Shared Glory: a partner's kill counts half
             });
+        }
+
+        // Confluence: an enemy dies; each wizard with Confluence who hit it gets a chance to be
+        // healed, +15% for every different element they hit it with.
+        private static void Confluence(Enemy enemy)
+        {
+            Dictionary<int, HashSet<ElementType>> byPlayer;
+            if (!elementsOn.TryGetValue(enemy.GetInstanceID(), out byPlayer))
+                return;
+            elementsOn.Remove(enemy.GetInstanceID());
+            Player[] players = GameController.activePlayers;
+            if (players == null)
+                return;
+            foreach (Player p in players)
+            {
+                HashSet<ElementType> set;
+                if (p == null || !byPlayer.TryGetValue(p.playerID, out set) || !E(p, "Pink") || !Alive(p))
+                    continue;
+                if (UnityEngine.Random.value < ConfluenceChance * set.Count)
+                {
+                    Heal(p, ConfluenceHeal);
+                    Say(p, "Confluence", $"Confluence: a kill hit with {set.Count} element(s) healed 3%");
+                }
+            }
+        }
+
+        // Together: 1% of max health, but no more than 20% of max on a floor.
+        private static void TogetherHeal(Player p)
+        {
+            if (!Alive(p))
+                return;
+            State st = StateOf(p);
+            if (st.togetherHealed >= TogetherCap)
+                return;
+            float share = Mathf.Min(0.01f, TogetherCap - st.togetherHealed);
+            st.togetherHealed += share;
+            Heal(p, share);
         }
 
         // Shocks are seen through the enemy's own status events.
