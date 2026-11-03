@@ -8,8 +8,8 @@ namespace WoLChaosDepths
     // walks up to a shop on a floor, they make a deal with the shopkeeper and a coin flips over their
     // head. Heads: everything that shop sells for gold is half price. Tails: it all costs double.
     // One flip per shop per floor, shared in co-op; stacks with High Roller and Double Down. The flip
-    // reuses WoL Art's coin strips: fx_ks_DoubleOrNothing spins it gold, and for tails the last
-    // frames of fx_pact_DoubleDown turn it cursed violet. The shopkeeper reacts (a groan for heads,
+    // is WoL Art's fx_wager_flip (spin, then a starred gold heads or a violet tails); without it,
+    // the Double or Nothing and Double Down coins. The shopkeeper reacts (a groan for heads,
     // an evil laugh for tails). Only in a run, while talents are on.
     public static class ShopWager
     {
@@ -194,18 +194,33 @@ namespace WoLChaosDepths
                 if (body == null)
                     return false;
                 float ppu = body.sprite != null && body.sprite.pixelsPerUnit > 0f ? body.sprite.pixelsPerUnit : 16f;
-                Sprite[] spin = ItemArt.Frames("fx_ks_DoubleOrNothing", 6, new Vector2(0.5f, 0.5f), ppu);
-                Sprite[] curse = ItemArt.Frames("fx_pact_DoubleDown", 6, new Vector2(0.5f, 0.5f), ppu);
-                if (spin == null || spin.Length < 6)
-                    return false;
+                Vector2 centre = new Vector2(0.5f, 0.5f);
+                Sprite[] spin, turn;
+                // WoL Art's own strip (Log - Art 10:59): frames 0-3 spin, 4 heads (gold, a white
+                // star), 5 tails (violet).
+                Sprite[] wager = ItemArt.Frames("fx_wager_flip", 6, centre, ppu);
+                if (wager != null && wager.Length >= 6)
+                {
+                    spin = new[] { wager[0], wager[1], wager[2], wager[3] };
+                    turn = new[] { heads ? wager[4] : wager[5] };
+                }
+                else
+                {
+                    // Without it: Double or Nothing's gold coin spins, and tails turns violet
+                    // through the last frames of Double Down's coin.
+                    spin = ItemArt.Frames("fx_ks_DoubleOrNothing", 6, centre, ppu);
+                    if (spin == null || spin.Length < 6)
+                        return false;
+                    Sprite[] curse = ItemArt.Frames("fx_pact_DoubleDown", 6, centre, ppu);
+                    turn = heads || curse == null || curse.Length < 6 ? new[] { spin[0] } : new[] { curse[3], curse[4], curse[5] };
+                }
                 var go = new GameObject("ChaosDepths Shop Wager Coin");
                 var flip = go.AddComponent<CoinFlip>();
                 flip.owner = owner;
                 flip.heads = heads;
                 flip.land = land;
                 flip.spin = spin;
-                // Tails: the violet half of Double Down's coin (frames 3-5); without it, gold.
-                flip.turn = curse != null && curse.Length >= 6 ? new[] { curse[3], curse[4], curse[5] } : new[] { spin[0] };
+                flip.turn = turn;
                 flip.r = go.AddComponent<SpriteRenderer>();
                 if (material == null)
                     material = new Material(Shader.Find("Sprites/Default"));
@@ -248,14 +263,12 @@ namespace WoLChaosDepths
                 }
                 float since = t - Toss;
                 Follow(Lift);
+                r.sprite = turn[Mathf.Min(turn.Length - 1, (int)(since * TurnFps))];
                 if (heads)
                 {
-                    r.sprite = spin[0];
                     float pop = 1f + 0.4f * Mathf.Max(0f, 1f - since / 0.25f);
                     transform.localScale = new Vector3(pop, pop, 1f);
                 }
-                else
-                    r.sprite = turn[Mathf.Min(turn.Length - 1, (int)(since * TurnFps))];
                 Color c = r.color;
                 c.a = Mathf.Clamp01((Hold - since) / FadeTime);
                 r.color = c;
