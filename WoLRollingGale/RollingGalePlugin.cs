@@ -13,7 +13,7 @@ namespace WoLRollingGale
     {
         public const string PluginGuid = "mdbailey94.wol.rollinggale";
         public const string PluginName = "Rolling Gale";
-        public const string PluginVersion = "0.6.3";
+        public const string PluginVersion = "0.7.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -38,10 +38,10 @@ namespace WoLRollingGale
 
         public static float FirstBurstDistance => Get(firstBurstDistance, 2.5f, 0.5f, 10f);
         public static float BurstSpacing => Get(burstSpacing, 3f, 0.5f, 8f);
-        public static float FirstBurstScale => Get(firstBurstScale, 2.5f, 0.5f, 8f);
-        public static float BurstScaleGrowth => Get(burstScaleGrowth, 0.5f, 0f, 3f);
+        public static float FirstBurstScale => Get(firstBurstScale, 1.9f, 0.5f, 8f);
+        public static float BurstScaleGrowth => Get(burstScaleGrowth, 0.35f, 0f, 3f);
         public static float BurstInterval => Get(burstInterval, 0.12f, 0.03f, 1f);
-        public static float EchoScale => Get(echoScale, 0.85f, 0.1f, 2f);
+        public static float EchoScale => Get(echoScale, 0.75f, 0.1f, 2f);
         public static int BurstCount => Get(burstCount, 3, 1, 10);
         public static int EnhancedBurstCount => Get(enhancedBurstCount, 4, 1, 10);
 
@@ -51,12 +51,12 @@ namespace WoLRollingGale
         public static float FanInterval => Get(fanInterval, 0.13f, 0.03f, 1f);
         public static float FanFirstDistance => Get(fanFirstDistance, 2.5f, 0.5f, 10f);
         public static float FanDistanceStep => Get(fanDistanceStep, 1f, 0f, 4f);
-        public static float FanFirstScale => Get(fanFirstScale, 2.6f, 0.5f, 8f);
-        public static float FanScaleStep => Get(fanScaleStep, 0.35f, 0f, 2f);
+        public static float FanFirstScale => Get(fanFirstScale, 2f, 0.5f, 8f);
+        public static float FanScaleStep => Get(fanScaleStep, 0.25f, 0f, 2f);
         public static int FanHitStopFrames => Get(fanHitStopFrames, 2, 0, 10);
         public static float GatherTime => Get(gatherTime, 0.3f, 0f, 2f);
         public static float FinalDistance => Get(finalDistance, 5.5f, 0f, 12f);
-        public static float FinalScale => Get(finalScale, 7f, 1f, 15f);
+        public static float FinalScale => Get(finalScale, 5f, 1f, 15f);
         public static int FinalHitStopFrames => Get(finalHitStopFrames, 5, 0, 20);
         public static float FinalSlowMoTime => Get(finalSlowMoTime, 0.35f, 0f, 2f);
         public static float FinalSlowMoScale => Get(finalSlowMoScale, 0.05f, 0.01f, 1f);
@@ -70,6 +70,7 @@ namespace WoLRollingGale
         private void Awake()
         {
             log = Logger;
+            bool hadConfig = File.Exists(Config.ConfigFilePath);
             modEnabled = Config.Bind("General", "Enabled", true,
                 "Offer Rolling Gale in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
@@ -77,6 +78,18 @@ namespace WoLRollingGale
                 "Unlock Rolling Gale's signature version along with the arcana itself, so it can go in the signature slot as soon as " +
                 "you have it. Off: its Signature drop has to be found in a run, as for the game's own arcana.");
             BindSettings();
+            // 0.7.0 (#82, Matt: "reduce its strength and size"): about a quarter smaller and weaker
+            // all round. An older config still holds the old numbers, so those move to the new
+            // defaults once.
+            var revision = Config.Bind("General", "SettingsRevision", 0, "Which version's defaults this file was last updated to. Leave it alone.");
+            if (hadConfig && revision.Value < 1)
+            {
+                foreach (ConfigEntryBase e in new ConfigEntryBase[] { firstBurstScale, burstScaleGrowth, echoScale, fanFirstScale, fanScaleStep, finalScale,
+                    burstDamage, echoDamage, fanBurstDamage, finalGaleDamage, burstPull, fanPull, finalPull })
+                    e.BoxedValue = e.DefaultValue;
+                Logger.LogInfo("Rolling Gale: settings moved to 0.7.0's smaller, weaker gale (#82)");
+            }
+            revision.Value = 1;
             // The signature version only shows up in the spellbook's Signature list once it's
             // unlocked; see SignatureUnlock.cs.
             SignatureUnlock.Install(new HarmonyLib.Harmony(PluginGuid), RollingGaleState.staticID,
@@ -98,11 +111,10 @@ namespace WoLRollingGale
                     elementType = new[] { "Air" },
                     subElementType = new[] { "Air" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
-                    // Level 1 is each burst, level 2 its echo pulse. At most 3x8 + 3x3 = 33 per enemy
-                    // (44 enhanced) if dragged through the whole line.
+                    // Level 1 is each burst, level 2 its echo pulse. At most 3x6 + 3x2 = 24 per enemy
+                    // (32 enhanced) if dragged through the whole line (0.7.0, #82; was 33 / 44).
                     // Levels 3 and 4 (0.5.0) are the signature's fan bursts and its final gale: an
-                    // enemy dragged through all of it takes up to 6x12 + 5x3 + 45, about 130, about
-                    // what the game's air signatures do to one enemy.
+                    // enemy dragged through all of it takes up to 6x9 + 5x2 + 34, about 98 (was 130).
                     damage = new[]
                     {
                         Mathf.Clamp(burstDamage.Value, 0, 100),
@@ -143,11 +155,11 @@ namespace WoLRollingGale
             const string next = " Applies to the next cast.";
             firstBurstDistance = Float("Cast", "FirstBurstDistance", 2.5f, 0.5f, 10f, "How far in front of the wizard the first burst lands, in units." + next);
             burstSpacing = Float("Cast", "BurstSpacing", 3f, 0.5f, 8f, "Distance between one burst and the next along the aim, in units." + next);
-            firstBurstScale = Float("Cast", "FirstBurstScale", 2.5f, 0.5f, 8f, "Size of the first burst's pull area (the game's wind burst scale)." + next);
-            burstScaleGrowth = Float("Cast", "BurstScaleGrowth", 0.5f, 0f, 3f, "How much bigger each burst is than the one before (added to its scale)." + next);
+            firstBurstScale = Float("Cast", "FirstBurstScale", 1.9f, 0.5f, 8f, "Size of the first burst's pull area (the game's wind burst scale)." + next);
+            burstScaleGrowth = Float("Cast", "BurstScaleGrowth", 0.35f, 0f, 3f, "How much bigger each burst is than the one before (added to its scale)." + next);
             burstInterval = Float("Cast", "BurstInterval", 0.12f, 0.03f, 1f,
                 "Seconds between bursts; each burst's echo pulse also comes this long after it." + next);
-            echoScale = Float("Cast", "EchoScale", 0.85f, 0.1f, 2f, "Size of each echo pulse, times the burst it echoes." + next);
+            echoScale = Float("Cast", "EchoScale", 0.75f, 0.1f, 2f, "Size of each echo pulse, times the burst it echoes." + next);
             burstCount = Int("Cast", "BurstCount", 3, 1, 10, "Number of bursts in the line." + next);
 
             enhancedBurstCount = Int("Enhanced", "BurstCount", 4, 1, 10, "Number of bursts in the line when enhanced." + next);
@@ -158,31 +170,31 @@ namespace WoLRollingGale
             fanInterval = Float("Signature", "FanInterval", 0.13f, 0.03f, 1f, "Seconds between the fan's bursts." + next);
             fanFirstDistance = Float("Signature", "FanFirstDistance", 2.5f, 0.5f, 10f, "How far from the wizard the fan's first burst lands, in units." + next);
             fanDistanceStep = Float("Signature", "FanDistanceStep", 1f, 0f, 4f, "How much further out each fan burst lands than the one before, in units." + next);
-            fanFirstScale = Float("Signature", "FanFirstScale", 2.6f, 0.5f, 8f, "Size of the fan's first burst (the game's wind burst scale)." + next);
-            fanScaleStep = Float("Signature", "FanScaleStep", 0.35f, 0f, 2f, "How much bigger each fan burst is than the one before (added to its scale)." + next);
+            fanFirstScale = Float("Signature", "FanFirstScale", 2f, 0.5f, 8f, "Size of the fan's first burst (the game's wind burst scale)." + next);
+            fanScaleStep = Float("Signature", "FanScaleStep", 0.25f, 0f, 2f, "How much bigger each fan burst is than the one before (added to its scale)." + next);
             fanHitStopFrames = Int("Signature", "FanHitStopFrames", 2, 0, 10, "Frames the game freezes as each fan burst lands (0: none)." + next);
             gatherTime = Float("Signature", "GatherTime", 0.3f, 0f, 2f, "Seconds between the fan's last burst and the final gale." + next);
             finalDistance = Float("Signature", "FinalDistance", 5.5f, 0f, 12f, "How far along the aim the final gale lands, in units." + next);
-            finalScale = Float("Signature", "FinalScale", 7f, 1f, 15f, "Size of the final gale's pull area (the game's wind burst scale)." + next);
+            finalScale = Float("Signature", "FinalScale", 5f, 1f, 15f, "Size of the final gale's pull area (the game's wind burst scale)." + next);
             finalHitStopFrames = Int("Signature", "FinalHitStopFrames", 5, 0, 20, "Frames the game freezes as the final gale lands (0: none)." + next);
             finalSlowMoTime = Float("Signature", "FinalSlowMoTime", 0.35f, 0f, 2f, "Seconds of slow motion after the final gale (0: none)." + next);
             finalSlowMoScale = Float("Signature", "FinalSlowMoSpeed", 0.05f, 0.01f, 1f,
                 "Game speed during that slow motion, as a multiplier (0.05 is near-frozen, 1 is normal speed)." + next);
 
             const string restart = " Applies after restarting the game.";
-            burstDamage = Config.Bind("Balance", "BurstDamage", 8,
+            burstDamage = Config.Bind("Balance", "BurstDamage", 6,
                 new ConfigDescription("Damage of each burst in the line." + restart, new AcceptableValueRange<int>(0, 100)));
-            echoDamage = Config.Bind("Balance", "EchoDamage", 3,
+            echoDamage = Config.Bind("Balance", "EchoDamage", 2,
                 new ConfigDescription("Damage of each burst's echo pulse (and the signature fan's echoes)." + restart, new AcceptableValueRange<int>(0, 100)));
-            fanBurstDamage = Config.Bind("Balance", "FanBurstDamage", 12,
+            fanBurstDamage = Config.Bind("Balance", "FanBurstDamage", 9,
                 new ConfigDescription("Damage of each burst in the signature's fan." + restart, new AcceptableValueRange<int>(0, 100)));
-            finalGaleDamage = Config.Bind("Balance", "FinalGaleDamage", 45,
+            finalGaleDamage = Config.Bind("Balance", "FinalGaleDamage", 34,
                 new ConfigDescription("Damage of the signature's final gale." + restart, new AcceptableValueRange<int>(0, 300)));
             cooldown = Float("Balance", "GaleCooldown", 5f, 1f, 60f, "Cooldown in seconds." + restart);
-            burstPull = Float("Balance", "BurstPull", 22f, 0f, 100f,
+            burstPull = Float("Balance", "BurstPull", 16f, 0f, 100f,
                 "How hard each burst and its echo drag enemies in toward the burst's middle (the game's knockback, pulling inward)." + restart);
-            fanPull = Float("Balance", "FanPull", 26f, 0f, 100f, "How hard each signature fan burst drags enemies in." + restart);
-            finalPull = Float("Balance", "FinalPull", 36f, 0f, 150f, "How hard the signature's final gale drags enemies in." + restart);
+            fanPull = Float("Balance", "FanPull", 19f, 0f, 100f, "How hard each signature fan burst drags enemies in." + restart);
+            finalPull = Float("Balance", "FinalPull", 27f, 0f, 150f, "How hard the signature's final gale drags enemies in." + restart);
             burstHitStun = Float("Balance", "BurstHitStun", 1.1f, 0f, 5f, "How long enemies are stunned by a burst or its echo, times the game's usual hit stun." + restart);
             fanHitStun = Float("Balance", "FanHitStun", 1.2f, 0f, 5f, "Hit stun of each signature fan burst, times the game's usual hit stun." + restart);
             finalHitStun = Float("Balance", "FinalHitStun", 1.6f, 0f, 5f, "Hit stun of the signature's final gale, times the game's usual hit stun." + restart);
