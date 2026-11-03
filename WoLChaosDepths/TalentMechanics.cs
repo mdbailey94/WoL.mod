@@ -38,6 +38,8 @@ namespace WoLChaosDepths
         private class State
         {
             public float dashUntil, hitAndRunUntil, afterimageReady, movingSince = -1f, clearSince = -1f, lifebloomShowUntil;
+            public float quickdrawUntil = -1f, fortifyUntil = -1f;
+            public bool fortifySet;
             public Vector2 lastPos, dashDir;
             public readonly HashSet<int> tailspun = new HashSet<int>();
             public int shieldAdded;
@@ -85,6 +87,154 @@ namespace WoLChaosDepths
                 states.Clear();
             };
             Health.globalTakeDamageActualHandlers += OnAnyDamage;
+            // Unique-stat nodes (Matt, 2026-11-02 20:20).
+            Health.globalTakeDamageEnterHandlers += LuckyStrike;
+            Projectile.projectileShootEvent += Ricochet;
+        }
+
+        // ---- Unique-stat nodes (Matt, 2026-11-02 20:20) ----
+        //   Warden (agents/summons +25% health), Heavy Hand (+15% knockback), Fortify (+0.15 s
+        //   invulnerable after a dash), Quickdraw (basic arcana +8% attack speed), Ricochet
+        //   (projectiles +10% speed and damage), Deep Reserves (+1 charge on standard arcana),
+        //   Spellweaver (+5% cast speed a point), Prolong (signature lasts 20% longer), Second Gust
+        //   (+1 dash charge), Long Vigil (agents/summons last 25% longer a point), Loaded Dice
+        //   (+5% on every status chance), Fester (damage over time ticks 15% faster), Lucky Strike
+        //   (10% chance a hit lands twice).
+        private const float FortifyTime = 0.15f, FortifyDash = 0.25f;
+        private const float QuickdrawSpeed = 0.08f, QuickdrawWindow = 0.5f;
+
+        private static void UniqueStats(Player player, State st)
+        {
+            int warden = Talents.Rank(player, "Warden"), vigil = Talents.Rank(player, "LongVigil");
+            int heavy = Talents.Rank(player, "HeavyHand"), dice = Talents.Rank(player, "LoadedDice"), fester = Talents.Rank(player, "Fester");
+            Player.SkillState basic = null, dash = null;
+            try
+            {
+                basic = player.GetBasicSkill();
+                dash = player.GetDashSkill();
+            }
+            catch
+            {
+            }
+            if (player.skillsDict != null)
+            {
+                foreach (Player.SkillState skill in player.skillsDict.Values)
+                {
+                    StatData sd = skill != null ? skill.skillData : null;
+                    if (sd == null)
+                        continue;
+                    bool summons = Summons(sd);
+                    SetStat(sd, StatData.healthStr, "Warden", summons ? 0.25f * warden : 0f, true);
+                    SetStat(sd, StatData.durStr, "LongVigil", summons ? 0.25f * vigil : 0f, true);
+                    SetStat(sd, StatData.kbMultiStr, "HeavyHand", 0.15f * heavy, true);
+                    SetStat(sd, StatData.intervalStr, "Fester", -0.15f * fester, true);
+                    foreach (string chance in StatusChances)
+                        SetStat(sd, chance, "LoadedDice", 0.05f * dice, false);
+                    // Deep Reserves: standard arcana (not the basic, the dash or the signature slot).
+                    bool standard = skill != basic && skill != dash && !skill.isUltimate;
+                    if (skill.cooldownRef != null && skill.cooldownRef.maxChargeStat != null)
+                    {
+                        int extra = standard ? Talents.Rank(player, "DeepReserves") : skill == dash ? Talents.Rank(player, "SecondGust") : 0;
+                        SetMod(skill.cooldownRef.maxChargeStat, "Charges", extra, false);
+                    }
+                }
+            }
+            // Spellweaver: activation speed; Quickdraw: the basic arcana's swings just after one starts.
+            float anim = 0.05f * Talents.Rank(player, "Spellweaver");
+            if (Time.time < st.quickdrawUntil && Talents.Rank(player, "Quickdraw") > 0)
+                anim += QuickdrawSpeed;
+            SetAnim(player, "Activation", anim);
+            // Prolong: the signature's active time drains 20% slower.
+            SetMod(player.overdriveActiveDecayRate, "Prolong", Talents.Rank(player, "Prolong") > 0 ? -0.2f : 0f, true);
+            // Fortify: still untouchable a moment after the dash ends.
+            bool fortified = Time.time < st.fortifyUntil && Talents.Rank(player, "Fortify") > 0;
+            if (fortified)
+            {
+                player.health.invulnerable = true;
+                st.fortifySet = true;
+            }
+            else if (st.fortifySet)
+            {
+                player.health.invulnerable = false;
+                st.fortifySet = false;
+            }
+        }
+
+        private static readonly string[] StatusChances =
+            { StatData.burnChStr, StatData.slowChStr, StatData.shockChStr, StatData.frzChStr, StatData.rootChStr };
+
+        // An arcana that puts agents or summons out: it has their health or a spawn count.
+        private static bool Summons(StatData sd)
+        {
+            try
+            {
+                return sd.GetValue<int>(StatData.spawnStr) > 0 || sd.GetValue<int>(StatData.healthStr) > 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        // Lucky Strike: before a wizard's hit lands, a 10% chance it counts twice.
+        private static void LuckyStrike(AttackInfo info, Entity attacker, Entity hurt)
+        {
+            if (!Talents.Enabled || info == null || info.damage <= 0 || !(hurt is Enemy))
+                return;
+            Guard("lucky strike", () =>
+            {
+                Player player = PlayerOf(info.skillCategory);
+                if (player == null || Talents.Rank(player, "LuckyStrike") <= 0 || UnityEngine.Random.value >= 0.10f)
+                    return;
+                info.damage *= 2;
+                Say(player, "LuckyStrike", "Lucky Strike: a hit struck twice");
+            });
+        }
+
+        // Ricochet: a wizard's projectile, as it's shot, flies 10% faster and hits 10% harder (the
+        // game's own projectile-shoot event, which fires once a shot).
+        private static void Ricochet(Projectile p)
+        {
+            if (!Talents.Enabled || p == null || p.attackBox == null || p.attackBox.atkInfo == null)
+                return;
+            Guard("ricochet", () =>
+            {
+                Player player = PlayerOf(p.attackBox.atkInfo.skillCategory);
+                if (player == null || Talents.Rank(player, "Ricochet") <= 0)
+                    return;
+                p.moveSpeed *= 1.1f;
+                p.attackBox.atkInfo.damage = Mathf.RoundToInt(p.attackBox.atkInfo.damage * 1.1f);
+                Say(player, "Ricochet", "Ricochet: projectile faster and harder");
+            });
+        }
+
+        private static void SetStat(StatData data, string field, string node, float value, bool multiplicative)
+        {
+            string id = Prefix + node;
+            var key = new KeyValuePair<object, string>(data, id + field);
+            float had;
+            if (applied.TryGetValue(key, out had) && Mathf.Approximately(had, value))
+                return;
+            data.RemoveMod(field, id);
+            if (!Mathf.Approximately(value, 0f))
+                data.AddMod(field, new NumVarStatMod(id, value, 10, multiplicative ? VarStatModType.Multiplicative : VarStatModType.Additive, false));
+            applied[key] = value;
+        }
+
+        private static void SetAnim(Player player, string node, float value)
+        {
+            if (player.animSpeedHandler == null)
+                return;
+            string id = Prefix + node;
+            var key = new KeyValuePair<object, string>(player.animSpeedHandler, id);
+            float had;
+            if (applied.TryGetValue(key, out had) && Mathf.Approximately(had, value))
+                return;
+            if (applied.ContainsKey(key))
+                player.animSpeedHandler.Modify(new NumVarStatMod(id, had, 10, VarStatModType.Multiplicative, false), false);
+            if (!Mathf.Approximately(value, 0f))
+                player.animSpeedHandler.Modify(new NumVarStatMod(id, value, 10, VarStatModType.Multiplicative, false), true);
+            applied[key] = value;
         }
 
         private class Runner : MonoBehaviour
@@ -110,6 +260,7 @@ namespace WoLChaosDepths
                 Hook(player);
                 State st = StateOf(player);
                 Stats(player, st);
+                UniqueStats(player, st);
                 Tailspin(player, st);
                 Regrowth(player, st, inTrials, dt);
                 Overheal(player, st);
@@ -149,8 +300,12 @@ namespace WoLChaosDepths
                 return;
             State st = StateOf(player);
             Player.SkillState dash = player.GetDashSkill();
+            Player.SkillState basicSkill = player.GetBasicSkill();
+            if (basicSkill != null && state.skillID == basicSkill.skillID)
+                st.quickdrawUntil = Time.time + QuickdrawWindow;
             if (dash != null && state.skillID == dash.skillID)
             {
+                st.fortifyUntil = Time.time + FortifyDash + FortifyTime;
                 st.dashUntil = Time.time + TailspinWindow;
                 st.tailspun.Clear();
                 Vector2 dir = player.movement.dashVector;

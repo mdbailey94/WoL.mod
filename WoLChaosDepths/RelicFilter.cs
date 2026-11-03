@@ -20,6 +20,8 @@ namespace WoLChaosDepths
             "GlassCannon", "MaxHPDownDamageUpPercent", "DeathProofCrown", "IgnoreDeathChance", "LimitedGuard",
             "FirstHitDamageUp", "DamageUpWithCC", "DamageUpWithKills", "OverdriveToResetCDs", "IgnoreHurtKnockbackDown",
             "MaxHealthUpRegen",
+            // 20:20's unique-stat nodes: Lucky Strike, Deep Reserves / Second Gust.
+            "DoubleAttackChance", "ExtraSkillCharge",
         };
         private const float CheckEvery = 2f;
         private static readonly List<string> ids = new List<string>();
