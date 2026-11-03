@@ -300,7 +300,7 @@ namespace WoLGaleRider
             if (leaping)
             {
                 // Still carrying them through the leap, so the slam lands on them.
-                carrier.Move(parent.transform.position, parent.transform.position, currentSize + CarryMargin + 1f);
+                carrier.Move(parent.transform.position, currentSize);
                 Leap();
                 return;
             }
@@ -321,7 +321,7 @@ namespace WoLGaleRider
                 float t = Mathf.Clamp01(time / SigSettleTime);
                 float eased = t * t * (3f - 2f * t);
                 Cinematic.Set(cinematic, SigZoom * eased, Mathf.Lerp(1f, SigDim, eased));
-                carrier.Move(parent.transform.position, parent.transform.position, currentSize + CarryMargin);
+                carrier.Move(parent.transform.position, currentSize);
             }
 
             bool hopOff = GaleRiderPlugin.HopOffOnPress && time >= GaleRiderPlugin.MinRideTime && skillSlot >= 0

@@ -13,7 +13,7 @@ namespace WoLGaleRider
     {
         public const string PluginGuid = "mdbailey94.wol.galerider";
         public const string PluginName = "Gale Rider";
-        public const string PluginVersion = "0.5.1";
+        public const string PluginVersion = "0.6.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -37,12 +37,12 @@ namespace WoLGaleRider
         private static ConfigEntry<float> sigRideTime, sigBallSize, sigLeapHeight;
         private static ConfigEntry<int> sigBallDamage, sigSlamDamage;
         // The signature storm ball (0.4.0).
-        public static float SignatureRideTime => Get(sigRideTime, 6f, 1f, 15f);
+        public static float SignatureRideTime => Get(sigRideTime, 3.5f, 1f, 15f);
         public static float SignatureBallSize => Get(sigBallSize, 2f, 1f, 4f);
         public static float SignatureLeapHeight => Get(sigLeapHeight, 3f, 0.5f, 8f);
 
-        public static float RideTime => Get(rideTime, 3f, 0.5f, 10f);
-        public static float EnhancedRideTime => Get(enhancedRideTime, 4.5f, 0.5f, 12f);
+        public static float RideTime => Get(rideTime, 1.5f, 0.5f, 10f);
+        public static float EnhancedRideTime => Get(enhancedRideTime, 2.25f, 0.5f, 12f);
         public static float RideSpeedPercent => Get(rideSpeedPercent, 40f, 0f, 150f);
         public static float MinRideTime => Get(minRideTime, 0.4f, 0f, 5f);
         public static bool HopOffOnPress => hopOffOnPress?.Value ?? true;
@@ -181,8 +181,8 @@ namespace WoLGaleRider
 
         private void BindSettings()
         {
-            rideTime = Float("Ride", "RideTime", 3f, 0.5f, 10f, "Seconds you ride the ball.");
-            enhancedRideTime = Float("Ride", "EnhancedRideTime", 4.5f, 0.5f, 12f, "RideTime when enhanced.");
+            rideTime = Float("Ride", "RideTime", 1.5f, 0.5f, 10f, "Seconds you ride the ball.");
+            enhancedRideTime = Float("Ride", "EnhancedRideTime", 2.25f, 0.5f, 12f, "RideTime when enhanced.");
             rideSpeedPercent = Float("Ride", "RideSpeedPercent", 40f, 0f, 150f,
                 "Move-speed bonus while riding, as a percentage (a multiplier on your move-speed stat, so speed relics " +
                 "count). 40 matches a sprint, so you're never slower on the ball than running.");
@@ -224,7 +224,7 @@ namespace WoLGaleRider
             signatureWithArcana = Config.Bind("General", "SignatureUnlocksWithArcana", true,
                 "Unlock Gale Rider's signature version along with the arcana itself, so it can go in the signature slot as soon as " +
                 "you have it. Off: its Signature drop has to be found in a run, as for the game's own arcana.");
-            sigRideTime = Float("Signature", "RideTime", 6f, 1f, 15f, "Seconds on the signature storm ball before you leap off.");
+            sigRideTime = Float("Signature", "RideTime", 3.5f, 1f, 15f, "Seconds on the signature storm ball before you leap off.");
             sigBallSize = Float("Signature", "BallSize", 2f, 1f, 4f, "The storm ball's size (hit and look), times the enhanced ball's.");
             sigLeapHeight = Float("Signature", "LeapHeight", 3f, 0.5f, 8f, "How high you leap off the storm ball before the slam (units).");
 
