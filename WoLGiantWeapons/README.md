@@ -25,12 +25,14 @@ and Buckler are their own mods (WoLGiantSpear, WoLBuckler); Flaming Whip is WoLF
 
 Neither can have a signature: the game's spellbook puts every basic in the basic slot before it
 looks for a signature. The hits are the game's own ice and lightning bursts with each arcana's
-stats, so gear, crits, statuses and talents apply. WoL Art's sprites are hooked when drawn.
+stats, so gear, crits, statuses and talents apply. The Ice Sword shows the game's own ice boss greatsword; the Flail is WoL Art's (Finished Art/Giant weapons, 2026-11-03).
 
 ## Settings
 
 `BepInEx\config\mdbailey94.wol.giantweapons.cfg`: `[Ice Sword]`, `[Flail]` (next attack) and
 `[Balance]` (after a restart); `[General]` turns each one's shop offer off.
+
+**0.3.0** (#84): WoL Art's flail (Matt: a black ball with white spikes on an electric chain): the circle swings play its ring round the wizard with the lightning chain out to the ball; the slam reaches the ball and chain out to the spot over the wind-up, then its impact plays there. Art's icons for both arcana.
 
 **0.2.0** (Matt: 'reusing the ice boss's sword would be good'): the Ice Sword's swings, chop and spin show the game's own ice boss greatsword (its IceSword prefab, as the game lends it to a player arcana), appearing, swinging and shattering into ice; [Ice Sword] SwordScale and SwordSwingSpeed size and pace it. The hits are unchanged.
 

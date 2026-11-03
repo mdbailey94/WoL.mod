@@ -17,7 +17,7 @@ namespace WoLGiantWeapons
     {
         public const string PluginGuid = "mdbailey94.wol.giantweapons";
         public const string PluginName = "Giant Weapons";
-        public const string PluginVersion = "0.2.0";
+        public const string PluginVersion = "0.3.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> swordEnabled, flailEnabled;
@@ -74,6 +74,7 @@ namespace WoLGiantWeapons
                 displayName = "Giant Ice Sword",
                 description = "Heave a huge frozen greatsword in slow, wide swings! Hold before the third swing to charge a whirling spin!",
                 enhancedDescription = "A wider spin that leaves a ring of frost!",
+                icon = Icon("giant_ice_sword_icon.png"),
                 tier = 2,
                 stateType = typeof(IceSwordState),
                 skillStats = new SkillStats
@@ -106,6 +107,7 @@ namespace WoLGiantWeapons
                 displayName = "Giant Lightning Flail",
                 description = "Whirl a huge crackling flail round you, then slam it down in front with a thunderous crash!",
                 enhancedDescription = "The slam arcs lightning to nearby foes!",
+                icon = Icon("flail_icon.png"),
                 tier = 2,
                 stateType = typeof(FlailState),
                 skillStats = new SkillStats
@@ -133,6 +135,18 @@ namespace WoLGiantWeapons
         }
 
         private static int Clamp(ConfigEntry<int> entry, int min, int max) => Mathf.Clamp(entry.Value, min, max);
+
+        // WoL Art's 18x18 arcana icons, sized like the game's own in the shop (GameIcon).
+        private Sprite Icon(string file)
+        {
+            Texture2D tex = FlailLook.Load(file);
+            if (tex == null)
+            {
+                Logger.LogWarning($"Icon {file} not found, using the default icon");
+                return null;
+            }
+            return GameIcon.Create(tex, Logger);
+        }
 
         private void BindSettings()
         {

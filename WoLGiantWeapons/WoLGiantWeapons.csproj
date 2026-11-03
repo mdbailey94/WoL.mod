@@ -43,6 +43,10 @@
     </Reference>
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\*.png" LogicalName="WoLGiantWeapons.Assets.%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <Target Name="CopyToPlugins" AfterTargets="Build" Condition="Exists('$(GameDir)\BepInEx\plugins')">
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(GameDir)\BepInEx\plugins\WoLGiantWeapons" />
   </Target>

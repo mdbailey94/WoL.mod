@@ -74,6 +74,7 @@ namespace WoLGiantWeapons
         {
             Vector2 at = parent.transform.position;
             Heavy.Bolt(at, parent, skillID, 1, GiantWeaponsPlugin.CircleRadius);
+            FlailLook.Circle(parent, GiantWeaponsPlugin.CircleRadius, 0.35f);
             Heavy.Sound("WindSlashBasic", at, 0.55f);
             GiantWeaponsPlugin.Log($"Giant Lightning Flail: circle swing {comboCounter}");
         }
@@ -86,11 +87,13 @@ namespace WoLGiantWeapons
             bool enhanced = IsEmpowered;
             Vector2 spot = hand + aim * GiantWeaponsPlugin.SlamDistance;
             Heavy.Sound("WindSlashBasic", hand, 0.5f);
+            FlailLook.Reach(p, spot, GiantWeaponsPlugin.SlamWindUp);
             Heavy.After(GiantWeaponsPlugin.SlamWindUp, () =>
             {
                 if (p == null)
                     return;
                 Heavy.Bolt(spot, p, id, 2, GiantWeaponsPlugin.SlamRadius);
+                FlailLook.Impact(p, spot, GiantWeaponsPlugin.SlamRadius);
                 Heavy.Shake(1.2f);
                 Heavy.Sound("ThunderClap", spot, 0.8f);
                 Heavy.Sound("EarthExplosion", spot, 0.7f);
