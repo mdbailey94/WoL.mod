@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.28.1";
+        public const string PluginVersion = "0.28.2";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -170,6 +170,14 @@ namespace WoLChaosDepths
             catch (Exception e)
             {
                 Logger.LogError($"Loadout sets failed to install: {e.Message}");
+            }
+            try
+            {
+                RelicFilter.Install();
+            }
+            catch (Exception e)
+            {
+                Logger.LogError($"Relic filter failed to install: {e.Message}");
             }
             diveEnabled = Config.Bind("Dive", "Enabled", true,
                 "Shape the run as a dive (the settings below) and log what the game does with it.");
