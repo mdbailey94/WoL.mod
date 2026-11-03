@@ -586,7 +586,7 @@ namespace WoLChaosDepths
                 int u = Mathf.Max(3, Mathf.FloorToInt(Screen.height * 0.92f / unitsTall));
                 // Two open at once (0.17.0): each fits its half of the screen.
                 if (OpenCount > 1)
-                    u = Mathf.Max(2, Mathf.Min(u, Mathf.FloorToInt(Screen.width * 0.48f / 176f)));
+                    u = Mathf.Max(2, Mathf.Min(u, Mathf.FloorToInt(Screen.width / (2f * 176f + 12f))));
                 int font = Mathf.Max(12, 4 * u);
                 float w = 176 * u, h = unitsTall * u;
                 // Two players: on the opening player's side of the screen (player 1 left, player 2 right).

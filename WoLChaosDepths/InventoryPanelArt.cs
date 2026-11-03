@@ -68,9 +68,14 @@ namespace WoLChaosDepths
             GUI.depth = -100;
             try
             {
-                // Two open at once (0.17.0): each fits its half of the screen.
-                float across = OpenCount > 1 ? 0.48f : 0.96f;
-                int s = Mathf.Max(2, Mathf.FloorToInt(Mathf.Min(Screen.height * 0.92f / ArtH, Screen.width * across / ArtW)));
+                // Two open at once (0.17.0): each takes the largest whole scale at which both fit
+                // side by side with a 4-pixel margin at the edges and between them (Matt: bigger, to
+                // read in two-player). Up to 0.28 each was held to 48% of the width, which floored
+                // 1920 px to scale 3 although two scale-4 panels fit.
+                int s = OpenCount > 1
+                    ? Mathf.FloorToInt(Mathf.Min(Screen.height * 0.92f / ArtH, Screen.width / (2f * ArtW + 12f)))
+                    : Mathf.FloorToInt(Mathf.Min(Screen.height * 0.92f / ArtH, Screen.width * 0.96f / ArtW));
+                s = Mathf.Max(2, s);
                 float w = ArtW * s, h = ArtH * s;
                 int activePlayers = 0;
                 if (GameController.activePlayers != null)
