@@ -80,9 +80,6 @@ namespace WoLChaosDepths
 
         private static float jackpotUntil;
 
-        // Hits Assassin forced to crit, to add its bonus when the crit lands (cleared each tick).
-        private static readonly HashSet<AttackInfo> assassinHits = new HashSet<AttackInfo>();
-
         private static ManualLogSource log;
         private static readonly Dictionary<int, State> states = new Dictionary<int, State>();
         private static readonly Dictionary<int, Health> hooked = new Dictionary<int, Health>();
@@ -96,11 +93,15 @@ namespace WoLChaosDepths
             log = logger;
             GameController.levelLoadEventHandlers += OnLevelLoad;
             Health.globalTakeDamageActualHandlers += OnAnyHit;
-            Health.globalTakeDamageEnterHandlers += OnHitEnter;
             Attack.globalCritEventHandlers += OnCrit;
             var harmony = new Harmony("mdbailey94.wol.chaosdepths.archetypes");
             harmony.Patch(AccessTools.Method(typeof(Player.SkillState), nameof(Player.SkillState.StartCooldownTimer)),
                 postfix: new HarmonyMethod(typeof(ArchetypeMechanics), nameof(AfterCooldownStart)));
+            // #65: the game rolls a hit's crit in Attack.ExecuteAttack (then calls TakeDamage with
+            // critPreCalculated), so sure crits and the over-100% bonus are set there.
+            harmony.Patch(AccessTools.Method(typeof(Attack), nameof(Attack.ExecuteAttack)),
+                prefix: new HarmonyMethod(typeof(ArchetypeMechanics), nameof(BeforeAttack)),
+                postfix: new HarmonyMethod(typeof(ArchetypeMechanics), nameof(AfterAttack)));
             var host = new GameObject("ChaosDepths Archetypes");
             UnityEngine.Object.DontDestroyOnLoad(host);
             host.hideFlags = HideFlags.HideAndDontSave;
@@ -245,7 +246,6 @@ namespace WoLChaosDepths
                 if (Talents.Rank(player, "Channel") > 0 && s.stillSince >= 0f && Time.time - s.stillSince >= ChannelAfter)
                     CutCooldowns(player, ChannelBonus * TickInterval);
             }
-            assassinHits.Clear();
             HookGold();
         }
 
@@ -276,33 +276,94 @@ namespace WoLChaosDepths
 
         // ---- Duelist: the wizard's hits on enemies ----
 
-        // Before a hit on an enemy is worked out (crits are rolled after this): Assassin and
-        // Riposte make it a sure crit.
-        private static void OnHitEnter(AttackInfo info, Entity attacker, Entity hurt)
+        // [Crit] OverflowToCritDamage (bound on first use, in Chaos Depths' own config).
+        private static BepInEx.Configuration.ConfigEntry<float> critOverflow;
+        private static float CritOverflowToDamage
+        {
+            get
+            {
+                if (critOverflow == null && ChaosDepthsPlugin.Instance != null)
+                    critOverflow = ChaosDepthsPlugin.Instance.Config.Bind("Crit", "OverflowToCritDamage", 1f,
+                        new BepInEx.Configuration.ConfigDescription(
+                            "Critical hit chance over 100% isn't wasted: each 1% over adds this much (x1%) to that hit's critical damage " +
+                            "(1 = 130% chance gives +30% crit damage). 0 = off. Wizards' attacks only.",
+                            new BepInEx.Configuration.AcceptableValueRange<float>(0f, 5f)));
+                return critOverflow != null ? Mathf.Clamp(critOverflow.Value, 0f, 5f) : 1f;
+            }
+        }
+
+        // One attack being worked out (Attack.ExecuteAttack is synchronous, so a static is safe):
+        // what the prefix changed on the attack's own AttackInfo, put back by the postfix.
+        private static Attack changedAttack;
+        private static float savedCritChance, savedCritDamage;
+        private static Entity assassinTarget;
+
+        // Before the game copies the attack's AttackInfo and rolls the crit:
+        // - Assassin (first hit on an enemy at full health) and a ready Riposte make it a sure crit;
+        // - crit chance over 100% on a wizard's attack goes into crit damage ([Crit]
+        //   OverflowToCritDamage per point; Matt, #65), so it isn't wasted.
+        private static void BeforeAttack(Attack __instance, Collider2D col)
         {
             try
             {
-                if (!Talents.Enabled || info == null || info.damage <= 0 || !(hurt is Enemy) || hurt.health == null)
+                AttackInfo info = __instance != null ? __instance.atkInfo : null;
+                if (info == null || col == null || string.IsNullOrEmpty(info.skillCategory) || !info.skillCategory.StartsWith("Player"))
                     return;
                 Player player = PlayerOf(info.skillCategory);
-                if (player == null)
+                Health target = col.gameObject.GetComponent<Health>() ?? (col.transform.parent != null ? col.transform.parent.gameObject.GetComponent<Health>() : null);
+                bool enemy = target != null && target.entityScript is Enemy;
+                bool sure = false;
+                if (player != null && enemy && Talents.Enabled)
+                {
+                    if (Talents.Rank(player, "Assassin") > 0 && target.CurrentHealthValue >= (int)target.healthStat.ModifiedValue)
+                    {
+                        sure = true;
+                        assassinTarget = target.entityScript;
+                    }
+                    State s = StateOf(player);
+                    if (s.riposteReady)
+                    {
+                        s.riposteReady = false;
+                        sure = true;
+                    }
+                }
+                float overflow = Mathf.Max(0f, info.critHitChance - 1f) * CritOverflowToDamage;
+                if (!sure && overflow <= 0f)
                     return;
-                State s = StateOf(player);
-                if (Talents.Rank(player, "Assassin") > 0 && hurt.health.CurrentHealthValue >= (int)hurt.health.healthStat.ModifiedValue)
-                {
-                    info.critHitChance = 1f;
-                    assassinHits.Add(info);
-                }
-                if (s.riposteReady)
-                {
-                    s.riposteReady = false;
-                    info.critHitChance = 1f;
-                }
+                changedAttack = __instance;
+                savedCritChance = info.critHitChance;
+                savedCritDamage = info.critDmgModifier;
+                if (sure)
+                    info.critHitChance = Mathf.Max(info.critHitChance, 1.01f);
+                if (overflow > 0f)
+                    info.critDmgModifier += overflow;
             }
             catch (Exception e)
             {
-                LogOnce("hit enter", $"Talents: Duelist hit setup failed ({e.Message})");
+                LogOnce("before attack", $"Talents: crit setup failed ({e.Message})");
             }
+        }
+
+        private static void AfterAttack(Attack __instance)
+        {
+            if (changedAttack == null || changedAttack != __instance)
+            {
+                assassinTarget = null;
+                return;
+            }
+            try
+            {
+                if (__instance.atkInfo != null)
+                {
+                    __instance.atkInfo.critHitChance = savedCritChance;
+                    __instance.atkInfo.critDmgModifier = savedCritDamage;
+                }
+            }
+            catch
+            {
+            }
+            changedAttack = null;
+            assassinTarget = null;
         }
 
         // A crit, before its multiplier: Exploit and Assassin add to it; Momentum and Flurry count it.
@@ -319,8 +380,9 @@ namespace WoLChaosDepths
                 float bonus = 0f;
                 if (Talents.Rank(player, "Exploit") > 0 && Afflicted(hurt))
                     bonus += ExploitBonus;
-                if (assassinHits.Remove(info))
+                if (assassinTarget != null && assassinTarget == hurt)
                 {
+                    assassinTarget = null;
                     bonus += AssassinBonus;
                     // On the struck enemy (its red slash).
                     Fx(() => KeystoneFx.Fire(hurt, "Assassin"));
