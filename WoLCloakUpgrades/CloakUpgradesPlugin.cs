@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace WoLCloakUpgrades
 {
-    // Permanent cloak upgrades bought with chaos gems at the wardrobe, all in the wardrobe's own
+    // Permanent cloak upgrades bought with chaos gems (in Chaos Depths, Chaos Dust: CloakCurrency) at the wardrobe, all in the wardrobe's own
     // screen: the highlighted cloak's info box gains its upgrade tier and the price of the next one
     // (the box's text shrinks to fit), pressing Y (controller) or U (keyboard) asks with the game's
     // own yes/no box, and a purchase is announced by the game's on-screen notice. Tiers are kept per cloak in this
@@ -17,7 +17,7 @@ namespace WoLCloakUpgrades
     {
         public const string PluginGuid = "mdbailey94.wol.cloakupgrades";
         public const string PluginName = "Cloak Upgrades";
-        public const string PluginVersion = "0.3.3";
+        public const string PluginVersion = "0.4.0";
 
         // Ignore presses right after the wardrobe opens.
         private const float OpenGrace = 0.35f;
@@ -100,7 +100,7 @@ namespace WoLCloakUpgrades
             string description = text.text.TrimEnd();
             // A cloak with a long list of stats: keep the upgrade to one line.
             bool compact = description.Split('\n').Length > LongDescriptionLines;
-            text.text = description + "\n" + UpgradeLines(outfit, OnController(ui), compact);
+            text.text = description + "\n" + UpgradeLines(outfit, ui.player, OnController(ui), compact);
         }
 
         // Let the info box shrink its text to fit instead of running off the screen (down to a
@@ -134,7 +134,7 @@ namespace WoLCloakUpgrades
 
         // Kept short: one line for the tier, one for the button and price (one line in all when
         // the cloak's own description is long).
-        private string UpgradeLines(Outfit outfit, bool controller, bool compact)
+        private string UpgradeLines(Outfit outfit, Player wizard, bool controller, bool compact)
         {
             if (!outfit.unlocked)
                 return "Unlock to upgrade";
@@ -146,7 +146,8 @@ namespace WoLCloakUpgrades
             string gap = compact ? " - " : "\n";
             if (pending == outfit && !pendingUsesBox)
                 return now + gap + $"Press {button} again to confirm";
-            return now + gap + (compact ? $"{button}: {CloakTiers.Cost(tier)} gems" : $"Press {button} to upgrade: {CloakTiers.Cost(tier)} gems");
+            string price = $"{CloakCurrency.Price(wizard, tier)} {CloakCurrency.Name}";
+            return now + gap + (compact ? $"{button}: {price}" : $"Press {button} to upgrade: {price}");
         }
 
         private int Tier(string outfitID)
@@ -189,7 +190,6 @@ namespace WoLCloakUpgrades
             return index >= 0 && index < ui.availableOutfitList.Count ? ui.availableOutfitList[index] : null;
         }
 
-        private static int Gems() => Player.platWallet != null ? Player.platWallet.balance : 0;
 
         private void Update()
         {
@@ -228,8 +228,8 @@ namespace WoLCloakUpgrades
             Outfit outfit = Highlighted(ui);
             if (outfit == null || !outfit.unlocked || Tier(outfit.outfitID) >= CloakTiers.Max)
                 return;
-            int cost = CloakTiers.Cost(Tier(outfit.outfitID));
-            if (Gems() < cost)
+            int cost = CloakCurrency.Price(ui.player, Tier(outfit.outfitID));
+            if (CloakCurrency.Have(ui.player) < cost)
             {
                 SoundManager.PlayAudio("StandardHeavySwing", 0.6f, false, -1f, -1f);
                 return;
@@ -257,7 +257,7 @@ namespace WoLCloakUpgrades
                 {
                     pendingUsesBox = true;
                     if (ConfirmHandlerUI.titleText != null)
-                        ConfirmHandlerUI.titleText.text = $"Upgrade to tier {Tier(outfit.outfitID) + 1} for {cost} gems?";
+                        ConfirmHandlerUI.titleText.text = $"Upgrade to tier {Tier(outfit.outfitID) + 1} for {cost} {CloakCurrency.Name}?";
                     return;
                 }
             }
@@ -294,7 +294,7 @@ namespace WoLCloakUpgrades
             Outfit outfit = pending;
             pending = null;
             pendingUsesBox = false;
-            if (yes && outfit != null && Gems() >= CloakTiers.Cost(Tier(outfit.outfitID)))
+            if (yes && outfit != null && CloakCurrency.Have(ui.player) >= CloakCurrency.Price(ui.player, Tier(outfit.outfitID)))
                 Buy(ui, outfit);
         }
 
@@ -320,8 +320,8 @@ namespace WoLCloakUpgrades
         private void Buy(WardrobeUI ui, Outfit outfit)
         {
             int tier = Tier(outfit.outfitID);
-            int cost = CloakTiers.Cost(tier);
-            if (tier >= CloakTiers.Max || Player.platWallet == null || !Player.platWallet.Withdraw(cost))
+            int cost = CloakCurrency.Price(ui.player, tier);
+            if (tier >= CloakTiers.Max || !CloakCurrency.Pay(ui.player, cost))
                 return;
 
             // Take the cloak's bonuses off whoever is wearing it, raise the tier, put them back.
@@ -341,7 +341,7 @@ namespace WoLCloakUpgrades
             {
                 Logger.LogWarning($"Couldn't save the game after the upgrade: {e.Message}");
             }
-            Logger.LogInfo($"{outfit.outfitID} upgraded to tier {tier + 1} for {cost} gems ({Gems()} left)");
+            Logger.LogInfo($"{outfit.outfitID} upgraded to tier {tier + 1} for {cost} {CloakCurrency.Name} ({CloakCurrency.Have(ui.player)} left)");
             GameBanner.Show("CLOAK UPGRADED", $"Tier {tier + 1}: {CloakTiers.Short(tier + 1)}", Picture(ui));
         }
 
