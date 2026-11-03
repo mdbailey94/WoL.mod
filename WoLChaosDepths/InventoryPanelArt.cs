@@ -129,6 +129,12 @@ namespace WoLChaosDepths
                     DrawTalents(R, s, font, inset, slots);
                     return true;
                 }
+                // #79: the GEAR tab's FORGE sub-tab (ForgePanel.cs).
+                if (forgeOpen)
+                {
+                    DrawForge(R, s, font, inset, slots);
+                    return true;
+                }
 
                 // Tab row: < ALL amulet ring charm >, the sort on the right.
                 Texture2D chevL = Piece("ui_chevron_left"), chevR = Piece("ui_chevron_right"), tabArt = Piece("ui_tab");
@@ -261,7 +267,7 @@ namespace WoLChaosDepths
                         PixelUI.Fill(R(8, 151, 217 * held, 1), PixelUI.Accent);
                     }
                 }
-                Label(R(8, 156, 220, 9), "(A) EQUIP   (B) BACK   (HOLD A) SALVAGE   (X) DROP   < > TAB   (Y) SORT", dim);
+                Label(R(8, 156, 220, 9), "(A) EQUIP  (HOLD A) SALVAGE  (X) DROP  < > TAB  (Y) SORT  (F / SELECT) FORGE", dim);
             }
             catch (Exception e)
             {

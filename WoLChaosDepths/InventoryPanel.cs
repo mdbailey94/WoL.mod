@@ -75,6 +75,8 @@ namespace WoLChaosDepths
             confirmHeldSince = -1f;
             confirmConsumed = true; // the press that opened it isn't an equip
             openedAt = Time.unscaledTime;
+            forgeOpen = false;      // opens on ITEMS (#79)
+            picks.Clear();
             if (Open)
                 return;
             Open = true;
@@ -219,6 +221,9 @@ namespace WoLChaosDepths
                 TalentInput(pad, useKeys);
                 return;
             }
+            // #79: F / Back switches the GEAR tab to its FORGE sub-tab (ForgePanel.cs).
+            if (ForgeToggleAndInput(pad, useKeys))
+                return;
 
             // Left and right: the item-type tab (All / Amulet / Ring / Charm). In the Hub, with
             // Interact (Y) held, or Q / E on the keyboard: the depth the next dive starts at.
@@ -575,6 +580,24 @@ namespace WoLChaosDepths
             // can't be had or [Panel] Look says Coded.
             if (DrawnLook && DrawArt())
                 return;
+            if (forgeOpen && panelTab == 0)
+            {
+                Color was = GUI.color;
+                GUI.depth = -100;
+                try
+                {
+                    DrawForgeCoded();
+                }
+                catch (Exception e)
+                {
+                    ChaosDepthsPlugin.LogError($"forge draw: {e.Message}");
+                }
+                finally
+                {
+                    GUI.color = was;
+                }
+                return;
+            }
             Matrix4x4 previousMatrix = GUI.matrix;
             Color previousColor = GUI.color;
             GUI.depth = -100;
@@ -792,7 +815,7 @@ namespace WoLChaosDepths
                     }
                 }
                 Label(new Rect(x, panel.yMax - 8 * u, barW, lineH),
-                    inHubNow ? "(A) EQUIP   (HOLD A) SALVAGE   (X) DROP   (B) BACK   < > TAB   (Y) SORT   UP: DEPTH" : "(A) EQUIP   (HOLD A) SALVAGE   (X / G) DROP   (B) BACK   < > TAB   (Y / Tab) SORT", dim);
+                    inHubNow ? "(A) EQUIP   (HOLD A) SALVAGE   (X) DROP   (B) BACK   < > TAB   (Y) SORT   UP: DEPTH   (F) FORGE" : "(A) EQUIP   (HOLD A) SALVAGE   (X / G) DROP   (B) BACK   < > TAB   (Y / Tab) SORT   (F / SELECT) FORGE", dim);
             }
             catch (Exception e)
             {
