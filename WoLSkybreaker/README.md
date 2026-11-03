@@ -12,8 +12,8 @@ A new **Lightning standard arcana** (Matt's #52), added with [LegendAPI](https:/
 | Where | 4 u ahead along your aim | same | same |
 | Delay | 0.45 s | 0.3 s | 0.8 s of gathering storm |
 | Core (always shocks) | 1 u across, 28 | 1.3 u, 32 | 2 u, 70 |
-| Ring (30% shock) | 2 u across, 6 | 2.6 u, 6 | 4 u, 20, then 6 aftershock bolts round its edge at 8 |
-| One enemy in the core | 34 | 38 | about 98 |
+| Ring (30% shock) | 2 u across, 6 | 2.6 u, 6 | 4 u, 20 |
+| One enemy in the core | 34 | 38 | 90 |
 
 Tier 3, price 5, cooldown 4.5 s. Core and ring are separate bursts, so an enemy in the core takes
 both; one at the edge only the ring.
@@ -29,3 +29,5 @@ cuts it short).
 
 All numbers are in `BepInEx\config\mdbailey94.wol.skybreaker.cfg` ([Bolt], [Enhanced], [Signature],
 [Balance]). The icon is Thunderhead's for now.
+
+**0.2.0** (Matt's #64): a target circle the ring's size pulses on the floor until the bolt lands; the bolt is one single large strike with nothing else round it (bolt drawn 2.2x); the signature is one very large bolt (4.5x) with a deeper thunder, no aftershocks ([Signature] Aftershocks = 0; a 0.1.0 config is moved over on first launch).

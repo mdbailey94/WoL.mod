@@ -5,12 +5,12 @@ namespace WoLSkybreaker
 {
     // One Skybreaker bolt, from the mark to the strike, living in the scene on its own (a level
     // load ends it, and its cinematic puts everything back as it goes).
-    // - standard / enhanced: sparks crackle over the spot for the delay, then the bolt: the core
-    //   burst (high damage) and the ring burst round it (small damage), the game's lightning
-    //   strike drawn over them, a scorch mark, thunder and a shake;
+    // - standard / enhanced (0.2.0, #64): a target circle the ring's size pulses on the floor for
+    //   the delay, then ONE large bolt: the core burst (high damage) and the ring burst round it
+    //   (small damage) under the game's lightning strike, thunder and a shake, nothing else;
     // - signature: the stage darkens and the camera closes in while the storm gathers for
-    //   GatherTime (lightning arcing into the spot), then a colossal bolt with hit-stop, flash and
-    //   slow motion, and a ring of aftershock bolts round its edge.
+    //   GatherTime (the circle, lightning arcing into the spot), then one colossal bolt with a
+    //   deep thunder, hit-stop, flash and slow motion (aftershocks are off by default).
     // Every effect is the game's own and is tried on its own; the first failure of each is logged.
     public class SkyStrike : MonoBehaviour
     {
@@ -69,7 +69,8 @@ namespace WoLSkybreaker
                 }
                 Sound("ThunderClap", spot, 0.4f, 0.7f);
             }
-            Effect("LightningHitEffect", kind == Kind.Signature ? 6 : 3, spot);
+            // #64: the target circle on the floor, the ring's size, until the bolt lands.
+            ShowTarget();
             Sound("LightningBurst", spot, 0.5f, 1.3f);
             Destroy(gameObject, Life + delay);
             SkybreakerPlugin.Log($"Skybreaker: cast ({kind.ToString().ToLowerInvariant()}), bolt in {delay:0.00} s at " +
@@ -95,15 +96,16 @@ namespace WoLSkybreaker
                 Aftershocks();
         }
 
-        // Sparks crackling over the mark, closing in as the bolt nears; the signature's storm also
-        // throws arcs of lightning into the spot.
+        // The target circle pulses faster as the bolt nears (#64: no sparks over the mark any
+        // more, the circle is the telegraph); the signature's storm also throws arcs of lightning
+        // into the spot.
         private void Gather()
         {
-            float left = Mathf.Clamp01(1f - time / Mathf.Max(delay, 0.01f));
-            if (time >= nextSpark)
+            float near = Mathf.Clamp01(time / Mathf.Max(delay, 0.01f));
+            if (target != null)
             {
-                nextSpark = time + SparkInterval;
-                Effect("LightningHitEffect", 1, spot + Random.insideUnitCircle * RingSize * 0.5f * (0.3f + 0.7f * left));
+                float pulse = 0.5f + 0.5f * Mathf.Sin(time * Mathf.Lerp(8f, 30f, near));
+                target.color = new Color(TargetColour.r, TargetColour.g, TargetColour.b, Mathf.Lerp(0.45f, 0.95f, pulse));
             }
             if (kind == Kind.Signature && time >= nextArc)
             {
@@ -122,14 +124,18 @@ namespace WoLSkybreaker
             // A burst's hit radius is its scale (ElementalBurst sets the collider radius to it).
             Burst(spot, coreLevel, CoreSize * 0.5f, sig);
             Burst(spot, ringLevel, RingSize * 0.5f, sig);
+            // #64: ONE large bolt and nothing else (no extra sparks or scorch marks).
+            HideTarget();
             Bolt(spot, sig ? SkybreakerPlugin.SignatureBoltSize : SkybreakerPlugin.BoltSize);
-            Effect("LightningHitEffect", sig ? 12 : 6, spot);
-            Effect("BurnMarkXSmallEmitter", 1, spot);
             if (sig)
-                for (int i = 0; i < 4; i++)
-                    Effect("BurnMarkXSmallEmitter", 1, spot + Random.insideUnitCircle * CoreSize * 0.5f);
-            Sound("ThunderClap", spot, -1f, sig ? 0.75f : 1.05f);
-            Shake(sig ? 2.2f : 0.6f);
+            {
+                // A deeper thunder: the game's clap pitched well down, under a low earth boom.
+                Sound("ThunderClap", spot, -1f, 0.5f);
+                Sound("EarthExplosion", spot, -1f, 0.55f);
+            }
+            else
+                Sound("ThunderClap", spot, -1f, 1.05f);
+            Shake(sig ? 2.4f : 0.6f);
             string did = "";
             if (cinematic != null)
             {
@@ -167,8 +173,74 @@ namespace WoLSkybreaker
 
         private void OnDestroy()
         {
+            HideTarget();
             if (cinematic != null)
                 cinematic.Finish(struck ? "landed" : "cut short");
+        }
+
+        // ---- The target circle (#64) ----
+
+        private const float PixelsPerUnit = 16f;
+        private static readonly Color TargetColour = new Color32(245, 231, 44, 255);   // the game's lightning yellow
+        private static readonly Dictionary<int, Sprite> rings = new Dictionary<int, Sprite>();
+        private SpriteRenderer target;
+
+        // A true circle (the burst's hit area is one), RingSize across, on the game's ground
+        // telegraph layer, under the wizards and enemies.
+        private void ShowTarget()
+        {
+            try
+            {
+                int diameter = Mathf.Max(8, Mathf.RoundToInt(RingSize * PixelsPerUnit));
+                var go = new GameObject("Skybreaker Target");
+                go.transform.position = new Vector3(spot.x, spot.y, 0f);
+                go.transform.SetParent(transform, true);
+                target = go.AddComponent<SpriteRenderer>();
+                target.sprite = Ring(diameter);
+                target.color = TargetColour;
+                int layer = SortingLayer.NameToID("TargetLineGround");
+                if (SortingLayer.IsValid(layer))
+                    target.sortingLayerID = layer;
+                else if (owner != null && owner.spriteRenderer != null)
+                {
+                    target.sortingLayerID = owner.spriteRenderer.sortingLayerID;
+                    target.sortingOrder = owner.spriteRenderer.sortingOrder - 50;
+                }
+            }
+            catch (System.Exception e)
+            {
+                Failed("target circle", e);
+            }
+        }
+
+        private void HideTarget()
+        {
+            if (target != null)
+                Destroy(target.gameObject);
+            target = null;
+        }
+
+        // A 1-px outline with a second ring just inside it and a faint fill, made once per size.
+        private static Sprite Ring(int diameter)
+        {
+            Sprite sprite;
+            if (rings.TryGetValue(diameter, out sprite) && sprite != null)
+                return sprite;
+            var texture = new Texture2D(diameter, diameter, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+            var pixels = new Color32[diameter * diameter];
+            float c = (diameter - 1) * 0.5f, r = diameter * 0.5f;
+            for (int y = 0; y < diameter; y++)
+                for (int x = 0; x < diameter; x++)
+                {
+                    float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c));
+                    byte a = d > r ? (byte)0 : d > r - 1f ? (byte)255 : d > r - 3f && d <= r - 2f ? (byte)140 : (byte)36;
+                    pixels[y * diameter + x] = new Color32(255, 255, 255, a);
+                }
+            texture.SetPixels32(pixels);
+            texture.Apply();
+            sprite = Sprite.Create(texture, new Rect(0, 0, diameter, diameter), new Vector2(0.5f, 0.5f), PixelsPerUnit);
+            rings[diameter] = sprite;
+            return sprite;
         }
 
         // ---- The game's effects ----

@@ -17,7 +17,7 @@ namespace WoLSkybreaker
     {
         public const string PluginGuid = "mdbailey94.wol.skybreaker";
         public const string PluginName = "Skybreaker";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.2.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -42,15 +42,15 @@ namespace WoLSkybreaker
         // Diameters in units (a burst's hit radius is half of it).
         public static float CoreSize => Get(coreSize, 1f, 0.3f, 5f);
         public static float RingSize => Get(ringSize, 2f, 0.5f, 8f);
-        public static float BoltSize => Get(boltSize, 1.6f, 0.5f, 4f);
+        public static float BoltSize => Get(boltSize, 2.2f, 0.5f, 4f);
         public static float EnhancedDelay => Get(enhancedDelay, 0.3f, 0.05f, 2f);
         public static float EnhancedCoreSize => Get(enhancedCoreSize, 1.3f, 0.3f, 5f);
         public static float EnhancedRingSize => Get(enhancedRingSize, 2.6f, 0.5f, 8f);
         public static float SignatureGather => Get(sigGather, 0.8f, 0.1f, 3f);
         public static float SignatureCoreSize => Get(sigCoreSize, 2f, 0.3f, 6f);
         public static float SignatureRingSize => Get(sigRingSize, 4f, 0.5f, 10f);
-        public static float SignatureBoltSize => Get(sigBoltSize, 2.6f, 0.5f, 6f);
-        public static int SignatureAftershocks => Mathf.Clamp(sigAftershocks?.Value ?? 6, 0, 16);
+        public static float SignatureBoltSize => Get(sigBoltSize, 4.5f, 0.5f, 8f);
+        public static int SignatureAftershocks => Mathf.Clamp(sigAftershocks?.Value ?? 0, 0, 16);
         public static float SignatureAftershockDelay => Get(sigAftershockDelay, 0.15f, 0f, 1f);
         public static float SignatureAftershockSize => Get(sigAftershockSize, 1f, 0.3f, 4f);
         public static bool Cinematic => cinematic?.Value ?? true;
@@ -66,6 +66,7 @@ namespace WoLSkybreaker
         private void Awake()
         {
             log = Logger;
+            bool hadConfig = File.Exists(Config.ConfigFilePath);
             modEnabled = Config.Bind("General", "Enabled", true,
                 "Offer Skybreaker in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
@@ -73,6 +74,18 @@ namespace WoLSkybreaker
                 "Unlock Skybreaker's signature version along with the arcana itself (not in Chaos Depths' fresh saves, " +
                 "where the signature is its own shop card). Off: its Signature drop has to be found in a run.");
             BindSettings();
+            // 0.2.0 (#64): one big bolt, and one huge signature bolt with no aftershocks. A config
+            // from 0.1.0 still holds the old sizes and 6 aftershocks; Matt asked for these outright,
+            // so they move to the new values.
+            var revision = Config.Bind("General", "SettingsRevision", 0, "Which version's defaults this file was last updated to. Leave it alone.");
+            if (hadConfig && revision.Value < 2)
+            {
+                boltSize.Value = (float)boltSize.DefaultValue;
+                sigBoltSize.Value = (float)sigBoltSize.DefaultValue;
+                sigAftershocks.Value = (int)sigAftershocks.DefaultValue;
+                Logger.LogInfo("Skybreaker: settings moved to 0.2.0's single bolt (BoltSize 2.2, signature BoltSize 4.5, no aftershocks)");
+            }
+            revision.Value = 2;
             SignatureUnlock.Install(new Harmony(PluginGuid), SkybreakerState.staticID,
                 () => signatureWithArcana.Value, message => Log("Skybreaker: " + message));
 
@@ -134,7 +147,7 @@ namespace WoLSkybreaker
             delay = Float("Bolt", "Delay", 0.45f, 0.05f, 2f, "Seconds between the cast marking the spot and the bolt striking it.");
             coreSize = Float("Bolt", "CoreSize", 1f, 0.3f, 5f, "Diameter in units of the bolt's core (the high damage).");
             ringSize = Float("Bolt", "RingSize", 2f, 0.5f, 8f, "Diameter in units of the ring round it (the small damage).");
-            boltSize = Float("Bolt", "BoltSize", 1.6f, 0.5f, 4f, "Size of the drawn bolt (the game's lightning strike).");
+            boltSize = Float("Bolt", "BoltSize", 2.2f, 0.5f, 4f, "Size of the drawn bolt (the game's lightning strike).");
             enhancedDelay = Float("Enhanced", "Delay", 0.3f, 0.05f, 2f, "Delay when enhanced.");
             enhancedCoreSize = Float("Enhanced", "CoreSize", 1.3f, 0.3f, 5f, "Core diameter when enhanced.");
             enhancedRingSize = Float("Enhanced", "RingSize", 2.6f, 0.5f, 8f, "Ring diameter when enhanced.");
@@ -142,9 +155,10 @@ namespace WoLSkybreaker
             sigGather = Float("Signature", "GatherTime", 0.8f, 0.1f, 3f, "Seconds the storm gathers over the spot before the bolt.");
             sigCoreSize = Float("Signature", "CoreSize", 2f, 0.3f, 6f, "Core diameter of the signature bolt.");
             sigRingSize = Float("Signature", "RingSize", 4f, 0.5f, 10f, "Ring diameter of the signature bolt.");
-            sigBoltSize = Float("Signature", "BoltSize", 2.6f, 0.5f, 6f, "Size of the drawn signature bolt.");
-            sigAftershocks = Config.Bind("Signature", "Aftershocks", 6,
-                new ConfigDescription("Smaller bolts striking round the ring's edge just after the signature bolt.", new AcceptableValueRange<int>(0, 16)));
+            sigBoltSize = Float("Signature", "BoltSize", 4.5f, 0.5f, 8f, "Size of the drawn signature bolt.");
+            sigAftershocks = Config.Bind("Signature", "Aftershocks", 0,
+                new ConfigDescription("Smaller bolts striking round the ring's edge just after the signature bolt (0 = one single bolt, as Matt asked in #64).",
+                    new AcceptableValueRange<int>(0, 16)));
             sigAftershockDelay = Float("Signature", "AftershockDelay", 0.15f, 0f, 1f, "Seconds after the signature bolt before the aftershocks.");
             sigAftershockSize = Float("Signature", "AftershockSize", 1f, 0.3f, 4f, "Hit diameter of each aftershock.");
             cinematic = Config.Bind("Signature", "Cinematic", true,
