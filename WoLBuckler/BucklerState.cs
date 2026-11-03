@@ -5,12 +5,14 @@ namespace WoLBuckler
     // The game's melee combo (MeleeAttackState: the 3-hit chain, its timing and animations), with
     // no attack object of its own (skipAtkObjSpawn, as Flaming Whip): each punch is the game's
     // earth burst just in front of the wizard, with this arcana's stats, so gear, crits and
-    // talents apply as to any basic. Fast: short wind-ups and an early cancel.
+    // talents apply as to any basic. Deliberate: a longer wind-up and pause than the game's basics.
     public sealed class BucklerState : Player.MeleeAttackState
     {
         public new static string staticID = "BucklerBasic";
 
-        private const float PunchExecTime = 0.08f, FinisherExecTime = 0.11f;
+        // 0.3.0 (Matt: 'a longer delay than normal between hits'): was 0.08 / 0.11 with windows
+        // about half these.
+        private const float PunchExecTime = 0.2f, FinisherExecTime = 0.26f;
 
         public BucklerState(FSM fsm, Player player) : base(staticID, fsm, player)
         {
@@ -22,12 +24,12 @@ namespace WoLBuckler
             maxComboCount = 2;
             animStartTime = 0.03f;
             animExecTime = PunchExecTime;
-            baseCancelThreshold = 0.20f;
-            finalCancelThreshold = 0.28f;
-            baseRunThreshold = 0.30f;
-            finalRunThreshold = 0.40f;
-            baseExitThreshold = 0.45f;
-            finalExitThreshold = 0.60f;
+            baseCancelThreshold = 0.45f;
+            finalCancelThreshold = 0.55f;
+            baseRunThreshold = 0.55f;
+            finalRunThreshold = 0.65f;
+            baseExitThreshold = 0.75f;
+            finalExitThreshold = 0.90f;
             alwaysStartForehand = true;
             // Short reach: a step into each punch keeps the target in range.
             attackMoveSpeedMod = new NumVarStatMod(atkMoveModStr, 3f, 10, VarStatModType.OverrideWithMods);

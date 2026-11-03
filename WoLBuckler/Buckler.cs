@@ -79,7 +79,7 @@ namespace WoLBuckler
     // wizard's own; a boomerang is sent back instead. Enhanced: each break bursts into shrapnel.
     internal class BucklerGuard : MonoBehaviour
     {
-        private const float ShotScanInterval = 0.1f;
+        private const float ShotScanInterval = 0.1f, ShieldScale = 2f;
         private static Projectile[] shots = new Projectile[0];
         private static float nextShotScan;
         private Player owner;
@@ -98,7 +98,8 @@ namespace WoLBuckler
             guard.aim = aim;
             guard.enhanced = enhanced;
             guard.born = Time.time;
-            go.transform.localScale = new Vector3(1.15f, 1.15f, 1f);
+            // Swing-sized (0.3.0): 14 px drawn about 1.75 u across.
+            go.transform.localScale = new Vector3(ShieldScale, ShieldScale, 1f);
             guard.look = go.AddComponent<SpriteRenderer>();
             guard.look.sprite = BucklerArt.PunchAt(0f);
             // The smash's sparks are drawn on the right edge: turned to the aim, and mirrored
