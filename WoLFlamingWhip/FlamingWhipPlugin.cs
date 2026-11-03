@@ -17,7 +17,7 @@ namespace WoLFlamingWhip
     {
         public const string PluginGuid = "mdbailey94.wol.flamingwhip";
         public const string PluginName = "Flaming Whip";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.2.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -32,7 +32,7 @@ namespace WoLFlamingWhip
 
         public static float LashLength => Get(lashLength, 3.5f, 1f, 8f);
         public static float LashWidth => Get(lashWidth, 0.6f, 0.2f, 2f);
-        public static float CrackRadius => Get(crackRadius, 2.5f, 0.5f, 6f);
+        public static float CrackRadius => Get(crackRadius, 1.8f, 0.5f, 6f);
         public static float FireLineTime => Get(fireLineTime, 1.5f, 0.2f, 6f);
         public static float FireLineTick => Get(fireLineTick, 0.4f, 0.1f, 2f);
 
@@ -42,10 +42,19 @@ namespace WoLFlamingWhip
         private void Awake()
         {
             log = Logger;
+            bool hadConfig = File.Exists(Config.ConfigFilePath);
             modEnabled = Config.Bind("General", "Enabled", true,
                 "Offer Flaming Whip in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
             BindSettings();
+            // 0.2.0 (#78): Matt asked for a smaller crack; a 0.1.0 config still holds 2.5 u.
+            var revision = Config.Bind("General", "SettingsRevision", 0, "Which version's defaults this file was last updated to. Leave it alone.");
+            if (hadConfig && revision.Value < 2)
+            {
+                crackRadius.Value = (float)crackRadius.DefaultValue;
+                Logger.LogInfo("Flaming Whip: settings moved to 0.2.0's smaller crack (CrackRadius 1.8)");
+            }
+            revision.Value = 2;
             WhipArt.Load(Logger);
 
             Skills.Register(new SkillInfo
@@ -89,7 +98,7 @@ namespace WoLFlamingWhip
         {
             lashLength = Float("Whip", "LashLength", 3.5f, 1f, 8f, "How far each lash reaches along your aim, in units.");
             lashWidth = Float("Whip", "LashWidth", 0.6f, 0.2f, 2f, "How wide the lash's hit is, in units.");
-            crackRadius = Float("Whip", "CrackRadius", 2.5f, 0.5f, 6f, "Radius of the third hit's overhead crack round you.");
+            crackRadius = Float("Whip", "CrackRadius", 1.8f, 0.5f, 6f, "Radius of the third hit's overhead crack round you.");
             fireLineTime = Float("Enhanced", "FireLineTime", 1.5f, 0.2f, 6f, "Seconds each lash's line of fire burns on the floor.");
             fireLineTick = Float("Enhanced", "FireLineTick", 0.4f, 0.1f, 2f, "Seconds between the fire line's hits.");
 

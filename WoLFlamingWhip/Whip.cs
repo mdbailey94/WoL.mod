@@ -3,9 +3,10 @@ using UnityEngine;
 
 namespace WoLFlamingWhip
 {
-    // WoL Art's frames (Log - Art 2026-11-02 20:11), all 16 px per unit, Point filter: the lash
-    // (4 x 64x8, handle at the left, tip at the right), the crack burst (5 x 32x32, centre 16,16)
-    // and the fire line floor tile (4 x 16x16, tiles along x).
+    // WoL Art's frames, all 16 px per unit, Point filter: the lash (#78 redraw, Log - Art
+    // 2026-11-03 11:24: 8 x 64x12, handle at the left on row 6; an S-wave runs down it over frames
+    // 0-5, then 6-7 snap straight with a spark at the tip), the crack burst (#78: 6 x 48x48,
+    // centre 24,24) and the fire line floor tile (4 x 16x16, tiles along x).
     internal static class WhipArt
     {
         public static Sprite[] Lash, Crack, FireLine;
@@ -13,7 +14,7 @@ namespace WoLFlamingWhip
         public static void Load(BepInEx.Logging.ManualLogSource log)
         {
             Lash = Frames("whip_lash.png", 64, new Vector2(0f, 0.5f));
-            Crack = Frames("whip_crack.png", 32, new Vector2(0.5f, 0.5f));
+            Crack = Frames("whip_crack.png", 48, new Vector2(0.5f, 0.5f));
             FireLine = Frames("whip_fireline.png", 16, new Vector2(0f, 0.5f));
             log?.LogInfo($"Flaming Whip art: lash {Lash.Length}, crack {Crack.Length}, fire line {FireLine.Length} frames");
         }
@@ -49,13 +50,30 @@ namespace WoLFlamingWhip
             FlamingWhipPlugin.Log($"Flaming Whip: lash ({length:0.0} u{(enhanced ? ", fire line" : "")}), {hits} hit");
         }
 
-        // Hit 3: an overhead crack, the game's fire burst in a ring round the wizard.
+        // Hit 3: an overhead crack, the game's fire burst in a ring round the wizard. #78: a smaller
+        // ring (1.8 u), with Art's bigger, brighter burst drawn on it and a sharp crack sound. The
+        // burst's ring reaches ~23 px of its 24 by the last frame, so it's drawn so its outer edge
+        // sits on the hit area's edge (Art's suggestion: 1.25x for 1.8 u).
         public static void Crack(Player owner, string skillID, Vector2 at)
         {
             float radius = FlamingWhipPlugin.CrackRadius;
             Burst(at, owner.skillCategory, skillID, 2, radius, true);
-            Anim.Play(WhipArt.Crack, at + Vector2.up * 1.2f, 0f, Vector3.one, 14f, owner, false);
+            float drawn = radius * 16f / 23f;
+            Anim.Play(WhipArt.Crack, at, 0f, new Vector3(drawn, drawn, 1f), 16f, owner, false);
+            Sound("ThunderClap", at, 1.9f);
+            Sound("FlameSlam", at, 1.2f);
             FlamingWhipPlugin.Log($"Flaming Whip: crack ({radius:0.0} u)");
+        }
+
+        private static void Sound(string name, Vector2 at, float pitch)
+        {
+            try
+            {
+                SoundManager.PlayAudioWithDistance(name, at, null, 24f, -1f, pitch);
+            }
+            catch
+            {
+            }
         }
 
         // A burst's hit radius is its scale (ElementalBurst sets the collider radius to it).

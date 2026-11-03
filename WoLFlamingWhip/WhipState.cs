@@ -1,3 +1,4 @@
+using Chaos.AnimatorExtensions;
 using UnityEngine;
 
 namespace WoLFlamingWhip
@@ -34,11 +35,26 @@ namespace WoLFlamingWhip
         }
 
         private bool executed;
+        private const float ExecTime = 0.16f, CrackExecTime = 0.24f;
 
         public override void OnEnter()
         {
             base.OnEnter();
             executed = false;
+        }
+
+        // #78: the crack gets a clear wind-up: the game's point-blank AoE pose (as its own basics
+        // use for a ring finisher), held a little longer before the whip comes down.
+        public override void PlayAnimation(int attackCount)
+        {
+            if (attackCount >= maxComboCount)
+            {
+                animExecTime = CrackExecTime;
+                parent.anim.PlayDirectional(parent.PBAoEAnimStr, -1, animStartTime);
+                return;
+            }
+            animExecTime = ExecTime;
+            base.PlayAnimation(attackCount);
         }
 
         // Once per hit, as Momentum Spear.
