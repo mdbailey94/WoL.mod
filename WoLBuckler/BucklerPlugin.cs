@@ -8,19 +8,20 @@ using UnityEngine;
 namespace WoLBuckler
 {
     // Buckler (#87, Matt 2026-11-03, the GIANT WEAPON set): a new Earth basic arcana, a small
-    // stone shield worn for punching. Two heavy punches from the hands, no charge; the buckler
-    // faces the punch and breaks any enemy shot it meets from the front while it's out (Stone
-    // Charge's shot-break). Enhanced: a shot it breaks bursts into rock shrapnel. A basic can't be
-    // a signature, so there is none. 0.2.0 (Matt's play-test): at hand height (was at the feet),
-    // 2 hits (was 3), directional. 0.3.0 (Matt): swing-sized (the buckler drawn about twice as
-    // big, with a hit and guard to match), a longer pause between punches, high knockback.
+    // stone shield worn for punching. 0.4.0 (Matt: 'hit hold, hit hold, toss disk'): a punch, then
+    // the buckler held up in front through a long pause; a second punch and hold; then the buckler
+    // tossed like a disc, spinning out and back. Held or flying, it breaks enemy shots (Stone
+    // Charge's shot-break; held, only at its face). ENHANCED: the larger, swing-sized buckler (its
+    // hits and guard with it) and high knockback, and a shot it breaks bursts into rock shrapnel.
+    // A basic can't be a signature, so there is none. Earlier: 0.2.0 at hand height and
+    // directional; 0.3.0 the longer pause.
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency("xyz.yekoc.wizardoflegend.LegendAPI")]
     public class BucklerPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "mdbailey94.wol.buckler";
         public const string PluginName = "Buckler";
-        public const string PluginVersion = "0.3.0";
+        public const string PluginVersion = "0.4.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -28,16 +29,22 @@ namespace WoLBuckler
         public static void Log(string message) => log?.LogInfo(message);
 
         // ---- Settings (BepInEx\config\mdbailey94.wol.buckler.cfg) ----
-        // [Buckler] and [Enhanced] apply the next punch; [Balance] after restarting the game.
-        private static ConfigEntry<float> punchReach, punchRadius, finisherRadius, guardRadius, guardTime, shrapnelRadius;
-        private static ConfigEntry<int> punchDamage, finisherDamage, shrapnelDamage;
-        private static ConfigEntry<float> punchKnockback, finisherKnockback;
+        // [Buckler], [Disc] and [Enhanced] apply the next hit; [Balance] after restarting the game.
+        private static ConfigEntry<float> punchReach, punchRadius, guardRadius, holdTime;
+        private static ConfigEntry<float> discRange, discSpeed, discReturnSpeed, discRadius;
+        private static ConfigEntry<float> enhancedSize, shrapnelRadius;
+        private static ConfigEntry<int> punchDamage, discDamage, shrapnelDamage;
+        private static ConfigEntry<float> punchKnockback, discKnockback, enhancedPunchKnockback, enhancedDiscKnockback;
 
-        public static float PunchReach => Get(punchReach, 1.3f, 0.4f, 3f);
-        public static float PunchRadius => Get(punchRadius, 1.1f, 0.3f, 2f);
-        public static float FinisherRadius => Get(finisherRadius, 1.4f, 0.3f, 3f);
-        public static float GuardRadius => Get(guardRadius, 1.2f, 0.3f, 2f);
-        public static float GuardTime => Get(guardTime, 0.45f, 0.1f, 1f);
+        public static float PunchReach => Get(punchReach, 1.0f, 0.4f, 3f);
+        public static float PunchRadius => Get(punchRadius, 0.75f, 0.3f, 2f);
+        public static float GuardRadius => Get(guardRadius, 0.8f, 0.3f, 2f);
+        public static float HoldTime => Get(holdTime, 0.55f, 0.15f, 1.5f);
+        public static float DiscRange => Get(discRange, 5.5f, 1f, 12f);
+        public static float DiscSpeed => Get(discSpeed, 14f, 4f, 40f);
+        public static float DiscReturnSpeed => Get(discReturnSpeed, 16f, 4f, 40f);
+        public static float DiscRadius => Get(discRadius, 0.6f, 0.2f, 2f);
+        public static float EnhancedSize => Get(enhancedSize, 1.75f, 1f, 3f);
         public static float ShrapnelRadius => Get(shrapnelRadius, 0.8f, 0.3f, 2f);
 
         private static float Get(ConfigEntry<float> entry, float fallback, float min, float max) =>
@@ -51,23 +58,25 @@ namespace WoLBuckler
                 "Offer Buckler in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
             BindSettings();
-            // 0.3.0: a bigger buckler and heavier punches; an older config still holds 0.1's numbers.
+            // 0.4.0: the big buckler and high knockback moved to the enhanced version; an older
+            // config still holds 0.3's (or 0.1's) numbers.
             var revision = Config.Bind("General", "SettingsRevision", 0, "Which version's defaults this file was last updated to. Leave it alone.");
-            if (hadConfig && revision.Value < 1)
+            if (hadConfig && revision.Value < 2)
             {
-                foreach (ConfigEntry<float> entry in new[] { punchReach, punchRadius, finisherRadius, guardRadius, guardTime, punchKnockback, finisherKnockback })
+                foreach (ConfigEntry<float> entry in new[] { punchReach, punchRadius, guardRadius, punchKnockback })
                     entry.Value = (float)entry.DefaultValue;
-                Logger.LogInfo("Buckler: settings moved to 0.3.0's bigger, heavier punches");
+                Logger.LogInfo("Buckler: settings moved to 0.4.0's numbers (hit, hold, hit, hold, disc)");
             }
-            revision.Value = 1;
+            revision.Value = 2;
             BucklerArt.Load(Logger);
 
+            int punch = Mathf.Clamp(punchDamage.Value, 0, 200), disc = Mathf.Clamp(discDamage.Value, 0, 200);
             Skills.Register(new SkillInfo
             {
                 ID = BucklerState.staticID,
                 displayName = "Buckler",
-                description = "Punch with a stone buckler: two quick blows, and any shot it meets head-on breaks on the stone!",
-                enhancedDescription = "Shots the buckler breaks burst into rock shrapnel!",
+                description = "Punch and hold up a stone buckler that breaks any shot it meets head-on, twice, then toss it like a disc!",
+                enhancedDescription = "A bigger buckler with heavy knockback, and broken shots burst into rock shrapnel!",
                 icon = LoadIcon("buckler_icon.png"),
                 tier = 2,
                 stateType = typeof(BucklerState),
@@ -77,17 +86,19 @@ namespace WoLBuckler
                     elementType = new[] { "Earth" },
                     subElementType = new[] { "Earth" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
-                    // Levels: 1 the first punch, 2 the last punch, 3 the enhanced shrapnel.
-                    damage = new[]
-                    {
-                        Mathf.Clamp(punchDamage.Value, 0, 200), Mathf.Clamp(finisherDamage.Value, 0, 200), Mathf.Clamp(shrapnelDamage.Value, 0, 200)
-                    },
+                    // Levels: 1 a punch, 2 the disc, 3 the enhanced shrapnel, 4 an enhanced punch
+                    // and 5 the enhanced disc (the same damage, high knockback).
+                    damage = new[] { punch, disc, Mathf.Clamp(shrapnelDamage.Value, 0, 200), punch, disc },
                     cooldown = new[] { 0f },
-                    knockbackMultiplier = new[] { Mathf.Clamp(punchKnockback.Value, 0f, 100f), Mathf.Clamp(finisherKnockback.Value, 0f, 100f), 5f },
-                    hitStunDurationModifier = new[] { 1.2f, 1.4f, 0.5f },
-                    showDamageNumber = new[] { true, true, true },
+                    knockbackMultiplier = new[]
+                    {
+                        Mathf.Clamp(punchKnockback.Value, 0f, 100f), Mathf.Clamp(discKnockback.Value, 0f, 100f), 5f,
+                        Mathf.Clamp(enhancedPunchKnockback.Value, 0f, 100f), Mathf.Clamp(enhancedDiscKnockback.Value, 0f, 100f)
+                    },
+                    hitStunDurationModifier = new[] { 1f, 1.2f, 0.5f, 1.3f, 1.4f },
+                    showDamageNumber = new[] { true, true, true, true, true },
                     sameAttackImmunityTime = new[] { 0.05f },
-                    shakeCamera = new[] { false, true, false }
+                    shakeCamera = new[] { false, false, false, true, true }
                 },
                 priceMultiplier = 3,
                 // LegendAPI rerolls a shop offer when this returns false.
@@ -99,19 +110,25 @@ namespace WoLBuckler
 
         private void BindSettings()
         {
-            punchReach = Float("Buckler", "PunchReach", 1.3f, 0.4f, 3f, "How far in front of you a punch lands, in units.");
-            punchRadius = Float("Buckler", "PunchRadius", 1.1f, 0.3f, 2f, "Radius of the first punch's hit.");
-            finisherRadius = Float("Buckler", "FinisherRadius", 1.4f, 0.3f, 3f, "Radius of the last punch's hit.");
-            guardRadius = Float("Buckler", "GuardRadius", 1.2f, 0.3f, 2f, "How close to the buckler an enemy shot breaks, in units.");
-            guardTime = Float("Buckler", "GuardTime", 0.45f, 0.1f, 1f, "Seconds the buckler stays out (and breaks shots) per punch.");
+            punchReach = Float("Buckler", "PunchReach", 1.0f, 0.4f, 3f, "How far in front of your hands a punch lands, in units.");
+            punchRadius = Float("Buckler", "PunchRadius", 0.75f, 0.3f, 2f, "Radius of a punch's hit.");
+            guardRadius = Float("Buckler", "GuardRadius", 0.8f, 0.3f, 2f, "How close to the held buckler an enemy shot breaks, in units.");
+            holdTime = Float("Buckler", "HoldTime", 0.55f, 0.15f, 1.5f, "Seconds the buckler stays held up (breaking shots) after each punch.");
+            discRange = Float("Disc", "Range", 5.5f, 1f, 12f, "How far the tossed buckler flies before it comes back, in units.");
+            discSpeed = Float("Disc", "Speed", 14f, 4f, 40f, "How fast it flies out, units a second.");
+            discReturnSpeed = Float("Disc", "ReturnSpeed", 16f, 4f, 40f, "How fast it flies back to you, units a second.");
+            discRadius = Float("Disc", "Radius", 0.6f, 0.2f, 2f, "How close to the disc an enemy is hit (or a shot breaks), in units.");
+            enhancedSize = Float("Enhanced", "SizeMultiplier", 1.75f, 1f, 3f, "Enhanced: the buckler, its hits, guard and disc this much bigger.");
             shrapnelRadius = Float("Enhanced", "ShrapnelRadius", 0.8f, 0.3f, 2f, "Enhanced: radius of the shrapnel burst where a shot breaks.");
 
             const string restart = " Applies after restarting the game.";
-            punchDamage = Int("Balance", "PunchDamage", 7, 200, "Damage of the first punch." + restart);
-            finisherDamage = Int("Balance", "FinisherDamage", 11, 200, "Damage of the last punch." + restart);
+            punchDamage = Int("Balance", "PunchDamage", 7, 200, "Damage of each punch (hits 1 and 2)." + restart);
+            discDamage = Int("Balance", "DiscDamage", 10, 200, "Damage of the tossed disc, on the way out and again on the way back." + restart);
             shrapnelDamage = Int("Balance", "ShrapnelDamage", 5, 200, "Damage of the enhanced shrapnel burst." + restart);
-            punchKnockback = Float("Balance", "PunchKnockback", 25f, 0f, 100f, "Knockback of the first punch." + restart);
-            finisherKnockback = Float("Balance", "FinisherKnockback", 45f, 0f, 100f, "Knockback of the last punch." + restart);
+            punchKnockback = Float("Balance", "PunchKnockback", 6f, 0f, 100f, "Knockback of a punch." + restart);
+            discKnockback = Float("Balance", "DiscKnockback", 12f, 0f, 100f, "Knockback of the disc." + restart);
+            enhancedPunchKnockback = Float("Balance", "EnhancedPunchKnockback", 30f, 0f, 100f, "Enhanced: knockback of a punch." + restart);
+            enhancedDiscKnockback = Float("Balance", "EnhancedDiscKnockback", 45f, 0f, 100f, "Enhanced: knockback of the disc." + restart);
         }
 
         private ConfigEntry<float> Float(string section, string key, float value, float min, float max, string description) =>

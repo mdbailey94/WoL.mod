@@ -5,14 +5,16 @@ namespace WoLBuckler
     // The game's melee combo (MeleeAttackState: the 3-hit chain, its timing and animations), with
     // no attack object of its own (skipAtkObjSpawn, as Flaming Whip): each punch is the game's
     // earth burst just in front of the wizard, with this arcana's stats, so gear, crits and
-    // talents apply as to any basic. Deliberate: a longer wind-up and pause than the game's basics.
+    // talents apply as to any basic. 0.4.0 (Matt: 'hit hold, hit hold, toss disk'): punch, the
+    // buckler held up through a long pause, punch, held up again, then the buckler tossed like a
+    // disc.
     public sealed class BucklerState : Player.MeleeAttackState
     {
         public new static string staticID = "BucklerBasic";
 
         // 0.3.0 (Matt: 'a longer delay than normal between hits'): was 0.08 / 0.11 with windows
         // about half these.
-        private const float PunchExecTime = 0.2f, FinisherExecTime = 0.26f;
+        private const float PunchExecTime = 0.2f, TossExecTime = 0.24f;
 
         public BucklerState(FSM fsm, Player player) : base(staticID, fsm, player)
         {
@@ -20,8 +22,7 @@ namespace WoLBuckler
             isMeleeSkill = true;
             skipAtkObjSpawn = true;
             destroyAttackObjectOnExit = false;
-            // 0.2.0 (Matt): a 2-hit combo, a punch and the heavier last punch.
-            maxComboCount = 2;
+            maxComboCount = 3;
             animStartTime = 0.03f;
             animExecTime = PunchExecTime;
             baseCancelThreshold = 0.45f;
@@ -31,9 +32,10 @@ namespace WoLBuckler
             baseExitThreshold = 0.75f;
             finalExitThreshold = 0.90f;
             alwaysStartForehand = true;
-            // Short reach: a step into each punch keeps the target in range.
+            // Short reach: a step into each punch keeps the target in range; the toss is thrown
+            // standing.
             attackMoveSpeedMod = new NumVarStatMod(atkMoveModStr, 3f, 10, VarStatModType.OverrideWithMods);
-            finalAttackMoveSpeedMod = new NumVarStatMod(atkMoveModStr, 4f, 10, VarStatModType.OverrideWithMods);
+            finalAttackMoveSpeedMod = new NumVarStatMod(atkMoveModStr, 0f, 10, VarStatModType.OverrideWithMods);
             forceMovement = true;
             autoHoldStat.BaseValue = true;
             sfxNames = new[] { "WindSlashBasic", "WindSlashBasic", "WindSlashBasic" };
@@ -49,7 +51,7 @@ namespace WoLBuckler
 
         public override void PlayAnimation(int attackCount)
         {
-            animExecTime = attackCount >= maxComboCount ? FinisherExecTime : PunchExecTime;
+            animExecTime = attackCount >= maxComboCount ? TossExecTime : PunchExecTime;
             base.PlayAnimation(attackCount);
         }
 
@@ -65,11 +67,14 @@ namespace WoLBuckler
                 aim = Vector2.right;
             try
             {
-                Buckler.Punch(parent, skillID, aim, comboCounter >= maxComboCount, IsEmpowered);
+                if (comboCounter >= maxComboCount)
+                    BucklerDisc.Toss(parent, skillID, aim, IsEmpowered);
+                else
+                    Buckler.Punch(parent, skillID, aim, IsEmpowered);
             }
             catch (System.Exception e)
             {
-                BucklerPlugin.Log($"Buckler: punch {comboCounter} failed: {e.Message}");
+                BucklerPlugin.Log($"Buckler: hit {comboCounter} failed: {e.Message}");
             }
         }
     }

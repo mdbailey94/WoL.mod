@@ -1,10 +1,11 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace WoLBuckler
 {
     // WoL Art's buckler (Log - Art 13:48, 'Giant weapons (2026-11-03)'), 16 px per unit, Point
     // filter, centre pivot: the buckler (14x14) and the punch (4 x 14x14: pull back, the smash with
-    // sparks on its right edge, hold, recover; flipped for a punch to the left).
+    // sparks on its right edge, hold, recover; turned to the punch).
     internal static class BucklerArt
     {
         public static Sprite Shield;
@@ -25,39 +26,43 @@ namespace WoLBuckler
             log?.LogInfo($"Buckler art: buckler {(Shield != null ? "loaded" : "missing")}, punch {Punch.Length} frames");
         }
 
-        // The punch frame for this far through the guard (0-1): a quick pull back, the smash while
-        // the buckler flies out, the hold, then the recover.
-        public static Sprite PunchAt(float t)
-        {
-            if (Punch.Length < 4)
-                return Shield;
-            return Punch[t < 0.1f ? 0 : t < 0.45f ? 1 : t < 0.75f ? 2 : 3];
-        }
+        // A punch frame (0 pull back, 1 smash, 2 hold, 3 recover), or the plain buckler.
+        public static Sprite PunchFrame(int i) => Punch.Length >= 4 ? Punch[i] : Shield;
     }
 
     internal static class Buckler
     {
+        // The base buckler is drawn 1.15x (14 px, about 1 u across); enhanced, SizeMultiplier
+        // times that, its hits and guard with it.
+        public const float BaseScale = 1.15f;
+
+        public static float Size(bool enhanced) => enhanced ? BucklerPlugin.EnhancedSize : 1f;
+
         // Where the wizard's hands are (the game's attack origin); the feet were too low (Matt,
         // 0.2.0).
         public static Vector2 Hand(Player owner) =>
             owner.attackOriginTrans != null ? (Vector2)owner.attackOriginTrans.position : (Vector2)owner.transform.position;
 
-        // A punch: the game's earth burst where the buckler lands, and the buckler out in front
-        // (breaking shots) for GuardTime.
-        public static void Punch(Player owner, string skillID, Vector2 aim, bool finisher, bool enhanced)
+        // Hits 1 and 2: the game's earth burst where the buckler lands, then the buckler is held
+        // up in front (breaking shots at its face) through the pause before the next hit.
+        public static void Punch(Player owner, string skillID, Vector2 aim, bool enhanced)
         {
-            Vector2 at = Hand(owner) + aim * BucklerPlugin.PunchReach;
-            float radius = finisher ? BucklerPlugin.FinisherRadius : BucklerPlugin.PunchRadius;
+            Vector2 at = Hand(owner) + aim * BucklerPlugin.PunchReach * Size(enhanced);
+            Burst(owner, skillID, at, enhanced ? 4 : 1, BucklerPlugin.PunchRadius * Size(enhanced));
+            Sound("ImpactEarthAlt", at, enhanced ? 0.9f : 1.2f);
+            BucklerGuard.Raise(owner, skillID, aim, enhanced);
+        }
+
+        internal static void Burst(Player owner, string skillID, Vector2 at, int level, float radius)
+        {
             try
             {
-                EarthBurst.CreateBurst(at, owner.skillCategory, skillID, finisher ? 2 : 1, radius);
+                EarthBurst.CreateBurst(at, owner.skillCategory, skillID, level, radius);
             }
             catch (System.Exception e)
             {
                 BucklerPlugin.Log($"Buckler: a burst failed: {e.Message}");
             }
-            Sound(finisher ? "EarthExplosionShort" : "ImpactEarthAlt", at, finisher ? 1f : 1.2f);
-            BucklerGuard.Raise(owner, skillID, aim, enhanced);
         }
 
         internal static void Sound(string name, Vector2 at, float pitch)
@@ -70,80 +75,23 @@ namespace WoLBuckler
             {
             }
         }
-    }
 
-    // The buckler out in front of the wizard's hands for one punch: it shoots forward and back
-    // again, turned to face the punch, and any enemy shot that reaches it from the front (0.2.0:
-    // the shield is directional, Matt) breaks, with the checks of Stone Charge's shield
-    // (WoLStoneCharge NegateShots): not one that ignores negation, is already returning, or is a
-    // wizard's own; a boomerang is sent back instead. Enhanced: each break bursts into shrapnel.
-    internal class BucklerGuard : MonoBehaviour
-    {
-        private const float ShotScanInterval = 0.1f, ShieldScale = 2f;
+        // ---- Enemy shots breaking on the buckler ----
+
+        private const float ShotScanInterval = 0.1f;
         private static Projectile[] shots = new Projectile[0];
         private static float nextShotScan;
-        private Player owner;
-        private string skillID;
-        private Vector2 aim;
-        private bool enhanced;
-        private float born;
-        private SpriteRenderer look;
 
-        public static void Raise(Player owner, string skillID, Vector2 aim, bool enhanced)
-        {
-            var go = new GameObject("Buckler Guard");
-            BucklerGuard guard = go.AddComponent<BucklerGuard>();
-            guard.owner = owner;
-            guard.skillID = skillID;
-            guard.aim = aim;
-            guard.enhanced = enhanced;
-            guard.born = Time.time;
-            // Swing-sized (0.3.0): 14 px drawn about 1.75 u across.
-            go.transform.localScale = new Vector3(ShieldScale, ShieldScale, 1f);
-            guard.look = go.AddComponent<SpriteRenderer>();
-            guard.look.sprite = BucklerArt.PunchAt(0f);
-            // The smash's sparks are drawn on the right edge: turned to the aim, and mirrored
-            // top to bottom when punching left so its light stays on top.
-            go.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg);
-            guard.look.flipY = aim.x < -0.01f;
-            SpriteRenderer wizard = owner.GetComponentInChildren<SpriteRenderer>();
-            if (wizard != null)
-            {
-                guard.look.sortingLayerID = wizard.sortingLayerID;
-                guard.look.sortingOrder = wizard.sortingOrder + (aim.y > 0.3f ? -1 : 1);
-            }
-            guard.Place();
-        }
-
-        // Out to the punch's reach in the first 40% of the guard, then most of the way back.
-        private Vector2 Place()
-        {
-            float t = Mathf.Clamp01((Time.time - born) / BucklerPlugin.GuardTime);
-            float reach = BucklerPlugin.PunchReach;
-            float d = t < 0.4f ? Mathf.Lerp(0.3f, reach, t / 0.4f) : Mathf.Lerp(reach, reach * 0.6f, (t - 0.4f) / 0.6f);
-            Vector2 at = Buckler.Hand(owner) + aim * d;
-            transform.position = at;
-            return at;
-        }
-
-        private void Update()
-        {
-            if (owner == null || Time.time - born >= BucklerPlugin.GuardTime)
-            {
-                Destroy(gameObject);
-                return;
-            }
-            Vector2 at = Place();
-            look.sprite = BucklerArt.PunchAt((Time.time - born) / BucklerPlugin.GuardTime);
-            BreakShots(at);
-        }
-
-        private void BreakShots(Vector2 at)
+        // Enemy shots within reach of the buckler break, with the checks of Stone Charge's shield
+        // (WoLStoneCharge NegateShots): not one that ignores negation, is already returning, or is
+        // a wizard's own; a boomerang is sent back instead. With a facing, only a shot in front of
+        // the hands breaks (the held buckler is directional, 0.2.0). Enhanced: shrapnel.
+        public static void BreakShots(Player owner, string skillID, Vector2 at, float reach, Vector2? facing, bool enhanced)
         {
             if (Time.time >= nextShotScan)
             {
                 nextShotScan = Time.time + ShotScanInterval;
-                shots = FindObjectsOfType<Projectile>();
+                shots = Object.FindObjectsOfType<Projectile>();
             }
             foreach (Projectile p in shots)
             {
@@ -154,11 +102,9 @@ namespace WoLBuckler
                 if (category != null && category.Contains("Player"))
                     continue;
                 Vector2 spot = p.transform.position;
-                if (Vector2.Distance(spot, at) > BucklerPlugin.GuardRadius + p.thickness)
+                if (Vector2.Distance(spot, at) > reach + p.thickness)
                     continue;
-                // Only the shield's face blocks: a shot behind the buckler (on the wizard's side
-                // of it) gets through.
-                if (Vector2.Dot(spot - Buckler.Hand(owner), aim) < 0.1f)
+                if (facing.HasValue && Vector2.Dot(spot - Hand(owner), facing.Value) < 0.1f)
                     continue;
                 try
                 {
@@ -167,7 +113,7 @@ namespace WoLBuckler
                 catch
                 {
                 }
-                Buckler.Sound("ImpactNegate", spot, 1f);
+                Sound("ImpactNegate", spot, 1f);
                 try
                 {
                     if (p.boomerang)
@@ -182,16 +128,190 @@ namespace WoLBuckler
                 }
                 BucklerPlugin.Log("Buckler: broke an enemy shot" + (enhanced ? ", shrapnel" : ""));
                 if (enhanced)
-                {
-                    try
-                    {
-                        EarthBurst.CreateBurst(spot, owner.skillCategory, skillID, 3, BucklerPlugin.ShrapnelRadius);
-                    }
-                    catch
-                    {
-                    }
-                }
+                    Burst(owner, skillID, spot, 3, BucklerPlugin.ShrapnelRadius);
             }
+        }
+
+        // Enemies within reach of a swept segment.
+        internal static List<GameObject> EnemiesNear(Vector2 from, Vector2 to, float reach)
+        {
+            var found = new List<GameObject>();
+            if (GameController.enemies == null)
+                return found;
+            Vector2 seg = to - from;
+            float len2 = Mathf.Max(seg.sqrMagnitude, 0.0001f);
+            foreach (GameObject go in GameController.enemies)
+            {
+                if (go == null || !go.activeInHierarchy)
+                    continue;
+                Vector2 p = go.transform.position;
+                float t = Mathf.Clamp01(Vector2.Dot(p - from, seg) / len2);
+                if (Vector2.Distance(p, from + seg * t) <= reach + 0.3f)
+                    found.Add(go);
+            }
+            return found;
+        }
+
+        internal static void Sort(SpriteRenderer r, Player owner, int offset)
+        {
+            SpriteRenderer wizard = owner.GetComponentInChildren<SpriteRenderer>();
+            if (wizard != null)
+            {
+                r.sortingLayerID = wizard.sortingLayerID;
+                r.sortingOrder = wizard.sortingOrder + offset;
+            }
+        }
+    }
+
+    // The buckler after a punch: it smashes out to the punch's reach, then is held up in front of
+    // the hands, turned to the aim, for HoldTime (the pause before the next hit), breaking enemy
+    // shots at its face. A wizard holds one at a time: the next punch or the toss puts it away.
+    internal class BucklerGuard : MonoBehaviour
+    {
+        private const float SmashTime = 0.12f, RecoverTime = 0.1f, HoldAt = 0.65f;
+        private static readonly Dictionary<int, BucklerGuard> held = new Dictionary<int, BucklerGuard>();
+        private Player owner;
+        private string skillID;
+        private Vector2 aim;
+        private bool enhanced;
+        private float born;
+        private SpriteRenderer look;
+
+        public static void PutAway(Player owner)
+        {
+            BucklerGuard old;
+            if (owner != null && held.TryGetValue(owner.playerID, out old) && old != null)
+                Destroy(old.gameObject);
+        }
+
+        public static void Raise(Player owner, string skillID, Vector2 aim, bool enhanced)
+        {
+            PutAway(owner);
+            var go = new GameObject("Buckler Guard");
+            BucklerGuard guard = go.AddComponent<BucklerGuard>();
+            held[owner.playerID] = guard;
+            guard.owner = owner;
+            guard.skillID = skillID;
+            guard.aim = aim;
+            guard.enhanced = enhanced;
+            guard.born = Time.time;
+            float scale = Buckler.BaseScale * Buckler.Size(enhanced);
+            go.transform.localScale = new Vector3(scale, scale, 1f);
+            guard.look = go.AddComponent<SpriteRenderer>();
+            guard.look.sprite = BucklerArt.PunchFrame(1);
+            // The smash's sparks are drawn on the right edge: turned to the aim, and mirrored
+            // top to bottom when punching left so its light stays on top.
+            go.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg);
+            guard.look.flipY = aim.x < -0.01f;
+            Buckler.Sort(guard.look, owner, aim.y > 0.3f ? -1 : 1);
+            guard.Place();
+        }
+
+        private float Reach => BucklerPlugin.PunchReach * Buckler.Size(enhanced);
+
+        // Out to the punch's reach during the smash, then back to where it's held.
+        private Vector2 Place()
+        {
+            float age = Time.time - born;
+            float d = age < SmashTime ? Mathf.Lerp(0.3f, Reach, age / SmashTime)
+                : Mathf.Lerp(Reach, Reach * HoldAt, Mathf.Clamp01((age - SmashTime) / 0.1f));
+            Vector2 at = Buckler.Hand(owner) + aim * d;
+            transform.position = at;
+            return at;
+        }
+
+        private void Update()
+        {
+            float age = Time.time - born;
+            if (owner == null || age >= BucklerPlugin.HoldTime)
+            {
+                Destroy(gameObject);
+                return;
+            }
+            Vector2 at = Place();
+            look.sprite = BucklerArt.PunchFrame(age < SmashTime ? 1 : age > BucklerPlugin.HoldTime - RecoverTime ? 3 : 2);
+            Buckler.BreakShots(owner, skillID, at, BucklerPlugin.GuardRadius * Buckler.Size(enhanced), aim, enhanced);
+        }
+
+        private void OnDestroy()
+        {
+            BucklerGuard current;
+            if (owner != null && held.TryGetValue(owner.playerID, out current) && current == this)
+                held.Remove(owner.playerID);
+        }
+    }
+
+    // Hit 3: the buckler tossed like a disc. It spins out along the aim, hitting each enemy it
+    // passes (an earth burst, once each way) and breaking every enemy shot it meets, then comes
+    // back to the hands.
+    internal class BucklerDisc : MonoBehaviour
+    {
+        private const float MaxLife = 3f, CatchDistance = 0.6f, SpinSpeed = -900f;
+        private Player owner;
+        private string skillID;
+        private Vector2 dir;
+        private float born, distance;
+        private bool returning, enhanced;
+        private readonly HashSet<int> hitOut = new HashSet<int>(), hitBack = new HashSet<int>();
+
+        public static void Toss(Player owner, string skillID, Vector2 aim, bool enhanced)
+        {
+            BucklerGuard.PutAway(owner);
+            Vector2 hand = Buckler.Hand(owner);
+            var go = new GameObject("Buckler Disc");
+            go.transform.position = hand;
+            float scale = Buckler.BaseScale * Buckler.Size(enhanced);
+            go.transform.localScale = new Vector3(scale, scale, 1f);
+            BucklerDisc disc = go.AddComponent<BucklerDisc>();
+            disc.owner = owner;
+            disc.skillID = skillID;
+            disc.dir = aim;
+            disc.enhanced = enhanced;
+            disc.born = Time.time;
+            SpriteRenderer look = go.AddComponent<SpriteRenderer>();
+            look.sprite = BucklerArt.Shield;
+            Buckler.Sort(look, owner, 1);
+            Buckler.Sound("EarthPebble", hand, 0.8f);
+            BucklerPlugin.Log($"Buckler: disc tossed ({BucklerPlugin.DiscRange:0.0} u{(enhanced ? ", enhanced" : "")})");
+        }
+
+        private float Reach => BucklerPlugin.DiscRadius * Buckler.Size(enhanced);
+
+        private void Update()
+        {
+            if (owner == null || Time.time - born > MaxLife)
+            {
+                Destroy(gameObject);
+                return;
+            }
+            transform.Rotate(0f, 0f, SpinSpeed * Time.deltaTime);
+            Vector2 from = transform.position;
+            Vector2 to;
+            if (!returning)
+            {
+                float step = BucklerPlugin.DiscSpeed * Time.deltaTime;
+                to = from + dir * step;
+                distance += step;
+                returning = distance >= BucklerPlugin.DiscRange;
+            }
+            else
+            {
+                Vector2 back = Buckler.Hand(owner) - from;
+                float step = BucklerPlugin.DiscReturnSpeed * Time.deltaTime;
+                if (back.magnitude <= Mathf.Max(CatchDistance, step))
+                {
+                    Buckler.Sound("EarthPebble", from, 1.3f);
+                    Destroy(gameObject);
+                    return;
+                }
+                to = from + back.normalized * step;
+            }
+            transform.position = to;
+            HashSet<int> hit = returning ? hitBack : hitOut;
+            foreach (GameObject enemy in Buckler.EnemiesNear(from, to, Reach))
+                if (hit.Add(enemy.GetInstanceID()))
+                    Buckler.Burst(owner, skillID, enemy.transform.position, enhanced ? 5 : 2, 0.3f);
+            Buckler.BreakShots(owner, skillID, to, Reach, null, enhanced);
         }
     }
 }
