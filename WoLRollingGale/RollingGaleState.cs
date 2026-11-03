@@ -56,6 +56,8 @@ namespace WoLRollingGale
 
         public RollingGaleState(FSM newFSM, Player newEnt) : base(staticID, newFSM, newEnt)
         {
+            // Ability type tags (Matt, 2026-11-03): type gear affixes and the game's own relics key off these.
+            isMovementSkill = true;
             applyStopElementStatus = true;
             // Lets the arcana into the signature slot (the spellbook's Signature page); see
             // SignatureUnlock.cs for when that's unlocked.

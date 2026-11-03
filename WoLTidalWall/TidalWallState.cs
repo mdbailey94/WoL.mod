@@ -79,6 +79,8 @@ namespace WoLTidalWall
 
         public TidalWallState(FSM newFSM, Player newEnt) : base(staticID, newFSM, newEnt)
         {
+            // Ability type tags (Matt, 2026-11-03): type gear affixes and the game's own relics key off these.
+            isProjectileSkill = true;
             // Lets the arcana into the signature slot: the spellbook's Signature page and the
             // saved loadout both require it (SpellBookUI.LoadEleSkillDict, Player.InitSkills).
             hasSignatureVariant = true;
