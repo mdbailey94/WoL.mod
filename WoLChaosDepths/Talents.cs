@@ -254,11 +254,11 @@ namespace WoLChaosDepths
             Nodes = new[]
             {
                 new Node { Key = "Fortune", Name = "Fortune", Tier = 1, MaxPoints = 2, Effect = "+8% gold" },
-                new Node { Key = "GemSense", Name = "Gem Sense", Tier = 1, MaxPoints = 2, Effect = "+5% chance of an extra chaos gem from bosses" + Soon },
+                new Node { Key = "GemSense", Name = "Gem Sense", Tier = 1, MaxPoints = 2, Effect = "+5% chance of an extra chaos gem from bosses" },
                 new Node { Key = "LoadedDice", Name = "Loaded Dice", Tier = 1, MaxPoints = 1, Effect = "+5% chance on every status effect (burn, slow, shock, freeze, root)" },
                 new Node { Key = "Fester", Name = "Fester", Tier = 1, MaxPoints = 1, Effect = "Your damage over time ticks 15% faster" },
                 new Node { Key = "LuckyStrike", Name = "Lucky Strike", Tier = 2, MaxPoints = 1, Effect = "10% chance a hit strikes twice" },
-                new Node { Key = "HighRoller", Name = "High Roller", Tier = 2, MaxPoints = 1, Effect = "Relics cost 10% less" + Soon },
+                new Node { Key = "HighRoller", Name = "High Roller", Tier = 2, MaxPoints = 1, Effect = "Relics cost 10% less" },
                 new Node { Key = "HotStreak", Name = "Hot Streak", Tier = 2, MaxPoints = 1, Effect = "Each kill without taking damage: +2% damage, up to +20%, lost when hit" },
                 new Node { Key = "Jackpot", Name = "Jackpot", Tier = 2, MaxPoints = 1, Effect = "Elites drop 25% more gold" },
                 new Node { Key = "AllIn", Name = "All In", Tier = 3, MaxPoints = 1, Effect = "+25% damage, -25% max health" },

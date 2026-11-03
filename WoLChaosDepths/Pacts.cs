@@ -278,7 +278,10 @@ namespace WoLChaosDepths
                 nextStoreScan = Time.unscaledTime + 0.5f;
                 foreach (ItemStoreItem item in UnityEngine.Object.FindObjectsOfType<ItemStoreItem>())
                     if (item != null && !item.usePlatinumCost && item.costStat != null)
+                    {
                         SetMod(item.costStat, "DoubleDown", on ? -0.5f : 0f, true);
+                        item.UpdatePrice();   // the shown price follows the stat (as the game's discounts do)
+                    }
             }
             if (p.inventory == null)
                 return;
