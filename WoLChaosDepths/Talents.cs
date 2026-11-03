@@ -289,13 +289,38 @@ namespace WoLChaosDepths
                 "leaves its old points unused until it moves back (or a respec).");
         }
 
-        // The tree a cloak uses ([Talents] CloakTrees, else Apprentice).
+        // The tree a cloak uses ([Talents] CloakTrees, else Apprentice), with that cloak's own two
+        // perk nodes added (CloakPerks.cs: its elemental perk in tier 1, its co-op perk in tier 2;
+        // Matt, 2026-11-02: "they should be part of the talent trees").
         public static Tree TreeFor(string cloak)
         {
             Parse();
             Tree tree;
-            return cloak != null && treeOfCloak.TryGetValue(cloak, out tree) ? tree : Apprentice;
+            Tree baseTree = cloak != null && treeOfCloak.TryGetValue(cloak, out tree) ? tree : Apprentice;
+            Node[] perks = CloakPerks.NodesFor(cloak);
+            if (perks == null || perks.Length == 0)
+                return baseTree;
+            string key = cloak + "/" + baseTree.Key;
+            Tree withPerks;
+            if (!withPerksOf.TryGetValue(key, out withPerks))
+            {
+                var nodes = new List<Node>();
+                foreach (Node n in baseTree.Nodes)
+                {
+                    // Each perk sits at the end of its tier's row.
+                    if (n.Tier == 2 && !nodes.Exists(x => x.Tier == 2))
+                        nodes.AddRange(Array.FindAll(perks, p => p.Tier == 1));
+                    if (n.Tier == 3 && !nodes.Exists(x => x.Tier == 3))
+                        nodes.AddRange(Array.FindAll(perks, p => p.Tier == 2));
+                    nodes.Add(n);
+                }
+                withPerks = new Tree { Key = baseTree.Key, Name = baseTree.Name, Nodes = nodes.ToArray() };
+                withPerksOf[key] = withPerks;
+            }
+            return withPerks;
         }
+
+        private static readonly Dictionary<string, Tree> withPerksOf = new Dictionary<string, Tree>();
 
         private static void Parse()
         {
@@ -304,6 +329,7 @@ namespace WoLChaosDepths
                 return;
             parsedFrom = value;
             treeOfCloak.Clear();
+            withPerksOf.Clear();
             foreach (string pair in value.Split(','))
             {
                 string[] parts = pair.Split('=');

@@ -104,6 +104,99 @@ namespace WoLChaosDepths
 
         private static string Cloak(Player p) => p != null ? Talents.CloakOf(p) : "";
 
+        // The perks are talent nodes in the cloak's tree (Matt, 2026-11-02 20:45: "they should be
+        // part of the talent trees, rename the perk so they aren't confused with the cloaks"):
+        // the elemental perk in tier 1 and the co-op perk in tier 2, a point each, named apart
+        // from the cloaks. A perk acts while it's learned in the worn cloak's tree.
+        private class Perk
+        {
+            public string Key, Name, Effect;
+        }
+
+        // cloak -> { elemental, co-op }
+        private static readonly Dictionary<string, Perk[]> perks = new Dictionary<string, Perk[]>
+        {
+            { "Vigor", P("EarthenHaste", "Earthen Haste", "Earth arcana cast 15% faster",
+                "ShoulderTheBlow", "Shoulder the Blow", "Co-op: you take 30% of a hit on your partner within 3 u") },
+            { "Grit", P("Concussive", "Concussive", "Stuns you deal last 40% longer",
+                "Rally", "Rally", "Co-op: a partner you revive gets up at half health") },
+            { "Rule", P("Kindled", "Kindled", "Burns you apply are a level stronger",
+                "FollowThrough", "Follow Through", "Co-op: your partner's first hit after yours on an enemy deals +20%") },
+            { "Awe", P("ArcConductor", "Arc Conductor", "Shocks a level stronger; a crit on a shocked enemy arcs to the next",
+                "QuickSpark", "Quick Spark", "Co-op: your crits take 0.3 s off your partner's dash cooldown") },
+            { "Switch", P("GaleReflex", "Gale Reflex", "After an evade, your next cast is 30% faster",
+                "SharedFooting", "Shared Footing", "Co-op: your evade gives your partner +10% evade for 2 s") },
+            { "DuelistCloak", P("SwiftEdge", "Swift Edge", "Dash cooldown -20%",
+                "Pincer", "Pincer", "Co-op: an enemy you both hit within 1 s takes +15% from both") },
+            { "Tempo", P("Rimeweave", "Rimeweave", "Freezes last 0.5 s longer; cooldowns tick 15% faster near a frozen enemy",
+                "SharedSpark", "Shared Spark", "Co-op: your signature gives your partner 15% signature charge") },
+            { "Fury", P("Fervor", "Fervor", "Your signature casts 30% faster",
+                "KindredFury", "Kindred Fury", "Co-op: your partner's signature gives you 10% charge") },
+            { "Pace", P("CarryThrough", "Carry Through", "+10% move speed for 2 s after a cast",
+                "InStep", "In Step", "Co-op: within 4 u of each other, both +5% move speed") },
+            { "Venture", P("StaticWake", "Static Wake", "Your dash leaves a short static trail that shocks",
+                "Tailcurrent", "Tailcurrent", "Co-op: your partner crossing your static trail gets +15% move speed for 2 s") },
+            { "Savile", P("TidalStep", "Tidal Step", "A water arcana cast within 1 s of a dash comes back 15% sooner",
+                "Relay", "Relay", "Co-op: dashing through your partner resets their dash") },
+            { "Pink", P("SoothingWaters", "Soothing Waters", "+25% healing",
+                "SharedDraught", "Shared Draught", "Co-op: a big heal (an orb) also heals your partner 30% of it") },
+            { "Greed", P("Prospector", "Prospector", "Earth arcana kills have a 15% chance to bank 5 gold",
+                "Dividend", "Dividend", "Co-op: every 100 gold the team banks heals you both 3%") },
+            { "Level", P("Bloodrush", "Bloodrush", "+1% cast speed per 10 kills on a floor (up to +10%)",
+                "SharedGlory", "Shared Glory", "Co-op: your partner's kills count half toward your Bloodrush") },
+            { "Fall", P("SureFooting", "Sure Footing", "You can't fall into a pit for 1 s after a dash",
+                "Lifeline", "Lifeline", "Co-op: once a minute, a falling partner is tethered to your side, untargetable") },
+            { "Pride", P("Brinkmanship", "Brinkmanship", "Signature charge +25%, but each hit you take empties 10% of it",
+                "Inspire", "Inspire", "Co-op: while you're alive, your partner deals +10%") },
+        };
+
+        // The starter cloaks (Hope, Patience, the Normal cloak) share one pair.
+        private static readonly Perk[] starter = P("Fundamentals", "Fundamentals", "Cooldowns -5%",
+            "Together", "Together", "Co-op: within 3 u of each other, both regain 1% health every 5 s");
+
+        private static Perk[] P(string ek, string en, string ee, string ck, string cn, string ce) =>
+            new[] { new Perk { Key = ek, Name = en, Effect = ee }, new Perk { Key = ck, Name = cn, Effect = ce } };
+
+        private static Perk[] PairOf(string cloak)
+        {
+            Perk[] pair;
+            if (cloak != null && perks.TryGetValue(cloak, out pair))
+                return pair;
+            return cloak == "Hope" || cloak == "Patience" || cloak == Outfit.normalID ? starter : null;
+        }
+
+        private static readonly Dictionary<string, Talents.Node[]> nodesOf = new Dictionary<string, Talents.Node[]>();
+
+        // The perk nodes Talents.TreeFor adds to a cloak's tree (none for a cloak without perks).
+        public static Talents.Node[] NodesFor(string cloak)
+        {
+            if (cloak == null)
+                return null;
+            Talents.Node[] nodes;
+            if (nodesOf.TryGetValue(cloak, out nodes))
+                return nodes;
+            Perk[] pair = PairOf(cloak);
+            nodes = pair == null ? null : new[]
+            {
+                new Talents.Node { Key = pair[0].Key, Name = pair[0].Name, Tier = 1, MaxPoints = 1, Effect = pair[0].Effect },
+                new Talents.Node { Key = pair[1].Key, Name = pair[1].Name, Tier = 2, MaxPoints = 1, Effect = pair[1].Effect },
+            };
+            nodesOf[cloak] = nodes;
+            return nodes;
+        }
+
+        // Learned: the elemental (E) or co-op (C) perk of the cloak this wizard wears, if it's that cloak.
+        private static bool E(Player p, string cloak) => Learned(p, cloak, 0);
+        private static bool C(Player p, string cloak) => Learned(p, cloak, 1);
+
+        private static bool Learned(Player p, string cloak, int which)
+        {
+            if (p == null)
+                return false;
+            Perk[] pair = PairOf(cloak);
+            return pair != null && Talents.Rank(p, pair[which].Key) > 0;
+        }
+
         private static State StateOf(Player p)
         {
             State st;
@@ -162,13 +255,13 @@ namespace WoLChaosDepths
                 // Level's stacks: +1% for every 10 kills on this floor, up to +10%.
                 bool fast = Time.time < st.castFastUntil;
                 SetMod(p.animSpeedHandler, "CastSpeed", fast ? st.dashFrom.x : 0f);
-                int stacks = cloak == "Level" ? Mathf.Min(10, Mathf.FloorToInt(st.floorKills / 10f)) : 0;
+                int stacks = E(p, "Level") ? Mathf.Min(10, Mathf.FloorToInt(st.floorKills / 10f)) : 0;
                 SetMod(p.animSpeedHandler, "LevelSpeed", 0.01f * stacks);
                 if (stacks > 0)
                     Say(p, "Level", "Level: kills on this floor speed up casting");
 
                 // Venture's co-op: crossing your partner's static trail.
-                if (partner != null && Cloak(partner) == "Venture")
+                if (C(partner, "Venture"))
                 {
                     State ps = StateOf(partner);
                     ps.trail.RemoveAll(v => Time.time >= v.z);
@@ -183,14 +276,11 @@ namespace WoLChaosDepths
 
                 // Speed: Pace's momentum and the partners-close bonus.
                 float speed = 0f;
-                if (cloak == "Pace")
-                {
-                    if (Time.time < st.momentumUntil)
-                        speed += 0.10f;
-                    if (Close(p, partner, 4f))
-                        speed += 0.05f;
-                }
-                if (partner != null && Cloak(partner) == "Pace" && Close(p, partner, 4f))
+                if (E(p, "Pace") && Time.time < st.momentumUntil)
+                    speed += 0.10f;
+                if (C(p, "Pace") && Close(p, partner, 4f))
+                    speed += 0.05f;
+                if (C(partner, "Pace") && Close(p, partner, 4f))
                     speed += 0.05f;
                 if (Time.time < st.trailSpeedUntil)
                     speed += 0.15f;
@@ -201,16 +291,16 @@ namespace WoLChaosDepths
                 SetMod(p.health.evadeStat, "Evade", evadeBuff ? 0.10f : 0f, false);
 
                 // Pride's partner damage, and Tempo's cooldowns near a frozen enemy.
-                float partnerDamage = partner != null && Cloak(partner) == "Pride" && Alive(partner) ? 0.10f : 0f;
+                float partnerDamage = C(partner, "Pride") && Alive(partner) ? 0.10f : 0f;
                 SetSkillMods(p, StatData.damageStr, "PartnerDamage", partnerDamage, true);
-                if (cloak == "Tempo" && FrozenNear(p, 6f))
+                if (E(p, "Tempo") && FrozenNear(p, 6f))
                 {
                     TickCooldowns(p, 0.15f * Time.deltaTime);
                     Say(p, "Tempo", "Tempo: cooldowns tick faster near a frozen enemy");
                 }
 
                 // Fall: no pits for a moment after a dash.
-                bool noPit = cloak == "Fall" && Time.time < st.noPitUntil;
+                bool noPit = E(p, "Fall") && Time.time < st.noPitUntil;
                 if (noPit != st.prevented)
                 {
                     st.prevented = noPit;
@@ -219,7 +309,7 @@ namespace WoLChaosDepths
 
                 // Grit: a revived partner gets up at half health.
                 bool dead = p.health.CurrentHealthValue <= 0;
-                if (st.wasDead && !dead && partner != null && Cloak(partner) == "Grit")
+                if (st.wasDead && !dead && C(partner, "Grit"))
                 {
                     int target = Mathf.RoundToInt(p.health.healthStat.ModifiedValue * 0.5f);
                     if (p.health.CurrentHealthValue < target)
@@ -230,13 +320,13 @@ namespace WoLChaosDepths
 
                 // Fall's rescue, Savile's dash reset, Hope / Patience regen.
                 Rescue(p, partner);
-                if (cloak == "Savile" && Time.time < st.dashUntil && !st.partnerDashReset && Close(p, partner, 1f))
+                if (C(p, "Savile") && Time.time < st.dashUntil && !st.partnerDashReset && Close(p, partner, 1f))
                 {
                     st.partnerDashReset = true;
                     Guard("savile", () => ResetDash(partner));
                     Say(p, "Savile", "Savile: dashed through partner, their dash reset");
                 }
-                if ((cloak == "Hope" || cloak == "Patience") && Close(p, partner, 3f) && Time.time >= st.regenNext)
+                if (PairOf(cloak) == starter && C(p, cloak) && Close(p, partner, 3f) && Time.time >= st.regenNext)
                 {
                     st.regenNext = Time.time + 5f;
                     Heal(p, 0.01f);
@@ -258,7 +348,7 @@ namespace WoLChaosDepths
             lastBalance = balance;
             Player greedy = null;
             foreach (Player p in players)
-                if (p != null && Cloak(p) == "Greed")
+                if (C(p, "Greed"))
                     greedy = p;
             if (greedy == null || Partner(greedy) == null || gained <= 0)
                 return;
@@ -278,17 +368,17 @@ namespace WoLChaosDepths
         // The always-on stat steps, on this wizard's own arcana stats.
         private static void SkillStats(Player p, string cloak)
         {
-            SetSkillMods(p, StatData.stunDurStr, "Stun", cloak == "Grit" ? 0.4f : 0f, true);
-            SetSkillMods(p, StatData.burnLvStr, "Burn", cloak == "Rule" ? 1f : 0f, false);
-            SetSkillMods(p, StatData.shockLvStr, "Shock", cloak == "Awe" ? 1f : 0f, false);
-            SetSkillMods(p, StatData.frzDurStr, "Freeze", cloak == "Tempo" ? 0.5f : 0f, false);
-            SetSkillMods(p, StatData.odProgStr, "Charge", cloak == "Pride" ? 0.25f : 0f, true);
-            SetSkillMods(p, StatData.cdStr, "Cooldown", cloak == "Hope" || cloak == "Patience" ? -0.05f : 0f, true);
-            float dashCd = cloak == "DuelistCloak" ? -0.20f : 0f;
+            SetSkillMods(p, StatData.stunDurStr, "Stun", E(p, "Grit") ? 0.4f : 0f, true);
+            SetSkillMods(p, StatData.burnLvStr, "Burn", E(p, "Rule") ? 1f : 0f, false);
+            SetSkillMods(p, StatData.shockLvStr, "Shock", E(p, "Awe") ? 1f : 0f, false);
+            SetSkillMods(p, StatData.frzDurStr, "Freeze", E(p, "Tempo") ? 0.5f : 0f, false);
+            SetSkillMods(p, StatData.odProgStr, "Charge", E(p, "Pride") ? 0.25f : 0f, true);
+            SetSkillMods(p, StatData.cdStr, "Cooldown", E(p, cloak) && PairOf(cloak) == starter ? -0.05f : 0f, true);
+            float dashCd = E(p, "DuelistCloak") ? -0.20f : 0f;
             Player.SkillState dash = p.GetDashSkill();
             if (dash != null && dash.skillData != null)
                 SetStatData(dash.skillData, StatData.cdStr, "DashCooldown", dashCd, true);
-            SetMod(p.health.healModifierStat, "Heal", cloak == "Pink" ? 0.25f : 0f);
+            SetMod(p.health.healModifierStat, "Heal", E(p, "Pink") ? 0.25f : 0f);
         }
 
         // ---- Hooks on each wizard ----
@@ -317,9 +407,9 @@ namespace WoLChaosDepths
             Player partner = Partner(p);
             Player.SkillState dash = p.GetDashSkill();
             bool isDash = dash != null && state.skillID == dash.skillID;
-            if (cloak == "Vigor" && Element(state) == "Earth")
+            if (E(p, "Vigor") && Element(state) == "Earth")
                 Fast(st, 0.15f, 0.5f);
-            if (cloak == "Switch" && Time.time < st.fastCastAfterEvade && !isDash)
+            if (E(p, "Switch") && Time.time < st.fastCastAfterEvade && !isDash)
             {
                 Fast(st, 0.30f, 0.6f);
                 st.fastCastAfterEvade = -1f;
@@ -327,27 +417,27 @@ namespace WoLChaosDepths
             }
             if (state.isUltimate)
             {
-                if (cloak == "Fury")
+                if (E(p, "Fury"))
                 {
                     Fast(st, 0.30f, 0.6f);
                     Say(p, "Fury", "Fury: signature cast faster");
                 }
-                if (cloak == "Tempo" && Alive(partner))
+                if (C(p, "Tempo") && Alive(partner))
                 {
                     AddCharge(partner, 0.15f);
                     Say(p, "TempoCoop", "Tempo: gave partner 15% signature charge");
                 }
-                if (partner != null && Cloak(partner) == "Fury")
+                if (C(partner, "Fury"))
                 {
                     AddCharge(partner, 0.10f);
                     Say(partner, "FuryCoop", "Fury: partner's signature gave 10% charge");
                 }
             }
-            if (cloak == "Pace" && !isDash)
+            if (E(p, "Pace") && !isDash)
                 st.momentumUntil = Time.time + 2f;
             // Savile: a water arcana cast soon after a dash comes back 15% sooner (its cooldown
             // starts after this event, so it's shortened on the next tick).
-            if (cloak == "Savile" && !isDash && Time.time - st.lastDash <= SavileWindow && Element(state) == "Water")
+            if (E(p, "Savile") && !isDash && Time.time - st.lastDash <= SavileWindow && Element(state) == "Water")
             {
                 refunds.Add(state);
                 Say(p, "Savile", "Savile: water cast after a dash, cooldown 15% shorter");
@@ -358,12 +448,12 @@ namespace WoLChaosDepths
             {
                 st.dashUntil = Time.time + 0.3f;
                 st.partnerDashReset = false;
-                if (cloak == "Fall")
+                if (E(p, "Fall"))
                 {
                     st.noPitUntil = Time.time + 1f;
                     Say(p, "Fall", "Fall: no pits for 1 s after the dash");
                 }
-                if (cloak == "Venture")
+                if (E(p, "Venture"))
                     StaticTrail(p, dash);
             }
         }
@@ -392,11 +482,12 @@ namespace WoLChaosDepths
                 return;
             State st = StateOf(p);
             string cloak = Cloak(p);
-            if (cloak == "Switch")
-            {
+            if (E(p, "Switch"))
                 st.fastCastAfterEvade = Time.time + 2f;
+            if (C(p, "Switch"))
+            {
                 st.evadeBuffUntil = Time.time + 2f;
-                Say(p, "SwitchCoop", "Switch: evaded, partner +10% evade for 2 s");
+                Say(p, "SwitchCoop", "Shared Footing: evaded, partner +10% evade for 2 s");
             }
         }
 
@@ -406,10 +497,10 @@ namespace WoLChaosDepths
         {
             if (!Talents.Enabled || info == null || info.damage <= 0 || sharing)
                 return;
-            if (Cloak(p) == "Pride")
+            if (E(p, "Pride"))
                 AddCharge(p, -0.10f);
             Player partner = Partner(p);
-            if (partner != null && Cloak(partner) == "Vigor" && Close(p, partner, 3f))
+            if (C(partner, "Vigor") && Close(p, partner, 3f))
             {
                 int share = Mathf.FloorToInt(info.damage * 0.3f);
                 int take = Mathf.Min(share, partner.health.CurrentHealthValue - 1);
@@ -433,7 +524,7 @@ namespace WoLChaosDepths
         // Pink's co-op: a big heal (an orb) spills 30% to the partner.
         private static void OnHeal(Player p, int value)
         {
-            if (!Talents.Enabled || value <= 0 || sharing || Cloak(p) != "Pink")
+            if (!Talents.Enabled || value <= 0 || sharing || !C(p, "Pink"))
                 return;
             if (value < 0.10f * p.health.healthStat.ModifiedValue)
                 return;
@@ -470,13 +561,13 @@ namespace WoLChaosDepths
                 lastHits.TryGetValue(id, out last);
                 bool partnerHitFirst = last != null && partner != null && last.category == partner.skillCategory;
                 float boost = 1f;
-                if (partnerHitFirst && Cloak(partner) == "Rule" && !last.followed && Time.time - last.time <= 2f)
+                if (partnerHitFirst && C(partner, "Rule") && !last.followed && Time.time - last.time <= 2f)
                 {
                     boost += 0.20f;
                     last.followed = true;
                     Say(partner, "RuleCoop", "Rule: partner's follow-up hit +20%");
                 }
-                bool duelist = Cloak(hitter) == "DuelistCloak" || (partner != null && Cloak(partner) == "DuelistCloak");
+                bool duelist = C(hitter, "DuelistCloak") || C(partner, "DuelistCloak");
                 if (partnerHitFirst && duelist && Time.time - last.time <= 1f)
                 {
                     boost += 0.15f;
@@ -505,15 +596,15 @@ namespace WoLChaosDepths
                 Player killer = PlayerOf(info.skillCategory);
                 if (killer == null)
                     return;
-                if (Cloak(killer) == "Greed" && info.elementType == ElementType.Earth && UnityEngine.Random.value < GreedGoldChance)
+                if (E(killer, "Greed") && info.elementType == ElementType.Earth && UnityEngine.Random.value < GreedGoldChance)
                 {
                     Player.goldWallet?.Deposit(GreedGold);
                     Say(killer, "Greed", $"Greed: an earth kill knocked {GreedGold} gold loose");
                 }
                 StateOf(killer).floorKills += 1f;
                 Player partner = Partner(killer);
-                if (partner != null)
-                    StateOf(partner).floorKills += 0.5f;   // Level's co-op: a partner's kill counts half
+                if (C(partner, "Level"))
+                    StateOf(partner).floorKills += 0.5f;   // Shared Glory: a partner's kill counts half
             });
         }
 
@@ -544,10 +635,10 @@ namespace WoLChaosDepths
             Guard("crit", () =>
             {
                 Player p = PlayerOf(info.skillCategory);
-                if (p == null || Cloak(p) != "Awe")
+                if (p == null || (!E(p, "Awe") && !C(p, "Awe")))
                     return;
                 Player partner = Partner(p);
-                if (Alive(partner))
+                if (C(p, "Awe") && Alive(partner))
                 {
                     Player.SkillState dash = partner.GetDashSkill();
                     if (dash != null && dash.cooldownRef != null)
@@ -555,7 +646,7 @@ namespace WoLChaosDepths
                     Say(p, "AweCoop", "Awe: crit took 0.3 s off partner's dash");
                 }
                 float until;
-                if (shockedUntil.TryGetValue(hurt.GetInstanceID(), out until) && Time.time < until)
+                if (E(p, "Awe") && shockedUntil.TryGetValue(hurt.GetInstanceID(), out until) && Time.time < until)
                 {
                     Enemy next = Nearest(hurt, 4f);
                     if (next != null)
@@ -603,7 +694,7 @@ namespace WoLChaosDepths
         // is called off, and a tether pulls them to the wearer's side while they're untargetable.
         private static void Rescue(Player p, Player partner)
         {
-            if (partner == null || Cloak(partner) != "Fall" || !Alive(partner) || p.fsm == null)
+            if (partner == null || !C(partner, "Fall") || !Alive(partner) || p.fsm == null)
                 return;
             if (!(p.fsm.currentState is Player.PlayerFallState))
                 return;
