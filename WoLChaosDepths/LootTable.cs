@@ -202,18 +202,18 @@ namespace WoLChaosDepths
                 rarity = rarity.name,
                 itemLevel = Mathf.Max(1, itemLevel)
             };
-            var pool = new List<AffixDef>(data.affixes);
+            var taken = new List<string>();
             AffixDef strongest = null;
             float strongestShare = -1f;
-            for (int i = 0; i < rarity.affixes && pool.Count > 0; i++)
+            for (int i = 0; i < rarity.affixes; i++)
             {
-                AffixDef def = PickWeighted(pool);
-                pool.Remove(def);
-                float lo = def.min + def.perLevel * (item.itemLevel - 1);
-                float hi = def.max + def.perLevel * (item.itemLevel - 1);
-                float t = UnityEngine.Random.value;
-                float value = Mathf.Lerp(lo, hi, t) * rarity.valueScale;
-                item.affixes.Add(new AffixData { key = def.key, value = value });
+                AffixDef def;
+                float t;
+                AffixData affix = RollAffix(data, rarity, item.itemLevel, taken, out def, out t);
+                if (affix == null)
+                    break;
+                taken.Add(affix.key);
+                item.affixes.Add(affix);
                 if (t > strongestShare)
                 {
                     strongestShare = t;
@@ -224,6 +224,56 @@ namespace WoLChaosDepths
             if (rarityIndex == data.rarities.Count - 1)
                 Uniques.MaybeMakeUnique(item);
             return item;
+        }
+
+        // One affix rolled for an item of this rarity and level, never one of the keys in exclude
+        // (the Forge's reroll and upgrade use it too); null when every affix is excluded.
+        public static AffixData RollAffix(Data data, RarityDef rarity, int itemLevel, ICollection<string> exclude)
+        {
+            AffixDef def;
+            float share;
+            return RollAffix(data, rarity, itemLevel, exclude, out def, out share);
+        }
+
+        private static AffixData RollAffix(Data data, RarityDef rarity, int itemLevel, ICollection<string> exclude, out AffixDef def, out float share)
+        {
+            var pool = new List<AffixDef>();
+            foreach (AffixDef a in data.affixes)
+                if (exclude == null || !exclude.Contains(a.key))
+                    pool.Add(a);
+            def = null;
+            share = 0f;
+            if (pool.Count == 0)
+                return null;
+            def = PickWeighted(pool);
+            float lo = def.min + def.perLevel * (itemLevel - 1);
+            float hi = def.max + def.perLevel * (itemLevel - 1);
+            share = UnityEngine.Random.value;
+            return new AffixData { key = def.key, value = Mathf.Lerp(lo, hi, share) * rarity.valueScale };
+        }
+
+        // "{slot} of {suffix}" after the item's affixes changed (the Forge): the suffix of the affix
+        // rolled highest within its range. A unique keeps its own name.
+        public static void Rename(ItemData item)
+        {
+            if (!string.IsNullOrEmpty(item.unique))
+                return;
+            AffixDef strongest = null;
+            float best = -1f;
+            foreach (AffixData affix in item.affixes)
+            {
+                AffixDef def = Affix(affix.key);
+                if (def == null)
+                    continue;
+                float top = Mathf.Abs(def.max + def.perLevel * (item.itemLevel - 1));
+                float share = top > 0f ? Mathf.Abs(affix.value) / top : 0f;
+                if (share > best)
+                {
+                    best = share;
+                    strongest = def;
+                }
+            }
+            item.name = strongest != null && !string.IsNullOrEmpty(strongest.suffix) ? $"{item.slot} of {strongest.suffix}" : item.slot;
         }
 
         private static float Weight(Data data, int index, float rarityBoost)
