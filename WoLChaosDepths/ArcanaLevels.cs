@@ -25,8 +25,11 @@ namespace WoLChaosDepths
         // cast only touches the stats when they're new (a level load) or the level changed.
         private static readonly Dictionary<StatData, int> applied = new Dictionary<StatData, int>();
 
-        // On while the Mod Menu's Phase One switch is on (Matt 2026-11-02).
-        public static bool Enabled => PhaseOne.On && enabled != null && enabled.Value;
+        // Pulled out for now (Matt, 2026-11-02 evening: "Pull out arcana upgrade system for now, will
+        // rework later"): off whatever the config says, so no xp, no steps and no spellbook strip.
+        // Saved xp stays in the character files for the rework.
+        private const bool PulledOut = true;
+        public static bool Enabled => !PulledOut && PhaseOne.On && enabled != null && enabled.Value;
 
         public static void Bind(ConfigFile config)
         {

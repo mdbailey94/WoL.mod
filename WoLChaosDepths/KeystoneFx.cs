@@ -212,7 +212,14 @@ namespace WoLChaosDepths
             var r = go.AddComponent<SpriteRenderer>();
             r.sprite = body.sprite;
             r.flipX = body.flipX;
-            r.material = Material();
+            // The wizard's sprite is palette-indexed (its cloak colours come from the game's
+            // palette shader and the renderer's property block); drawn with a plain sprite
+            // material it showed as a red box (Matt, 2026-11-02). Same material and block as
+            // the wizard, tinted cyan where the shader takes a tint.
+            r.sharedMaterial = body.sharedMaterial;
+            var block = new MaterialPropertyBlock();
+            body.GetPropertyBlock(block);
+            r.SetPropertyBlock(block);
             r.color = AfterimageTint;
             r.sortingLayerID = body.sortingLayerID;
             r.sortingOrder = body.sortingOrder - 1;
