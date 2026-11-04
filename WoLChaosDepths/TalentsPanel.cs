@@ -69,7 +69,7 @@ namespace WoLChaosDepths
                     bool first = nextTalentRepeat == 0f;
                     nextTalentRepeat = Time.unscaledTime + (first ? RepeatFirst : RepeatNext * 2f);
                     if (Mathf.Abs(vertical) > Mathf.Abs(horizontal))
-                        talentTier = Mathf.Clamp(talentTier + (vertical < 0f ? 1 : -1), 0, 2);
+                        talentTier = Mathf.Clamp(talentTier + (vertical < 0f ? 1 : -1), 0, Talents.KeystoneTier(tree) - 1);   // #110: 4 tiers
                     else
                         talentCol += horizontal > 0f ? 1 : -1;
                     // Stops at the row's ends rather than wrapping (Matt 2026-11-03).
@@ -129,9 +129,12 @@ namespace WoLChaosDepths
             NineSlice(inset, R(4, 35, 225, 78), s);
             Texture2D padlock = Piece("ui_lock"), cursor = Piece("ui_slot_cursor");
             Talents.Node chosen = TalentAtCursor(tree);
-            for (int tier = 1; tier <= 3; tier++)
+            int tiers = Talents.KeystoneTier(tree);
+            // #110: four rows fit the same inset when 20 px apart (three keep 25).
+            float rowGap = tiers > 3 ? 19.5f : 25f;
+            for (int tier = 1; tier <= tiers; tier++)
             {
-                float ty = 38 + (tier - 1) * 25;
+                float ty = 37 + (tier - 1) * rowGap;
                 bool open = Talents.TierOpen(save, cloak, tier);
                 Label(R(8, ty + 6, 40, 9), $"TIER {tier}", open ? text : dim);
                 List<Talents.Node> row = TierNodes(tree, tier);
@@ -166,13 +169,13 @@ namespace WoLChaosDepths
                     if (node == chosen && tier == talentTier + 1 && cursor != null)
                         Frame(cursor, 2, (int)(Time.unscaledTime * 3f) & 1, R(nx - 1, ty - 1, 22, 22));
                 }
-                if (tier == 3)
+                if (tier == tiers)
                 {
                     // Right of the keystones (three with a pact, #75).
                     float lx = row.Count > 2 ? 182 : 160;
                     Label(R(lx, ty + 1, 226 - lx, 9), "PICK 1", dim);
                     if (!open)
-                        Label(R(lx, ty + 9, 226 - lx, 9), $"NEEDS {Talents.PointsToOpenNextTier} IN T2", dim);
+                        Label(R(lx, ty + 9, 226 - lx, 9), $"NEEDS {Talents.PointsToOpenNextTier} IN T{tiers - 1}", dim);
                 }
             }
 
