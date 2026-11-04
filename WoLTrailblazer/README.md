@@ -209,3 +209,8 @@ Added 22 advanced tuning controls for gameplay, timing and presentation.
 See [CONFIGURATION.md](../CONFIGURATION.md) for every new key, default, range and unit.
 All existing settings and default behavior are preserved. New keys appear on the first
 launch; close the game before editing the config, then restart to apply changes.
+
+## 0.12.3 (Matt's play-test, 11-04)
+
+The trail's hit box is 50% wider (`[Trail] TrailHitSize` 1.6 -> 2.4) and its flames burn 25% longer (`TrailLinger` 1.5 -> 1.875 s). Damage is unchanged. A config still on the old values moves over once.
+
