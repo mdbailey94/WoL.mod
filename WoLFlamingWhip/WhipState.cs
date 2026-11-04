@@ -3,7 +3,8 @@ using UnityEngine;
 
 namespace WoLFlamingWhip
 {
-    // #81 (Matt 12:00): ONE big crack per press, no combo. The game's melee state runs the press
+    // 0.8.0 (Matt 2026-11-04 13:13): a 2-hit combo, the second crack wider. Was #81 (Matt 12:00):
+    // ONE big crack per press, no combo. The game's melee state runs the press
     // (its timing, autohold and the basic slot) with no attack object of its own
     // (skipAtkObjSpawn, as some of the game's basics do). The press marks the spot WindUp seconds
     // ahead of the crack: the wizard winds the whip up overhead, slowed for a heavy feel (#86),
@@ -22,7 +23,8 @@ namespace WoLFlamingWhip
             isMeleeSkill = true;
             skipAtkObjSpawn = true;
             destroyAttackObjectOnExit = false;
-            maxComboCount = 1;
+            // 0.8.0 (Matt 13:13): a 2-hit combo; the second crack has the bigger area.
+            maxComboCount = 2;
             animStartTime = 0.05f;
             animExecTime = 0.1f;
             // The wizard stays in the swing through the wind-up and the crack.
@@ -34,7 +36,7 @@ namespace WoLFlamingWhip
             attackMoveSpeedMod = new NumVarStatMod(atkMoveModStr, 0f, 10, VarStatModType.OverrideWithMods);
             finalAttackMoveSpeedMod = attackMoveSpeedMod;
             autoHoldStat.BaseValue = true;
-            sfxNames = new[] { "WindSlashBasic" };
+            sfxNames = new[] { "WindSlashBasic", "WindSlashBasic" };
         }
 
         public override void OnEnter()
@@ -90,7 +92,7 @@ namespace WoLFlamingWhip
             Vector2 hand = parent.attackOriginTrans != null ? (Vector2)parent.attackOriginTrans.position : (Vector2)parent.transform.position;
             try
             {
-                Whip.WindUp(parent, skillID, hand, aim, IsEmpowered);
+                Whip.WindUp(parent, skillID, hand, aim, IsEmpowered, comboCounter >= 2);
             }
             catch (System.Exception e)
             {

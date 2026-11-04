@@ -19,7 +19,7 @@ namespace WoLFlamingWhip
     {
         public const string PluginGuid = "mdbailey94.wol.flamingwhip";
         public const string PluginName = "Flaming Whip";
-        public const string PluginVersion = "0.7.0";
+        public const string PluginVersion = "0.8.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -29,6 +29,7 @@ namespace WoLFlamingWhip
         // ---- Settings (BepInEx\config\mdbailey94.wol.flamingwhip.cfg) ----
         // [Crack] and [Enhanced] apply the next press; [Balance] after restarting the game. 0.3.0's
         // keys are new, so 0.1/0.2's ([Whip], LashDamage...) are simply left unused.
+        private static ConfigEntry<float> secondHitScale;
         private static ConfigEntry<float> crackDistance, spotSize, enhancedSpotSize, windUp, windUpPace, shake;
         private static ConfigEntry<float> fireLineTime, fireLineTick;
         private static ConfigEntry<int> crackDamage, fireLineDamage;
@@ -37,6 +38,7 @@ namespace WoLFlamingWhip
         public static float CrackDistance => Get(crackDistance, 3f, 0.5f, 6f);
         public static float SpotSize => Get(spotSize, 2f, 0.3f, 4f);
         public static float EnhancedSpotSize => Get(enhancedSpotSize, 2.5f, 0.3f, 4f);
+        public static float SecondHitScale => Get(secondHitScale, 1.5f, 1f, 3f);
         public static float WindUp => Get(windUp, 0.3f, 0f, 1.5f);
         public static float WindUpPace => Get(windUpPace, 0.7f, 0.3f, 1f);
         public static float Shake => Get(shake, 1.2f, 0f, 3f);
@@ -113,6 +115,7 @@ namespace WoLFlamingWhip
             windUp = Float("Crack", "WindUp", 0.3f, 0f, 1.5f, "Seconds from the press to the crack (the cast time).");
             windUpPace = Float("Crack", "WindUpPace", 0.7f, 0.3f, 1f, "How fast the wizard's swing plays (0.7 = 30% slower, for a heavy feel; 1 = normal).");
             shake = Float("Crack", "Shake", 1.2f, 0f, 3f, "Strength of the camera shake when it cracks (0 = none).");
+            secondHitScale = Float("Crack", "SecondHitScale", 1.5f, 1f, 3f, "The combo's second crack is this many times wider (0.8.0: 1.5, so 3 tiles; enhanced 3.75).");
             enhancedSpotSize = Float("Enhanced", "HitSpot", 2.5f, 0.3f, 4f, "Width of the spot when enhanced. 0.7.0: 2.5 (was 2).");
             fireLineTime = Float("Enhanced", "FireLineTime", 1.5f, 0.2f, 6f, "Seconds the line of fire burns on the floor.");
             fireLineTick = Float("Enhanced", "FireLineTick", 0.4f, 0.1f, 2f, "Seconds between the fire line's hits.");

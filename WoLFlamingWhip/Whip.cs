@@ -55,7 +55,7 @@ namespace WoLFlamingWhip
     {
         // #81: the press marks the spot, CrackDistance out along the aim from the hand; the crack
         // lands there WindUp seconds later (game time, so a pause doesn't fire it).
-        public static void WindUp(Player owner, string skillID, Vector2 hand, Vector2 aim, bool enhanced)
+        public static void WindUp(Player owner, string skillID, Vector2 hand, Vector2 aim, bool enhanced, bool second = false)
         {
             var go = new GameObject("FlamingWhip WindUp");
             Pending p = go.AddComponent<Pending>();
@@ -64,8 +64,9 @@ namespace WoLFlamingWhip
             p.hand = hand;
             p.aim = aim;
             p.enhanced = enhanced;
+            p.second = second;
             p.at = Time.time + FlamingWhipPlugin.WindUp;
-            Sound("WindSlashBasic", hand, 0.35f, 0.7f);
+            Sound("WindSlashBasic", hand, 0.2f, 0.8f);   // 0.8.0 (Matt): quieter
             // 0.4.0 (Matt: "more spell like"): fire gathers at the hand while it winds up.
             Flames("FlameCircleBurstEmitter", 4, hand);
             // 0.5.0 (#91): Art's v3 strips. The arc starts so its strike frame (2) lands exactly
@@ -77,7 +78,7 @@ namespace WoLFlamingWhip
             if (WhipArt.HasWindUp && arcStart > 0.02f)
                 Anim.Play(WhipArt.WindUp, hand, angle, new Vector3(1f, left ? -1f : 1f, 1f), Mathf.Max(WhipArt.StripFps, 6f / arcStart), owner, behind, arcStart);
             // The sigil marks where the crack will land, drawing itself until the strike.
-            float spotRadius = (enhanced ? FlamingWhipPlugin.EnhancedSpotSize : FlamingWhipPlugin.SpotSize) * 0.5f;
+            float spotRadius = (enhanced ? FlamingWhipPlugin.EnhancedSpotSize : FlamingWhipPlugin.SpotSize) * 0.5f * (second ? FlamingWhipPlugin.SecondHitScale : 1f);
             Sprite[] sigil = enhanced && WhipArt.SigilEnh.Length == 6 ? WhipArt.SigilEnh : WhipArt.Sigil;
             if (sigil.Length == 6)
             {
@@ -98,7 +99,7 @@ namespace WoLFlamingWhip
             public Player owner;
             public string skillID;
             public Vector2 hand, aim;
-            public bool enhanced;
+            public bool enhanced, second;
             public float at;
 
             private void Update()
@@ -108,7 +109,7 @@ namespace WoLFlamingWhip
                 Destroy(gameObject);
                 // 0.6.1 (#101): no crack after the wizard died or went down in co-op.
                 if (owner != null && owner.health != null && owner.health.CurrentHealthValue > 0)
-                    Crack(owner, skillID, hand, aim, enhanced);
+                    Crack(owner, skillID, hand, aim, enhanced, second);
             }
         }
 
@@ -119,10 +120,11 @@ namespace WoLFlamingWhip
         // sits on the hit area's edge). 0.4.0 (Matt: "extend range, reduce sound, more spell
         // like"): 3 tiles out, quieter (no low thud, the crack and flame at about half volume),
         // and flames burst along the lash's path and round the spot, leaving a scorch mark.
-        public static void Crack(Player owner, string skillID, Vector2 hand, Vector2 aim, bool enhanced)
+        public static void Crack(Player owner, string skillID, Vector2 hand, Vector2 aim, bool enhanced, bool second = false)
         {
             float distance = FlamingWhipPlugin.CrackDistance;
-            float radius = (enhanced ? FlamingWhipPlugin.EnhancedSpotSize : FlamingWhipPlugin.SpotSize) * 0.5f;
+            // 0.8.0 (Matt): a 2-hit combo; the second crack covers SecondHitScale times the area width.
+            float radius = (enhanced ? FlamingWhipPlugin.EnhancedSpotSize : FlamingWhipPlugin.SpotSize) * 0.5f * (second ? FlamingWhipPlugin.SecondHitScale : 1f);
             Vector2 spot = hand + aim * distance;
             Burst(spot, owner.skillCategory, skillID, 1, radius, true);
             if (!WhipArt.HasArc)
@@ -155,8 +157,8 @@ namespace WoLFlamingWhip
             catch
             {
             }
-            Sound("ThunderClap", spot, 0.35f, 1.9f);
-            Sound("FlameSlam", spot, 0.5f, 1f);
+            // 0.8.0 (Matt: "make sound less dramatic"): no thunder clap, the flame softer.
+            Sound("FlameSlam", spot, second ? 0.3f : 0.22f, 1.1f);
             // Enhanced: a short line of fire across the spot.
             if (enhanced)
                 FireLine.Lay(owner, skillID, spot - aim * radius, aim, radius * 2f);

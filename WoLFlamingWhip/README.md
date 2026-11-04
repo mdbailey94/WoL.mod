@@ -19,6 +19,13 @@ The hits are the game's own fire bursts with this arcana's stats, so burn, gear,
 talents apply. Art by WoL Art (Finished Art/Prickly Ballet + Flaming Whip, 2026-11-02); a bigger
 overhead-arc crack is being drawn for #81/#86.
 
+## Changes in 0.8.0 (Matt 13:13)
+
+- **A 2-hit combo:** press, crack; press again, a second crack whose spot is **1.5x wider**
+  (**3 tiles**, enhanced **3.75**). Same damage (18 + burn) and the same 3-tile distance.
+- **Quieter, less dramatic:** no thunder clap on the crack, a softer flame sound and a quieter
+  wind-up swish (the camera shake is unchanged).
+
 ## Changes in 0.7.0 (Matt's play-test: hit boxes too thin; #91 sigil)
 
 - **Wider crack:** the spot is **2 tiles** across (was 1.5), enhanced **2.5** (was 2). Config files
