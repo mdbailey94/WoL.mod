@@ -72,16 +72,19 @@ namespace WoLChaosDepths
                 // side by side with a 4-pixel margin at the edges and between them (Matt: bigger, to
                 // read in two-player). Up to 0.28 each was held to 48% of the width, which floored
                 // 1920 px to scale 3 although two scale-4 panels fit.
-                int s = OpenCount > 1
-                    ? Mathf.FloorToInt(Mathf.Min(Screen.height * 0.92f / ArtH, Screen.width / (2f * ArtW + 12f)))
-                    : Mathf.FloorToInt(Mathf.Min(Screen.height * 0.92f / ArtH, Screen.width * 0.96f / ArtW));
-                s = Mathf.Max(2, s);
-                float w = ArtW * s, h = ArtH * s;
                 int activePlayers = 0;
                 if (GameController.activePlayers != null)
                     foreach (Player p in GameController.activePlayers)
                         if (p != null && p.gameObject.activeInHierarchy)
                             activePlayers++;
+                // #113 (0.36.4, Matt): in two-player the panel ALWAYS opens at the two-player size
+                // and on its player's side, even when only one is open (it used to jump between the
+                // big centred size and the half size as the other panel opened or closed).
+                int s = activePlayers > 1 || OpenCount > 1
+                    ? Mathf.FloorToInt(Mathf.Min(Screen.height * 0.92f / ArtH, Screen.width / (2f * ArtW + 12f)))
+                    : Mathf.FloorToInt(Mathf.Min(Screen.height * 0.92f / ArtH, Screen.width * 0.96f / ArtW));
+                s = Mathf.Max(2, s);
+                float w = ArtW * s, h = ArtH * s;
                 float left = (Screen.width - w) / 2f;
                 if (activePlayers > 1 && player != null)
                     left = player.playerID == 0 ? 4f * s : Screen.width - w - 4f * s;
