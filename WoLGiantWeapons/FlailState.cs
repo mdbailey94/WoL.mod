@@ -14,6 +14,10 @@ namespace WoLGiantWeapons
 
         private NumVarStatMod paceMod;
         private bool paced, executed;
+        // 0.11.0 (#106): hit 3 can be CHARGED: hold to whirl the ball overhead, let go to slam.
+        private bool charging, releasedSinceHit2 = true;
+        private float chargeFrom, charge;
+        private FlailLook.Fx whirl;
 
         public FlailState(FSM fsm, Player player) : base(staticID, fsm, player)
         {
@@ -41,13 +45,61 @@ namespace WoLGiantWeapons
         {
             base.OnEnter();
             executed = false;
+            charge = 0f;
             Heavy.Pace(parent, ref paceMod, "GiantFlail_Pace", GiantWeaponsPlugin.FlailPace, ref paced, true);
+            if (comboCounter == maxComboCount - 1)
+                releasedSinceHit2 = false;
+            // A fresh hold as the third hit starts (let go after hit 2, then hold): charge.
+            charging = comboCounter >= maxComboCount && ButtonHeld() && releasedSinceHit2;
+            chargeFrom = Time.time;
+            if (charging)
+                whirl = FlailLook.Whirl(parent);
         }
 
         public override void OnExit()
         {
             Heavy.Pace(parent, ref paceMod, "GiantFlail_Pace", GiantWeaponsPlugin.FlailPace, ref paced, false);
+            charging = false;
+            StopWhirl();
             base.OnExit();
+        }
+
+        private void StopWhirl()
+        {
+            if (whirl != null)
+                whirl.Stop();
+            whirl = null;
+        }
+
+        public override void Update()
+        {
+            if (!ButtonHeld())
+                releasedSinceHit2 = true;
+            if (charging)
+            {
+                charge = Time.time - chargeFrom;
+                float full = Mathf.Clamp01(charge / GiantWeaponsPlugin.SlamFullCharge);
+                if (whirl != null)
+                    whirl.charge = full;
+                PlayAnimation(comboCounter);
+                parent.movement.EndMovement();
+                if (ButtonHeld() && charge < GiantWeaponsPlugin.SlamFullCharge + 0.5f)
+                    return;
+                charging = false;
+            }
+            base.Update();
+        }
+
+        private bool ButtonHeld()
+        {
+            try
+            {
+                return parent.inputDevice != null && parent.inputDevice.GetButton("Skill" + skillSlot);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         // The circle swings in the arms-out spin pose; the slam in the ground-slam pose.
@@ -110,15 +162,23 @@ namespace WoLGiantWeapons
             string id = skillID;
             bool enhanced = IsEmpowered;
             Vector2 spot = hand + aim * GiantWeaponsPlugin.SlamDistance;
+            // 0.11.0 (#106): a charged slam (held past SlamMinCharge) drops straight from the whirl:
+            // wider and harder with the charge, level 4 at full; a tap slam is the overhead swing.
+            bool charged = charge >= GiantWeaponsPlugin.SlamMinCharge;
+            float full = charged ? Mathf.Clamp01(charge / GiantWeaponsPlugin.SlamFullCharge) : 0f;
+            float radius = charged ? Mathf.Lerp(GiantWeaponsPlugin.SlamRadius, GiantWeaponsPlugin.FullSlamRadius, full) : GiantWeaponsPlugin.SlamRadius;
+            int level = full >= 1f ? 4 : 2;
+            float windUp = charged ? GiantWeaponsPlugin.ChargedDrop : GiantWeaponsPlugin.SlamWindUp;
+            StopWhirl();
             Heavy.Sound("WindSlashBasic", hand, 0.5f);
-            FlailLook.Reach(p, spot, GiantWeaponsPlugin.SlamWindUp);
-            Heavy.After(GiantWeaponsPlugin.SlamWindUp, () =>
+            FlailLook.Reach(p, spot, windUp, charged);
+            Heavy.After(windUp, () =>
             {
                 if (!Heavy.Alive(p))
                     return;
-                Heavy.Bolt(spot, p, id, 2, GiantWeaponsPlugin.SlamRadius);
-                FlailLook.Impact(p, spot, GiantWeaponsPlugin.SlamRadius);
-                Heavy.Shake(1.2f);
+                Heavy.Bolt(spot, p, id, level, radius);
+                FlailLook.Impact(p, spot, radius);
+                Heavy.Shake(1.2f + 0.8f * full);
                 Heavy.Sound("ThunderClap", spot, 0.8f);
                 Heavy.Sound("EarthExplosion", spot, 0.7f);
                 Heavy.Dust(spot, 14, GiantWeaponsPlugin.SlamRadius);

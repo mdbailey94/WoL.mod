@@ -27,6 +27,16 @@ and Buckler are their own mods (WoLGiantSpear, WoLBuckler); Flaming Whip is WoLF
   damage, always shocks, knockback, camera shake and a thunder thud.
 - **Enhanced:** the slam arcs lightning to up to **3** enemies within **4 u**, **6** damage each.
 
+0.11.0 (#106, Matt's flail rework):
+- **Bigger ball:** drawn 1.5x until WoL Art's 24 px `flail_head_big` lands (then 1:1).
+- **Hits 1-2: swooping 360° swings:** the ball dips low and wide in front and rises behind, reach
+  **2.8 u** (was 2.6; old configs on 2.6 move over once); hits still cover the whole circle.
+- **Hit 3: charge, then slam in front.** Let go after hit 2, then HOLD: the ball whirls above the head,
+  faster and brighter as it charges (min **0.3 s**, full **1.2 s**); let go to drop it on the spot
+  2.5 u ahead in **0.25 s**. Charged: radius 2.0 to **2.6 u** with the charge, **34** damage and an
+  always-shock at full (level 4); otherwise the tap slam: the over-the-top swing, **20** damage,
+  2.0 u, now **50%** shock (was 100%). Bigger shake with the charge.
+
 0.10.0 (#105, Matt: "brace = charge, swing FAST"):
 - **Ice Sword brace combo:** each press is a **brace** then a **snap**. Hit 1: the wizard steps
   **0.6 u** forward over a **0.35 s** brace with the blade drawn back on one side, then it snaps 45°

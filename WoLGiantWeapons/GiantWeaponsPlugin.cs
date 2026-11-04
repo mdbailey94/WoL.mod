@@ -17,7 +17,7 @@ namespace WoLGiantWeapons
     {
         public const string PluginGuid = "mdbailey94.wol.giantweapons";
         public const string PluginName = "Giant Weapons";
-        public const string PluginVersion = "0.10.0";
+        public const string PluginVersion = "0.11.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> swordEnabled, flailEnabled;
@@ -26,6 +26,8 @@ namespace WoLGiantWeapons
 
         // ---- Settings (BepInEx\config\mdbailey94.wol.giantweapons.cfg) ----
         // [Ice Sword] and [Flail] apply the next attack; [Balance] after restarting the game.
+        private static ConfigEntry<float> slamMinCharge, slamFullCharge, fullSlamRadius, chargedDrop;
+        private static ConfigEntry<int> fullSlamDamage;
         private static ConfigEntry<float> swingHitAngle, braceTime, spinBraceTime, braceStep, spinBraceStep;
         private static ConfigEntry<int> configVersion;
         private static ConfigEntry<float> swordPace, swingReach, swingArc, spinMin, spinFull, spinRadius, fullSpinRadius,
@@ -66,7 +68,11 @@ namespace WoLGiantWeapons
         public static float CircleTime => Get(circleTime, 0.45f, 0.15f, 2f);
         public static float FlailBlurAlpha => Get(blurAlpha, 0.45f, 0f, 1f);
         public static int CircleSlices => Mathf.Clamp(circleSlices?.Value ?? 4, 1, 12);
-        public static float CircleRadius => Get(circleRadius, 2.6f, 0.5f, 6f);
+        public static float CircleRadius => Get(circleRadius, 2.8f, 0.5f, 6f);
+        public static float SlamMinCharge => Get(slamMinCharge, 0.3f, 0f, 3f);
+        public static float SlamFullCharge => Get(slamFullCharge, 1.2f, 0.1f, 4f);
+        public static float FullSlamRadius => Get(fullSlamRadius, 2.6f, 0.3f, 6f);
+        public static float ChargedDrop => Get(chargedDrop, 0.25f, 0.05f, 1.5f);
         public static float RaiseShare => Get(raiseShare, 0.65f, 0.2f, 0.9f);
         public static float OverheadHeight => Get(overheadHeight, 1.8f, 0.5f, 4f);
         public static float SlamDistance => Get(slamDistance, 2.5f, 0.5f, 6f);
@@ -137,15 +143,17 @@ namespace WoLGiantWeapons
                     subElementType = new[] { "Lightning" },
                     targetNames = new[] { "EnemyHurtBox", "DestructibleHurtBox" },
                     // Levels: 1 a circle swing, 2 the slam, 3 an enhanced arc.
-                    damage = new[] { Clamp(circleDamage, 0, 200), Clamp(slamDamage, 0, 300), Clamp(arcDamage, 0, 200) },
+                    // 0.11.0 (#106): level 4 is the full-charge slam; the tap slam (2) shocks half the
+                    // time (the #101 audit flagged an always-shock slam every combo).
+                    damage = new[] { Clamp(circleDamage, 0, 200), Clamp(slamDamage, 0, 300), Clamp(arcDamage, 0, 200), Clamp(fullSlamDamage, 0, 400) },
                     cooldown = new[] { 0f },
-                    knockbackMultiplier = new[] { 8f, 30f, 4f },
-                    hitStunDurationModifier = new[] { 1f, 1.5f, 0.8f },
-                    showDamageNumber = new[] { true, true, true },
-                    shockChance = new[] { 0.25f, 1f, 0.5f },
+                    knockbackMultiplier = new[] { 8f, 30f, 4f, 42f },
+                    hitStunDurationModifier = new[] { 1f, 1.5f, 0.8f, 1.8f },
+                    showDamageNumber = new[] { true, true, true, true },
+                    shockChance = new[] { 0.25f, 0.5f, 0.5f, 1f },
                     shockLevel = new[] { 1 },
                     sameAttackImmunityTime = new[] { 0.1f },
-                    shakeCamera = new[] { false, true, false }
+                    shakeCamera = new[] { false, true, false, true }
                 },
                 priceMultiplier = 3,
                 unlockCondition = () => flailEnabled.Value
@@ -158,13 +166,17 @@ namespace WoLGiantWeapons
         private void Migrate()
         {
             configVersion = Config.Bind("Internal", "ConfigVersion", 0, "Used by the mod to move old defaults over once; leave it alone.");
+            if (configVersion.Value < 110 && configVersion.Value >= 90 && Mathf.Approximately(circleRadius.Value, 2.6f))
+                circleRadius.Value = 2.8f;
             if (configVersion.Value < 90)
             {
                 if (Mathf.Approximately(swingReach.Value, 2.2f))
                     swingReach.Value = 2.6f;
-                configVersion.Value = 90;
+                if (Mathf.Approximately(circleRadius.Value, 2.6f))
+                    circleRadius.Value = 2.8f;
                 Logger.LogInfo("Config moved to 0.9.0's defaults (Ice Sword SwingReach 2.6)");
             }
+            configVersion.Value = 110;
         }
 
         private static int Clamp(ConfigEntry<int> entry, int min, int max) => Mathf.Clamp(entry.Value, min, max);
@@ -208,7 +220,11 @@ namespace WoLGiantWeapons
             circleTime = Float("Flail", "CircleTime", 0.45f, 0.15f, 2f, "Seconds for the ball to go once round on hits 1-2 (was 0.35).");
             circleSlices = Config.Bind("Flail", "CircleSlices", 4, new ConfigDescription("The circle is cut into this many slices; an enemy is hit once, as the ball passes its slice.", new AcceptableValueRange<int>(1, 12)));
             blurAlpha = Float("Flail", "BlurAlpha", 0.45f, 0f, 1f, "How strongly the motion-blur ring shows behind the ball (0 = only the ball and chain).");
-            circleRadius = Float("Flail", "CircleReach", 2.6f, 0.5f, 6f, "Radius round the wizard of hits 1 and 2, where the ball goes (0.6.0, #97: bigger, was 2; the old CircleRadius key is unused).");
+            circleRadius = Float("Flail", "CircleReach", 2.8f, 0.5f, 6f, "Radius round the wizard of hits 1 and 2, the swooping swings (0.11.0, #106: 2.8, was 2.6).");
+            slamMinCharge = Float("Flail", "SlamMinCharge", 0.3f, 0f, 3f, "Seconds held on hit 3 before it counts as a charged slam (less = the tap slam).");
+            slamFullCharge = Float("Flail", "SlamFullCharge", 1.2f, 0.1f, 4f, "Seconds held for a full-charge slam.");
+            fullSlamRadius = Float("Flail", "FullSlamReach", 2.6f, 0.3f, 6f, "Radius of a full-charge slam (a tap slam is SlamReach).");
+            chargedDrop = Float("Flail", "ChargedDrop", 0.25f, 0.05f, 1.5f, "Seconds for the ball to drop from the whirl onto the spot after a charge.");
             slamDistance = Float("Flail", "SlamDistance", 2.5f, 0.5f, 6f, "How far ahead the slam lands, in units.");
             slamRadius = Float("Flail", "SlamReach", 2f, 0.3f, 5f, "Radius of the slam (0.6.0, #97: bigger, was 1.5; the old SlamRadius key is unused).");
             slamWindUp = Float("Flail", "OverheadWindUp", 0.6f, 0f, 2f, "Seconds from the third press to the slam: the ball rises slowly over the head, then comes down hard (0.6.0, #97; was 0.4; the old SlamWindUp key is unused).");
@@ -225,6 +241,7 @@ namespace WoLGiantWeapons
             circleDamage = Int("Balance", "FlailCircleDamage", 10, "Flail: damage of the circle swings." + restart);
             slamDamage = Int("Balance", "FlailSlamDamage", 20, "Flail: damage of the slam." + restart);
             arcDamage = Int("Balance", "FlailArcDamage", 6, "Flail: damage of each enhanced arc." + restart);
+            fullSlamDamage = Int("Balance", "FlailFullSlamDamage", 34, "Flail: damage of a full-charge slam (0.11.0, #106)." + restart);
         }
 
         private ConfigEntry<float> Float(string section, string key, float value, float min, float max, string description) =>

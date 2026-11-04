@@ -25,7 +25,10 @@ namespace WoLGiantWeapons
             if (!loaded)
             {
                 loaded = true;
-                head = Frames("flail_head.png", 16, new Vector2(0.5f, 0.5f));
+                head = Frames("flail_head_big.png", 24, new Vector2(0.5f, 0.5f));
+                headBig = head != null;
+                if (head == null)
+                    head = Frames("flail_head.png", 16, new Vector2(0.5f, 0.5f));
                 chain = Frames("flail_chain.png", 8, new Vector2(0f, 0.5f));
                 swing = Frames("flail_swing.png", 64, new Vector2(0.5f, 0.5f));
                 slam = Frames("flail_slam.png", 48, new Vector2(0.5f, 0.5f));
@@ -74,15 +77,31 @@ namespace WoLGiantWeapons
 
         // Hit 3: the ball and chain reach from the hand to the spot over `windUp`; Impact plays
         // the slam there.
-        public static void Reach(Player p, Vector2 spot, float windUp)
+        public static void Reach(Player p, Vector2 spot, float windUp, bool fromApex = false)
         {
             if (p == null || !Art())
                 return;
             Fx fx = Fx.Make(p, "GiantFlail Slam");
             fx.spot = spot;
+            fx.fromApex = fromApex;
             fx.time = Mathf.Max(0.1f, windUp) + 0.25f;
             fx.reachTime = Mathf.Max(0.1f, windUp);
         }
+
+        // 0.11.0 (#106): the charge's whirl overhead, until Stop().
+        public static Fx Whirl(Player p)
+        {
+            if (p == null || !Art())
+                return null;
+            Fx fx = Fx.Make(p, "GiantFlail Whirl");
+            fx.whirl = true;
+            fx.time = 30f;
+            return fx;
+        }
+
+        // The ball is drawn 1.5x (Matt: "bigger ball") until WoL Art's 24 px flail_head_big lands.
+        private static float BallScale => headBig ? 1f : 1.5f;
+        private static bool headBig;
 
         public static void Impact(Player p, Vector2 spot, float radius)
         {
@@ -95,13 +114,16 @@ namespace WoLGiantWeapons
             fx.time = slam.Length / 16f;
         }
 
-        private class Fx : MonoBehaviour
+        internal class Fx : MonoBehaviour
         {
-            public bool ring, impact, clockwise;
+            public bool ring, impact, clockwise, fromApex, whirl;
+            public float charge;   // 0-1 while whirling (#106)
             public float radius, time, reachTime, startDeg;
             public Vector2 spot;
             private Player owner;
             private SpriteRenderer main, ball;
+            private float whirlAngle;
+            public void Stop() => Destroy(gameObject);
             private SpriteRenderer[] links = new SpriteRenderer[0];
             private float born;
 
@@ -148,6 +170,24 @@ namespace WoLGiantWeapons
                 }
                 Vector2 hand = Heavy.Hand(owner);
                 Vector2 tip;
+                if (whirl)
+                {
+                    // 0.11.0 (#106): charging: the ball circles above the head, faster and brighter
+                    // as the charge fills; it stays until the slam takes over (Stop).
+                    transform.position = Vector3.zero;
+                    Vector2 over = (Vector2)owner.transform.position + new Vector2(0f, GiantWeaponsPlugin.OverheadHeight);
+                    whirlAngle += Time.deltaTime * (7f + 12f * charge);
+                    tip = over + new Vector2(Mathf.Cos(whirlAngle) * 0.8f, Mathf.Sin(whirlAngle) * 0.3f);
+                    if (ball == null)
+                        ball = Part("Ball", 2);
+                    ball.transform.position = tip;
+                    ball.transform.localScale = Vector3.one * BallScale * (1f + 0.15f * charge);
+                    ball.color = Color.Lerp(Color.white, new Color(1f, 1f, 0.6f), charge);
+                    SortBall();
+                    ball.sprite = head[(int)(age * (12f + 12f * charge)) % head.Length];
+                    Chain(hand, tip, age);
+                    return;
+                }
                 if (ring)
                 {
                     // Round the wizard, the ring's frames turning with the ball.
@@ -167,10 +207,14 @@ namespace WoLGiantWeapons
                     // tail trails behind).
                     main.transform.localScale = new Vector3(s, clockwise ? -s : s, 1f);
                     main.transform.localRotation = Quaternion.Euler(0f, 0f, clockwise ? deg + f * 60f : deg - f * 60f);
-                    tip = centre + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+                    // 0.11.0 (#106): a SWOOPING path: lower and wider in front of the wizard (below
+                    // them on screen), rising behind; the hits still cover the full circle.
+                    float sy = Mathf.Sin(angle);
+                    tip = centre + new Vector2(Mathf.Cos(angle) * radius, sy * radius * (sy < 0f ? 0.85f : 0.65f) - 0.15f);
                     if (ball == null)
                         ball = Part("Ball", 2);
                     ball.transform.position = tip;
+                    ball.transform.localScale = Vector3.one * BallScale;
                     SortBall();
                     ball.sprite = head[(int)(age * 12f) % head.Length];
                 }
@@ -182,7 +226,8 @@ namespace WoLGiantWeapons
                     // ball rises slowly (smoothstep) from the hand to high over the wizard's head;
                     // then it comes down fast (t^3) on an arc over the top onto the spot.
                     float u = Mathf.Clamp01(age / reachTime);
-                    float raise = GiantWeaponsPlugin.RaiseShare;
+                    // After a charge the ball is already overhead: straight into the drop.
+                    float raise = fromApex ? 0.0001f : GiantWeaponsPlugin.RaiseShare;
                     Vector2 apex = (Vector2)owner.transform.position + new Vector2(0f, GiantWeaponsPlugin.OverheadHeight)
                         - (spot - hand).normalized * 0.4f;   // a little behind the head, so it comes over
                     if (u < raise)
@@ -200,7 +245,7 @@ namespace WoLGiantWeapons
                         tip = Vector2.Lerp(Vector2.Lerp(apex, mid, k), Vector2.Lerp(mid, spot, k), k);
                     }
                     if (ball != null)
-                        ball.transform.localScale = Vector3.one * (u < 1f ? 1f + 0.25f * Mathf.Sin(Mathf.PI * Mathf.Min(1f, u / raise)) : 1f);
+                        ball.transform.localScale = Vector3.one * BallScale * (u < 1f && !fromApex ? 1f + 0.25f * Mathf.Sin(Mathf.PI * Mathf.Min(1f, u / raise)) : 1f);
                     if (ball == null)
                         ball = Part("Ball", 2);
                     ball.transform.position = tip;
