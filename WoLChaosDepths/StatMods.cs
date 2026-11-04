@@ -54,8 +54,8 @@ namespace WoLChaosDepths
                 totals["SignatureCharge"] = current + gain;
             }
             float levelHealth = HealthPerLevel * (save.level - 1);
-            if (lastTotals.Count > 16)
-                lastTotals.Clear();
+            if (lastTotals.Count > 8)
+                Points.Prune(lastTotals);
             lastTotals[player.GetInstanceID()] = totals;
 
             // Only touch the game when something changed.

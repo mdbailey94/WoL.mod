@@ -68,6 +68,8 @@ namespace WoLChaosDepths
         private static bool playersPausedByUs;
 
         public static bool KeepRunning => keepRunning != null && keepRunning.Value;
+        // Menus are open and none of them paused the game: the world keeps running.
+        public static bool WorldRunning => openCount > 0 && !pausedByUs && !playersPausedByUs;
         public static bool IsFrozen(Player p) => p != null && frozen.Count > 0 && frozen.ContainsKey(p);
 
         public static void Install(BepInEx.Configuration.ConfigFile config, HarmonyLib.Harmony harmony)
@@ -223,12 +225,12 @@ namespace WoLChaosDepths
         private static void TickFrozen()
         {
             released.Clear();
-            bool held = SkillButtonHeld();
             foreach (KeyValuePair<Player, float> f in frozen)
             {
                 if (f.Key == null || !f.Key.gameObject.activeInHierarchy)
                     released.Add(f.Key);
-                else if (f.Value >= 0f && (Time.unscaledTime >= f.Value || !held))
+                // Only this wizard's own buttons (the other one is playing and often holds a skill).
+                else if (f.Value >= 0f && (Time.unscaledTime >= f.Value || !SkillButtonHeld(f.Key)))
                     released.Add(f.Key);
                 else
                     Hold(f.Key);
@@ -237,11 +239,11 @@ namespace WoLChaosDepths
                 frozen.Remove(p);
         }
 
-        private static bool SkillButtonHeld()
+        private static bool SkillButtonHeld(Player only = null)
         {
             try
             {
-                Player[] players = GameController.activePlayers;
+                Player[] players = only != null ? new[] { only } : GameController.activePlayers;
                 if (players == null)
                     return false;
                 foreach (Player p in players)

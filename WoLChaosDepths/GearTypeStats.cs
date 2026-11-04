@@ -28,6 +28,7 @@ namespace WoLChaosDepths
         private class Runner : MonoBehaviour
         {
             private float next;
+            private bool cleared;
 
             private void Update()
             {
@@ -36,11 +37,16 @@ namespace WoLChaosDepths
                 next = Time.unscaledTime + Every;
                 try
                 {
+                    // Chaos Depths turned off: take every point mod off once (review, 0.39.2).
+                    bool on = ChaosDepthsPlugin.ModOn;
+                    if (!on && cleared)
+                        return;
                     Player[] players = GameController.activePlayers;
                     if (players != null)
                         foreach (Player p in players)
                             if (p != null && p.skillsDict != null)
-                                Apply(p, ChaosDepthsPlugin.Instance.SaveOf(p));
+                                Apply(p, on);
+                    cleared = !on;
                 }
                 catch (Exception e)
                 {
@@ -56,10 +62,10 @@ namespace WoLChaosDepths
         // #114 step 2 (0.38.0): one pass for every POINT stat. The totals are StatMods' (gear + stat
         // talents, summed once there; this used to sum the gear a second time) plus the point
         // register (pacts, cloak perks, mechanics, other mods), converted once per stat.
-        private static void Apply(Player p, CharacterSave save)
+        private static void Apply(Player p, bool on)
         {
-            var totals = new Dictionary<string, float>(StatMods.TotalsOf(p));
-            foreach (string stat in Points.PointStats)
+            var totals = on ? new Dictionary<string, float>(StatMods.TotalsOf(p)) : new Dictionary<string, float>();
+            foreach (string stat in on ? Points.PointStats : new string[0])
             {
                 float reg = Points.Of(p, stat);
                 if (!Mathf.Approximately(reg, 0f))

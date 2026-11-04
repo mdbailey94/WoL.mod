@@ -72,8 +72,8 @@ namespace WoLChaosDepths
             {
                 if (Mathf.Approximately(points, 0f))
                     return;
-                if (register.Count > 16)
-                    register.Clear();   // players from old sessions
+                if (register.Count > 8)
+                    Prune(register);   // players from old sessions
                 register[id] = stats = new Dictionary<string, Dictionary<string, float>>();
             }
             Dictionary<string, float> sources;
@@ -87,6 +87,20 @@ namespace WoLChaosDepths
                 sources.Remove(source);
             else
                 sources[source] = points / 100f;
+        }
+
+        // Drops the entries of wizards that aren't active any more (never the current ones).
+        internal static void Prune<T>(Dictionary<int, T> byPlayer)
+        {
+            var keep = new HashSet<int>();
+            Player[] players = GameController.activePlayers;
+            if (players != null)
+                foreach (Player p in players)
+                    if (p != null)
+                        keep.Add(p.GetInstanceID());
+            foreach (int id in new List<int>(byPlayer.Keys))
+                if (!keep.Contains(id))
+                    byPlayer.Remove(id);
         }
 
         /// <summary>Takes a source off every stat of this wizard.</summary>

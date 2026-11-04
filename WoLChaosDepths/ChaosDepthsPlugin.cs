@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.39.1";
+        public const string PluginVersion = "0.39.2";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -50,6 +50,7 @@ namespace WoLChaosDepths
         private static ConfigEntry<string> diveRealm;
         private static ConfigEntry<int> floorsPerRealm, realmsPerDive;
 
+        public static bool ModOn => modEnabled?.Value ?? false;
         public static bool DiveEnabled => (modEnabled?.Value ?? false) && (diveEnabled?.Value ?? false);
         public static string DiveRealm => diveRealm?.Value ?? "Game";
         public static int FloorsPerRealm => Mathf.Clamp(floorsPerRealm?.Value ?? 0, 0, 5);
@@ -344,12 +345,20 @@ namespace WoLChaosDepths
         // Twice a second: make sure each active player has a character and their stats on.
         private void UpdateFrame()
         {
+            // Release before the Enabled test, and turning the mod off closes any open menu, so a
+            // wizard frozen by a keep-running menu can never stay frozen (review, 0.39.2).
+            InventoryPanel.TickRelease();
             if (!modEnabled.Value)
+            {
+                if (AnyPanelOpen)
+                    foreach (InventoryPanel p in new List<InventoryPanel>(panels.Values))
+                        p.Close();
                 return;
+            }
             DebugKeys.Update(this);
             DebugKeys.ShieldTick();
             Pickups.Update();
-            InventoryPanel.TickRelease();
+            bool worldRunning = false;
             if (AnyPanelOpen)
             {
                 foreach (InventoryPanel p in new List<InventoryPanel>(panels.Values))
@@ -367,7 +376,11 @@ namespace WoLChaosDepths
                         theirs.Show(another, CharacterOf(another));
                 }
                 keyOpenUntil = 0f;
-                return;
+                // #113(b): with [Item Menu] KeepGameRunning the world goes on, so its ticks do too
+                // (uniques, surges, elites, rifts, stats); only a new open request waits.
+                if (!InventoryPanel.WorldRunning)
+                    return;
+                worldRunning = true;
             }
             TitleSaveSwitch();
             PortalProbe.Update(InTrials());
@@ -375,7 +388,7 @@ namespace WoLChaosDepths
             Player[] players = GameController.activePlayers;
             if (players == null)
                 return;
-            Player opener = OpenRequested(players);
+            Player opener = worldRunning ? null : OpenRequested(players);
             if (opener != null && PanelOf(opener).ClosedFrame != Time.frameCount)
             {
                 PanelOf(opener).Show(opener, CharacterOf(opener));
@@ -412,9 +425,19 @@ namespace WoLChaosDepths
         {
             if (!modEnabled.Value)
                 return;
+            // The run's HUD stays up under a keep-running menu (#113b): the fight goes on.
+            bool hud = !AnyPanelOpen || InventoryPanel.WorldRunning;
+            if (hud && InTrials())
+            {
+                ChaosSurge.Draw();
+                Layers.Draw();
+                Pickups.Draw();
+            }
+            else if (!AnyPanelOpen && InProfile)
+                ProfileTag();
             if (AnyPanelOpen)
             {
-                bool dim = true;
+                bool dim = !InventoryPanel.WorldRunning;
                 foreach (InventoryPanel p in panels.Values)
                     if (p.Open)
                     {
@@ -422,14 +445,6 @@ namespace WoLChaosDepths
                         dim = false;
                     }
             }
-            else if (InTrials())
-            {
-                ChaosSurge.Draw();
-                Layers.Draw();
-                Pickups.Draw();
-            }
-            else if (InProfile)
-                ProfileTag();
         }
 
         private void OnInventoryChanged(Player player, CharacterSave save)
