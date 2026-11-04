@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.38.1";
+        public const string PluginVersion = "0.39.0";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -260,6 +260,7 @@ namespace WoLChaosDepths
                 "Relic IDs (comma separated) given to the first player when the auto-dive (F10) starts, e.g. one that speeds up getting to the exit room. Press F11 in a run to log every relic's ID and name.");
             var harmony = new Harmony(PluginGuid);
             ProfileSave.Install(harmony, Logger);
+            InventoryPanel.Install(Config, harmony);   // #113(b) [Item Menu] KeepGameRunning
             ArcanaLevels.Install(harmony);
             try
             {

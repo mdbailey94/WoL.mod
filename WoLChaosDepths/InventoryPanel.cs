@@ -56,6 +56,48 @@ namespace WoLChaosDepths
         private static bool pausedByUs;
         public static int OpenCount => openCount;
         public static bool PausedByPanels => openCount > 0 && pausedByUs;
+
+        // #113(b) (Matt: "can the item menu NOT stop the game?"), behind [Item Menu]
+        // KeepGameRunning (off = the old pause; also in the title screen Mods menu): the world keeps
+        // running and only the wizard whose menu is open is frozen (their Player Update/FixedUpdate
+        // skipped, held still, unhittable). The other wizard keeps playing. On close the wizard stays
+        // frozen until the button that closed it is let go (at most 1 s), as with the pause.
+        private static BepInEx.Configuration.ConfigEntry<bool> keepRunning;
+        private static readonly Dictionary<Player, float> frozen = new Dictionary<Player, float>();   // release deadline, -1 while open
+        private bool frozeOnly;
+        private static bool playersPausedByUs;
+
+        public static bool KeepRunning => keepRunning != null && keepRunning.Value;
+        public static bool IsFrozen(Player p) => p != null && frozen.Count > 0 && frozen.ContainsKey(p);
+
+        public static void Install(BepInEx.Configuration.ConfigFile config, HarmonyLib.Harmony harmony)
+        {
+            keepRunning = config.Bind("Item Menu", "KeepGameRunning", false,
+                "On: opening the item menu doesn't pause the game; only your own wizard is frozen (and can't be hit) while it's open, the other wizard and the enemies keep going. Off: the game pauses, as before.");
+            try
+            {
+                var skip = new HarmonyLib.HarmonyMethod(typeof(InventoryPanel), nameof(SkipWhileFrozen));
+                harmony.Patch(HarmonyLib.AccessTools.Method(typeof(Player), "Update"), prefix: skip);
+                harmony.Patch(HarmonyLib.AccessTools.Method(typeof(Player), "FixedUpdate"), prefix: skip);
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"item menu freeze hook: {e.Message}");
+            }
+        }
+
+        private static bool SkipWhileFrozen(Player __instance) => !IsFrozen(__instance);
+
+        private static void Hold(Player p)
+        {
+            try
+            {
+                if (p.rigidbody2D != null)
+                    p.rigidbody2D.velocity = Vector2.zero;
+                p.health?.SetInvulnerabilityDuration(0.2f, false);
+            }
+            catch { }
+        }
         public int ClosedFrame { get; private set; } = -1;
         private readonly Action<Player, CharacterSave> onChanged;
 
@@ -83,6 +125,14 @@ namespace WoLChaosDepths
             openCount++;
             releaseWaitUntil = -1f;
             Rebuild();
+            if (KeepRunning)
+            {
+                frozeOnly = true;
+                frozen[player] = -1f;
+                Hold(player);
+                ChaosDepthsPlugin.Log($"Inventory opened by player {player.playerID + 1} (game keeps running): {save.inventory.Count} item(s)");
+                return;
+            }
             try
             {
                 if (!TimeScaleController.paused)
@@ -100,6 +150,7 @@ namespace WoLChaosDepths
             try
             {
                 GameController.PauseAllPlayers(true);
+                playersPausedByUs = true;
             }
             catch (Exception e)
             {
@@ -116,6 +167,14 @@ namespace WoLChaosDepths
             ClosedFrame = Time.frameCount;
             openCount = Mathf.Max(0, openCount - 1);
             ChaosDepthsPlugin.Log($"Inventory closed (player {(player != null ? player.playerID + 1 : 0)}{(openCount > 0 ? $", {openCount} still open" : "")})");
+            if (frozeOnly)
+            {
+                frozeOnly = false;
+                if (player != null)
+                    frozen[player] = Time.unscaledTime + 1f;
+                if (!pausedByUs && !playersPausedByUs)
+                    return;
+            }
             // The game stays paused while the other wizard's inventory is still open.
             if (openCount > 0)
                 return;
@@ -141,11 +200,14 @@ namespace WoLChaosDepths
         // after a second, so a stuck button can't keep them frozen).
         public static void TickRelease()
         {
+            if (frozen.Count > 0)
+                TickFrozen();
             if (releaseWaitUntil < 0f || openCount > 0)
                 return;
             if (Time.unscaledTime < releaseWaitUntil && SkillButtonHeld())
                 return;
             releaseWaitUntil = -1f;
+            playersPausedByUs = false;
             try
             {
                 GameController.PauseAllPlayers(false);
@@ -154,6 +216,25 @@ namespace WoLChaosDepths
             {
                 ChaosDepthsPlugin.LogError($"unpause players: {e.Message}");
             }
+        }
+
+        private static readonly List<Player> released = new List<Player>();
+
+        private static void TickFrozen()
+        {
+            released.Clear();
+            bool held = SkillButtonHeld();
+            foreach (KeyValuePair<Player, float> f in frozen)
+            {
+                if (f.Key == null || !f.Key.gameObject.activeInHierarchy)
+                    released.Add(f.Key);
+                else if (f.Value >= 0f && (Time.unscaledTime >= f.Value || !held))
+                    released.Add(f.Key);
+                else
+                    Hold(f.Key);
+            }
+            foreach (Player p in released)
+                frozen.Remove(p);
         }
 
         private static bool SkillButtonHeld()

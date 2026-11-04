@@ -15,7 +15,7 @@ namespace WoLModMenu
     {
         public const string PluginGuid = "mdbailey94.wol.modmenu";
         public const string PluginName = "Mod Menu";
-        public const string PluginVersion = "0.1.7";
+        public const string PluginVersion = "0.1.8";
 
         private const string ModGuidPrefix = "mdbailey94.wol.";
         private const float ReferenceHeight = 1080f;
@@ -245,7 +245,7 @@ namespace WoLModMenu
 
         // Sub-switches listed under their mod (0.1.6, #88): the on/off settings of a mod's
         // [Aspects] section (Chaos Depths' Boss Aspects: the master switch, then one per aspect).
-        private static readonly string[] SubSections = { "Aspects" };
+        private static readonly string[] SubSections = { "Aspects", "Item Menu" };   // 0.1.8: Chaos Depths' KeepGameRunning (#113)
 
         private void AddSubSwitches(BaseUnityPlugin plugin, string modName)
         {
