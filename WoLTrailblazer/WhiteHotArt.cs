@@ -13,11 +13,34 @@ namespace WoLTrailblazer
         private const int EmberSize = 8, EmberFrames = 4;
         private static readonly Vector2 TonguePivot = new Vector2(0.5f, 2.5f / 60f);
 
-        private static Sprite[] tongue, ember;
-        private static bool failed;
+        // Log - Art 10:19: the tongue baked at its display size (40x96, pivot (20,91) from the top),
+        // drawn at 1.0 instead of the 25x60 one at ~1.6x.
+        private const int NativeWidth = 40, NativeHeight = 96;
+        public const float NativeScale = 1.6f;
+        private static readonly Vector2 NativePivot = new Vector2(0.5f, 5f / 96f);
 
-        public static Sprite[] Tongue(float ppu) =>
-            Cut(ref tongue, "trailblazer_max_tongue.png", TongueWidth, TongueHeight, TongueFrames, TonguePivot, ppu);
+        private static Sprite[] tongue, ember, nativeTongue;
+        private static bool failed, nativeFailed;
+
+        public static bool Native { get; private set; }
+
+        public static Sprite[] Tongue(float ppu)
+        {
+            if (!nativeFailed)
+            {
+                bool wasFailed = failed;
+                Sprite[] n = Cut(ref nativeTongue, "trailblazer_max_tongue_native.png", NativeWidth, NativeHeight, TongueFrames, NativePivot, ppu);
+                if (n != null)
+                {
+                    Native = true;
+                    return n;
+                }
+                nativeFailed = true;
+                failed = wasFailed;   // the native sheet missing isn't a reason to drop the old one
+            }
+            Native = false;
+            return Cut(ref tongue, "trailblazer_max_tongue.png", TongueWidth, TongueHeight, TongueFrames, TonguePivot, ppu);
+        }
 
         public static Sprite[] Ember(float ppu) =>
             Cut(ref ember, "trailblazer_max_ember.png", EmberSize, EmberSize, EmberFrames, new Vector2(0.5f, 0.5f), ppu);

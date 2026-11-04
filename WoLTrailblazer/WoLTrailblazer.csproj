@@ -45,6 +45,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Assets\icon.png" LogicalName="WoLTrailblazer.Assets.icon.png" />
     <EmbeddedResource Include="Assets\trailblazer_max_tongue.png" LogicalName="WoLTrailblazer.Assets.trailblazer_max_tongue.png" />
+    <EmbeddedResource Include="Assets\trailblazer_max_tongue_native.png" LogicalName="WoLTrailblazer.Assets.trailblazer_max_tongue_native.png" />
     <EmbeddedResource Include="Assets\trailblazer_max_ember.png" LogicalName="WoLTrailblazer.Assets.trailblazer_max_ember.png" />
   </ItemGroup>
 

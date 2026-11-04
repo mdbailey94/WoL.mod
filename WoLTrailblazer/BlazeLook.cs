@@ -327,7 +327,11 @@ namespace WoLTrailblazer
                         .Phase(Random.value).At(spot);
                     flame.Renderer.flipX = Random.value < 0.5f;
                     if (hot != null)
-                        flame.transform.localScale = new Vector3(hotScale, hotScale, 1f);
+                    {
+                        // The native tongue is already drawn at ~1.6x; scale only what's left over.
+                        float sc = WhiteHotArt.Native ? hotScale / WhiteHotArt.NativeScale : hotScale;
+                        flame.transform.localScale = new Vector3(sc, sc, 1f);
+                    }
                     // Sorted as Searing Rush's columns on the trail are: just behind the wizard as it was dropped.
                     Fx.NearBody(flame.Renderer, -1, Body);
                     look.flames[i] = new FxHandle(flame);

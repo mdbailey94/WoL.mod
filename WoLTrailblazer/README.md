@@ -214,3 +214,5 @@ launch; close the game before editing the config, then restart to apply changes.
 
 The trail's hit box is 50% wider (`[Trail] TrailHitSize` 1.6 -> 2.4) and its flames burn 25% longer (`TrailLinger` 1.5 -> 1.875 s). Damage is unchanged. A config still on the old values moves over once.
 
+**0.12.4** (Log - Art 10:19): the white-hot flame at speed level 10 uses Art's tongue drawn at its display size (40x96) and scales only what's left over, so it stays crisp instead of being blown up 1.6x.
+
