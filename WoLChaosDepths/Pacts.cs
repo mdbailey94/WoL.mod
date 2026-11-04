@@ -108,7 +108,7 @@ namespace WoLChaosDepths
 
                 // Borrowed Time.
                 bool borrowed = Has(p, "BorrowedTime");
-                SkillMods(p, StatData.cdStr, "Borrowed", borrowed ? -0.30f : 0f, true, all: true);
+                Points.Set(p, "Cooldown", "Pact.BorrowedTime", borrowed ? -30f : 0f);   // #114: 30 cooldown points
                 float lost = borrowed && inRun ? Mathf.Min(1f - BorrowedFloor, BorrowedStep * Mathf.Floor(st.runTime / BorrowedEvery)) : 0f;
                 // Martyr: max health halved.
                 float martyr = Has(p, "Martyr") ? -0.5f : 0f;
@@ -142,9 +142,7 @@ namespace WoLChaosDepths
                 if (engine && p.movement.moveSpeedStat.BaseValue > 0.01f)
                     speedBonus = Mathf.Max(0f, p.movement.moveSpeedStat.ModifiedValue / p.movement.moveSpeedStat.BaseValue - 1f);
                 SkillMods(p, StatData.damageStr, "Engine", engine ? 2f * speedBonus : 0f, true, all: true);
-                Player.SkillState dash = p.GetDashSkill();
-                if (dash != null && dash.skillData != null)
-                    SetStat(dash.skillData, StatData.cdStr, "EngineDash", engine ? -0.5f : 0f, true);
+                Points.Set(p, "DashCooldown", "Pact.MomentumEngine", engine ? -50f : 0f);   // #114: 50 dash cooldown points
                 SetAnim(p, "Overchannel", anim);
 
                 // The pacts' lasting looks (WoL Art's #76).

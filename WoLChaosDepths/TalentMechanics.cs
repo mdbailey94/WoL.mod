@@ -367,7 +367,7 @@ namespace WoLChaosDepths
                 st.movingSince = Time.time;
             bool sprinting = st.movingSince >= 0f && Time.time - st.movingSince >= SprintAfter;
             int evasive = Talents.Rank(player, "Evasive");
-            SetMod(player.health.evadeStat, "Evasive", sprinting && evasive > 0 ? EvasiveEvade : 0f, false);
+            Points.Set(player, "Evade", "Talent.Evasive", sprinting && evasive > 0 ? EvasiveEvade * 100f : 0f);   // #114: points
             if (sprinting && evasive > 0)
                 Say(player, "Evasive", $"Evasive: +{EvasiveEvade * 100f:0}% evade while sprinting");
 

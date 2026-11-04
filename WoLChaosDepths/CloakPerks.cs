@@ -297,11 +297,11 @@ namespace WoLChaosDepths
                     speed += 0.05f;
                 if (Time.time < st.trailSpeedUntil)
                     speed += 0.15f;
-                SetMod(p.movement.moveSpeedStat, "Speed", speed);
+                Points.Set(p, "MoveSpeed", "Perk.Speed", speed * 100f);   // #114: points
 
                 // Switch's partner evade.
                 bool evadeBuff = partner != null && Time.time < StateOf(partner).evadeBuffUntil;
-                SetMod(p.health.evadeStat, "Evade", evadeBuff ? 0.10f : 0f, false);
+                Points.Set(p, "Evade", "Perk.SwitchEvade", evadeBuff ? 10f : 0f);   // #114: points
 
                 // Pride's partner damage, and Tempo's cooldowns near a frozen enemy.
                 float partnerDamage = C(partner, "Pride") && Close(p, partner, InspireRange) ? 0.10f : 0f;
@@ -386,7 +386,7 @@ namespace WoLChaosDepths
             SetSkillMods(p, StatData.shockLvStr, "Shock", E(p, "Awe") ? 1f : 0f, false);
             SetSkillMods(p, StatData.frzDurStr, "Freeze", E(p, "Tempo") ? 0.5f : 0f, false);
             SetSkillMods(p, StatData.odProgStr, "Charge", E(p, "Pride") ? 0.25f : 0f, true);
-            SetSkillMods(p, StatData.cdStr, "Cooldown", E(p, cloak) && PairOf(cloak) == starter ? -0.05f : 0f, true);
+            Points.Set(p, "Cooldown", "Perk.Pair", E(p, cloak) && PairOf(cloak) == starter ? -5f : 0f);   // #114: points
             float dashCd = 0f;   // Swift Edge's old -20% dash cooldown, cleared (Overedge replaced it)
             Player.SkillState dash = p.GetDashSkill();
             if (dash != null && dash.skillData != null)

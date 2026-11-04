@@ -524,10 +524,8 @@ namespace WoLChaosDepths
             int on = player.GetInstanceID();
             if (stacks == s.critApplied && s.critOn == on)
                 return;
-            string id = ModPrefix + "Flurry";
-            StatManager.ModifyAllStatData(new NumVarStatMod(id, 0f), player.skillCategory, StatData.critChStr, null, false);
-            if (stacks > 0)
-                StatManager.ModifyAllStatData(new NumVarStatMod(id, FlurryStep * stacks, 10, VarStatModType.Additive), player.skillCategory, StatData.critChStr);
+            // #114: crit points, summed with gear and talents (GearTypeStats applies them).
+            Points.Set(player, "CritChance", "Talent.Flurry", FlurryStep * stacks * 100f);
             s.critApplied = stacks;
             s.critOn = on;
         }

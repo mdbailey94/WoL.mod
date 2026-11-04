@@ -713,7 +713,7 @@ namespace WoLChaosDepths
                     y += slotPx + 2 * u;
                 }
                 // What it all adds up to, in the room left above the detail box.
-                List<string> totals = Totals(save);
+                List<string> totals = Totals(save, player);
                 float totalsBottom = detailY - 3 * u;
                 if (totals.Count > 0 && y + 2 * u + 2 * lineH <= totalsBottom)
                 {
@@ -905,8 +905,10 @@ namespace WoLChaosDepths
             return parts;
         }
 
-        // The equipped items' bonuses added up, as a few short lines.
-        private static List<string> Totals(CharacterSave save)
+        // The equipped items' bonuses added up, as a few short lines. #114: a POINT stat shows the
+        // wizard's whole sum (gear + talents + perks, pacts and the rest) and what it comes to,
+        // one per line: "crit 38 pts (+32%)".
+        private static List<string> Totals(CharacterSave save, Player player)
         {
             var sums = new Dictionary<string, float>();
             var order = new List<string>();
@@ -926,13 +928,27 @@ namespace WoLChaosDepths
                 }
             }
             var lines = new List<string>();
+            Dictionary<string, float> all = StatMods.TotalsOf(player);
+            foreach (string key in new[] { "CritChance", "Evade", "MoveSpeed", "DamageTaken", "Cooldown" })
+            {
+                float gear;
+                sums.TryGetValue(key, out gear);
+                float whole;
+                if (!all.TryGetValue(key, out whole))
+                    whole = all.Count > 0 ? 0f : gear;
+                whole += Points.Of(player, key);
+                order.Remove(key);
+                if (Mathf.Abs(whole) >= 0.005f)
+                    lines.Add(Short(key) + " " + Points.Show(whole, key == "DamageTaken" || key == "Cooldown"));
+            }
             string line = "";
             foreach (string key in order)
             {
                 LootTable.AffixDef def = LootTable.Affix(key);
                 bool percent = def == null || def.percent;
                 float v = sums[key];
-                string value = percent ? (v >= 0 ? "+" : "") + Mathf.RoundToInt(v * 100f) + "%" : v.ToString("+0.##;-0.##");
+                string value = LootTable.IsPoints(key) ? $"{Mathf.Abs(v) * 100f:0}pt"
+                    : percent ? (v >= 0 ? "+" : "") + Mathf.RoundToInt(v * 100f) + "%" : v.ToString("+0.##;-0.##");
                 string part = value + " " + Short(key);
                 if (line.Length > 0 && line.Length + part.Length + 2 > 22)
                 {

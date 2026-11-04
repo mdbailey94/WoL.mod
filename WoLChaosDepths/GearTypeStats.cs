@@ -13,7 +13,7 @@ namespace WoLChaosDepths
     public static class GearTypeStats
     {
         private const string Prefix = "ChaosDepths_GT_";
-        private const float Every = 0.5f;
+        private const float Every = 0.1f;   // timed sources (Flurry stacks, sprinting) land within 0.1 s
         private static readonly Dictionary<KeyValuePair<object, string>, float> applied = new Dictionary<KeyValuePair<object, string>, float>();
         private static bool loggedError;
 
@@ -53,22 +53,19 @@ namespace WoLChaosDepths
             }
         }
 
+        // #114 step 2 (0.38.0): one pass for every POINT stat. The totals are StatMods' (gear + stat
+        // talents, summed once there; this used to sum the gear a second time) plus the point
+        // register (pacts, cloak perks, mechanics, other mods), converted once per stat.
         private static void Apply(Player p, CharacterSave save)
         {
-            var totals = new Dictionary<string, float>();
-            if (save != null && save.equipped != null)
-                foreach (string id in save.equipped)
-                {
-                    ItemData item = string.IsNullOrEmpty(id) ? null : StatMods.FindItem(save, id);
-                    if (item == null)
-                        continue;
-                    foreach (AffixData a in item.affixes)
-                    {
-                        float had;
-                        totals.TryGetValue(a.key, out had);
-                        totals[a.key] = had + a.value;
-                    }
-                }
+            var totals = new Dictionary<string, float>(StatMods.TotalsOf(p));
+            foreach (string stat in Points.PointStats)
+            {
+                float reg = Points.Of(p, stat);
+                if (!Mathf.Approximately(reg, 0f))
+                    totals[stat] = Get(totals, stat) + reg;
+            }
+            Wide(p, totals);
             foreach (Player.SkillState s in p.skillsDict.Values)
             {
                 if (s == null || s.skillData == null)
@@ -111,6 +108,49 @@ namespace WoLChaosDepths
                 Set(s.skillData, StatData.damageStr, "Damage", damage);
                 Set(s.skillData, StatData.cdStr, "Cooldown", Points.Reduction(cooldown));
             }
+        }
+
+        // The wizard-wide point stats: crit chance on all their arcana (1 - 0.99^points), evade
+        // (1 - 0.99^points), move speed (soft, 1 - 0.99^points), damage taken (x 0.99^points).
+        private static void Wide(Player p, Dictionary<string, float> totals)
+        {
+            Crit(p, Points.Toward100(Get(totals, "CritChance")));
+            Health h = p.health;
+            if (h != null)
+            {
+                Set(h.evadeStat, "Evade", Points.Toward100(Get(totals, "Evade")), VarStatModType.Additive);
+                Set(h.damageTakenStat, "DamageTaken", Points.Reduction(Get(totals, "DamageTaken")), VarStatModType.Multiplicative);
+            }
+            if (p.movement != null)
+                Set(p.movement.moveSpeedStat, "MoveSpeed", Points.Toward100(Get(totals, "MoveSpeed")), VarStatModType.Multiplicative);
+        }
+
+        private static void Crit(Player p, float value)
+        {
+            var key = new KeyValuePair<object, string>(p, Prefix + "CritChance");
+            float had;
+            if (applied.TryGetValue(key, out had) && Mathf.Approximately(had, value))
+                return;
+            string id = Prefix + "CritChance";
+            StatManager.ModifyAllStatData(new NumVarStatMod(id, 0f), p.skillCategory, StatData.critChStr, null, false);
+            if (!Mathf.Approximately(value, 0f))
+                StatManager.ModifyAllStatData(new NumVarStatMod(id, value, 10, VarStatModType.Additive), p.skillCategory, StatData.critChStr);
+            applied[key] = value;
+        }
+
+        private static void Set(NumVarStat stat, string node, float value, VarStatModType type)
+        {
+            if (stat == null)
+                return;
+            string id = Prefix + node;
+            var key = new KeyValuePair<object, string>(stat, id);
+            float had;
+            if (applied.TryGetValue(key, out had) && Mathf.Approximately(had, value))
+                return;
+            stat.RemoveMod(id);
+            if (!Mathf.Approximately(value, 0f))
+                stat.AddMod(new NumVarStatMod(id, value, 10, type, false));
+            applied[key] = value;
         }
 
         private static float Get(Dictionary<string, float> totals, string key)

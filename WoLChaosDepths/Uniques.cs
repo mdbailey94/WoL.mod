@@ -42,7 +42,6 @@ namespace WoLChaosDepths
         private static readonly Dictionary<int, int> echoHits = new Dictionary<int, int>();
         private static readonly Dictionary<int, float> galeUntil = new Dictionary<int, float>();
         private static readonly Dictionary<int, float> thornReady = new Dictionary<int, float>();
-        private const string GaleMod = "ChaosDepths_Gale";
 
         public static void Bind(ConfigFile config)
         {
@@ -252,8 +251,7 @@ namespace WoLChaosDepths
                 int id = player.GetInstanceID();
                 bool fresh = !galeUntil.ContainsKey(id) || Time.time >= galeUntil[id];
                 galeUntil[id] = Time.time + galeSeconds.Value;
-                if (player.movement.moveSpeedStat.GetModIndex(GaleMod) < 0)
-                    player.movement.moveSpeedStat.AddMod(new NumVarStatMod(GaleMod, galeSpeed.Value, 10, VarStatModType.Multiplicative, false));
+                Points.Set(player, "MoveSpeed", "Unique.Galeheart", galeSpeed.Value * 100f);   // #114: points
                 Vector2 dir = player.movement.moveVector;
                 PowerFx.Gust(player, dir, ColourOf("Gale"));
                 if (ChaosDepthsPlugin.DebugEnabled)
@@ -289,8 +287,7 @@ namespace WoLChaosDepths
             galeUntil.Remove(id);
             try
             {
-                if (player != null && player.movement != null && player.movement.moveSpeedStat != null)
-                    player.movement.moveSpeedStat.RemoveMod(GaleMod);
+                Points.Set(player, "MoveSpeed", "Unique.Galeheart", 0f);
             }
             catch
             {

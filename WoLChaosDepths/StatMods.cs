@@ -11,6 +11,16 @@ namespace WoLChaosDepths
     {
         private const string Prefix = "ChaosDepths_";
         private static readonly Dictionary<int, string> applied = new Dictionary<int, string>();
+        // #114 step 2: each wizard's gear + stat-talent totals, kept for GearTypeStats, which adds the
+        // point register and applies every POINT stat (crit, evade, speed, damage taken, cooldowns).
+        private static readonly Dictionary<int, Dictionary<string, float>> lastTotals = new Dictionary<int, Dictionary<string, float>>();
+        private static readonly Dictionary<string, float> none = new Dictionary<string, float>();
+
+        public static Dictionary<string, float> TotalsOf(Player player)
+        {
+            Dictionary<string, float> t;
+            return player != null && lastTotals.TryGetValue(player.GetInstanceID(), out t) ? t : none;
+        }
 
         // Health per level above 1, as a fraction (0.02 = +2%).
         public static float HealthPerLevel => ChaosDepthsPlugin.HealthPerLevel;
@@ -44,6 +54,9 @@ namespace WoLChaosDepths
                 totals["SignatureCharge"] = current + gain;
             }
             float levelHealth = HealthPerLevel * (save.level - 1);
+            if (lastTotals.Count > 16)
+                lastTotals.Clear();
+            lastTotals[player.GetInstanceID()] = totals;
 
             // Only touch the game when something changed.
             string signature = levelHealth.ToString("0.####") + "|" + Join(totals);
@@ -63,8 +76,8 @@ namespace WoLChaosDepths
             {
                 string category = player.skillCategory;
                 Skill(category, StatData.damageStr, "Damage", Get(totals, "Damage"), VarStatModType.Multiplicative);
-                // #114 (0.37.0): crit chance from POINTS, 1 - 0.99^points (never 100%).
-                Skill(category, StatData.critChStr, "CritChance", Points.Toward100(Get(totals, "CritChance")), VarStatModType.Additive);
+                // #114: crit chance, evade, move speed, damage taken and cooldowns are POINT stats,
+                // applied by GearTypeStats from these totals plus the point register (0.38.0).
                 Skill(category, StatData.critDmgStr, "CritDamage", Get(totals, "CritDamage"), VarStatModType.Additive);
                 // #114: cooldown points are summed per arcana (generic + type + element) and applied
                 // once in GearTypeStats, so no generic cooldown mod here any more.
@@ -88,13 +101,8 @@ namespace WoLChaosDepths
                     if (!wasFull && health.healthStat != null && hpBefore > 0)
                         health.CurrentHealthValue = Mathf.Min(hpBefore, (int)health.healthStat.ModifiedValue);
                     Stat(health.healModifierStat, "Healing", Get(totals, "Healing"), VarStatModType.Multiplicative, false);
-                    // #114: damage-taken cuts x 0.99^points (never immune), evade 1 - 0.99^points.
-                    Stat(health.damageTakenStat, "DamageTaken", Points.Reduction(Get(totals, "DamageTaken")), VarStatModType.Multiplicative, false);
-                    Stat(health.evadeStat, "Evade", Points.Toward100(Get(totals, "Evade")), VarStatModType.Additive, false);
                     Stat(health.critHealModStat, "HealCrit", Get(totals, "HealCrit"), VarStatModType.Additive, false);
                 }
-                if (player.movement != null)
-                    Stat(player.movement.moveSpeedStat, "MoveSpeed", Points.Toward100(Get(totals, "MoveSpeed")), VarStatModType.Multiplicative, false);   // #114: soft
                 Activation(player, Get(totals, "ActivationSpeed"));
                 applied[key] = signature;
                 ChaosDepthsPlugin.Log($"Stats applied to player {player.playerID + 1}: level {save.level} (+{levelHealth * 100f:0}% health), items: " +
