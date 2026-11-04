@@ -75,7 +75,7 @@ namespace WoLChaosDepths
             for (int i = 0; i < item.affixes.Count; i++)
                 if (i != affixIndex)
                     others.Add(item.affixes[i].key);
-            AffixData rolled = LootTable.RollAffix(data, rarity, item.itemLevel, others);
+            AffixData rolled = LootTable.RollAffix(data, rarity, item.itemLevel, others, item.slot);   // 0.40.0: the slot's theme (Modder)
             if (rolled == null)
                 return Fail("No affix to roll");
             int cost = Cost(Op.Reroll, item);
@@ -109,14 +109,14 @@ namespace WoLChaosDepths
             int cost = Cost(Op.Upgrade, item);
             float scale = old.valueScale > 0f ? next.valueScale / old.valueScale : 1f;
             foreach (AffixData affix in item.affixes)
-                affix.value *= scale;
+                affix.value = LootTable.Whole(affix.value * scale);   // 0.40.0: whole points (Modder)
             var keys = new List<string>();
             foreach (AffixData affix in item.affixes)
                 keys.Add(affix.key);
             string added = null;
             while (item.affixes.Count < next.affixes)
             {
-                AffixData rolled = LootTable.RollAffix(data, next, item.itemLevel, keys);
+                AffixData rolled = LootTable.RollAffix(data, next, item.itemLevel, keys, item.slot);   // 0.40.0: theme, then any (Modder)
                 if (rolled == null)
                     break;
                 item.affixes.Add(rolled);
@@ -162,17 +162,9 @@ namespace WoLChaosDepths
             foreach (ItemData item in items)
                 level += item.itemLevel;
             level = Mathf.Max(1, Mathf.RoundToInt(level / (float)items.Count));
-            ItemData made = null;
-            for (int tries = 0; tries < 20; tries++)
-            {
-                made = LootTable.Roll(level, exactRarity: rarity);
-                if (string.IsNullOrEmpty(made.unique) || made.slot == slot)
-                    break;
-            }
-            if (!string.IsNullOrEmpty(made.unique) && made.slot != slot)
-                made.unique = "";   // no unique for that slot this time: a plain Legendary
-            made.slot = slot;
-            LootTable.Rename(made);
+            // 0.40.0 (Modder): rolled for that slot, so its stats follow the slot's theme (a unique
+            // of another slot becomes a plain Legendary, as before).
+            ItemData made = LootTable.Roll(level, exactRarity: rarity, slot: slot);
             foreach (ItemData item in new List<ItemData>(items))
                 save.inventory.Remove(item);
             save.inventory.Add(made);

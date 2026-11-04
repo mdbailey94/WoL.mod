@@ -24,6 +24,7 @@ namespace WoLChaosDepths
             public float perLevel;   // added to min and max per item level above 1
             public string suffix;    // "... of <suffix>" when this is the item's strongest affix
             public int weight = 10;
+            public string slot = "";  // 0.40.0: the slot whose theme it belongs to ("" = any)
         }
 
         [Serializable]
@@ -38,6 +39,7 @@ namespace WoLChaosDepths
         [Serializable]
         public class Data
         {
+            public int version;   // 2 = the simplified 9-stat table (0.40.0)
             public List<RarityDef> rarities = new List<RarityDef>();
             public List<AffixDef> affixes = new List<AffixDef>();
         }
@@ -64,27 +66,14 @@ namespace WoLChaosDepths
                     Current = Json.Read<Data>(text);
                     if (Current != null && Current.rarities.Count > 0 && Current.affixes.Count > 0)
                     {
-                        // A loot.json from before the 2026-11-03 affixes gets them added (and kept in
-                        // the file); activation speed written at 0.29.8's weight 14 goes to 6.
-                        var added = new List<string>();
-                        var newer = new List<AffixDef> { ActivationSpeed() };
-                        newer.AddRange(TypeAffixes());
-                        foreach (AffixDef def in newer)
-                            if (!Current.affixes.Exists(a => a.key == def.key))
-                            {
-                                Current.affixes.Add(def);
-                                added.Add(def.key);
-                            }
-                        AffixDef activation = Current.affixes.Find(a => a.key == "ActivationSpeed");
-                        if (activation != null && activation.weight == OldActivationWeight)
+                        // 0.40.0 (Matt 14:17, "a general simplification of item stats"): an older
+                        // table gets the 9-stat affix list with slot themes; its rarities are kept.
+                        if (Current.version < TableVersion)
                         {
-                            activation.weight = ActivationWeight;
-                            added.Add("ActivationSpeed weight 6");
-                        }
-                        if (added.Count > 0)
-                        {
+                            Current.affixes = Defaults().affixes;
+                            Current.version = TableVersion;
                             File.WriteAllText(FilePath, Json.Write(Current));
-                            ChaosDepthsPlugin.Log($"Loot table: updated {FilePath}: {string.Join(", ", added.ToArray())}");
+                            ChaosDepthsPlugin.Log($"Loot table: {FilePath} moved to the simplified 9 stats (rarities kept)");
                         }
                         ChaosDepthsPlugin.Log($"Loot table: {Current.rarities.Count} rarities, {Current.affixes.Count} affixes from {FilePath}");
                         return;
@@ -112,35 +101,12 @@ namespace WoLChaosDepths
             }
         }
 
-        private const int ActivationWeight = 6, OldActivationWeight = 14;
+        public const int TableVersion = 2;
 
-        private static AffixDef ActivationSpeed() => new AffixDef
-        {
-            key = "ActivationSpeed", label = "+{0} activation speed", percent = true, min = 0.04f, max = 0.10f, perLevel = 0.002f,
-            suffix = "Swiftness", weight = ActivationWeight
-        };
-
-        private static AffixDef Dmg(string key, string what, string suffix) => new AffixDef
-        { key = key, label = "+{0} " + what + " damage", percent = true, min = 0.06f, max = 0.15f, perLevel = 0.003f, suffix = suffix, weight = 4 };
-
-        private static AffixDef Cd(string key, string what, string suffix) => new AffixDef
-        { key = key, label = "{0} " + what + " cooldowns", percent = true, min = -0.06f, max = -0.15f, perLevel = -0.003f, suffix = suffix, weight = 4 };
-
-        private static AffixDef[] TypeAffixes() => new[]
-        {
-            Dmg("BasicDamage", "basic arcana", "the Duelist"),
-            Cd("DashCooldown", "dash", "the Gust"),
-            Dmg("ProjectileDamage", "projectile arcana", "the Archer"),
-            Cd("ProjectileCooldown", "projectile arcana", "Volleys"),
-            Dmg("MeleeDamage", "melee arcana", "the Brawler"),
-            Cd("MeleeCooldown", "melee arcana", "Fury"),
-            Dmg("MovementDamage", "movement arcana", "the Comet"),
-            Cd("MovementCooldown", "movement arcana", "Flight"),
-            Dmg("SummonDamage", "summon arcana", "the Caller"),
-            // Hold-to-cast arcana (Matt, 2026-11-03: "buffs for hold type abilities").
-            Dmg("HoldDamage", "held arcana", "Persistence"),
-            Cd("HoldCooldown", "held arcana", "Endurance"),
-        };
+        // One stat of the table: whole points, a short line ("+8 DMG"), and the slot theme it
+        // rolls on (Matt 14:17: one theme per slot).
+        private static AffixDef Stat(string slot, string key, string label, float min, float max, float perLevel, string suffix, int weight) => new AffixDef
+        { slot = slot, key = key, label = label, percent = true, min = min, max = max, perLevel = perLevel, suffix = suffix, weight = weight };
 
         public static Data Defaults()
         {
@@ -152,19 +118,19 @@ namespace WoLChaosDepths
             data.rarities.Add(new RarityDef { name = "Magic", weight = fresh ? 56 : 30, affixes = 2, valueScale = 1f });
             data.rarities.Add(new RarityDef { name = "Rare", weight = fresh ? 17 : 12, affixes = 3, valueScale = 1.25f });
             data.rarities.Add(new RarityDef { name = "Legendary", weight = 3, affixes = 4, valueScale = 1.6f });
-            // Activation (cast) speed (Matt, 2026-11-03; an ordinary roll, not the commonest).
-            data.affixes.Add(ActivationSpeed());
-            // Damage or cooldown for one kind of arcana only (Matt, 2026-11-03; GearTypeStats.cs).
-            data.affixes.AddRange(TypeAffixes());
-            data.affixes.Add(new AffixDef { key = "Damage", label = "+{0} damage", percent = true, min = 0.04f, max = 0.10f, perLevel = 0.002f, suffix = "Might", weight = 12 });
-            data.affixes.Add(new AffixDef { key = "CritChance", label = "+{0} critical chance", percent = true, min = 0.02f, max = 0.05f, perLevel = 0.001f, suffix = "Precision", weight = 10 });
-            data.affixes.Add(new AffixDef { key = "CritDamage", label = "+{0} critical damage", percent = true, min = 0.10f, max = 0.25f, perLevel = 0.005f, suffix = "Ruin", weight = 8 });
-            data.affixes.Add(new AffixDef { key = "Cooldown", label = "{0} cooldowns", percent = true, min = -0.04f, max = -0.10f, perLevel = -0.002f, suffix = "Haste", weight = 8 });
-            data.affixes.Add(new AffixDef { key = "Health", label = "+{0} health", percent = true, min = 0.05f, max = 0.12f, perLevel = 0.003f, suffix = "Vigor", weight = 12 });
-            data.affixes.Add(new AffixDef { key = "MoveSpeed", label = "+{0} move speed", percent = true, min = 0.03f, max = 0.08f, perLevel = 0.001f, suffix = "the Wind", weight = 8 });
-            data.affixes.Add(new AffixDef { key = "Healing", label = "+{0} healing", percent = true, min = 0.10f, max = 0.25f, perLevel = 0.004f, suffix = "Mending", weight = 6 });
-            data.affixes.Add(new AffixDef { key = "DamageTaken", label = "{0} damage taken", percent = true, min = -0.03f, max = -0.08f, perLevel = -0.002f, suffix = "Warding", weight = 8 });
-            data.affixes.Add(new AffixDef { key = "Evade", label = "+{0} evasion", percent = true, min = 0.02f, max = 0.05f, perLevel = 0.001f, suffix = "Shadows", weight = 5 });
+            // 0.40.0 (Matt 14:17): 9 stats, 3 per slot. AMULET = offense, RING = utility,
+            // CHARM = defense. Values and weights as before; the 11 arcana-type stats and evade are gone
+            // (old items convert, SaveData.Upgrade). A Legendary's 4th stat comes from another slot.
+            data.version = TableVersion;
+            data.affixes.Add(Stat("Amulet", "Damage", "+{0} DMG", 0.04f, 0.10f, 0.002f, "Might", 12));
+            data.affixes.Add(Stat("Amulet", "CritChance", "+{0} CRIT", 0.02f, 0.05f, 0.001f, "Precision", 10));
+            data.affixes.Add(Stat("Amulet", "CritDamage", "+{0} CRIT DMG", 0.10f, 0.25f, 0.005f, "Ruin", 8));
+            data.affixes.Add(Stat("Ring", "Cooldown", "{0} COOLDOWN", -0.04f, -0.10f, -0.002f, "Haste", 8));
+            data.affixes.Add(Stat("Ring", "MoveSpeed", "+{0} SPEED", 0.03f, 0.08f, 0.001f, "the Wind", 8));
+            data.affixes.Add(Stat("Ring", "ActivationSpeed", "+{0} CAST SPEED", 0.04f, 0.10f, 0.002f, "Swiftness", 6));
+            data.affixes.Add(Stat("Charm", "Health", "+{0} HEALTH", 0.05f, 0.12f, 0.003f, "Vigor", 12));
+            data.affixes.Add(Stat("Charm", "DamageTaken", "{0} DMG TAKEN", -0.03f, -0.08f, -0.002f, "Warding", 8));
+            data.affixes.Add(Stat("Charm", "Healing", "+{0} HEALING", 0.10f, 0.25f, 0.004f, "Mending", 6));
             return data;
         }
 
@@ -188,12 +154,14 @@ namespace WoLChaosDepths
         // A random item for this item level; minRarity (0-based index into rarities) forces at
         // least that rarity, e.g. for a boss drop.
         // rarityBoost scales the weight of Magic and better (0.3 = +30%), e.g. from Ascension.
-        public static ItemData Roll(int itemLevel, int minRarity = 0, float rarityBoost = 0f, int exactRarity = -1)
+        public static ItemData Roll(int itemLevel, int minRarity = 0, float rarityBoost = 0f, int exactRarity = -1, string slot = null)
         {
             Data data = Current ?? (Current = Defaults());
             int rarityIndex = exactRarity >= 0 ? Mathf.Clamp(exactRarity, 0, data.rarities.Count - 1) : PickRarity(data, minRarity, rarityBoost);
             RarityDef rarity = data.rarities[rarityIndex];
-            string slot = Slots[UnityEngine.Random.Range(0, Slots.Length)];
+            bool chosen = !string.IsNullOrEmpty(slot);
+            if (!chosen)
+                slot = Slots[UnityEngine.Random.Range(0, Slots.Length)];
 
             var item = new ItemData
             {
@@ -202,6 +170,17 @@ namespace WoLChaosDepths
                 rarity = rarity.name,
                 itemLevel = Mathf.Max(1, itemLevel)
             };
+            // A unique picks its own slot, so it's decided first and the stats follow that slot's
+            // theme (a slot chosen by the Forge only takes a unique of that slot).
+            if (rarityIndex == data.rarities.Count - 1)
+            {
+                Uniques.MaybeMakeUnique(item);
+                if (chosen && item.slot != slot)
+                {
+                    item.unique = "";
+                    item.slot = slot;
+                }
+            }
             var taken = new List<string>();
             AffixDef strongest = null;
             float strongestShare = -1f;
@@ -209,7 +188,7 @@ namespace WoLChaosDepths
             {
                 AffixDef def;
                 float t;
-                AffixData affix = RollAffix(data, rarity, item.itemLevel, taken, out def, out t);
+                AffixData affix = RollAffix(data, rarity, item.itemLevel, taken, item.slot, out def, out t);
                 if (affix == null)
                     break;
                 taken.Add(affix.key);
@@ -220,27 +199,32 @@ namespace WoLChaosDepths
                     strongest = def;
                 }
             }
-            item.name = strongest != null ? $"{slot} of {strongest.suffix}" : slot;
-            if (rarityIndex == data.rarities.Count - 1)
-                Uniques.MaybeMakeUnique(item);
+            if (string.IsNullOrEmpty(item.unique))
+                item.name = strongest != null ? $"{item.slot} of {strongest.suffix}" : item.slot;
             return item;
         }
 
         // One affix rolled for an item of this rarity and level, never one of the keys in exclude
         // (the Forge's reroll and upgrade use it too); null when every affix is excluded.
-        public static AffixData RollAffix(Data data, RarityDef rarity, int itemLevel, ICollection<string> exclude)
+        // 0.40.0: slot = the item's slot: its theme's stats first; once they're all on the item (a
+        // Legendary's 4th line), any other stat.
+        public static AffixData RollAffix(Data data, RarityDef rarity, int itemLevel, ICollection<string> exclude, string slot = null)
         {
             AffixDef def;
             float share;
-            return RollAffix(data, rarity, itemLevel, exclude, out def, out share);
+            return RollAffix(data, rarity, itemLevel, exclude, slot, out def, out share);
         }
 
-        private static AffixData RollAffix(Data data, RarityDef rarity, int itemLevel, ICollection<string> exclude, out AffixDef def, out float share)
+        private static AffixData RollAffix(Data data, RarityDef rarity, int itemLevel, ICollection<string> exclude, string slot, out AffixDef def, out float share)
         {
             var pool = new List<AffixDef>();
             foreach (AffixDef a in data.affixes)
-                if (exclude == null || !exclude.Contains(a.key))
+                if ((exclude == null || !exclude.Contains(a.key)) && (string.IsNullOrEmpty(slot) || a.slot == slot))
                     pool.Add(a);
+            if (pool.Count == 0 && !string.IsNullOrEmpty(slot))
+                foreach (AffixDef a in data.affixes)
+                    if (exclude == null || !exclude.Contains(a.key))
+                        pool.Add(a);
             def = null;
             share = 0f;
             if (pool.Count == 0)
@@ -249,7 +233,16 @@ namespace WoLChaosDepths
             float lo = def.min + def.perLevel * (itemLevel - 1);
             float hi = def.max + def.perLevel * (itemLevel - 1);
             share = UnityEngine.Random.value;
-            return new AffixData { key = def.key, value = Mathf.Lerp(lo, hi, share) * rarity.valueScale };
+            return new AffixData { key = def.key, value = Whole(Mathf.Lerp(lo, hi, share) * rarity.valueScale) };
+        }
+
+        // Whole points (Matt 14:17): 0.0837 -> 0.08; never rounded to 0 (at least 1 point).
+        public static float Whole(float value)
+        {
+            float points = Mathf.Round(value * 100f);
+            if (Mathf.Approximately(points, 0f) && !Mathf.Approximately(value, 0f))
+                points = Mathf.Sign(value);
+            return points / 100f;
         }
 
         // "{slot} of {suffix}" after the item's affixes changed (the Forge): the suffix of the affix
@@ -325,8 +318,10 @@ namespace WoLChaosDepths
                 AffixDef def = Affix(affix.key);
                 // #114: point stats (crit chance, cooldowns, evade, damage taken, move speed) show as
                 // points; the effective % is on the stat sheet, since points from all gear add up first.
+                // 0.40.0: whole numbers, short ("+8 DMG", "-6 COOLDOWN"); the stat sheet's TOTALS
+                // show what they come to.
                 string value = def != null && def.percent
-                    ? Mathf.RoundToInt(affix.value * 100f) + (IsPoints(affix.key) ? " pts" : "%")
+                    ? Mathf.RoundToInt(affix.value * 100f).ToString()
                     : affix.value.ToString("0.##");
                 parts[i] = def != null ? string.Format(def.label, value) : $"{affix.key} {value}";
             }

@@ -174,7 +174,58 @@ namespace WoLChaosDepths
                 save.equipped.Add("");
             save.depthReached = Math.Max(1, save.depthReached);
             save.depthChosen = Math.Min(Math.Max(1, save.depthChosen), save.depthReached);
-            save.version = 1;
+            if (save.version < 2)
+                SimplifyItems(save);
+            save.version = 2;
+        }
+
+        // 0.40.0 (Matt 14:17, simpler item stats): items made before keep their power in the 9 stats
+        // left. An arcana-type damage line becomes general damage at 60% (it only ever helped some
+        // arcana), a type cooldown line general cooldown at 60%, evade 1.5x as damage-taken points;
+        // two lines of one stat merge; every value goes to whole points. Names follow the new lines.
+        private static readonly string[] TypeDamage = { "BasicDamage", "ProjectileDamage", "MeleeDamage", "MovementDamage", "SummonDamage", "HoldDamage" };
+        private static readonly string[] TypeCooldown = { "DashCooldown", "ProjectileCooldown", "MeleeCooldown", "MovementCooldown", "HoldCooldown" };
+
+        private static void SimplifyItems(CharacterSave save)
+        {
+            int changed = 0;
+            foreach (ItemData item in save.inventory)
+            {
+                if (item == null || item.affixes == null)
+                    continue;
+                var merged = new List<AffixData>();
+                bool any = false;
+                foreach (AffixData a in item.affixes)
+                {
+                    if (a == null)
+                        continue;
+                    string key = a.key;
+                    float value = a.value;
+                    if (Array.IndexOf(TypeDamage, key) >= 0) { key = "Damage"; value *= 0.6f; }
+                    else if (Array.IndexOf(TypeCooldown, key) >= 0) { key = "Cooldown"; value *= 0.6f; }
+                    else if (key == "Evade") { key = "DamageTaken"; value = -1.5f * value; }
+                    AffixData same = merged.Find(m => m.key == key);
+                    if (same != null)
+                        same.value += value;
+                    else
+                        merged.Add(new AffixData { key = key, value = value });
+                    any |= key != a.key;
+                }
+                foreach (AffixData m in merged)
+                {
+                    float whole = LootTable.Whole(m.value);
+                    any |= !Mathf.Approximately(whole, m.value);
+                    m.value = whole;
+                }
+                if (!any)
+                    continue;
+                item.affixes = merged;
+                if (LootTable.Current != null)
+                    LootTable.Rename(item);
+                changed++;
+            }
+            if (changed > 0)
+                ChaosDepthsPlugin.Log($"Simplified item stats on {changed} item(s) (0.40.0: 9 stats, whole points)");
         }
     }
 }

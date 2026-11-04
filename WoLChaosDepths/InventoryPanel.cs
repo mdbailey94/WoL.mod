@@ -1059,6 +1059,7 @@ namespace WoLChaosDepths
                 case "Healing": return "healing";
                 case "DamageTaken": return "dmg taken";
                 case "Evade": return "evade";
+                case "ActivationSpeed": return "cast speed";
                 default: return key.ToLowerInvariant();
             }
         }

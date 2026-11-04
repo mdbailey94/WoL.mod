@@ -110,6 +110,17 @@ stat's whole sum and result, e.g. `crit 38 pts (+32%)`.
 - 0.39.1: Tempo's "frozen enemy near" test uses the enemy list, checked 5 times a second instead of a
   physics overlap every frame.
 
+## Simpler item stats (0.40.0, Matt)
+
+Items roll from **9 stats, 3 per slot**: AMULET = offense (`+DMG`, `+CRIT`, `+CRIT DMG`), RING =
+utility (`-COOLDOWN`, `+SPEED`, `+CAST SPEED`), CHARM = defense (`+HEALTH`, `-DMG TAKEN`,
+`+HEALING`). Common 1 stat, Magic 2, Rare 3 (the whole theme), Legendary 4 (the theme plus one
+from another slot). Every value is a **whole number** and shown short (`+8 DMG`); the inventory's
+TOTALS show what they come to. The 11 arcana-type stats and evade are gone: items made before move
+over on load (type damage -> damage at 60%, type cooldown -> cooldown at 60%, evade -> 1.5x damage
+taken, lines of one stat merged, whole points). An older `loot.json` gets the new stat list (its
+rarity weights kept). The Forge rerolls and upgrades within the item's theme.
+
 ## #101 cleanup (0.36.1)
 
 - Double Down: the shop discount is on while ANY wizard holds the pact (it followed whichever
