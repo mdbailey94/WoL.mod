@@ -15,7 +15,7 @@ namespace WoLModMenu
     {
         public const string PluginGuid = "mdbailey94.wol.modmenu";
         public const string PluginName = "Mod Menu";
-        public const string PluginVersion = "0.1.5";
+        public const string PluginVersion = "0.1.6";
 
         private const string ModGuidPrefix = "mdbailey94.wol.";
         private const float ReferenceHeight = 1080f;
@@ -37,6 +37,7 @@ namespace WoLModMenu
         private class ModToggle
         {
             public string Name;
+            public string SortKey;
             public ConfigEntry<bool> Enabled;
         }
 
@@ -233,11 +234,52 @@ namespace WoLModMenu
                 mods.Add(new ModToggle
                 {
                     Name = info.Metadata.Name,
+                    SortKey = info.Metadata.Name,
                     Enabled = plugin.Config.Bind("General", "Enabled", true, "Turn the mod on or off.")
                 });
+                AddSubSwitches(plugin, info.Metadata.Name);
             }
-            mods.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+            mods.Sort((a, b) => string.Compare(a.SortKey, b.SortKey, StringComparison.OrdinalIgnoreCase));
             Logger.LogInfo($"Found {mods.Count} mods to manage");
+        }
+
+        // Sub-switches listed under their mod (0.1.6, #88): the on/off settings of a mod's
+        // [Aspects] section (Chaos Depths' Boss Aspects: the master switch, then one per aspect).
+        private static readonly string[] SubSections = { "Aspects" };
+
+        private void AddSubSwitches(BaseUnityPlugin plugin, string modName)
+        {
+            try
+            {
+                int order = 0;
+                foreach (string section in SubSections)
+                {
+                    var keys = new List<ConfigDefinition>(plugin.Config.Keys);
+                    // "Enabled" first (the master switch), then the rest in file order.
+                    keys.Sort((a, b) => (a.Key == "Enabled" ? 0 : 1).CompareTo(b.Key == "Enabled" ? 0 : 1));
+                    foreach (ConfigDefinition def in keys)
+                    {
+                        if (def.Section != section)
+                            continue;
+                        var entry = plugin.Config[def] as ConfigEntry<bool>;
+                        if (entry == null)
+                            continue;
+                        bool master = def.Key == "Enabled";
+                        string label = section == "Aspects" ? (master ? "Boss Aspects" : def.Key) : $"{section}: {def.Key}";
+                        mods.Add(new ModToggle
+                        {
+                            Name = (master ? "      " : "            ") + label,
+                            SortKey = modName + "\u0001" + order.ToString("00"),
+                            Enabled = entry
+                        });
+                        order++;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.LogError($"{modName}: sub-switches: {e.Message}");
+            }
         }
 
         private void Open()

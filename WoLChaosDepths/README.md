@@ -72,6 +72,27 @@ LeftStick, Back or None).
 
 To start over, delete the `characterN.json` files while the game is closed.
 
+## Boss Aspects (0.34.0, #88)
+
+**Off by default:** turn on `[Aspects] Enabled` in `mdbailey94.wol.chaosdepths.cfg`, or in the
+title screen's MODS panel (Mod Menu 0.1.6 lists "Boss Aspects" and one switch per aspect under
+Chaos Depths). Each aspect also has its own switch: `Leech`, `Bulwarked`, `Attrition`, `Hailstorm`.
+
+In the trials a floor boss rolls 1 aspect and a realm or final boss 2, shown as a notice when it
+appears and as coloured names at the top of the screen during the fight. A boss type prefers
+aspects it didn't have last time (this game session). Bulwarked and Attrition never roll together.
+Aspects start 3 s after the boss appears (its intro). Floor bosses get 0.75x of each strength.
+
+| Aspect | What it does (realm boss; `[Aspects.Tuning]` has every number) |
+|---|---|
+| Leech | Every living wizard loses 1.5% max health a second (2% from Ascension 5), never below 10%; the boss heals half of it. |
+| Bulwarked | A shell worth 25% of the boss's max health takes hits first (big hits spill through); it regrows 10% a second after 1.5 s unhit. Broken: the boss is open 8 s, then the shell grows back over 1 s. The boss is tinted steel blue while shelled; a bar under the names shows the shell. |
+| Attrition | The boss regains 2% max health a second unless it took 3+ hits in the last 2 s; one hit takes at most 8% of its max health. Burn/poison/shock ticks don't count as hits. |
+| Hailstorm | 6 stones a second (8 from Ascension 5), a third aimed at a wizard, the rest within 8 u of the boss. Each spot is marked 0.6 s before it lands and hits for 3% of the wizard's max health (evade still rolls). |
+
+Art: WoL Art's `aspect_hail_mark.png` (4 x 12x12) replaces the code-drawn ring when it is in the
+Art folder. The aspect icons, shell and leech mist are hooked in a later build.
+
 ## Elites and Ascension (0.4.0, milestone M3)
 
 - In the trials, each ordinary enemy has an 8% chance (`[Elites] Chance`) to spawn as an

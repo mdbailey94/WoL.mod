@@ -27,6 +27,11 @@ itself, so with its V-Sync option off it runs at 700-1400 fps, which caused a ~1
 few seconds on the owner's PC; at 120 the stalls were gone (task sheet #26). With the game's
 V-Sync on, V-Sync sets the pace instead.
 
+## Changes in 0.1.6
+
+- Sub-switches under a mod: Chaos Depths' Boss Aspects master switch and one switch per aspect
+  (Leech, Bulwarked, Attrition, Hailstorm), listed indented under Chaos Depths (#88).
+
 ## Changes in 0.1.5
 
 - The frame cap above.
