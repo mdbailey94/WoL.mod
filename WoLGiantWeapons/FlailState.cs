@@ -93,7 +93,7 @@ namespace WoLGiantWeapons
                         return;
                     foreach (GameObject enemy in Heavy.InArc(p.transform.position, dir, radius, slice * 0.5f + 1f))
                         if (done.Add(enemy.GetInstanceID()))
-                            Heavy.Bolt(enemy.transform.position, p, id, 1, 0.12f);   // tight, so a neighbour isn't hit again by this slice's burst
+                            Heavy.Bolt(Heavy.Body(enemy), p, id, 1, Heavy.OnBodyRadius);   // on the body (0.9.0); the done set stops a second hit this swing
                     foreach (Vector2 prop in Heavy.PropsInArc(p.transform.position, dir, radius, slice * 0.5f + 1f))
                         Heavy.Bolt(prop, p, id, 1, 0.12f);
                 });
@@ -127,14 +127,14 @@ namespace WoLGiantWeapons
                 {
                     // 0.7.0 (#101): the NEAREST enemies outside the slam, not the first in the list.
                     var near = Heavy.Near(spot, GiantWeaponsPlugin.ArcReach);
-                    near.Sort((a, b) => ((Vector2)a.transform.position - spot).sqrMagnitude.CompareTo(((Vector2)b.transform.position - spot).sqrMagnitude));
+                    near.Sort((a, b) => (Heavy.Body(a) - spot).sqrMagnitude.CompareTo((Heavy.Body(b) - spot).sqrMagnitude));
                     foreach (GameObject enemy in near)
                     {
                         if (arcs >= GiantWeaponsPlugin.ArcTargets)
                             break;
-                        if (((Vector2)enemy.transform.position - spot).sqrMagnitude <= GiantWeaponsPlugin.SlamRadius * GiantWeaponsPlugin.SlamRadius)
+                        if ((Heavy.Body(enemy) - spot).sqrMagnitude <= GiantWeaponsPlugin.SlamRadius * GiantWeaponsPlugin.SlamRadius)
                             continue;
-                        Heavy.Bolt(enemy.transform.position, p, id, 3, 0.4f);
+                        Heavy.Bolt(Heavy.Body(enemy), p, id, 3, 0.4f);
                         arcs++;
                     }
                 }

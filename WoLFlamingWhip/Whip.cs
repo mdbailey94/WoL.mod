@@ -14,7 +14,7 @@ namespace WoLFlamingWhip
         // right: whip_windup 6 x 48x48, pivot (24,32) = the hand; whip_arc 12 x 80x48, pivot
         // (20,32), the tip strikes (68,32) on frame 2; flamingwhip_crack_big 8 x 32x32 (ring = the
         // 1-tile spot) and _enh 8 x 40x40 (the 1.5-tile spot). Any missing: the 0.4.0 look.
-        public static Sprite[] WindUp, Arc, CrackBig, CrackBigEnh, CrackHuge;
+        public static Sprite[] WindUp, Arc, CrackBig, CrackBigEnh, CrackHuge, Sigil, SigilEnh;
         public const float StrikeFrame = 2f, StripFps = 25f, ArcDrawnFor = 3f;
 
         public static void Load(BepInEx.Logging.ManualLogSource log)
@@ -29,6 +29,10 @@ namespace WoLFlamingWhip
             CrackBigEnh = Frames("flamingwhip_crack_big_enh.png", 40, new Vector2(0.5f, 0.5f));
             // Optional, for the 2-tile enhanced spot (#98): 8 x 48x48, ring radius 16 px.
             CrackHuge = Frames("flamingwhip_crack_huge.png", 48, new Vector2(0.5f, 0.5f));
+            // #91 sigil (approved by Matt 09:36): a fire rune ring on the floor at the spot that
+            // draws itself over the wind-up; 6 x 20x12 (rx 8 = the 1-tile spot) and 6 x 28x16 (rx 12).
+            Sigil = Frames("flamingwhip_sigil.png", 20, new Vector2(0.5f, 0.5f));
+            SigilEnh = Frames("flamingwhip_sigil_enh.png", 28, new Vector2(0.5f, 0.5f));
             log?.LogInfo($"Flaming Whip art: lash {Lash.Length}, crack {Crack.Length}, fire line {FireLine.Length}, v3 wind-up {WindUp.Length}, arc {Arc.Length}, big crack {CrackBig.Length}/{CrackBigEnh.Length} frames");
         }
 
@@ -72,6 +76,16 @@ namespace WoLFlamingWhip
             float arcStart = Mathf.Max(0f, FlamingWhipPlugin.WindUp - WhipArt.StrikeFrame / WhipArt.StripFps);
             if (WhipArt.HasWindUp && arcStart > 0.02f)
                 Anim.Play(WhipArt.WindUp, hand, angle, new Vector3(1f, left ? -1f : 1f, 1f), Mathf.Max(WhipArt.StripFps, 6f / arcStart), owner, behind, arcStart);
+            // The sigil marks where the crack will land, drawing itself until the strike.
+            float spotRadius = (enhanced ? FlamingWhipPlugin.EnhancedSpotSize : FlamingWhipPlugin.SpotSize) * 0.5f;
+            Sprite[] sigil = enhanced && WhipArt.SigilEnh.Length == 6 ? WhipArt.SigilEnh : WhipArt.Sigil;
+            if (sigil.Length == 6)
+            {
+                float native = sigil == WhipArt.SigilEnh ? 0.75f : 0.5f;   // its ring's x radius in units
+                float k = Mathf.Max(1f, Mathf.Round(spotRadius / native * 2f) / 2f);   // whole or half steps
+                float wind = Mathf.Max(0.05f, FlamingWhipPlugin.WindUp);
+                Anim.Play(sigil, hand + aim * FlamingWhipPlugin.CrackDistance, 0f, new Vector3(k, k, 1f), 6f / wind, owner, true, wind);
+            }
             if (WhipArt.HasArc)
             {
                 float stretch = FlamingWhipPlugin.CrackDistance / WhipArt.ArcDrawnFor;

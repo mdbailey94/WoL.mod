@@ -19,7 +19,7 @@ namespace WoLFlamingWhip
     {
         public const string PluginGuid = "mdbailey94.wol.flamingwhip";
         public const string PluginName = "Flaming Whip";
-        public const string PluginVersion = "0.6.2";
+        public const string PluginVersion = "0.7.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -35,8 +35,8 @@ namespace WoLFlamingWhip
         private static ConfigEntry<float> crackBurn, crackKnockback;
 
         public static float CrackDistance => Get(crackDistance, 3f, 0.5f, 6f);
-        public static float SpotSize => Get(spotSize, 1.5f, 0.3f, 4f);
-        public static float EnhancedSpotSize => Get(enhancedSpotSize, 2f, 0.3f, 4f);
+        public static float SpotSize => Get(spotSize, 2f, 0.3f, 4f);
+        public static float EnhancedSpotSize => Get(enhancedSpotSize, 2.5f, 0.3f, 4f);
         public static float WindUp => Get(windUp, 0.3f, 0f, 1.5f);
         public static float WindUpPace => Get(windUpPace, 0.7f, 0.3f, 1f);
         public static float Shake => Get(shake, 1.2f, 0f, 3f);
@@ -54,6 +54,14 @@ namespace WoLFlamingWhip
                 "Offer Flaming Whip in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
             BindSettings();
+            // 0.7.0: config files still on 0.6.x's spot sizes move to the wider ones, once.
+            var version = Config.Bind("Internal", "ConfigVersion", 0, "Used by the mod to move old defaults over once; leave it alone.");
+            if (version.Value < 70)
+            {
+                if (Mathf.Approximately(spotSize.Value, 1.5f)) spotSize.Value = 2f;
+                if (Mathf.Approximately(enhancedSpotSize.Value, 2f)) enhancedSpotSize.Value = 2.5f;
+                version.Value = 70;
+            }
             // 0.4.0 (Matt: "extend range"): the crack lands 3 tiles out; a 0.3.0 config holds 2.
             var revision = Config.Bind("General", "SettingsRevision", 0, "Which version's defaults this file was last updated to. Leave it alone.");
             if (hadConfig && revision.Value < 3)
@@ -101,11 +109,11 @@ namespace WoLFlamingWhip
         private void BindSettings()
         {
             crackDistance = Float("Crack", "Distance", 3f, 0.5f, 6f, "How far out along your aim the crack lands, in units (tiles), from the hand.");
-            spotSize = Float("Crack", "HitSpot", 1.5f, 0.3f, 4f, "Width of the spot the crack hits, in units (tiles). 0.6.0 (#98): bigger, 1.5 (was 1); the old SpotSize key is unused.");
+            spotSize = Float("Crack", "HitSpot", 2f, 0.3f, 4f, "Width of the spot the crack hits, in units (tiles). 0.7.0 (Matt: hit boxes too thin): 2 (was 1.5, and 1 before #98).");
             windUp = Float("Crack", "WindUp", 0.3f, 0f, 1.5f, "Seconds from the press to the crack (the cast time).");
             windUpPace = Float("Crack", "WindUpPace", 0.7f, 0.3f, 1f, "How fast the wizard's swing plays (0.7 = 30% slower, for a heavy feel; 1 = normal).");
             shake = Float("Crack", "Shake", 1.2f, 0f, 3f, "Strength of the camera shake when it cracks (0 = none).");
-            enhancedSpotSize = Float("Enhanced", "HitSpot", 2f, 0.3f, 4f, "Width of the spot when enhanced. 0.6.0 (#98): 2 (was 1.5); the old SpotSize key is unused.");
+            enhancedSpotSize = Float("Enhanced", "HitSpot", 2.5f, 0.3f, 4f, "Width of the spot when enhanced. 0.7.0: 2.5 (was 2).");
             fireLineTime = Float("Enhanced", "FireLineTime", 1.5f, 0.2f, 6f, "Seconds the line of fire burns on the floor.");
             fireLineTick = Float("Enhanced", "FireLineTick", 0.4f, 0.1f, 2f, "Seconds between the fire line's hits.");
 

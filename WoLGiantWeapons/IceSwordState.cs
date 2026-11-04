@@ -124,12 +124,13 @@ namespace WoLGiantWeapons
                 if (!Heavy.Alive(p))
                     return;
                 int hits = 0;
-                foreach (GameObject enemy in Heavy.InArc(Heavy.Hand(p), aim, GiantWeaponsPlugin.SwingReach, half))
+                float hitHalf = Mathf.Max(half, GiantWeaponsPlugin.SwingHitAngle * 0.5f);
+                foreach (GameObject enemy in Heavy.InArc(Heavy.Hand(p), aim, GiantWeaponsPlugin.SwingReach, hitHalf))
                 {
-                    Heavy.Ice(enemy.transform.position, p, id, 1, 0.3f);
+                    Heavy.Ice(Heavy.Body(enemy), p, id, 1, Heavy.OnBodyRadius);
                     hits++;
                 }
-                foreach (Vector2 prop in Heavy.PropsInArc(Heavy.Hand(p), aim, GiantWeaponsPlugin.SwingReach, half))
+                foreach (Vector2 prop in Heavy.PropsInArc(Heavy.Hand(p), aim, GiantWeaponsPlugin.SwingReach, hitHalf))
                     Heavy.Ice(prop, p, id, 1, 0.12f);
                 GiantWeaponsPlugin.Log($"Giant Ice Sword: swing {n} ({(clockwise ? "clockwise" : "counterclockwise")} {2f * half:0} deg), {hits} hit");
             });
@@ -165,7 +166,7 @@ namespace WoLGiantWeapons
                         return;
                     foreach (GameObject enemy in Heavy.InArc(p.transform.position, dir, radius, slice * 0.5f + 1f))
                         if (done.Add(enemy.GetInstanceID()))
-                            Heavy.Ice(enemy.transform.position, p, id, level, 0.12f);
+                            Heavy.Ice(Heavy.Body(enemy), p, id, level, Heavy.OnBodyRadius);
                     foreach (Vector2 prop in Heavy.PropsInArc(p.transform.position, dir, radius, slice * 0.5f + 1f))
                         Heavy.Ice(prop, p, id, level, 0.12f);   // tight, so a neighbour isn't hit again by this slice's burst
                     Heavy.Sound("WindSlashBasic", p.transform.position, 0.6f);
@@ -233,7 +234,7 @@ namespace WoLGiantWeapons
                     return;
                 next = Time.time + 0.3f;
                 foreach (GameObject enemy in Heavy.Near(transform.position, radius))
-                    Heavy.Ice(enemy.transform.position, owner, skillID, 5, 0.3f);
+                    Heavy.Ice(Heavy.Body(enemy), owner, skillID, 5, 0.3f);
                 Heavy.Dust(transform.position, 6, radius);
             }
         }

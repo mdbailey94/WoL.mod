@@ -27,6 +27,13 @@ and Buckler are their own mods (WoLGiantSpear, WoLBuckler); Flaming Whip is WoLF
   damage, always shocks, knockback, camera shake and a thunder thud.
 - **Enhanced:** the slam arcs lightning to up to **3** enemies within **4 u**, **6** damage each.
 
+0.9.0 (Matt's play-test: "the flail was not hitting enemies", "hit boxes are too thin"):
+- **Hits land on the body:** every hit used to be a small burst at the enemy's FEET (its pivot),
+  while the hurt box sits up on the body, so many flail and sword hits missed. Enemies are now found
+  and hit at the centre of their hurt box, with a burst wide enough to touch it (0.35 u).
+- **Wider Ice Sword swings:** reach **2.6 u** (was 2.2) and a **75°** hit arc around the drawn 45°
+  sweep. Config files still on 2.2 move over once.
+
 0.8.0 (#101: crates and pots, cleanup):
 - **Crates, pots, plants and other breakables** in the swing arc, the spin's slices and the flail's
   circle are hit directly (they used to break only when a burst on an enemy happened to reach them).

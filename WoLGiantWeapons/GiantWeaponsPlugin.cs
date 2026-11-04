@@ -17,7 +17,7 @@ namespace WoLGiantWeapons
     {
         public const string PluginGuid = "mdbailey94.wol.giantweapons";
         public const string PluginName = "Giant Weapons";
-        public const string PluginVersion = "0.8.0";
+        public const string PluginVersion = "0.9.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> swordEnabled, flailEnabled;
@@ -26,6 +26,8 @@ namespace WoLGiantWeapons
 
         // ---- Settings (BepInEx\config\mdbailey94.wol.giantweapons.cfg) ----
         // [Ice Sword] and [Flail] apply the next attack; [Balance] after restarting the game.
+        private static ConfigEntry<float> swingHitAngle;
+        private static ConfigEntry<int> configVersion;
         private static ConfigEntry<float> swordPace, swingReach, swingArc, spinMin, spinFull, spinRadius, fullSpinRadius,
             spinTime, enhancedSpinWidth, frostRingTime;
         private static ConfigEntry<int> spinHits;
@@ -35,7 +37,10 @@ namespace WoLGiantWeapons
         private static ConfigEntry<int> swingDamage, chopDamage, spinDamage, fullSpinDamage, circleDamage, slamDamage, arcDamage;
 
         public static float SwordPace => Get(swordPace, 0.65f, 0.3f, 1f);
-        public static float SwingReach => Get(swingReach, 2.2f, 0.5f, 6f);
+        public static float SwingReach => Get(swingReach, 2.6f, 0.5f, 6f);
+        // 0.9.0 (Matt: "hit boxes are too thin"): the swing's HIT arc is wider than the drawn 45°
+        // sweep, so enemies at the edges of what the blade visibly covers are hit.
+        public static float SwingHitAngle => Get(swingHitAngle, 75f, 10f, 360f);
         public static float SwingArc => Get(swingArc, 45f, 10f, 360f);
         public static float SpinMinCharge => Get(spinMin, 0.4f, 0f, 3f);
         public static float SpinFullCharge => Get(spinFull, 1f, 0.1f, 4f);
@@ -77,6 +82,7 @@ namespace WoLGiantWeapons
             flailEnabled = Config.Bind("General", "FlailEnabled", true,
                 "Offer the Giant Lightning Flail in the arcana shop. Turning it off doesn't remove it from a run where you already have it.");
             BindSettings();
+            Migrate();
 
             Skills.Register(new SkillInfo
             {
@@ -144,6 +150,19 @@ namespace WoLGiantWeapons
             Logger.LogInfo($"{PluginName} {PluginVersion} registered (Giant Ice Sword, Giant Lightning Flail)");
         }
 
+        // Moves config files still on an old default to the new one, once (0.9.0: the wider swing).
+        private void Migrate()
+        {
+            configVersion = Config.Bind("Internal", "ConfigVersion", 0, "Used by the mod to move old defaults over once; leave it alone.");
+            if (configVersion.Value < 90)
+            {
+                if (Mathf.Approximately(swingReach.Value, 2.2f))
+                    swingReach.Value = 2.6f;
+                configVersion.Value = 90;
+                Logger.LogInfo("Config moved to 0.9.0's defaults (Ice Sword SwingReach 2.6)");
+            }
+        }
+
         private static int Clamp(ConfigEntry<int> entry, int min, int max) => Mathf.Clamp(entry.Value, min, max);
 
         // WoL Art's 18x18 arcana icons, sized like the game's own in the shop (GameIcon).
@@ -161,7 +180,8 @@ namespace WoLGiantWeapons
         private void BindSettings()
         {
             swordPace = Float("Ice Sword", "Pace", 0.65f, 0.3f, 1f, "How fast the wizard's swings play (0.65 = 35% slower, the heavy feel; 1 = normal).");
-            swingReach = Float("Ice Sword", "SwingReach", 2.2f, 0.5f, 6f, "Reach of swings 1 and 2, in units.");
+            swingReach = Float("Ice Sword", "SwingReach", 2.6f, 0.5f, 6f, "Reach of swings 1 and 2, in units (0.9.0: 2.6, was 2.2).");
+            swingHitAngle = Float("Ice Sword", "SwingHitAngle", 75f, 10f, 360f, "Width of the swing's HIT arc in degrees (0.9.0); the blade is drawn sweeping SwingAngle (45).");
             swingArc = Float("Ice Sword", "SwingAngle", 45f, 10f, 360f, "How far swings 1 and 2 turn, in degrees; the hit box is the same angle in front (0.4.0, #93; the old SwingArc key is unused).");
             spinMin = Float("Ice Sword", "SpinMinCharge", 0.4f, 0f, 3f, "Seconds held before the third hit's spin counts as charged (shorter = a tapped spin).");
             spinFull = Float("Ice Sword", "SpinFullCharge", 1f, 0.1f, 4f, "Seconds held for a full-charge spin.");

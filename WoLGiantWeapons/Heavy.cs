@@ -63,7 +63,7 @@ namespace WoLGiantWeapons
             float r = reach + BodyPad;
             foreach (GameObject go in Enemies())
             {
-                Vector2 rel = (Vector2)go.transform.position - from;
+                Vector2 rel = Body(go) - from;
                 float d2 = rel.sqrMagnitude;
                 if (d2 > r * r)
                     continue;
@@ -73,6 +73,47 @@ namespace WoLGiantWeapons
             }
             return found;
         }
+
+        // 0.9.0 (Matt: "the flail was not hitting enemies as expected"): where an enemy's body
+        // really is. transform.position is the FEET pivot, while the hurt box sits up on the body,
+        // so a small burst placed at the feet often missed it (the log showed 2 flail hits in 4
+        // swings among 5 enemies). This is the centre of the enemy's hurt-box collider (its
+        // 'EnemyHurtBox' layer), else the middle of its picture, else its pivot. Cached per enemy.
+        private static readonly Dictionary<int, Collider2D> hurtBoxes = new Dictionary<int, Collider2D>();
+        private static int hurtLayer = -2;
+
+        public static Vector2 Body(GameObject go)
+        {
+            if (go == null)
+                return Vector2.zero;
+            int id = go.GetInstanceID();
+            Collider2D box;
+            if (!hurtBoxes.TryGetValue(id, out box) || (box == null && hurtBoxes.Count > 512))
+            {
+                if (hurtBoxes.Count > 512)
+                    hurtBoxes.Clear();
+                if (hurtLayer == -2)
+                    hurtLayer = LayerMask.NameToLayer("EnemyHurtBox");
+                box = null;
+                foreach (Collider2D c in go.GetComponentsInChildren<Collider2D>())
+                    if (c != null && (hurtLayer < 0 || c.gameObject.layer == hurtLayer))
+                    {
+                        box = c;
+                        if (hurtLayer >= 0)
+                            break;
+                    }
+                hurtBoxes[id] = box;
+            }
+            if (box != null && box.enabled)
+                return box.bounds.center;
+            var e = go.GetComponent<Entity>();
+            if (e != null && e.spriteRenderer != null)
+                return e.spriteRenderer.bounds.center;
+            return go.transform.position;
+        }
+
+        // The burst on each enemy found: on its body, wide enough to touch the hurt box.
+        public const float OnBodyRadius = 0.35f;
 
         // A delayed hit only lands while its wizard is alive (not after a death or a co-op down).
         public static bool Alive(Player p) => p != null && p.health != null && p.health.CurrentHealthValue > 0;
