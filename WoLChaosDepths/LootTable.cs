@@ -313,6 +313,9 @@ namespace WoLChaosDepths
         }
 
         // "+12% damage, +4% critical chance"
+        public static bool IsPoints(string key) =>
+            key == "CritChance" || key == "Evade" || key == "DamageTaken" || key == "MoveSpeed" || (key != null && key.EndsWith("Cooldown"));
+
         public static string Describe(ItemData item)
         {
             var parts = new string[item.affixes.Count];
@@ -320,8 +323,10 @@ namespace WoLChaosDepths
             {
                 AffixData affix = item.affixes[i];
                 AffixDef def = Affix(affix.key);
+                // #114: point stats (crit chance, cooldowns, evade, damage taken, move speed) show as
+                // points; the effective % is on the stat sheet, since points from all gear add up first.
                 string value = def != null && def.percent
-                    ? (affix.value >= 0 ? "" : "") + Mathf.RoundToInt(affix.value * 100f) + "%"
+                    ? Mathf.RoundToInt(affix.value * 100f) + (IsPoints(affix.key) ? " pts" : "%")
                     : affix.value.ToString("0.##");
                 parts[i] = def != null ? string.Format(def.label, value) : $"{affix.key} {value}";
             }

@@ -72,6 +72,16 @@ LeftStick, Back or None).
 
 To start over, delete the `characterN.json` files while the game is closed.
 
+## #114 point system, gear (0.37.0)
+
+Crit chance, cooldowns, evade, damage taken and move speed on gear are now **points**: an item's
+old +12% is 12 points. A wizard's points of one stat are added up, then converted once, so they can
+never reach 100%: crit chance, evade and move speed give `1 - 0.99^points` (30 points = +26%),
+cooldowns and damage taken are cut by `0.99^points` (38 points = -32%; never 0, never immune).
+Cooldown points are summed per arcana (generic + its type + its element). Damage %, crit damage and
+healing stay 1 point = 1%. Items show these affixes as "pts". The 0.36.0 safety caps are gone.
+Talents, pacts, cloaks and relics still add their own % until they're moved onto points (#114 step 2).
+
 ## #101 cleanup (0.36.1)
 
 - Double Down: the shop discount is on while ANY wizard holds the pact (it followed whichever
@@ -80,10 +90,7 @@ To start over, delete the `characterN.json` files while the game is closed.
 
 ## #101 refinement fixes (0.36.0)
 
-- **Gear safety caps** (`[Balance]`, Matt to approve the values): gear can cut an arcana's cooldown
-  by at most **60%** (generic + type cooldown affixes together), damage taken by at most **60%**,
-  and give at most **40%** evade. Only stacked high-level Legendaries reach them; talents, pacts and
-  relics still add on top.
+- (Gear safety caps, replaced by the point system in 0.37.0.)
 - Arcana Levels (pulled out of the build) no longer patches every cast.
 
 ## Review fixes (0.35.4)

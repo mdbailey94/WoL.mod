@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.36.5";
+        public const string PluginVersion = "0.37.0";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -78,13 +78,6 @@ namespace WoLChaosDepths
         }
 
         public static float HealthPerLevel => Mathf.Clamp(healthPerLevel?.Value ?? 0.02f, 0f, 0.1f);
-        // #101 audit fix (0.36.0): safety caps on the gear totals, so stacked affixes can't zero a
-        // cooldown, make a wizard immune or evade nearly everything. Only reached by stacked
-        // high-level Legendaries; Matt approves the values.
-        private static ConfigEntry<float> gearCooldownCap, gearDamageTakenCap, gearEvadeCap;
-        public static float GearCooldownCap => Mathf.Clamp(gearCooldownCap?.Value ?? 0.6f, 0f, 0.95f);
-        public static float GearDamageTakenCap => Mathf.Clamp(gearDamageTakenCap?.Value ?? 0.6f, 0f, 0.95f);
-        public static float GearEvadeCap => Mathf.Clamp(gearEvadeCap?.Value ?? 0.4f, 0f, 0.95f);
         public static void Log(string message) => log?.LogInfo(message);
         public static void LogError(string message) => log?.LogError(message);
         public static void LogWarning(string message) => log?.LogWarning(message);
@@ -101,9 +94,6 @@ namespace WoLChaosDepths
             modEnabled = Config.Bind("General", "Enabled", true,
                 "Chaos Depths character progression (EXPERIMENTAL technical test).");
             logKills = Config.Bind("General", "LogKills", false, "Log the experience of every kill.");
-            gearCooldownCap = Config.Bind("Balance", "GearCooldownCap", 0.6f, "Most that gear can cut any one arcana's cooldown, generic + type affixes together (0.6 = -60%). #101 safety cap.");
-            gearDamageTakenCap = Config.Bind("Balance", "GearDamageTakenCap", 0.6f, "Most that gear can cut damage taken (0.6 = -60%). #101 safety cap.");
-            gearEvadeCap = Config.Bind("Balance", "GearEvadeCap", 0.4f, "Most evade chance gear can give (0.4 = 40%). #101 safety cap.");
             healthPerLevel = Config.Bind("Progression", "HealthPerLevel", 0.02f,
                 new ConfigDescription("Max health gained per level, as a fraction (0.02 = +2%).", new AcceptableValueRange<float>(0f, 0.1f)));
             xpPerHealth = Config.Bind("Progression", "XpPerEnemyHealth", 0.125f,

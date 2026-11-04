@@ -100,11 +100,16 @@ namespace WoLChaosDepths
                     damage += Get(totals, "HoldDamage");
                     cooldown += Get(totals, "HoldCooldown");
                 }
-                // #101 (0.36.0): generic + type cooldown together stay within GearCooldownCap.
-                float generic = Mathf.Max(Get(totals, "Cooldown"), -ChaosDepthsPlugin.GearCooldownCap);
-                cooldown = Mathf.Max(cooldown, -ChaosDepthsPlugin.GearCooldownCap - generic);
+                // #114 (0.37.0): ALL of an arcana's cooldown points (generic + type + its element) are
+                // summed and applied once: cooldown x 0.99^points, so it never reaches 0 (the 0.36
+                // 60% cap is gone). An affix's stored -15% is 15 points.
+                string element = null;
+                try { element = s.skillData.GetValue<string>(StatData.eleStr); } catch { }
+                cooldown += Get(totals, "Cooldown");
+                if (!string.IsNullOrEmpty(element) && !s.skillData.GetValue<bool>(StatData.isStatStr))
+                    cooldown += Get(totals, element + "Cooldown");
                 Set(s.skillData, StatData.damageStr, "Damage", damage);
-                Set(s.skillData, StatData.cdStr, "Cooldown", cooldown);
+                Set(s.skillData, StatData.cdStr, "Cooldown", Points.Reduction(cooldown));
             }
         }
 

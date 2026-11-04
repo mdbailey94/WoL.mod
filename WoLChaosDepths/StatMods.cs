@@ -63,9 +63,11 @@ namespace WoLChaosDepths
             {
                 string category = player.skillCategory;
                 Skill(category, StatData.damageStr, "Damage", Get(totals, "Damage"), VarStatModType.Multiplicative);
-                Skill(category, StatData.critChStr, "CritChance", Get(totals, "CritChance"), VarStatModType.Additive);
+                // #114 (0.37.0): crit chance from POINTS, 1 - 0.99^points (never 100%).
+                Skill(category, StatData.critChStr, "CritChance", Points.Toward100(Get(totals, "CritChance")), VarStatModType.Additive);
                 Skill(category, StatData.critDmgStr, "CritDamage", Get(totals, "CritDamage"), VarStatModType.Additive);
-                Skill(category, StatData.cdStr, "Cooldown", Mathf.Max(Get(totals, "Cooldown"), -ChaosDepthsPlugin.GearCooldownCap), VarStatModType.Multiplicative);
+                // #114: cooldown points are summed per arcana (generic + type + element) and applied
+                // once in GearTypeStats, so no generic cooldown mod here any more.
                 Skill(category, StatData.kbMultiStr, "Knockback", Get(totals, "Knockback"), VarStatModType.Multiplicative);
                 // The fields the game's Fury cloak uses (OutfitModType.ODRate / ODDamage).
                 Skill(category, StatData.odProgStr, "SignatureCharge", Get(totals, "SignatureCharge"), VarStatModType.Multiplicative);
@@ -77,7 +79,7 @@ namespace WoLChaosDepths
                     string ele = element;
                     StatManager.ModApplyConditional only = sd => !sd.GetValue<bool>(StatData.isStatStr) && sd.GetValue<string>(StatData.eleStr) == ele;
                     Skill(category, StatData.damageStr, ele + "Damage", Get(totals, ele + "Damage"), VarStatModType.Multiplicative, only);
-                    Skill(category, StatData.cdStr, ele + "Cooldown", Get(totals, ele + "Cooldown"), VarStatModType.Multiplicative, only);
+                    // (element cooldowns: summed into the arcana's points in GearTypeStats, #114)
                 }
                 Health health = player.health;
                 if (health != null)
@@ -86,12 +88,13 @@ namespace WoLChaosDepths
                     if (!wasFull && health.healthStat != null && hpBefore > 0)
                         health.CurrentHealthValue = Mathf.Min(hpBefore, (int)health.healthStat.ModifiedValue);
                     Stat(health.healModifierStat, "Healing", Get(totals, "Healing"), VarStatModType.Multiplicative, false);
-                    Stat(health.damageTakenStat, "DamageTaken", Mathf.Max(Get(totals, "DamageTaken"), -ChaosDepthsPlugin.GearDamageTakenCap), VarStatModType.Multiplicative, false);
-                    Stat(health.evadeStat, "Evade", Mathf.Min(Get(totals, "Evade"), ChaosDepthsPlugin.GearEvadeCap), VarStatModType.Additive, false);
+                    // #114: damage-taken cuts x 0.99^points (never immune), evade 1 - 0.99^points.
+                    Stat(health.damageTakenStat, "DamageTaken", Points.Reduction(Get(totals, "DamageTaken")), VarStatModType.Multiplicative, false);
+                    Stat(health.evadeStat, "Evade", Points.Toward100(Get(totals, "Evade")), VarStatModType.Additive, false);
                     Stat(health.critHealModStat, "HealCrit", Get(totals, "HealCrit"), VarStatModType.Additive, false);
                 }
                 if (player.movement != null)
-                    Stat(player.movement.moveSpeedStat, "MoveSpeed", Get(totals, "MoveSpeed"), VarStatModType.Multiplicative, false);
+                    Stat(player.movement.moveSpeedStat, "MoveSpeed", Points.Toward100(Get(totals, "MoveSpeed")), VarStatModType.Multiplicative, false);   // #114: soft
                 Activation(player, Get(totals, "ActivationSpeed"));
                 applied[key] = signature;
                 ChaosDepthsPlugin.Log($"Stats applied to player {player.playerID + 1}: level {save.level} (+{levelHealth * 100f:0}% health), items: " +
