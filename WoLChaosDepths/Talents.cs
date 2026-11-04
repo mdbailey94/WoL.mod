@@ -319,15 +319,26 @@ namespace WoLChaosDepths
             Tree withPerks;
             if (!withPerksOf.TryGetValue(key, out withPerks))
             {
+                // #110 (Matt, 11-04 14:54): every tier shows exactly 3 options. The cloak's own two
+                // perks are one of them: its first perk takes the LAST slot of tier 1, its second
+                // the last slot of tier 3 (that tree node is left out for this cloak; a tier with
+                // fewer than 3 just gains the perk).
+                var placed = new Dictionary<int, Node>();
+                foreach (Node perk in perks)
+                {
+                    int tier = perk.Tier <= 1 ? 1 : 3;
+                    placed[tier] = new Node { Key = perk.Key, Name = perk.Name, Tier = tier, MaxPoints = perk.MaxPoints, Effect = perk.Effect };
+                }
                 var nodes = new List<Node>();
                 foreach (Node n in baseTree.Nodes)
                 {
-                    // Each perk sits at the end of its tier's row.
-                    if (n.Tier == 2 && !nodes.Exists(x => x.Tier == 2))
-                        nodes.AddRange(Array.FindAll(perks, p => p.Tier == 1));
-                    if (n.Tier == 3 && !nodes.Exists(x => x.Tier == 3))
-                        nodes.AddRange(Array.FindAll(perks, p => p.Tier == 2));
+                    Node perk;
+                    if (placed.TryGetValue(n.Tier, out perk) && Array.FindAll(baseTree.Nodes, x => x.Tier == n.Tier).Length >= 3
+                        && n == Array.FindLast(baseTree.Nodes, x => x.Tier == n.Tier))
+                        continue;   // the perk takes this slot
                     nodes.Add(n);
+                    if (placed.TryGetValue(n.Tier, out perk) && n == LastKept(baseTree, n.Tier))
+                        nodes.Add(perk);
                 }
                 withPerks = new Tree { Key = baseTree.Key, Name = baseTree.Name, Nodes = nodes.ToArray() };
                 withPerksOf[key] = withPerks;
@@ -355,6 +366,15 @@ namespace WoLChaosDepths
                     if (string.Equals(tree.Key, name, StringComparison.OrdinalIgnoreCase) || string.Equals(tree.Name, name, StringComparison.OrdinalIgnoreCase))
                         treeOfCloak[cloak] = tree;
             }
+        }
+
+        // The last node of a tier that stays when a cloak perk takes the row's third slot.
+        private static Node LastKept(Tree tree, int tier)
+        {
+            Node[] row = Array.FindAll(tree.Nodes, x => x.Tier == tier);
+            if (row.Length == 0)
+                return null;
+            return row.Length >= 3 ? row[row.Length - 2] : row[row.Length - 1];
         }
 
         public static Node Find(Tree tree, string key)
