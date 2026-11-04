@@ -13,3 +13,6 @@ A new **Earth basic arcana** (#87, part of the giant weapon set). It's a small s
 Timing is deliberate: a 0.2 s wind-up on each punch (0.24 s on the toss) and a longer pause between hits than the game's basics. Shots are broken with the same checks as Stone Charge's shield; a boomerang is sent back instead.
 
 Art: WoL Art's buckler, 4-frame punch and icon ('Giant weapons (2026-11-03)'). All numbers are in `BepInEx\config\mdbailey94.wol.buckler.cfg`; an older config is moved onto these numbers automatically. Requires LegendAPI.
+
+**0.5.0** (#94): WoL Art's held buckler in 8 facings (buckler_held_8dir, 16x16): after the punch's smash the raised buckler shows the frame for your aim (right, the diagonals, down, left, up), upright, and goes behind the wizard for the three up facings. The thrown disc plays Art's spin strip at 24 fps instead of turning the buckler (buckler_disc; the enhanced disc uses the native 26 px buckler_disc_big). Same sizes, hits and timing. `[Look] DirectionalArt = false` brings back the 0.4.0 look.
+

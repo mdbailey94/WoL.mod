@@ -21,7 +21,7 @@ namespace WoLBuckler
     {
         public const string PluginGuid = "mdbailey94.wol.buckler";
         public const string PluginName = "Buckler";
-        public const string PluginVersion = "0.4.0";
+        public const string PluginVersion = "0.5.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -47,6 +47,10 @@ namespace WoLBuckler
         public static float EnhancedSize => Get(enhancedSize, 1.75f, 1f, 3f);
         public static float ShrapnelRadius => Get(shrapnelRadius, 0.8f, 0.3f, 2f);
 
+        private static ConfigEntry<bool> heldArt;
+        // #94: Art's 8-facing held buckler and disc spin strips; off = 0.4.0's turned punch frame and spinning buckler.
+        public static bool HeldArt => heldArt == null || heldArt.Value;
+
         private static float Get(ConfigEntry<float> entry, float fallback, float min, float max) =>
             Mathf.Clamp(entry?.Value ?? fallback, min, max);
 
@@ -58,6 +62,8 @@ namespace WoLBuckler
                 "Offer Buckler in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
             BindSettings();
+            heldArt = Config.Bind("Look", "DirectionalArt", true,
+                "WoL Art's held buckler in 8 facings and the disc's spin strips (#94). Off: the 0.4.0 look (punch frame turned to the aim, spinning buckler).");
             // 0.4.0: the big buckler and high knockback moved to the enhanced version; an older
             // config still holds 0.3's (or 0.1's) numbers.
             var revision = Config.Bind("General", "SettingsRevision", 0, "Which version's defaults this file was last updated to. Leave it alone.");

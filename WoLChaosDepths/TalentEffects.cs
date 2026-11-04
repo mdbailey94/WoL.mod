@@ -104,9 +104,7 @@ namespace WoLChaosDepths
             Add(totals, "SignatureDamage", 0.4f * Talents.Rank(player, "Cataclysm"));
             Add(totals, "MoveSpeed", 0.03f * Talents.Rank(player, "Fleet"));                            // Windrunner
             Add(totals, "HealCrit", 0.03f * Talents.Rank(player, "LuckyHeal"));                         // Mender
-            int allIn = Talents.Rank(player, "AllIn");                                                  // Gambler
-            Add(totals, "Damage", 0.25f * allIn);
-            Add(totals, "Health", -0.25f * allIn);
+            // Gambler All In (2026-11-03 rework): gold-scaled damage, in ArchetypeMechanics.
             Element(player, totals, "Fire", "Kindling", "HeatSink");
             Element(player, totals, "Air", "SharpGust", "SecondBreath");
             Element(player, totals, "Earth", "HeavyHands", "Quarry");

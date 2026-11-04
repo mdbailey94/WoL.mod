@@ -8,7 +8,7 @@ on the relic bar and comes off cleanly when dropped.
 | --- | --- | --- | --- |
 | **Storm Battery** | 3 | 150 gold / 22 platinum | Dashing charges the battery, up to three times! Your next arcana hit unleashes chain lightning, one bolt per charge! |
 | **Echo Charm** | 3 | 150 gold / 22 platinum | Your signature arcana echoes! When it ends, it is cast once more on its own at half power, with no cooldown! |
-| **Glass Prism** | 2 | 150 gold / 18 platinum | Greatly increases critical hit chance, but reduces max health! |
+| **Glass Prism** | 2 | 150 gold / 18 platinum | Greatly increases damage while at full health! Shatters when you are hit, and mends once you are healed to full! |
 | **Pickpocket's Glove** | 2 | 125 gold / 17 platinum | Gold drops are greater while your health is at half or below! |
 
 ### Storm Battery
@@ -41,9 +41,12 @@ on the relic bar and comes off cleanly when dropped.
 
 ### Glass Prism
 
-- **+25% critical hit chance** on all your arcana (the Analytical Monocle gives 8%), and
-  **-25% max health**. Both are the game's own stat mods, like Jeremiah's Needle and the cursed
-  max-health relics, and come off when the relic does.
+- **0.3.0 rework** (Matt, 2026-11-03: Glass Prism, the Gambler's All In and Duelist's Cloak must
+  each do something different). While you're at **full health**, all your arcana deal **+30%
+  damage**. The first hit shatters it (the relic bar goes dim) and it comes back only once you're
+  healed to full again. No crit bonus and no max-health cost any more.
+- Built on the game's own low-health relic base (ModWithHP), flipped to "at full health", with
+  the game's damage stat mod, so it stacks with other relics and comes off cleanly.
 
 ### Pickpocket's Glove
 
@@ -72,7 +75,7 @@ during runs. Or set `GiveRelicsKey` and press it once you're in a level (the pla
 
 ## Checking it works
 
-`BepInEx\LogOutput.log` shows `Relic Pack 0.2.0 registered 4 relics`, then a line each time a
+`BepInEx\LogOutput.log` shows `Relic Pack 0.3.0 registered 4 relics`, then a line each time a
 relic does something, for example:
 
 - `Storm Battery: dash stored a charge (2/3)` and `Storm Battery: chain lightning landed 3 of 3 bolt(s) on 2 enemy(ies)`
@@ -81,7 +84,7 @@ relic does something, for example:
   and `Echo Charm: echoed UseX on ... for 10 (50% of 20)`). The quickest check is the house's
   training dummies with the Damage Meter overlay on: the arcana fires twice, the second time for
   half the numbers, and the cooldown ring fills only once.
-- `Glass Prism on for player 1: crit chance +25%, max health 500 -> 375`
+- `Glass Prism whole for player 1: +30% arcana damage at full health` / `Glass Prism shattered for player 1 (no longer at full health)`
 - `Pickpocket's Glove active for player 1 at 48% health; gold drops now x1.50`
 
 ## Install

@@ -6,7 +6,7 @@ using HarmonyLib;
 namespace WoLChaosDepths
 {
     /// <summary>
-    /// Arcana whose mod has been taken out (#43: the M4 rifle). The game, finding an arcana it
+    /// Arcana whose mod has been taken out (#43: the M4 rifle; Momentum Spear, 2026-11-03). The game, finding an arcana it
     /// doesn't know in a wizard's saved loadout, resets the whole loadout to the starting one.
     /// Just before it checks, each removed arcana is swapped for the game's own default in that
     /// slot type, so the rest of the loadout stays as it was.
@@ -17,6 +17,7 @@ namespace WoLChaosDepths
         private static readonly Dictionary<string, string> Replacements = new Dictionary<string, string>
         {
             { "M4Basic", Player.WindSlashBasic.staticID },
+            { "MomentumSpearBasic", Player.WindSlashBasic.staticID },   // Matt 2026-11-03: Giant Air Spear replaces it
         };
 
         private static ManualLogSource log;

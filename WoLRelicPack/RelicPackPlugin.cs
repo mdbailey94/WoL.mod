@@ -19,7 +19,7 @@ namespace WoLRelicPack
     {
         public const string PluginGuid = "mdbailey94.wol.relicpack";
         public const string PluginName = "Relic Pack";
-        public const string PluginVersion = "0.2.0";
+        public const string PluginVersion = "0.3.0";
 
         // Every relic ID (and attack tag) starts with this, so the relics can recognise their own hits.
         public const string IDPrefix = "RelicPack";
@@ -31,7 +31,7 @@ namespace WoLRelicPack
         private const int StormBatteryPrice = 6;
         private const int EchoCharmTier = 3;           // like the other signature-arcana relics
         private const int EchoCharmPrice = 6;
-        private const int GlassPrismTier = 2;          // a big crit boost, but it costs health
+        private const int GlassPrismTier = 2;          // big damage, but only while untouched
         private const int GlassPrismPrice = 6;
         private const int PickpocketsGloveTier = 2;
         private const int PickpocketsGlovePrice = 5;   // gold relics are 5
@@ -82,7 +82,7 @@ namespace WoLRelicPack
                 "Your signature arcana echoes! When it ends, it is cast once more on its own at half power, with no cooldown!",
                 "echo_charm.png", EchoCharmTier, EchoCharmPrice);
             Register(new GlassPrism(), "Glass Prism",
-                "Greatly increases critical hit chance, but reduces max health!",
+                "Greatly increases damage while at full health! Shatters when you are hit, and mends once you are healed to full!",
                 "glass_prism.png", GlassPrismTier, GlassPrismPrice);
             Register(new PickpocketsGlove(), "Pickpocket's Glove",
                 "Gold drops are greater while your health is at half or below!",

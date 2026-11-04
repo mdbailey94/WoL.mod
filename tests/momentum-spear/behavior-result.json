@@ -1,7 +1,0 @@
-{
-  "passed": 78,
-  "evidence": "C:\\Users\\mdbai\\AppData\\Local\\LocalAI\\tests\\MomentumSpear\\0fbb739961754e37b6b70b27bdcf6288\\result.txt",
-  "real_harmony_detouring_tested": false,
-  "gameplay_tested": false,
-  "note": "Actual mod source plus explicit stubs. FSM adapter dispatches prefix in verified engine order. This does not execute the game or prove real runtime patching."
-}

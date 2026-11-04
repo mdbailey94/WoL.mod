@@ -16,10 +16,11 @@ namespace WoLChaosDepths
     /// - Bulwark: Stand Firm, Retaliate, Shield Wall (a "room" ends when no living enemy is within
     ///   15 u), Juggernaut (its armor is in TalentEffects.AddStats), Last Stand.
     /// - Duelist: Momentum, Exploit, Riposte, Assassin, Flurry.
-    /// - Arcanist: Echo, Surge, Channel, Archmage.
+    /// - Arcanist: Resonance (key "Echo"), Surge, Channel, Archmage.
     /// - Gambler: Hot Streak, Jackpot (gold banked within 3 s of an elite kill), Double or Nothing,
     ///   Gem Sense (the game's boss-dead event: a chance of an extra chaos gem), High Roller (the
-    ///   shop's relic prices, as the game's own discount relics do it).
+    ///   shop's relic prices, as the game's own discount relics do it), All In (gold carried as
+///   damage; hits spill gold).
     /// </summary>
     public static class ArchetypeMechanics
     {
@@ -34,7 +35,10 @@ namespace WoLChaosDepths
         private const float LastStandCut = 0.30f;
         private const float LastStandDamage = 0.20f;
         // Arcanist
-        private const float EchoChance = 0.10f;
+        // Resonance (#90, 2026-11-04; node key "Echo", which it replaces): casting a standard arcana
+        // other than the last one you cast gives +12% damage for 3 s (refreshed, not stacked).
+        private const float ResonanceDamage = 0.12f;
+        private const float ResonanceTime = 3f;
         private const int ArchmageEvery = 4;
         private const float SurgeDamage = 0.15f;
         private const float SurgeTime = 4f;
@@ -59,12 +63,19 @@ namespace WoLChaosDepths
         private const int DoubleMax = 4;
         private const float GemSenseChance = 0.05f;      // per point, per wizard
         private const float HighRollerDiscount = 0.10f;
+        // All In (reworked 2026-11-03, Matt: Glass Prism, All In and Duelist's Cloak must differ):
+        // gold is the stake, not health.
+        private const float AllInPerGold = 0.01f / 20f;   // +1% damage per 20 gold carried...
+        private const float AllInMax = 0.30f;             // ...up to +30%
+        private const float AllInSpill = 0.10f;           // each hit taken spills 10% of the gold
 
         private class State
         {
             public float retaliateReadyAt;
             public int standardCasts;
             public float surgeUntil;
+            public float resonanceUntil;
+            public string lastStandard;
             public int streak;
             public bool hitThisFloor;
             public bool lastStand;
@@ -288,7 +299,9 @@ namespace WoLChaosDepths
                 // Hot Streak, Last Stand and Surge share one damage mod.
                 float damage = (low ? LastStandDamage : 0f)
                     + (Talents.Rank(player, "HotStreak") > 0 ? HotStreakStep * s.streak : 0f)
-                    + (Time.time < s.surgeUntil ? SurgeDamage : 0f);
+                    + (Time.time < s.surgeUntil ? SurgeDamage : 0f)
+                    + (Talents.Rank(player, "Echo") > 0 && Time.time < s.resonanceUntil ? ResonanceDamage : 0f)
+                    + (Talents.Rank(player, "AllIn") > 0 ? AllInBonus() : 0f);
                 SetDamage(player, s, damage);
 
                 Fx(() => KeystoneFx.SetActive(p, "DoubleOrNothing", Talents.Rank(p, "DoubleOrNothing") > 0 && goldMultiplier > 1));
@@ -569,6 +582,16 @@ namespace WoLChaosDepths
                     log?.LogInfo($"Talents: Hot Streak lost at {s.streak} kill(s), player {player.playerID + 1}");
                     s.streak = 0;
                 }
+                if (Talents.Rank(player, "AllIn") > 0)
+                {
+                    GoldWallet wallet = Player.goldWallet;
+                    int spill = wallet != null ? Mathf.FloorToInt(wallet.balance * AllInSpill) : 0;
+                    if (spill > 0 && wallet.Withdraw(spill))
+                    {
+                        Fx(() => KeystoneFx.Fire(player, "AllIn"));
+                        log?.LogInfo($"Talents: All In, player {player.playerID + 1} was hit and spilled {spill} gold ({wallet.balance} left)");
+                    }
+                }
                 s.hitThisFloor = true;
                 if (!anyHitThisFloor && goldMultiplier > 1 && Talents.Rank(player, "DoubleOrNothing") > 0)
                 {
@@ -626,7 +649,7 @@ namespace WoLChaosDepths
             }
         }
 
-        // After a cooldown starts: Echo and Archmage give it back (standard arcana only: not the
+        // After a cooldown starts: Resonance notes the cast; Archmage gives the cooldown back (standard arcana only: not the
         // basic, the dash or a signature cast).
         private static void AfterCooldownStart(Player.SkillState __instance)
         {
@@ -638,6 +661,17 @@ namespace WoLChaosDepths
                     return;
                 bool free = false;
                 string why = null;
+                if (Talents.Rank(player, "Echo") > 0)
+                {
+                    State r = StateOf(player);
+                    if (r.lastStandard != null && r.lastStandard != __instance.skillID)
+                    {
+                        if (Time.time >= r.resonanceUntil)
+                            log?.LogInfo($"Talents: Resonance, player {player.playerID + 1} wove {r.lastStandard} into {__instance.skillID}: +{ResonanceDamage * 100f:0}% damage for {ResonanceTime:0} s");
+                        r.resonanceUntil = Time.time + ResonanceTime;
+                    }
+                    r.lastStandard = __instance.skillID;
+                }
                 if (Talents.Rank(player, "Archmage") > 0)
                 {
                     State s = StateOf(player);
@@ -650,11 +684,6 @@ namespace WoLChaosDepths
                         Fx(() => KeystoneFx.Fire(p, "Archmage"));
                     }
                 }
-                if (!free && Talents.Rank(player, "Echo") > 0 && UnityEngine.Random.value < EchoChance)
-                {
-                    free = true;
-                    why = "Echo";
-                }
                 if (!free)
                     return;
                 player.cooldownManager.ResetCooldown(__instance.skillID);
@@ -662,7 +691,7 @@ namespace WoLChaosDepths
             }
             catch (Exception e)
             {
-                LogOnce("cooldown", $"Talents: Echo/Archmage failed ({e.Message})");
+                LogOnce("cooldown", $"Talents: Resonance/Archmage failed ({e.Message})");
             }
         }
 
@@ -686,6 +715,12 @@ namespace WoLChaosDepths
             // Jackpot: an elite's gold (banked in the few seconds after it dies) is worth more.
             if (Time.time < jackpotUntil)
                 amount = Mathf.RoundToInt(amount * (1f + JackpotBonus));
+        }
+
+        private static float AllInBonus()
+        {
+            GoldWallet wallet = Player.goldWallet;
+            return wallet != null ? Mathf.Min(AllInMax, wallet.balance * AllInPerGold) : 0f;
         }
 
         private static bool EnemiesNear(Vector2 at)

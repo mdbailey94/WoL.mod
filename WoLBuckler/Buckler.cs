@@ -10,6 +10,14 @@ namespace WoLBuckler
     {
         public static Sprite Shield;
         public static Sprite[] Punch = new Sprite[0];
+        // #94 (Log - Art 07:52 / 05:14): the held buckler in 8 facings (16x16, clockwise from right:
+        // right, down-right, down, down-left, left, up-left, up, up-right; 5-7 drawn behind the
+        // wizard) and the tossed disc's spin (16x16 base, 26x26 enhanced, 24 fps, never rotated).
+        public static Sprite[] Held = new Sprite[0];
+        public static Sprite[] Disc = new Sprite[0];
+        public static Sprite[] DiscBig = new Sprite[0];
+        public const float ArtPixels = 16f;      // the new strips' native buckler size
+        public const float DiscFps = 24f;
 
         public static void Load(BepInEx.Logging.ManualLogSource log)
         {
@@ -23,8 +31,33 @@ namespace WoLBuckler
                 for (int i = 0; i < Punch.Length; i++)
                     Punch[i] = Sprite.Create(strip, new Rect(i * strip.height, 0, strip.height, strip.height), new Vector2(0.5f, 0.5f), 16f);
             }
-            log?.LogInfo($"Buckler art: buckler {(Shield != null ? "loaded" : "missing")}, punch {Punch.Length} frames");
+            Held = Strip("buckler_held_8dir.png");
+            Disc = Strip("buckler_disc.png");
+            DiscBig = Strip("buckler_disc_big.png");
+            log?.LogInfo($"Buckler art: buckler {(Shield != null ? "loaded" : "missing")}, punch {Punch.Length} frames, " +
+                $"held {Held.Length} facings, disc {Disc.Length} + big {DiscBig.Length} frames");
         }
+
+        // Square frames side by side, centre pivot, 16 px per unit.
+        private static Sprite[] Strip(string file)
+        {
+            Texture2D strip = BucklerPlugin.LoadTexture(file);
+            if (strip == null || strip.height <= 0 || strip.width < strip.height)
+                return new Sprite[0];
+            var frames = new Sprite[strip.width / strip.height];
+            for (int i = 0; i < frames.Length; i++)
+                frames[i] = Sprite.Create(strip, new Rect(i * strip.height, 0, strip.height, strip.height), new Vector2(0.5f, 0.5f), 16f);
+            return frames;
+        }
+
+        // The facing index for an aim: 0 right, then clockwise in screen space (1 down-right ... 7 up-right).
+        public static int Facing(Vector2 aim)
+        {
+            float degrees = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
+            return ((Mathf.RoundToInt(-degrees / 45f) % 8) + 8) % 8;
+        }
+
+        public static bool HeldBehind(int facing) => facing >= 5;
 
         // A punch frame (0 pull back, 1 smash, 2 hold, 3 recover), or the plain buckler.
         public static Sprite PunchFrame(int i) => Punch.Length >= 4 ? Punch[i] : Shield;
@@ -229,8 +262,28 @@ namespace WoLBuckler
                 return;
             }
             Vector2 at = Place();
-            look.sprite = BucklerArt.PunchFrame(age < SmashTime ? 1 : age > BucklerPlugin.HoldTime - RecoverTime ? 3 : 2);
+            if (age >= SmashTime && BucklerArt.Held.Length >= 8 && BucklerPlugin.HeldArt)
+                ShowHeld();
+            else
+                look.sprite = BucklerArt.PunchFrame(age < SmashTime ? 1 : age > BucklerPlugin.HoldTime - RecoverTime ? 3 : 2);
             Buckler.BreakShots(owner, skillID, at, BucklerPlugin.GuardRadius * Buckler.Size(enhanced), aim, enhanced);
+        }
+
+        // #94: Art's held buckler for the aim's facing, upright (the turn is in the frames), at the
+        // native 16 px (enhanced: times its size), in front of the wizard or behind for the up facings.
+        private bool heldShown;
+        private void ShowHeld()
+        {
+            if (heldShown)
+                return;
+            heldShown = true;
+            int facing = BucklerArt.Facing(aim);
+            look.sprite = BucklerArt.Held[facing];
+            look.flipY = false;
+            transform.rotation = Quaternion.identity;
+            float scale = Buckler.Size(enhanced);
+            transform.localScale = new Vector3(scale, scale, 1f);
+            Buckler.Sort(look, owner, BucklerArt.HeldBehind(facing) ? -1 : 1);
         }
 
         private void OnDestroy()
@@ -253,6 +306,8 @@ namespace WoLBuckler
         private float born, distance;
         private bool returning, enhanced;
         private readonly HashSet<int> hitOut = new HashSet<int>(), hitBack = new HashSet<int>();
+        private SpriteRenderer look;
+        private Sprite[] frames = new Sprite[0];
 
         public static void Toss(Player owner, string skillID, Vector2 aim, bool enhanced)
         {
@@ -270,6 +325,19 @@ namespace WoLBuckler
             disc.born = Time.time;
             SpriteRenderer look = go.AddComponent<SpriteRenderer>();
             look.sprite = BucklerArt.Shield;
+            disc.look = look;
+            // #94: Art's spin strip (the native 26 px one when enhanced, so it isn't scaled up),
+            // sized to the same width the buckler had: base 16 px, enhanced 16 x EnhancedSize.
+            disc.frames = enhanced && BucklerArt.DiscBig.Length > 0 ? BucklerArt.DiscBig : BucklerArt.Disc;
+            if (disc.frames.Length > 0 && BucklerPlugin.HeldArt)
+            {
+                float px = disc.frames[0].rect.width;
+                float s = BucklerArt.ArtPixels * Buckler.Size(enhanced) / px;
+                go.transform.localScale = new Vector3(s, s, 1f);
+                look.sprite = disc.frames[0];
+            }
+            else
+                disc.frames = new Sprite[0];
             Buckler.Sort(look, owner, 1);
             Buckler.Sound("EarthPebble", hand, 0.8f);
             BucklerPlugin.Log($"Buckler: disc tossed ({BucklerPlugin.DiscRange:0.0} u{(enhanced ? ", enhanced" : "")})");
@@ -284,7 +352,10 @@ namespace WoLBuckler
                 Destroy(gameObject);
                 return;
             }
-            transform.Rotate(0f, 0f, SpinSpeed * Time.deltaTime);
+            if (frames.Length > 0)
+                look.sprite = frames[(int)((Time.time - born) * BucklerArt.DiscFps) % frames.Length];   // the spin is in the frames
+            else
+                transform.Rotate(0f, 0f, SpinSpeed * Time.deltaTime);
             Vector2 from = transform.position;
             Vector2 to;
             if (!returning)

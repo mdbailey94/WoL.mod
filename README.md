@@ -80,4 +80,3 @@ after a decimal number, like `1.5f`).
 
 ## Momentum Spear
 
-[WoLMomentumSpear](WoLMomentumSpear/README.md) adds a three-hit Air basic arcana. The opener scales with actual pre-attack velocity; follow-up and finisher damage stay fixed. Installed in the base game and the Chaos Depths profile; not yet played.

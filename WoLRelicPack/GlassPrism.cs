@@ -2,62 +2,83 @@ using System.Collections.Generic;
 
 namespace WoLRelicPack
 {
-    // Glass Prism: much higher critical hit chance on every arcana, at the cost of max health.
+    // Glass Prism (0.3.0 rework, Matt 2026-11-03): while you're at FULL health, every arcana deals
+    // DamageBonus more. The first hit shatters it, and it comes back only once you're healed to
+    // full again. No crit and no max-health cost any more, so it no longer overlaps Duelist's
+    // Cloak (crits and speed for more damage taken) or the Gambler's All In (gold as the stake).
     //
-    // Modeled on Analytical Monocle (CritChanceUp: a crit chance mod on all of the wizard's skill
-    // stats via StatManager.ModifyAllStatData), Jeremiah's Needle (CritChanceDownDamageUp, the
-    // game's own crit trade-off relic) and the cursed max-health relic MaxHPDownRegenAtLowHP (a
-    // multiplicative mod on health.healthStat). Both are the game's stat mods, so they stack with
-    // other relics and come off cleanly when the relic is removed.
-    public class GlassPrism : Item
+    // Built on the game's ModWithHP (the base of its low-health relics), flipped to "at or above
+    // full": it switches the damage mod on and off as health crosses the line and shows that on
+    // the relic bar. The mod is the game's own (StatManager.ModifyAllStatData on the damage stat),
+    // so it stacks with other relics and comes off cleanly.
+    public class GlassPrism : ModWithHP
     {
         public static string staticID = RelicPackPlugin.IDPrefix + "GlassPrism";
 
-        private const float CritChanceBonus = 0.25f;  // added critical hit chance (Analytical Monocle gives 0.08)
-        private const float MaxHealthLoss = 0.25f;    // max health lost, as a fraction (0.25 = a quarter)
+        private const float DamageBonus = 0.30f;   // extra arcana damage while at full health
+        private const float FullHealth = 0.999f;   // health fraction that counts as full
 
         private readonly Dictionary<string, NumVarStatMod> skillMods;
-        private readonly NumVarStatMod healthMod;
 
-        // Public here only because the reference DLL is publicized (the game's own is protected).
-        public override string ExtraInfo => PercentToStr(CritChanceBonus, "+") + " | " + PercentToStr(MaxHealthLoss, "-");
+        public override string ExtraInfo => PercentToStr(DamageBonus, "+");
 
         public GlassPrism()
         {
             ID = staticID;
             category = Category.Offense;
+            comparisonType = IntComparisonType.GreaterThanEquals;
+            HPThreshold = FullHealth;
+            statMod = new NumVarStatMod(ID, DamageBonus, 10, VarStatModType.Multiplicative);
             skillMods = new Dictionary<string, NumVarStatMod>
             {
-                { StatData.critChStr, new NumVarStatMod(ID, CritChanceBonus) }
+                { StatData.damageStr, new NumVarStatMod(ID, DamageBonus, 10, VarStatModType.Multiplicative) }
             };
-            healthMod = new NumVarStatMod(ID, -MaxHealthLoss, 10, VarStatModType.Multiplicative);
         }
 
         public override void Activate()
         {
-            SetModStatus(true);
+            UpdateItemBar(ItemStatusBar.ItemState.Disabled);
+            base.Activate();
         }
 
         public override void Deactivate()
         {
-            SetModStatus(false);
+            base.Deactivate();
+            RemoveFromItemBar();
         }
 
-        private void SetModStatus(bool givenStatus)
+        // Alive and at full health.
+        public override bool CheckHPThreshold()
+        {
+            return parentPlayer != null && parentPlayer.health != null && parentPlayer.health.CurrentHealthValue > 0
+                && parentPlayer.health.HealthPercentage >= HPThreshold;
+        }
+
+        public override void ActivatePowerup()
+        {
+            base.ActivatePowerup();
+            SetDamage(true);
+            UpdateItemBar(ItemStatusBar.ItemState.Active);
+        }
+
+        public override void DeactivatePowerup()
+        {
+            bool was = activated;
+            base.DeactivatePowerup();
+            if (was)
+                SetDamage(false);
+            UpdateItemBar(ItemStatusBar.ItemState.Disabled);
+        }
+
+        private void SetDamage(bool givenStatus)
         {
             try
             {
                 StatManager.ModifyAllStatData(skillMods, parentSkillCategory, IgnoreStatusConditional, givenStatus);
-                if (parentEntity != null && parentEntity.health != null)
-                {
-                    NumVarStat health = parentEntity.health.healthStat;
-                    float before = health.ModifiedValue;
-                    health.Modify(healthMod, givenStatus);
-                    Player player = parentEntity as Player;
-                    string who = player != null ? $"player {player.playerID + 1}" : parentSkillCategory;
-                    RelicPackPlugin.Log($"Glass Prism {(givenStatus ? "on" : "off")} for {who}: " +
-                        $"crit chance {(givenStatus ? "+" : "-")}{CritChanceBonus * 100f:0}%, max health {before:0} -> {health.ModifiedValue:0}");
-                }
+                string who = parentPlayer != null ? $"player {parentPlayer.playerID + 1}" : parentSkillCategory;
+                RelicPackPlugin.LogRateLimited("GlassPrism" + who + givenStatus, 1f,
+                    givenStatus ? $"Glass Prism whole for {who}: +{DamageBonus * 100f:0}% arcana damage at full health"
+                                : $"Glass Prism shattered for {who} (no longer at full health)");
             }
             catch (System.Exception e)
             {

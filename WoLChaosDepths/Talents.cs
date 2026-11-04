@@ -173,8 +173,8 @@ namespace WoLChaosDepths
 
         public static readonly Tree Duelist = new Tree
         {
-            Key = "Duelist",
-            Name = "Duelist",
+            Key = "Duelist",        // saved and used in [Talents] CloakTrees: never renamed
+            Name = "Marksman",      // shown name (Matt 2026-11-03: Duelist's Cloak keeps the Duelist name)
             Nodes = new[]
             {
                 new Node { Key = "KeenEye", Name = "Keen Eye", Tier = 1, MaxPoints = 2, Effect = "+2% critical hit chance" },
@@ -201,7 +201,7 @@ namespace WoLChaosDepths
                 new Node { Key = "DeepReserves", Name = "Deep Reserves", Tier = 1, MaxPoints = 1, Effect = "Kills have a 15% chance to give a standard arcana its charge back" },
                 new Node { Key = "Spellweaver", Name = "Spellweaver", Tier = 1, MaxPoints = 2, Effect = "+5% activation (cast) speed" },
                 new Node { Key = "Prolong", Name = "Prolong", Tier = 2, MaxPoints = 1, Effect = "Your signature lasts 20% longer" },
-                new Node { Key = "Echo", Name = "Echo", Tier = 2, MaxPoints = 1, Effect = "10% chance a cast doesn't start its cooldown" },
+                new Node { Key = "Echo", Name = "Resonance", Tier = 2, MaxPoints = 1, Effect = "Cast a different arcana than your last one: +12% damage for 3 s" },   // #90: was Echo (10% free cooldown), too close to Echo Charm
                 new Node { Key = "Surge", Name = "Surge", Tier = 2, MaxPoints = 1, Effect = "Casting your signature resets the dash and gives +15% damage for 4 s" },
                 new Node { Key = "Channel", Name = "Channel", Tier = 2, MaxPoints = 1, Effect = "After standing still 1 s, cooldowns recover 10% faster" },
                 new Node { Key = "Archmage", Name = "Archmage", Tier = 3, MaxPoints = 1, Effect = "Every 4th standard cast has no cooldown" },
@@ -263,7 +263,7 @@ namespace WoLChaosDepths
                 new Node { Key = "Jackpot", Name = "Jackpot", Tier = 2, MaxPoints = 1, Effect = "Elites drop 25% more gold" },
                 new Node { Key = "ShopkeepersWager", Name = "Shopkeeper's Wager", Tier = 2, MaxPoints = 1,
                     Effect = "Bet the arcana shopkeeper a coin flip: heads halves their prices, tails doubles them" },
-                new Node { Key = "AllIn", Name = "All In", Tier = 3, MaxPoints = 1, Effect = "+25% damage, -25% max health" },
+                new Node { Key = "AllIn", Name = "All In", Tier = 3, MaxPoints = 1, Effect = "+1% damage for every 20 gold you carry (up to +30%), but every hit you take spills 10% of your gold" },
                 new Node { Key = "DoubleOrNothing", Name = "Double or Nothing", Tier = 3, MaxPoints = 1,
                     Effect = "Each floor cleared without being hit doubles the next floor's gold (up to 4x); a hit resets it" },
                 new Node { Key = "DoubleDown", Name = "Double Down", Tier = 3, MaxPoints = 1, Effect = "PACT: relics cost half price, but every relic bought also gives a random curse relic" },
@@ -292,7 +292,7 @@ namespace WoLChaosDepths
                 "Vigor=Bulwark, Grit=Bulwark, Rule=Bulwark, Awe=Duelist, Switch=Duelist, DuelistCloak=Duelist, " +
                 "Tempo=Arcanist, Fury=Arcanist, Pace=Windrunner, Venture=Windrunner, Savile=Windrunner, Pink=Mender, " +
                 "Greed=Gambler, Level=Gambler, Fall=Gambler, Pride=Gambler",
-                "Which talent tree each cloak uses: Cloak=Tree pairs. Trees: Bulwark, Duelist, Arcanist, Windrunner, Mender, " +
+                "Which talent tree each cloak uses: Cloak=Tree pairs. Trees: Bulwark, Duelist (shown as Marksman), Arcanist, Windrunner, Mender, " +
                 "Gambler, Apprentice, and the elemental Fire, Air, Earth, Lightning, Water. " +
                 "Cloaks not listed use the Apprentice tree. Points are kept per cloak, so moving a cloak to another tree " +
                 "leaves its old points unused until it moves back (or a respec).");
@@ -346,7 +346,7 @@ namespace WoLChaosDepths
                     continue;
                 string cloak = parts[0].Trim(), name = parts[1].Trim();
                 foreach (Tree tree in Trees)
-                    if (string.Equals(tree.Key, name, StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(tree.Key, name, StringComparison.OrdinalIgnoreCase) || string.Equals(tree.Name, name, StringComparison.OrdinalIgnoreCase))
                         treeOfCloak[cloak] = tree;
             }
         }
