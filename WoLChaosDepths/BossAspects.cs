@@ -62,6 +62,10 @@ namespace WoLChaosDepths
             public float regenCarry;
             // Hailstorm
             public float hailCarry;
+            // Art (0.34.1): the shell sprite on the boss
+            public SpriteRenderer shellLook;
+            public Sprite[] shellFrames, breakFrames;
+            public float breakAt = -1f;
 
             public bool Has(string a) => aspects.Contains(a);
             public bool Alive => boss != null && boss.health != null && boss.health.CurrentHealthValue > 0;
@@ -135,6 +139,11 @@ namespace WoLChaosDepths
                 if (h.go != null)
                     UnityEngine.Object.Destroy(h.go);
             hail.Clear();
+            foreach (SpriteRenderer[] tiles in mist.Values)
+                foreach (SpriteRenderer r in tiles)
+                    if (r != null)
+                        UnityEngine.Object.Destroy(r.gameObject);
+            mist.Clear();
         }
 
         // ---- Rolling ----
@@ -268,7 +277,7 @@ namespace WoLChaosDepths
         {
             private void Update()
             {
-                if (!Enabled || bosses.Count == 0 && hail.Count == 0)
+                if (!Enabled || bosses.Count == 0 && hail.Count == 0 && mist.Count == 0)
                     return;
                 Guard("tick", () => Tick(Time.deltaTime));
             }
@@ -283,8 +292,11 @@ namespace WoLChaosDepths
 
         private static readonly List<int> gone = new List<int>();
 
+        private static bool leechActive;
+
         private static void Tick(float dt)
         {
+            leechActive = false;
             gone.Clear();
             foreach (KeyValuePair<int, Aspected> kv in bosses)
             {
@@ -296,7 +308,7 @@ namespace WoLChaosDepths
                 }
                 if (!a.Active)
                     continue;
-                if (a.Has("Leech")) Leech(a, dt);
+                if (a.Has("Leech")) { Leech(a, dt); leechActive = true; }
                 if (a.Has("Bulwarked")) Shell(a, dt);
                 if (a.Has("Attrition")) Attrition(a, dt);
                 if (a.Has("Hailstorm")) Hailstorm(a, dt);
@@ -304,6 +316,63 @@ namespace WoLChaosDepths
             foreach (int id in gone)
                 bosses.Remove(id);
             TickHail(dt);
+            TickMist();
+        }
+
+        // WoL Art's aspect_leech_mist (4 x 32x16, 6 fps loop, tileable) in a 3x3 patch of tiles
+        // under each living wizard while a Leech boss drains them, at 60% opacity.
+        private static Sprite[] mistFrames;
+        private static bool mistLooked;
+        private static readonly Dictionary<Player, SpriteRenderer[]> mist = new Dictionary<Player, SpriteRenderer[]>();
+
+        private static void TickMist()
+        {
+            if (!mistLooked)
+            {
+                mistLooked = true;
+                mistFrames = ItemArt.Frames("aspect_leech_mist", 4, new Vector2(0.5f, 0.5f), 16f);
+            }
+            if (mistFrames == null)
+                return;
+            Player[] players = GameController.activePlayers;
+            int frame = (int)(Time.time * 6f) % mistFrames.Length;
+            if (players != null)
+                foreach (Player p in players)
+                {
+                    if (p == null)
+                        continue;
+                    bool show = leechActive && p.health != null && p.health.CurrentHealthValue > 0;
+                    SpriteRenderer[] tiles;
+                    if (!mist.TryGetValue(p, out tiles) || tiles[0] == null)
+                    {
+                        if (!show)
+                            continue;
+                        tiles = new SpriteRenderer[9];
+                        for (int i = 0; i < 9; i++)
+                        {
+                            var go = new GameObject("ChaosDepthsLeechMist");
+                            tiles[i] = go.AddComponent<SpriteRenderer>();
+                            if (p.spriteRenderer != null)
+                            {
+                                tiles[i].sortingLayerID = p.spriteRenderer.sortingLayerID;
+                                tiles[i].sortingOrder = p.spriteRenderer.sortingOrder - 60;
+                            }
+                            tiles[i].color = new Color(1f, 1f, 1f, 0.6f);
+                        }
+                        mist[p] = tiles;
+                    }
+                    // Snapped to the 2x1 u tile grid so the pattern stays put on the floor.
+                    Vector2 at = p.transform.position;
+                    float bx = Mathf.Floor(at.x / 2f) * 2f + 1f, by = Mathf.Floor(at.y) + 0.5f;
+                    for (int i = 0; i < 9; i++)
+                    {
+                        tiles[i].enabled = show;
+                        if (!show)
+                            continue;
+                        tiles[i].transform.position = new Vector3(bx + (i % 3 - 1) * 2f, by + (i / 3 - 1), 0f);
+                        tiles[i].sprite = mistFrames[frame];
+                    }
+                }
         }
 
         private static void Leech(Aspected a, float dt)
@@ -365,8 +434,52 @@ namespace WoLChaosDepths
             if (a.boss.spriteRenderer != null)
             {
                 float k = a.broken ? 0f : a.shell / a.shellMax;
-                a.boss.spriteRenderer.color = Color.Lerp(Color.white, Colors[1], 0.55f * k);
+                a.boss.spriteRenderer.color = Color.Lerp(Color.white, Colors[1], (a.shellLook != null ? 0.25f : 0.55f) * k);
             }
+            ShellLook(a);
+        }
+
+        // WoL Art's shell (aspect_shell_48/_80: 4 frames, 8 fps loop) round the boss's body
+        // centre, and its break (6 frames, 20 fps once) when it shatters. The 80 px one for a
+        // boss whose picture is more than 2.5 u across.
+        private static void ShellLook(Aspected a)
+        {
+            if (a.shellFrames == null)
+            {
+                SpriteRenderer body = a.boss.spriteRenderer;
+                bool big = body != null && body.bounds.size.x > 2.5f;
+                string n = big ? "80" : "48";
+                a.shellFrames = ItemArt.Frames("aspect_shell_" + n, 4, new Vector2(0.5f, 0.5f), 16f) ?? new Sprite[0];
+                a.breakFrames = ItemArt.Frames("aspect_shell_break_" + n, 6, new Vector2(0.5f, 0.5f), 16f) ?? new Sprite[0];
+                if (a.shellFrames.Length == 0)
+                    return;
+                var go = new GameObject("ChaosDepthsAspectShell");
+                go.transform.SetParent(a.boss.transform, false);
+                a.shellLook = go.AddComponent<SpriteRenderer>();
+                if (body != null)
+                {
+                    a.shellLook.sortingLayerID = body.sortingLayerID;
+                    a.shellLook.sortingOrder = body.sortingOrder + 1;
+                }
+            }
+            if (a.shellLook == null)
+                return;
+            SpriteRenderer b = a.boss.spriteRenderer;
+            a.shellLook.transform.position = b != null ? b.bounds.center : a.boss.transform.position;
+            if (a.broken)
+            {
+                if (a.breakAt < 0f)
+                    a.breakAt = Time.time;
+                int f = (int)((Time.time - a.breakAt) * 20f);
+                a.shellLook.enabled = f < a.breakFrames.Length;
+                if (a.shellLook.enabled)
+                    a.shellLook.sprite = a.breakFrames[f];
+                return;
+            }
+            a.breakAt = -1f;
+            a.shellLook.enabled = a.shell > 0f;
+            a.shellLook.sprite = a.shellFrames[(int)(Time.time * 8f) % a.shellFrames.Length];
+            a.shellLook.color = new Color(1f, 1f, 1f, Mathf.Lerp(0.35f, 1f, a.shell / a.shellMax));
         }
 
         private static void Attrition(Aspected a, float dt)
@@ -555,6 +668,16 @@ namespace WoLChaosDepths
                     parts.Add($"<color=#{ColorUtility.ToHtmlStringRGB(c)}>{n.ToUpperInvariant()}</color>");
                 }
                 style.richText = true;
+                // WoL Art's 12x12 icons (boss_aspect_<name>), drawn 2x left of the names.
+                float icon = Mathf.Round(h * 0.9f);
+                float ix = x + w / 2f - (TextWidth(a) / 2f) - icon * a.aspects.Count - 6f;
+                foreach (string n in a.aspects)
+                {
+                    Texture2D tex = Icon(n);
+                    if (tex != null)
+                        GUI.DrawTexture(new Rect(ix, y + (h - icon) / 2f, icon, icon), tex);
+                    ix += icon + 2f;
+                }
                 GUI.Label(new Rect(x + 1, y + 1, w, h), "<color=#000000>" + string.Join("  ·  ", a.aspects.ConvertAll(n => n.ToUpperInvariant()).ToArray()) + "</color>", style);
                 GUI.Label(new Rect(x, y, w, h), string.Join("  ·  ", parts.ToArray()), style);
                 y += h;
@@ -573,6 +696,24 @@ namespace WoLChaosDepths
                 y += 2f;
             }
         }
+
+        private static readonly Dictionary<string, Texture2D> icons = new Dictionary<string, Texture2D>();
+
+        private static Texture2D Icon(string aspect)
+        {
+            Texture2D tex;
+            if (icons.TryGetValue(aspect, out tex))
+                return tex;
+            Sprite[] f = ItemArt.Frames("boss_aspect_" + aspect.ToLowerInvariant(), 1, new Vector2(0.5f, 0.5f), 16f);
+            tex = f != null && f.Length > 0 ? f[0].texture : null;
+            if (tex != null)
+                tex.filterMode = FilterMode.Point;
+            icons[aspect] = tex;
+            return tex;
+        }
+
+        private static float TextWidth(Aspected a) =>
+            style.CalcSize(new GUIContent(string.Join("  ·  ", a.aspects.ConvertAll(n => n.ToUpperInvariant()).ToArray()))).x;
 
         private static void Guard(string what, Action action)
         {

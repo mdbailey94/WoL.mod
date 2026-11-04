@@ -90,8 +90,10 @@ Aspects start 3 s after the boss appears (its intro). Floor bosses get 0.75x of 
 | Attrition | The boss regains 2% max health a second unless it took 3+ hits in the last 2 s; one hit takes at most 8% of its max health. Burn/poison/shock ticks don't count as hits. |
 | Hailstorm | 6 stones a second (8 from Ascension 5), a third aimed at a wizard, the rest within 8 u of the boss. Each spot is marked 0.6 s before it lands and hits for 3% of the wizard's max health (evade still rolls). |
 
-Art: WoL Art's `aspect_hail_mark.png` (4 x 12x12) replaces the code-drawn ring when it is in the
-Art folder. The aspect icons, shell and leech mist are hooked in a later build.
+Art (0.34.2): WoL Art's icons (`boss_aspect_<name>`) sit before the names at the top, the shell
+(`aspect_shell_48`/`_80`, plus `_break_` when it shatters) is drawn round the boss, and Leech
+lays `aspect_leech_mist` under each wizard it drains (60% opacity). `aspect_hail_mark.png` (4 x 12x12) replaces the code-drawn ring when it is in the
+Art folder. Each piece falls back to the code-drawn look while its PNG is missing (WoLChaosDepths/Art/).
 
 ## Elites and Ascension (0.4.0, milestone M3)
 
