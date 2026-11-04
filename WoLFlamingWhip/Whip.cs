@@ -10,14 +10,28 @@ namespace WoLFlamingWhip
     internal static class WhipArt
     {
         public static Sprite[] Lash, Crack, FireLine;
+        // #91 v3 "spell look" (Log - Art 2026-11-03 21:38, to Log - Modder 18:55), drawn aiming
+        // right: whip_windup 6 x 48x48, pivot (24,32) = the hand; whip_arc 12 x 80x48, pivot
+        // (20,32), the tip strikes (68,32) on frame 2; flamingwhip_crack_big 8 x 32x32 (ring = the
+        // 1-tile spot) and _enh 8 x 40x40 (the 1.5-tile spot). Any missing: the 0.4.0 look.
+        public static Sprite[] WindUp, Arc, CrackBig, CrackBigEnh;
+        public const float StrikeFrame = 2f, StripFps = 25f, ArcDrawnFor = 3f;
 
         public static void Load(BepInEx.Logging.ManualLogSource log)
         {
             Lash = Frames("whip_lash.png", 64, new Vector2(0f, 0.5f));
             Crack = Frames("whip_crack.png", 48, new Vector2(0.5f, 0.5f));
             FireLine = Frames("whip_fireline.png", 16, new Vector2(0f, 0.5f));
-            log?.LogInfo($"Flaming Whip art: lash {Lash.Length}, crack {Crack.Length}, fire line {FireLine.Length} frames");
+            // Pivots are counted from the bottom in Unity: row 32 of 48 from the top = 16 up.
+            WindUp = Frames("whip_windup.png", 48, new Vector2(24f / 48f, 16f / 48f));
+            Arc = Frames("whip_arc.png", 80, new Vector2(20f / 80f, 16f / 48f));
+            CrackBig = Frames("flamingwhip_crack_big.png", 32, new Vector2(0.5f, 0.5f));
+            CrackBigEnh = Frames("flamingwhip_crack_big_enh.png", 40, new Vector2(0.5f, 0.5f));
+            log?.LogInfo($"Flaming Whip art: lash {Lash.Length}, crack {Crack.Length}, fire line {FireLine.Length}, v3 wind-up {WindUp.Length}, arc {Arc.Length}, big crack {CrackBig.Length}/{CrackBigEnh.Length} frames");
         }
+
+        public static bool HasWindUp => WindUp.Length == 6;
+        public static bool HasArc => Arc.Length == 12;
 
         private static Sprite[] Frames(string file, int width, Vector2 pivot)
         {
@@ -48,6 +62,19 @@ namespace WoLFlamingWhip
             Sound("WindSlashBasic", hand, 0.35f, 0.7f);
             // 0.4.0 (Matt: "more spell like"): fire gathers at the hand while it winds up.
             Flames("FlameCircleBurstEmitter", 4, hand);
+            // 0.5.0 (#91): Art's v3 strips. The arc starts so its strike frame (2) lands exactly
+            // when the crack fires; the wind-up fills the time before that and holds its last frame.
+            float angle = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
+            bool left = aim.x < 0f;
+            bool behind = aim.y < -0.4f;   // aiming down-screen: the coil sits behind the hood
+            float arcStart = Mathf.Max(0f, FlamingWhipPlugin.WindUp - WhipArt.StrikeFrame / WhipArt.StripFps);
+            if (WhipArt.HasWindUp && arcStart > 0.02f)
+                Anim.Play(WhipArt.WindUp, hand, angle, new Vector3(1f, left ? -1f : 1f, 1f), Mathf.Max(WhipArt.StripFps, 6f / arcStart), owner, behind, arcStart);
+            if (WhipArt.HasArc)
+            {
+                float stretch = FlamingWhipPlugin.CrackDistance / WhipArt.ArcDrawnFor;
+                Anim.Play(WhipArt.Arc, hand, angle, new Vector3(stretch, left ? -1f : 1f, 1f), WhipArt.StripFps, owner, false, 0f, arcStart);
+            }
         }
 
         private class Pending : MonoBehaviour
@@ -81,9 +108,20 @@ namespace WoLFlamingWhip
             float radius = (enhanced ? FlamingWhipPlugin.EnhancedSpotSize : FlamingWhipPlugin.SpotSize) * 0.5f;
             Vector2 spot = hand + aim * distance;
             Burst(spot, owner.skillCategory, skillID, 1, radius, true);
-            Anim.Play(WhipArt.Lash, hand, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg, new Vector3((distance + radius) / 4f, 1.5f, 1f), 20f, owner, false);
-            float drawn = radius * 16f / 23f;
-            Anim.Play(WhipArt.Crack, spot, 0f, new Vector3(drawn, drawn, 1f), 16f, owner, false);
+            if (!WhipArt.HasArc)
+                Anim.Play(WhipArt.Lash, hand, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg, new Vector3((distance + radius) / 4f, 1.5f, 1f), 20f, owner, false);
+            // 0.5.0 (#91): Art's native big crack (ring = the spot, so 1x at the default sizes).
+            Sprite[] big = enhanced ? WhipArt.CrackBigEnh : WhipArt.CrackBig;
+            if (big.Length == 8)
+            {
+                float s = radius / (enhanced ? 0.75f : 0.5f);
+                Anim.Play(big, spot, 0f, new Vector3(s, s, 1f), 24f, owner, false);
+            }
+            else
+            {
+                float drawn = radius * 16f / 23f;
+                Anim.Play(WhipArt.Crack, spot, 0f, new Vector3(drawn, drawn, 1f), 16f, owner, false);
+            }
             for (float d = 0.6f; d < distance - 0.3f; d += 0.6f)
                 Flames("FlameCircleBurstEmitter", 2, hand + aim * d);
             Flames("FlameCircleBurstEmitter", 10, spot);
@@ -175,10 +213,12 @@ namespace WoLFlamingWhip
     internal class Anim : MonoBehaviour
     {
         private Sprite[] frames;
-        private float fps, born;
+        private float fps, born, holdUntil;
         private SpriteRenderer look;
 
-        public static void Play(Sprite[] frames, Vector2 at, float angle, Vector3 scale, float fps, Player owner, bool behind)
+        // holdUntil > 0: the last frame stays up until that many seconds after the start;
+        // delay > 0: it starts that many seconds from now (hidden until then).
+        public static void Play(Sprite[] frames, Vector2 at, float angle, Vector3 scale, float fps, Player owner, bool behind, float holdUntil = 0f, float delay = 0f)
         {
             if (frames == null || frames.Length == 0)
                 return;
@@ -189,17 +229,28 @@ namespace WoLFlamingWhip
             Anim a = go.AddComponent<Anim>();
             a.frames = frames;
             a.fps = fps;
-            a.born = Time.time;
+            a.born = Time.time + delay;
+            a.holdUntil = holdUntil;
             a.look = go.AddComponent<SpriteRenderer>();
             a.look.sprite = frames[0];
+            a.look.enabled = delay <= 0f;
             Whip.Sort(a.look, owner, behind ? -1 : 1);
         }
 
         private void Update()
         {
-            int f = (int)((Time.time - born) * fps);
+            float age = Time.time - born;
+            if (age < 0f)
+                return;
+            look.enabled = true;
+            int f = (int)(age * fps);
             if (f >= frames.Length)
             {
+                if (age < holdUntil)
+                {
+                    look.sprite = frames[frames.Length - 1];
+                    return;
+                }
                 Destroy(gameObject);
                 return;
             }

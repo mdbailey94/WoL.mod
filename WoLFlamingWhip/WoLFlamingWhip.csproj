@@ -44,10 +44,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Assets\flaming_whip_icon.png" LogicalName="WoLFlamingWhip.Assets.flaming_whip_icon.png" />
-    <EmbeddedResource Include="Assets\whip_lash.png" LogicalName="WoLFlamingWhip.Assets.whip_lash.png" />
-    <EmbeddedResource Include="Assets\whip_crack.png" LogicalName="WoLFlamingWhip.Assets.whip_crack.png" />
-    <EmbeddedResource Include="Assets\whip_fireline.png" LogicalName="WoLFlamingWhip.Assets.whip_fireline.png" />
+    <!-- Every PNG in Assets (0.5.0: WoL Art's v3 strips are picked up by name; a missing one falls back). -->
+    <EmbeddedResource Include="Assets\*.png" LogicalName="WoLFlamingWhip.Assets.%(Filename)%(Extension)" />
   </ItemGroup>
 
   <Target Name="CopyToPlugins" AfterTargets="Build" Condition="Exists('$(GameDir)\BepInEx\plugins')">

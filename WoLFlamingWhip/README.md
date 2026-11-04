@@ -19,6 +19,17 @@ The hits are the game's own fire bursts with this arcana's stats, so burn, gear,
 talents apply. Art by WoL Art (Finished Art/Prickly Ballet + Flaming Whip, 2026-11-02); a bigger
 overhead-arc crack is being drawn for #81/#86.
 
+## Changes in 0.5.0 (#91, WoL Art's v3 "spell look")
+
+- The wind-up now draws Art's **whip_windup** (the whip coiling back over the head with fire
+  gathering at the hand), then **whip_arc** sweeps it overhead; the arc's strike frame lands
+  exactly when the crack fires (0.3 s after the press). Aiming left the strips are flipped so the
+  coil stays above; aiming down-screen the coil is drawn behind the wizard.
+- The crack uses Art's native **flamingwhip_crack_big** (1-tile spot) or **_enh** (1.5-tile spot),
+  so it is drawn 1:1 instead of scaled.
+- Any strip that isn't in `Assets/` yet falls back to the 0.4.0 look. Art's floor sigil
+  (flamingwhip_sigil) is not hooked: waiting on Matt's OK.
+
 ## Settings
 
 `BepInEx\config\mdbailey94.wol.flamingwhip.cfg`:
