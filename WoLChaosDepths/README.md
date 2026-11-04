@@ -89,8 +89,11 @@ LIVING wizard dressed as a ghost, so the game's own death, ghost, HUD and game o
 - **Not a target, floats (0.35.1):** enemies don't pick the Shade as a target (it's kept off the
   game's list of targets, as the game's own stealth relic does), but shots and swings in its way
   still hit it. It floats over pits.
-- **Still to come (part 2):** Blink (dash slot, 3 u, 5 spirit), Spirit Wolf (basic slot, 15 spirit),
-  health-orb and boss-chunk spirit and the 60-spirit revive. Every number is in `[Shade.Tuning]`.
+- **Orbs (0.35.3):** a health orb (any heal of 8%+ of max health) gives **+10** spirit instead of
+  health; a boss gives **+10** for every **5%** of its health knocked off (floor boss), **4%** (realm
+  boss) or **3%** (final boss), straight to every Shade standing.
+- **Still to come (part 2):** Blink (dash slot, 3 u, 5 spirit), Spirit Wolf (basic slot, 15 spirit)
+  and the 60-spirit revive. Every number is in `[Shade.Tuning]`.
 
 ## Boss Aspects (0.34.0, #88)
 

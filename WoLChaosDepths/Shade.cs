@@ -21,6 +21,7 @@ namespace WoLChaosDepths
         private static ConfigEntry<string> players;
         private static ConfigEntry<float> spiritMax, spiritStart, killSpirit, eliteSpirit, bossSpirit;
         private static ConfigEntry<float> hitCost, bossHitCost, outSeconds, ghostAlpha, wispEvery;
+        private static ConfigEntry<float> orbSpirit, chunkSpirit, floorChunk, realmChunk, finalChunk, orbMinHeal;
 
         private static readonly Color Ghost = new Color(0.8f, 0.9f, 1f);
 
@@ -57,6 +58,12 @@ namespace WoLChaosDepths
             outSeconds = config.Bind(t, "OutSeconds", 3f, "Seconds at 0 spirit before the Shade is out.");
             ghostAlpha = config.Bind(t, "GhostAlpha", 0.7f, "Opacity of the Shade wizard, the wisps and the wolf (Art draws hard alpha).");
             wispEvery = config.Bind(t, "WispEvery", 0.08f, "Seconds between wisps while the Shade moves.");
+            orbSpirit = config.Bind(t, "HealthOrbSpirit", 10f, "Spirit from a health orb (or any heal of at least HealthOrbMinHeal of max health).");
+            orbMinHeal = config.Bind(t, "HealthOrbMinHeal", 0.08f, "A heal this big (share of max health) counts as an orb; smaller regen ticks give nothing.");
+            chunkSpirit = config.Bind(t, "BossChunkSpirit", 10f, "Spirit for each chunk of a boss's health knocked off.");
+            floorChunk = config.Bind(t, "FloorBossChunk", 0.05f, "Chunk size for a floor boss (share of its max health).");
+            realmChunk = config.Bind(t, "RealmBossChunk", 0.04f, "Chunk size for a realm boss.");
+            finalChunk = config.Bind(t, "FinalBossChunk", 0.03f, "Chunk size for the final boss.");
             try
             {
                 Health.globalTakeDamageEnterHandlers += BeforeHit;
@@ -71,7 +78,12 @@ namespace WoLChaosDepths
             go.AddComponent<Runner>();
         }
 
-        public static void ClearScene() => credited.Clear();
+        public static void ClearScene()
+        {
+            credited.Clear();
+            chunksPaid.Clear();
+            healHooked.Clear();
+        }
 
         private static int Slot(Player p) => Array.IndexOf(GameController.activePlayers ?? new Player[0], p);
 
@@ -140,7 +152,11 @@ namespace WoLChaosDepths
             if (!Enabled || states.Count == 0 && !AnyShade())
                 return;
             var enemy = hurt as Enemy;
-            if (enemy == null || enemy.health == null || enemy.health.CurrentHealthValue > 0 || !credited.Add(enemy.GetInstanceID()))
+            if (enemy == null || enemy.health == null)
+                return;
+            if (enemy is Boss || enemy is MiniBoss)
+                Guard("chunks", () => BossChunks(enemy));
+            if (enemy.health.CurrentHealthValue > 0 || !credited.Add(enemy.GetInstanceID()))
                 return;
             Guard("kill", () =>
             {
@@ -151,6 +167,55 @@ namespace WoLChaosDepths
                         if (p != null && IsShade(p) && p.health != null && p.health.CurrentHealthValue > 0)
                             AddSpirit(p, gain);
             });
+        }
+
+        // Boss chunks (v1: the spirit goes straight to the Shades, no orb to pick up): every
+        // FloorBossChunk / RealmBossChunk / FinalBossChunk of the boss's max health knocked off.
+        private static readonly Dictionary<int, int> chunksPaid = new Dictionary<int, int>();
+
+        private static void BossChunks(Enemy boss)
+        {
+            float max = boss.health.healthStat.ModifiedValue;
+            if (max <= 0f)
+                return;
+            float chunk = boss is MiniBoss ? floorChunk.Value
+                : DiveDirector.IsFinalBoss(DiveDirector.CurrentScene()) ? finalChunk.Value : realmChunk.Value;
+            if (chunk <= 0f)
+                return;
+            int earned = Mathf.FloorToInt(Mathf.Clamp01(1f - boss.health.CurrentHealthValue / max) / chunk);
+            int id = boss.GetInstanceID(), paid;
+            chunksPaid.TryGetValue(id, out paid);
+            if (earned <= paid)
+                return;
+            chunksPaid[id] = earned;
+            ForEachShade(p => AddSpirit(p, (earned - paid) * chunkSpirit.Value));
+        }
+
+        private static void ForEachShade(Action<Player> act)
+        {
+            Player[] all = GameController.activePlayers;
+            if (all != null)
+                foreach (Player p in all)
+                    if (p != null && IsShade(p) && p.health != null && p.health.CurrentHealthValue > 0)
+                        act(p);
+        }
+
+        // Health orbs: a heal of at least HealthOrbMinHeal of max health on the Shade becomes
+        // HealthOrbSpirit (health means nothing to a ghost; small regen ticks don't count).
+        private static readonly HashSet<int> healHooked = new HashSet<int>();
+
+        private static void HookHeal(Player p)
+        {
+            if (!healHooked.Add(p.GetInstanceID()))
+                return;
+            Player who = p;
+            p.health.healEnterEventHandlers += (ref int amount) =>
+            {
+                if (!Enabled || !IsShade(who) || who.health == null)
+                    return;
+                if (amount >= who.health.healthStat.ModifiedValue * orbMinHeal.Value)
+                    AddSpirit(who, orbSpirit.Value);
+            };
         }
 
         private static bool AnyShade()
@@ -228,6 +293,7 @@ namespace WoLChaosDepths
                     c.a = ghostAlpha.Value;
                     p.spriteRenderer.color = c;
                 }
+                HookHeal(p);
                 Wisps(p, s);
                 Lantern(p, s, alive);
                 Untargeted(p, alive);
