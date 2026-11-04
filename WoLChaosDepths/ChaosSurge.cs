@@ -20,6 +20,7 @@ namespace WoLChaosDepths
 
         private static ConfigEntry<bool> enabled, preview, auras;
         private static ConfigEntry<float> vignette, tint;
+        private const float LightVignette = 0.3f, LightTint = 0.03f;   // was 1.0 and 0.08 (too distracting, Matt)
 
         private static bool active, wasInTrials, logged;
         private static float bannerAt = -100f;
@@ -31,8 +32,19 @@ namespace WoLChaosDepths
             enabled = config.Bind("Chaos Surge", "Enabled", true, "At Ascension 10, show WoL Art's Chaos Surge look in the trials: the banner, a violet vignette and tint, drifting motes and an aura behind every enemy (#29).");
             preview = config.Bind("Chaos Surge", "Preview", false, "Show the Chaos Surge look at any Ascension level, to check it.");
             auras = config.Bind("Chaos Surge", "EnemyAuras", true, "Draw the violet aura behind every enemy's feet.");
-            vignette = config.Bind("Chaos Surge", "Vignette", 1f, new ConfigDescription("Opacity of the violet screen edges (0 = off).", new AcceptableValueRange<float>(0f, 1f)));
-            tint = config.Bind("Chaos Surge", "RoomTint", 0.08f, new ConfigDescription("Opacity of the faint violet tint over the room (0 = off).", new AcceptableValueRange<float>(0f, 0.5f)));
+            vignette = config.Bind("Chaos Surge", "Vignette", LightVignette, new ConfigDescription("Opacity of the violet screen edges (0 = off).", new AcceptableValueRange<float>(0f, 1f)));
+            tint = config.Bind("Chaos Surge", "RoomTint", LightTint, new ConfigDescription("Opacity of the faint violet tint over the room (0 = off).", new AcceptableValueRange<float>(0f, 0.5f)));
+            // Matt (11-04 15:00): "make the visual border much lighter, it's too distracting".
+            // Configs still on the old defaults (edges 1.0, tint 0.08) move to the light ones once.
+            var revision = config.Bind("Chaos Surge", "LookRevision", 0, "Internal: which default look this config was last moved to. Leave it.");
+            if (revision.Value < 1)
+            {
+                if (Mathf.Approximately(vignette.Value, 1f))
+                    vignette.Value = LightVignette;
+                if (Mathf.Approximately(tint.Value, 0.08f))
+                    tint.Value = LightTint;
+                revision.Value = 1;
+            }
         }
 
         // Twice a second from the plugin: whether the look is on, the banner when an A10 run
@@ -78,7 +90,7 @@ namespace WoLChaosDepths
                     Texture2D v = ItemArt.LoadPng("a10_vignette");
                     if (v != null)
                     {
-                        float pulse = 0.9f + 0.1f * Mathf.Sin(t * 2f * Mathf.PI / PulseSeconds);
+                        float pulse = 0.95f + 0.05f * Mathf.Sin(t * 2f * Mathf.PI / PulseSeconds);
                         Color previous = GUI.color;
                         GUI.color = new Color(1f, 1f, 1f, vignette.Value * pulse);
                         GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), v, ScaleMode.StretchToFill);
