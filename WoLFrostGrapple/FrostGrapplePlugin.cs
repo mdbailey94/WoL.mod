@@ -18,7 +18,7 @@ namespace WoLFrostGrapple
     {
         public const string PluginGuid = "mdbailey94.wol.frostgrapple";
         public const string PluginName = "Frost Grapple";
-        public const string PluginVersion = "0.1.2";
+        public const string PluginVersion = "0.1.3";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled, signatureWithArcana;

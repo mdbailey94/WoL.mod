@@ -5,8 +5,8 @@ namespace WoLFrostGrapple
 {
     // The drawn pick, its chain and the landing burst. WoL Art's sheets (Log - Modder 2026-11-04
     // 11:45 spec) are used when they're in Assets; until then simple code-drawn stand-ins:
-    //   ice_pickaxe_spin      8 x 16x16, 24 fps loop while flying (the spin is in the frames);
-    //   ice_pickaxe_stuck     2 x 16x16, 6 fps glint, on the enemy (or the wall);
+    //   ice_pickaxe_spin      8 x 24x24 (v2, all ice; was 16x16), 24 fps loop while flying (the spin is in the frames);
+    //   ice_pickaxe_stuck     2 x 24x24 (v2), 6 fps glint, on the enemy (or the wall);
     //   ice_link              2 x 4x4, 8 fps shimmer, one every 0.25 u along the chain, never rotated;
     //   frost_grapple_impact  6 x 40x40 (ring r 19 px = 1.2 u), 16 fps once; _enh 6 x 50x50 (r 25 px).
     // The game's ice burst plays its own shards at every hit as well.
@@ -39,8 +39,8 @@ namespace WoLFrostGrapple
             if (loaded)
                 return;
             loaded = true;
-            spin = Frames("ice_pickaxe_spin.png", 16);
-            stuck = Frames("ice_pickaxe_stuck.png", 16);
+            spin = Frames("ice_pickaxe_spin.png", 0);   // 0.1.3: square frames, any size (Art's v2 pick is 24 px)
+            stuck = Frames("ice_pickaxe_stuck.png", 0);
             link = Frames("ice_link.png", 4);
             impact = Frames("frost_grapple_impact.png", 40);
             impactEnh = Frames("frost_grapple_impact_enh.png", 50);
@@ -52,7 +52,9 @@ namespace WoLFrostGrapple
         private static Sprite[] Frames(string file, int w)
         {
             Texture2D t = FrostGrapplePlugin.LoadTexture(file);
-            if (t == null || t.width < w || t.width % w != 0)
+            if (t != null && w <= 0)
+                w = t.height;   // square frames side by side
+            if (t == null || w <= 0 || t.width < w || t.width % w != 0)
                 return null;
             var f = new Sprite[t.width / w];
             for (int i = 0; i < f.Length; i++)
@@ -93,8 +95,10 @@ namespace WoLFrostGrapple
 
         public void Stuck(Vector2 at)
         {
-            isStuck = true;
             pickRenderer.transform.position = at;
+            if (isStuck)
+                return;   // already stuck: just follow (the glint keeps its own frames)
+            isStuck = true;
             pickRenderer.transform.rotation = Quaternion.identity;
             pickRenderer.sprite = stuck != null ? stuck[0] : spin != null ? spin[0] : fallbackPick;
         }

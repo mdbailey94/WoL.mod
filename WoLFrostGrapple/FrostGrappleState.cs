@@ -188,7 +188,8 @@ namespace WoLFrostGrapple
             target = enemy;
             visited.Add(enemy.GetInstanceID());
             anchor = Body(enemy);
-            pick = anchor;
+            // 0.1.3: Art's bigger v2 pick sits 4 px (0.25 u) out from the body, toward the wizard.
+            pick = anchor - pickDir * 0.25f;
             look.Stuck(pick);
             Burst(anchor, 1, 0.35f);
             Sound("IceHit", anchor, 0.7f, 1f);
@@ -246,7 +247,12 @@ namespace WoLFrostGrapple
             }
             if (parent.rigidbody2D != null)
                 parent.rigidbody2D.velocity = to.normalized * FrostGrapplePlugin.PullSpeed;
-            look.Chain(Hand(), pick = target != null ? anchor : pick);
+            if (target != null)
+            {
+                pick = anchor - pickDir * 0.25f;   // the stuck pick rides with the enemy (0.1.3)
+                look.Stuck(pick);
+            }
+            look.Chain(Hand(), pick);
         }
 
         private void Land()
