@@ -56,6 +56,8 @@ namespace WoLRelicPack
 
         public override void ActivatePowerup()
         {
+            if (activated)
+                return;   // already whole: don't add the damage mod twice (Modder's review, 11-04)
             base.ActivatePowerup();
             SetDamage(true);
             UpdateItemBar(ItemStatusBar.ItemState.Active);

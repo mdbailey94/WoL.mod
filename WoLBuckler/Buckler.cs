@@ -19,6 +19,13 @@ namespace WoLBuckler
         // Log - Art 09:05: the punch in 8 facings, 8 ROWS (same facing order as Held, row 0 at the
         // top) x 4 frames (pull back, SMASH, hold, recover) of 40x40; pivot (20,20) = the shoulder.
         public static Sprite[][] Punch8 = new Sprite[0][];
+        // #100 (Log - Art 09:24): the LEFT hand, drawn (not mirrored): held 8 facings + punch 8 x 4
+        // from the left shoulder. #99 (09:15): the thrown disc seen as a tilted flat disc, 8 throw
+        // directions x 4 spin frames, 16x16 and a native 26x26 for the enhanced buckler.
+        public static Sprite[] HeldLeft = new Sprite[0];
+        public static Sprite[][] PunchLeft8 = new Sprite[0][];
+        public static Sprite[][] Disc8 = new Sprite[0][];
+        public static Sprite[][] DiscBig8 = new Sprite[0][];
         public const float ArtPixels = 16f;      // the new strips' native buckler size
         public const float DiscFps = 24f;
 
@@ -36,10 +43,14 @@ namespace WoLBuckler
             }
             Held = Strip("buckler_held_8dir.png");
             Punch8 = Sheet("buckler_punch_8dir.png", 40, 8, 4);
+            HeldLeft = Strip("buckler_held_left_8dir.png");
+            PunchLeft8 = Sheet("buckler_punch_left_8dir.png", 40, 8, 4);
+            Disc8 = Sheet("buckler_disc_8dir.png", 16, 8, 4);
+            DiscBig8 = Sheet("buckler_disc_big_8dir.png", 26, 8, 4);
             Disc = Strip("buckler_disc.png");
             DiscBig = Strip("buckler_disc_big.png");
             log?.LogInfo($"Buckler art: buckler {(Shield != null ? "loaded" : "missing")}, punch {Punch.Length} frames, " +
-                $"held {Held.Length} facings, punch {Punch8.Length}x{(Punch8.Length > 0 ? Punch8[0].Length : 0)}, disc {Disc.Length} + big {DiscBig.Length} frames");
+                $"held {Held.Length}/{HeldLeft.Length} facings, punch {Punch8.Length}/{PunchLeft8.Length} rows, disc 8-dir {Disc8.Length}/{DiscBig8.Length} rows");
         }
 
         // Square frames side by side, centre pivot, 16 px per unit.
@@ -71,6 +82,35 @@ namespace WoLBuckler
         }
 
         public static bool HasPunch8 => Punch8.Length == 8 && Punch8[0].Length == 4;
+        public static bool HasDualWield => HasPunch8 && PunchLeft8.Length == 8 && PunchLeft8[0].Length == 4 && Held.Length >= 8 && HeldLeft.Length >= 8;
+        public static bool HasDisc8 => Disc8.Length == 8 && Disc8[0].Length == 4;
+
+        // Log - Art 09:24: each shoulder's offset from the wizard's chest point (the attack origin),
+        // in px, x right / y DOWN, per facing (right, down-right, down, down-left, left, up-left, up,
+        // up-right); the left shoulder is the mirror point.
+        private static readonly int[,] RightShoulderPx = { { 0, 2 }, { -3, 2 }, { -4, 0 }, { -3, -2 }, { 0, -2 }, { 3, -2 }, { 4, 0 }, { 3, 2 } };
+
+        public static Vector2 Shoulder(Player owner, int facing, bool left)
+        {
+            float sign = left ? -1f : 1f;
+            return Buckler.Hand(owner) + new Vector2(sign * RightShoulderPx[facing, 0], -sign * RightShoulderPx[facing, 1]) / 16f;
+        }
+
+        // The held shield: its shoulder plus 6 px along the facing (the vertical part x0.6).
+        public static Vector2 HeldSpot(Player owner, int facing, bool left)
+        {
+            float a = -facing * 45f * Mathf.Deg2Rad;
+            return Shoulder(owner, facing, left) + new Vector2(Mathf.Cos(a) * 6f, Mathf.Sin(a) * 6f * 0.6f) / 16f;
+        }
+
+        // Draw order (09:24): right: R front, L behind | down-right, down, down-left: both front |
+        // left: R behind, L front | up-left, up, up-right: both behind.
+        public static bool Behind(int facing, bool left)
+        {
+            if (facing == 0) return left;
+            if (facing == 4) return !left;
+            return facing >= 5;
+        }
 
         // The facing index for an aim: 0 right, then clockwise in screen space (1 down-right ... 7 up-right).
         public static int Facing(Vector2 aim)
@@ -100,12 +140,12 @@ namespace WoLBuckler
 
         // Hits 1 and 2: the game's earth burst where the buckler lands, then the buckler is held
         // up in front (breaking shots at its face) through the pause before the next hit.
-        public static void Punch(Player owner, string skillID, Vector2 aim, bool enhanced)
+        public static void Punch(Player owner, string skillID, Vector2 aim, bool enhanced, bool left = false)
         {
             Vector2 at = Hand(owner) + aim * BucklerPlugin.PunchReach * Size(enhanced);
             Burst(owner, skillID, at, enhanced ? 4 : 1, BucklerPlugin.PunchRadius * Size(enhanced));
             Sound("ImpactEarthAlt", at, enhanced ? 0.9f : 1.2f);
-            BucklerGuard.Raise(owner, skillID, aim, enhanced);
+            BucklerGuard.Raise(owner, skillID, aim, enhanced, left);
         }
 
         internal static void Burst(Player owner, string skillID, Vector2 at, int level, float radius)
@@ -218,19 +258,28 @@ namespace WoLBuckler
         }
     }
 
-    // The buckler after a punch: it smashes out to the punch's reach, then is held up in front of
-    // the hands, turned to the aim, for HoldTime (the pause before the next hit), breaking enemy
-    // shots at its face. A wizard holds one at a time: the next punch or the toss puts it away.
+    // The bucklers on the wizard during the combo. 0.7.0 (#100, Matt: dual-wield): hit 1 punches
+    // with the RIGHT buckler while the left is held up, hit 2 with the LEFT while the right is
+    // held, hit 3 throws the right one (the left stays up until it's caught). Each punch: the
+    // pull-back frame during the wind-up, then smash (the hit), hold, recover at ~16 fps from
+    // that hand's shoulder, then that buckler held up in front through the pause, breaking enemy
+    // shots at its face as before. Without Art's dual-wield sheets: the 0.6.0 single buckler.
     internal class BucklerGuard : MonoBehaviour
     {
-        private const float SmashTime = 0.12f, RecoverTime = 0.1f, HoldAt = 0.65f;
+        private const float SmashTime = 0.12f, HoldAt = 0.65f, PunchFrameTime = 1f / 16f, PullMaxTime = 0.35f, TossHoldMax = 3f;
         private static readonly Dictionary<int, BucklerGuard> held = new Dictionary<int, BucklerGuard>();
+        private enum Mode { Pull, Punch, Toss }
         private Player owner;
         private string skillID;
         private Vector2 aim;
-        private bool enhanced;
+        private bool enhanced, left;
         private float born;
-        private SpriteRenderer look;
+        private int facing;
+        private Mode mode;
+        private SpriteRenderer main, off;   // the punching (or thrown-from) hand, and the other hand
+
+        private static bool Dual => BucklerArt.HasDualWield && BucklerPlugin.HeldArt;
+        private static bool Single => !Dual && BucklerArt.HasPunch8 && BucklerPlugin.HeldArt;
 
         public static void PutAway(Player owner)
         {
@@ -239,45 +288,41 @@ namespace WoLBuckler
                 Destroy(old.gameObject);
         }
 
-        // Log - Art 09:05: with the 8-facing punch sheet, the punch is drawn from the SHOULDER
-        // (the sheet's pivot) in the wizard's facing: f0 pull back during the wind-up, then f1
-        // smash, f2 hold, f3 recover at ~16 fps, then the held buckler (buckler_held_8dir) out
-        // in front for the rest of the pause. Without the sheet: the 0.4.0 / 0.5.0 look.
-        private const float PunchFrameTime = 1f / 16f, PullMaxTime = 0.35f;
-        private static bool Punch8 => BucklerArt.HasPunch8 && BucklerPlugin.HeldArt;
-        private bool pulling;
-        private int facing;
-
-        // The wind-up of hits 1-2: the pull-back frame (f0) at the shoulder until the punch lands.
-        public static void Pull(Player owner, Vector2 aim, bool enhanced)
+        // The wind-up of hits 1-2: the pull-back frame (f0) on the punching hand.
+        public static void Pull(Player owner, Vector2 aim, bool enhanced, bool left)
         {
-            if (!Punch8 || owner == null)
+            if ((!Dual && !Single) || owner == null)
                 return;
-            BucklerGuard guard = Make(owner, null, aim, enhanced);
-            guard.pulling = true;
-            guard.ShowPunch(0);
+            Make(owner, null, aim, enhanced, Dual && left, Mode.Pull).Draw(0f);
         }
 
-        public static void Raise(Player owner, string skillID, Vector2 aim, bool enhanced)
+        public static void Raise(Player owner, string skillID, Vector2 aim, bool enhanced, bool left)
         {
-            BucklerGuard guard = Make(owner, skillID, aim, enhanced);
-            if (Punch8)
+            BucklerGuard guard = Make(owner, skillID, aim, enhanced, Dual && left, Mode.Punch);
+            if (Dual || Single)
             {
-                guard.ShowPunch(1);
+                guard.Draw(0f);
                 return;
             }
+            // No 8-facing art: the 0.4.0 look (the punch strip turned to the aim).
             float scale = Buckler.BaseScale * Buckler.Size(enhanced);
-            guard.transform.localScale = new Vector3(scale, scale, 1f);
-            guard.look.sprite = BucklerArt.PunchFrame(1);
-            // The smash's sparks are drawn on the right edge: turned to the aim, and mirrored
-            // top to bottom when punching left so its light stays on top.
-            guard.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg);
-            guard.look.flipY = aim.x < -0.01f;
-            Buckler.Sort(guard.look, owner, aim.y > 0.3f ? -1 : 1);
-            guard.Place();
+            guard.main.transform.localScale = new Vector3(scale, scale, 1f);
+            guard.main.sprite = BucklerArt.PunchFrame(1);
+            guard.main.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg);
+            guard.main.flipY = aim.x < -0.01f;
+            Buckler.Sort(guard.main, owner, aim.y > 0.3f ? -1 : 1);
+            guard.main.transform.position = guard.BucklerAt();
         }
 
-        private static BucklerGuard Make(Player owner, string skillID, Vector2 aim, bool enhanced)
+        // Hit 3: the right buckler is in the air; the left stays held up until it's caught.
+        public static void HoldOffHand(Player owner, Vector2 aim, bool enhanced)
+        {
+            if (!Dual || owner == null)
+                return;
+            Make(owner, null, aim, enhanced, false, Mode.Toss).Draw(0f);
+        }
+
+        private static BucklerGuard Make(Player owner, string skillID, Vector2 aim, bool enhanced, bool left, Mode mode)
         {
             PutAway(owner);
             var go = new GameObject("Buckler Guard");
@@ -287,28 +332,27 @@ namespace WoLBuckler
             guard.skillID = skillID;
             guard.aim = aim;
             guard.enhanced = enhanced;
+            guard.left = left;
+            guard.mode = mode;
             guard.born = Time.time;
             guard.facing = BucklerArt.Facing(aim);
-            guard.look = go.AddComponent<SpriteRenderer>();
-            go.transform.position = Buckler.Hand(owner);
+            guard.main = Part(go, "main");
+            if (Dual)
+                guard.off = Part(go, "off");
             return guard;
         }
 
-        // A punch frame for this facing, drawn upright from the shoulder, native size (x enhanced).
-        private void ShowPunch(int frame)
+        private static SpriteRenderer Part(GameObject parent, string name)
         {
-            look.sprite = BucklerArt.Punch8[facing][frame];
-            look.flipY = false;
-            transform.rotation = Quaternion.identity;
-            float scale = Buckler.Size(enhanced);
-            transform.localScale = new Vector3(scale, scale, 1f);
-            transform.position = Buckler.Hand(owner);
-            Buckler.Sort(look, owner, BucklerArt.HeldBehind(facing) ? -1 : 1);
+            var go = new GameObject(name);
+            go.transform.SetParent(parent.transform, false);
+            return go.AddComponent<SpriteRenderer>();
         }
 
         private float Reach => BucklerPlugin.PunchReach * Buckler.Size(enhanced);
 
-        // Where the buckler is: out to the punch's reach during the smash, then back to where it's held.
+        // Where the buckler's guard is for shot-breaking: out to the punch's reach during the
+        // smash, then back to where it's held (unchanged from 0.4.0).
         private Vector2 BucklerAt()
         {
             float age = Time.time - born;
@@ -317,64 +361,62 @@ namespace WoLBuckler
             return Buckler.Hand(owner) + aim * d;
         }
 
-        private Vector2 Place()
-        {
-            Vector2 at = BucklerAt();
-            transform.position = at;
-            return at;
-        }
-
         private void Update()
         {
             float age = Time.time - born;
-            if (owner == null || (pulling ? age >= PullMaxTime : age >= BucklerPlugin.HoldTime))
+            float life = mode == Mode.Pull ? PullMaxTime : mode == Mode.Toss ? TossHoldMax : BucklerPlugin.HoldTime;
+            if (owner == null || age >= life)
             {
                 Destroy(gameObject);
                 return;
             }
-            if (pulling)
-            {
-                transform.position = Buckler.Hand(owner);
-                return;
-            }
-            Vector2 at;
-            if (Punch8)
-            {
-                at = BucklerAt();
-                float punchEnd = SmashTime + 2f * PunchFrameTime;
-                if (age < punchEnd)
-                    ShowPunch(age < SmashTime ? 1 : age < SmashTime + PunchFrameTime ? 2 : 3);
-                else
-                {
-                    ShowHeld();
-                    transform.position = at;
-                }
-            }
+            if (Dual || Single)
+                Draw(age);
             else
+                main.sprite = BucklerArt.PunchFrame(age < SmashTime ? 1 : age > BucklerPlugin.HoldTime - 0.1f ? 3 : 2);
+            if (mode == Mode.Punch)
             {
-                at = Place();
-                if (age >= SmashTime && BucklerArt.Held.Length >= 8 && BucklerPlugin.HeldArt)
-                    ShowHeld();
-                else
-                    look.sprite = BucklerArt.PunchFrame(age < SmashTime ? 1 : age > BucklerPlugin.HoldTime - RecoverTime ? 3 : 2);
+                Vector2 at = BucklerAt();
+                if (!Dual && !Single)
+                    main.transform.position = at;
+                Buckler.BreakShots(owner, skillID, at, BucklerPlugin.GuardRadius * Buckler.Size(enhanced), aim, enhanced);
             }
-            Buckler.BreakShots(owner, skillID, at, BucklerPlugin.GuardRadius * Buckler.Size(enhanced), aim, enhanced);
         }
 
-        // #94: Art's held buckler for the aim's facing, upright (the turn is in the frames), at the
-        // native 16 px (enhanced: times its size), in front of the wizard or behind for the up facings.
-        private bool heldShown;
-        private void ShowHeld()
+        // Both hands for this moment, upright, native size (x enhanced), in Art's draw order.
+        private void Draw(float age)
         {
-            if (heldShown)
-                return;
-            heldShown = true;
-            look.sprite = BucklerArt.Held[facing];
-            look.flipY = false;
-            transform.rotation = Quaternion.identity;
             float scale = Buckler.Size(enhanced);
-            transform.localScale = new Vector3(scale, scale, 1f);
-            Buckler.Sort(look, owner, BucklerArt.HeldBehind(facing) ? -1 : 1);
+            // The punching / throwing hand.
+            if (mode == Mode.Toss)
+                main.enabled = false;
+            else
+            {
+                int frame = mode == Mode.Pull ? 0 : age < SmashTime ? 1 : age < SmashTime + PunchFrameTime ? 2 : age < SmashTime + 2f * PunchFrameTime ? 3 : -1;
+                if (frame >= 0)
+                    Put(main, (left ? BucklerArt.PunchLeft8 : BucklerArt.Punch8)[facing][frame],
+                        Dual ? BucklerArt.Shoulder(owner, facing, left) : Buckler.Hand(owner), left, scale);
+                else
+                    Put(main, (left ? BucklerArt.HeldLeft : BucklerArt.Held)[facing],
+                        Dual ? BucklerArt.HeldSpot(owner, facing, left) : BucklerAt(), left, scale);
+            }
+            // The other hand: held up the whole time.
+            if (off != null)
+            {
+                bool offLeft = mode == Mode.Toss || !left;
+                Put(off, (offLeft ? BucklerArt.HeldLeft : BucklerArt.Held)[facing], BucklerArt.HeldSpot(owner, facing, offLeft), offLeft, scale);
+            }
+        }
+
+        private void Put(SpriteRenderer r, Sprite sprite, Vector2 at, bool leftHand, float scale)
+        {
+            r.enabled = true;
+            r.sprite = sprite;
+            r.flipY = false;
+            r.transform.rotation = Quaternion.identity;
+            r.transform.localScale = new Vector3(scale, scale, 1f);
+            r.transform.position = at;
+            Buckler.Sort(r, owner, (Dual ? BucklerArt.Behind(facing, leftHand) : BucklerArt.HeldBehind(facing)) ? -1 : 1);
         }
 
         private void OnDestroy()
@@ -399,6 +441,8 @@ namespace WoLBuckler
         private readonly HashSet<int> hitOut = new HashSet<int>(), hitBack = new HashSet<int>();
         private SpriteRenderer look;
         private Sprite[] frames = new Sprite[0];
+        private Sprite[][] sheet;
+        private Vector2 lastMove;
 
         public static void Toss(Player owner, string skillID, Vector2 aim, bool enhanced)
         {
@@ -419,8 +463,21 @@ namespace WoLBuckler
             disc.look = look;
             // #94: Art's spin strip (the native 26 px one when enhanced, so it isn't scaled up),
             // sized to the same width the buckler had: base 16 px, enhanced 16 x EnhancedSize.
-            disc.frames = enhanced && BucklerArt.DiscBig.Length > 0 ? BucklerArt.DiscBig : BucklerArt.Disc;
-            if (disc.frames.Length > 0 && BucklerPlugin.HeldArt)
+            // #99: the 8-direction flat disc, at native size (16 px; the enhanced one is drawn at
+            // 26 px, so scale 1.0, per Art 09:15 and the Modder's review), row by flight direction.
+            disc.sheet = enhanced ? BucklerArt.DiscBig8 : BucklerArt.Disc8;
+            if (BucklerArt.HasDisc8 && disc.sheet.Length == 8 && BucklerPlugin.HeldArt)
+            {
+                go.transform.localScale = Vector3.one;
+                look.sprite = disc.sheet[BucklerArt.Facing(aim)][0];
+                disc.frames = new Sprite[0];
+            }
+            else
+            {
+                disc.sheet = null;
+                disc.frames = enhanced && BucklerArt.DiscBig.Length > 0 ? BucklerArt.DiscBig : BucklerArt.Disc;
+            }
+            if (disc.sheet == null && disc.frames.Length > 0 && BucklerPlugin.HeldArt)
             {
                 float px = disc.frames[0].rect.width;
                 float s = BucklerArt.ArtPixels * Buckler.Size(enhanced) / px;
@@ -430,6 +487,7 @@ namespace WoLBuckler
             else
                 disc.frames = new Sprite[0];
             Buckler.Sort(look, owner, 1);
+            BucklerGuard.HoldOffHand(owner, aim, enhanced);   // #100: the left buckler stays up while the right one flies
             Buckler.Sound("EarthPebble", hand, 0.8f);
             BucklerPlugin.Log($"Buckler: disc tossed ({BucklerPlugin.DiscRange:0.0} u{(enhanced ? ", enhanced" : "")})");
         }
@@ -443,8 +501,11 @@ namespace WoLBuckler
                 Destroy(gameObject);
                 return;
             }
-            if (frames.Length > 0)
-                look.sprite = frames[(int)((Time.time - born) * BucklerArt.DiscFps) % frames.Length];   // the spin is in the frames
+            int spin = (int)((Time.time - born) * BucklerArt.DiscFps);
+            if (sheet != null)
+                look.sprite = sheet[BucklerArt.Facing(lastMove != Vector2.zero ? lastMove : dir)][spin % 4];   // row = flight direction
+            else if (frames.Length > 0)
+                look.sprite = frames[spin % frames.Length];   // the spin is in the frames
             else
                 transform.Rotate(0f, 0f, SpinSpeed * Time.deltaTime);
             Vector2 from = transform.position;
@@ -463,11 +524,14 @@ namespace WoLBuckler
                 if (back.magnitude <= Mathf.Max(CatchDistance, step))
                 {
                     Buckler.Sound("EarthPebble", from, 1.3f);
+                    BucklerGuard.PutAway(owner);   // caught: the held left buckler goes with the combo's end
                     Destroy(gameObject);
                     return;
                 }
                 to = from + back.normalized * step;
             }
+            if (to != from)
+                lastMove = (to - from).normalized;
             transform.position = to;
             HashSet<int> hit = returning ? hitBack : hitOut;
             foreach (GameObject enemy in Buckler.EnemiesNear(from, to, Reach))

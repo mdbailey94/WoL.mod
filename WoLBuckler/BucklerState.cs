@@ -59,7 +59,7 @@ namespace WoLBuckler
                 try
                 {
                     Vector2 aim = inputVector != Vector2.zero ? inputVector.normalized : Entity.GetFacingDirectionVector(parent.facingDirection).normalized;
-                    BucklerGuard.Pull(parent, aim == Vector2.zero ? Vector2.right : aim, IsEmpowered);
+                    BucklerGuard.Pull(parent, aim == Vector2.zero ? Vector2.right : aim, IsEmpowered, attackCount == 2);
                 }
                 catch (System.Exception e)
                 {
@@ -83,7 +83,7 @@ namespace WoLBuckler
                 if (comboCounter >= maxComboCount)
                     BucklerDisc.Toss(parent, skillID, aim, IsEmpowered);
                 else
-                    Buckler.Punch(parent, skillID, aim, IsEmpowered);
+                    Buckler.Punch(parent, skillID, aim, IsEmpowered, comboCounter == 2);   // #100: hit 2 is the left hand
             }
             catch (System.Exception e)
             {

@@ -44,6 +44,10 @@
     <EmbeddedResource Include="Assets\buckler_punch.png" LogicalName="WoLBuckler.Assets.buckler_punch.png" />
     <EmbeddedResource Include="Assets\buckler_held_8dir.png" LogicalName="WoLBuckler.Assets.buckler_held_8dir.png" />
     <EmbeddedResource Include="Assets\buckler_punch_8dir.png" LogicalName="WoLBuckler.Assets.buckler_punch_8dir.png" />
+    <EmbeddedResource Include="Assets\buckler_held_left_8dir.png" LogicalName="WoLBuckler.Assets.buckler_held_left_8dir.png" />
+    <EmbeddedResource Include="Assets\buckler_punch_left_8dir.png" LogicalName="WoLBuckler.Assets.buckler_punch_left_8dir.png" />
+    <EmbeddedResource Include="Assets\buckler_disc_8dir.png" LogicalName="WoLBuckler.Assets.buckler_disc_8dir.png" />
+    <EmbeddedResource Include="Assets\buckler_disc_big_8dir.png" LogicalName="WoLBuckler.Assets.buckler_disc_big_8dir.png" />
     <EmbeddedResource Include="Assets\buckler_disc.png" LogicalName="WoLBuckler.Assets.buckler_disc.png" />
     <EmbeddedResource Include="Assets\buckler_disc_big.png" LogicalName="WoLBuckler.Assets.buckler_disc_big.png" />
   </ItemGroup>
