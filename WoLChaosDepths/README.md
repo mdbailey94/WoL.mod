@@ -72,6 +72,24 @@ LeftStick, Back or None).
 
 To start over, delete the `characterN.json` files while the game is closed.
 
+## Shade cloak v1, part 1 (0.35.0, #89)
+
+**Off by default:** `[Shade] Enabled = true`, and `[Shade] Players` = P1, P2 or Both picks who
+wears it (v1 unlock is config only; try it on the Debugging save). Approved plan: the wearer is a
+LIVING wizard dressed as a ghost, so the game's own death, ghost, HUD and game over are untouched.
+
+- **Look:** the wizard turns pale blue at 70% opacity, leaves WoL Art's `shade_wisp` puffs while
+  moving and carries `shade_lantern` on the chest (behind the body facing up).
+- **Spirit instead of health:** a SPIRIT bar (100, starts at 40, no regen; top-left under the
+  wizard's HUD). A hit costs **6** spirit (**12** from a boss) and does no health damage; burn and
+  poison ticks do nothing. Kills give **+8** (elite **+20**, boss **+40**) to every Shade standing.
+  Outside the trials the bar refills to 40.
+- **Death rule:** at 0 spirit for **3 s** the Shade is out. In solo, or if the partner is down too,
+  that ends the run; otherwise the Shade waits at 0 and the partner's kills bring it back.
+- **Still to come (part 2):** Blink (dash slot, 3 u, 5 spirit), Spirit Wolf (basic slot, 15 spirit),
+  health-orb and boss-chunk spirit, the 60-spirit revive, being skipped as a target by enemies and
+  floating over pits. Every number is in `[Shade.Tuning]`.
+
 ## Boss Aspects (0.34.0, #88)
 
 **Off by default:** turn on `[Aspects] Enabled` in `mdbailey94.wol.chaosdepths.cfg`, or in the

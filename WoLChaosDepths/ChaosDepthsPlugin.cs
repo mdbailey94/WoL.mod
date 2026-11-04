@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.34.2";
+        public const string PluginVersion = "0.35.0";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -238,6 +238,7 @@ namespace WoLChaosDepths
             Depth.Bind(Config);
             Layers.Bind(Config);
             BossAspects.Bind(Config);
+            Shade.Bind(Config);
             ChaosSurge.Bind(Config);
             LevelUpBurst.Bind(Config);
             DebugKeys.Bind(Config);
@@ -320,6 +321,7 @@ namespace WoLChaosDepths
                 lastKillTime.Clear();
                 Elites.ClearScene();
                 BossAspects.ClearScene();
+                Shade.ClearScene();
                 Uniques.ClearScene();
                 Pickups.Clear();
                 Adornments.Clear();
