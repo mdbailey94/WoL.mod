@@ -739,15 +739,39 @@ namespace WoLChaosDepths
             return best;
         }
 
+        // Tempo's test, asked every frame: the game's enemy list instead of a physics overlap, and the
+        // answer kept for 0.2 s per wizard (audit A17: an OverlapCircleAll + GetComponentInParent
+        // per collider every frame).
+        private static readonly Dictionary<int, KeyValuePair<float, bool>> frozenNear = new Dictionary<int, KeyValuePair<float, bool>>();
+
         private static bool FrozenNear(Player p, float range)
         {
-            foreach (Collider2D col in Physics2D.OverlapCircleAll(p.transform.position, range))
+            int id = p.GetInstanceID();
+            KeyValuePair<float, bool> had;
+            if (frozenNear.TryGetValue(id, out had) && Time.time < had.Key)
+                return had.Value;
+            bool found = false;
+            var enemies = GameController.enemies;
+            if (enemies != null)
             {
-                Enemy e = col != null ? col.GetComponentInParent<Enemy>() : null;
-                if (e != null && e.fsm != null && e.fsm.currentState is Entity.FrozenState)
-                    return true;
+                Vector2 at = p.transform.position;
+                float r2 = range * range;
+                foreach (GameObject go in enemies)
+                {
+                    if (go == null || ((Vector2)go.transform.position - at).sqrMagnitude > r2)
+                        continue;
+                    Enemy enemy = go.GetComponent<Enemy>();
+                    if (enemy != null && enemy.fsm != null && enemy.fsm.currentState is Entity.FrozenState)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
             }
-            return false;
+            if (frozenNear.Count > 16)
+                frozenNear.Clear();
+            frozenNear[id] = new KeyValuePair<float, bool>(Time.time + 0.2f, found);
+            return found;
         }
 
         // ---- Fall's rescue ----

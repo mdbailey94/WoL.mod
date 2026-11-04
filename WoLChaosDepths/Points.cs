@@ -107,10 +107,16 @@ namespace WoLChaosDepths
             if (player == null || !register.TryGetValue(player.GetInstanceID(), out stats) || !stats.TryGetValue(stat, out sources))
                 return 0f;
             float sum = 0f;
-            foreach (float v in sources.Values)
-                sum += v;
+            foreach (KeyValuePair<string, float> pair in sources)
+                if (Counts(pair.Key))
+                    sum += pair.Value;
             return sum;
         }
+
+        // Sources from the talent systems (named "Pact.", "Perk.", "Talent.") stop counting the moment
+        // [Talents] is turned off, even though those systems stop ticking and can't take them off.
+        private static bool Counts(string source) =>
+            Talents.Enabled || !(source.StartsWith("Pact.") || source.StartsWith("Perk.") || source.StartsWith("Talent."));
 
         /// <summary>For the stat sheet: "name +12" per registered source on a stat.</summary>
         public static IEnumerable<KeyValuePair<string, float>> Sources(Player player, string stat)

@@ -80,7 +80,35 @@ never reach 100%: crit chance, evade and move speed give `1 - 0.99^points` (30 p
 cooldowns and damage taken are cut by `0.99^points` (38 points = -32%; never 0, never immune).
 Cooldown points are summed per arcana (generic + its type + its element). Damage %, crit damage and
 healing stay 1 point = 1%. Items show these affixes as "pts". The 0.36.0 safety caps are gone.
-Talents, pacts, cloaks and relics still add their own % until they're moved onto points (#114 step 2).
+
+### The point register (0.38.0) and later refinements
+
+Every other source feeds the same sums through one call (signed like the old %: +10% crit = `10`,
+a 30% cooldown cut = `-30`; `0` takes the source off; cheap to call every frame):
+
+```csharp
+WoLChaosDepths.Points.Set(player, "CritChance", "MyMod.Source", 10f);
+// from another mod, without a reference:
+Type.GetType("WoLChaosDepths.Points, WoLChaosDepths").GetMethod("Set")
+    .Invoke(null, new object[] { player, "CritChance", "MyMod.Source", 10f });
+```
+
+Stat keys are the gear affix keys: `CritChance`, `Evade`, `MoveSpeed`, `DamageTaken`, `Cooldown`,
+`DashCooldown`, `Projectile/Melee/Movement/HoldCooldown`, `Fire/Air/Earth/Lightning/WaterCooldown`.
+GearTypeStats is the one applier: every 0.1 s it adds the register to StatMods' gear + stat-talent
+totals and applies crit/evade/speed/damage taken (wizard-wide) and each arcana's summed cooldown
+points. On points now: Borrowed Time, Momentum Engine's dash, the cloak perks' speed, evade and pair
+cooldown, Flurry, Evasive, Galeheart. Penalties (Bastion's slow, roots, Marked's evade-off,
+Overchannel's cooldown penalty, Depth scaling) stay their own mods. Sources named `Pact.`, `Perk.`,
+`Talent.` stop counting while `[Talents] Enabled` is off. The inventory's TOTALS show each point
+stat's whole sum and result, e.g. `crit 38 pts (+32%)`.
+
+- 0.38.1: unused `[Depth]`/layer-boss keys and `[Loot] FreshDropChanceAtAscension0` say so in
+  their descriptions; `[Elites] Chance`/`ChancePerAscension` only apply without Ascension.
+- 0.39.0 (#113b): `[Item Menu] KeepGameRunning` (off by default; in the Mods menu too): the menu
+  doesn't pause the game, only the opener's wizard is frozen and unhittable while it's open.
+- 0.39.1: Tempo's "frozen enemy near" test uses the enemy list, checked 5 times a second instead of a
+  physics overlap every frame.
 
 ## #101 cleanup (0.36.1)
 
