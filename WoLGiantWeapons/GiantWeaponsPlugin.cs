@@ -17,7 +17,7 @@ namespace WoLGiantWeapons
     {
         public const string PluginGuid = "mdbailey94.wol.giantweapons";
         public const string PluginName = "Giant Weapons";
-        public const string PluginVersion = "0.15.0";
+        public const string PluginVersion = "0.16.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> swordEnabled, flailEnabled;
@@ -47,15 +47,15 @@ namespace WoLGiantWeapons
         private static ConfigEntry<int> swingDamage, chopDamage, spinDamage, fullSpinDamage, circleDamage, slamDamage, arcDamage;
 
         public static float SwordPace => Get(swordPace, 0.65f, 0.3f, 1f);
-        public static float SwingReach => Get(swingReach, 3.4f, 0.5f, 6f);
+        public static float SwingReach => Get(swingReach, 6.8f, 0.5f, 12f);
         // 0.9.0 (Matt: "hit boxes are too thin"): the swing's HIT arc is wider than the drawn 45°
         // sweep, so enemies at the edges of what the blade visibly covers are hit.
         public static float SwingHitAngle => Get(swingHitAngle, 75f, 10f, 360f);
         public static float SwingArc => Get(swingArc, 45f, 10f, 360f);
         public static float SpinMinCharge => Get(spinMin, 0.4f, 0f, 3f);
         public static float SpinFullCharge => Get(spinFull, 1f, 0.1f, 4f);
-        public static float SpinRadius => Get(spinRadius, 3.25f, 0.5f, 8f);
-        public static float FullSpinRadius => Get(fullSpinRadius, 3.9f, 0.5f, 8f);
+        public static float SpinRadius => Get(spinRadius, 6.5f, 0.5f, 16f);
+        public static float FullSpinRadius => Get(fullSpinRadius, 7.8f, 0.5f, 16f);
         public static int SpinHits => Mathf.Clamp(spinHits?.Value ?? 4, 1, 12);
         public static float SpinTime => Get(spinTime, 0.45f, 0.1f, 3f);
         public static float EnhancedSpinWidth => Get(enhancedSpinWidth, 1.3f, 1f, 3f);
@@ -201,7 +201,19 @@ namespace WoLGiantWeapons
             }
             if (configVersion.Value < 140 && Mathf.Approximately(swingSweep.Value, 220f))
                 swingSweep.Value = 240f;
-            configVersion.Value = 140;
+            // 0.16.0 (Matt 16:33): "the hit box for the sword should be an equal sized arc to the
+            // art, looks like it needs to double": swing reach and spin radii doubled.
+            if (configVersion.Value < 160)
+            {
+                if (Mathf.Approximately(swingReach.Value, 3.4f))
+                    swingReach.Value = 6.8f;
+                if (Mathf.Approximately(spinRadius.Value, 3.25f))
+                    spinRadius.Value = 6.5f;
+                if (Mathf.Approximately(fullSpinRadius.Value, 3.9f))
+                    fullSpinRadius.Value = 7.8f;
+                Logger.LogInfo("Config moved to 0.16.0's Ice Sword hit arc (swing reach 6.8, spin 6.5 / 7.8)");
+            }
+            configVersion.Value = 160;
         }
 
         private static int Clamp(ConfigEntry<int> entry, int min, int max) => Mathf.Clamp(entry.Value, min, max);
@@ -221,15 +233,15 @@ namespace WoLGiantWeapons
         private void BindSettings()
         {
             swordPace = Float("Ice Sword", "Pace", 0.65f, 0.3f, 1f, "How fast the wizard's swings play (0.65 = 35% slower, the heavy feel; 1 = normal).");
-            swingReach = Float("Ice Sword", "SwingReach", 3.4f, 0.5f, 6f, "Reach of swings 1 and 2, in units (0.13.0: 3.4 with the longer sword; was 2.6).");
+            swingReach = Float("Ice Sword", "SwingReach", 6.8f, 0.5f, 12f, "Reach of swings 1 and 2, in units (0.16.0, Matt: the hit arc as big as the drawn blade, double the 0.13.0 3.4).");
             swingSweep = Float("Ice Sword", "SwingSweep", 240f, 45f, 360f, "Degrees swings 1 and 2 turn, from BraceAngle back on one side, through the aim, round the other side (0.14.0: 240 = from 120 back to 120 on the other side). Everything the blade passes is hit.");
             braceAngle = Float("Ice Sword", "BraceAngle", 120f, 0f, 180f, "Degrees back from the aim the blade is held while bracing, for the swings and the spin (0.14.0: 120; 180 = straight behind).");
             swingHitAngle = Float("Ice Sword", "SwingHitAngle", 75f, 10f, 360f, "UNUSED since 0.13.0 (swings hit along their whole SwingSweep).");
             swingArc = Float("Ice Sword", "SwingAngle", 45f, 10f, 360f, "UNUSED since 0.13.0 (see SwingSweep).");
             spinMin = Float("Ice Sword", "SpinMinCharge", 0.4f, 0f, 3f, "Seconds held before the third hit's spin counts as charged (shorter = a tapped spin).");
             spinFull = Float("Ice Sword", "SpinFullCharge", 1f, 0.1f, 4f, "Seconds held for a full-charge spin.");
-            spinRadius = Float("Ice Sword", "SpinRadius", 3.25f, 0.5f, 8f, "Radius of a tapped spin (and a charged one at the least charge).");
-            fullSpinRadius = Float("Ice Sword", "FullSpinRadius", 3.9f, 0.5f, 8f, "Radius of a full-charge spin.");
+            spinRadius = Float("Ice Sword", "SpinRadius", 6.5f, 0.5f, 16f, "Radius of a tapped spin (and a charged one at the least charge).");
+            fullSpinRadius = Float("Ice Sword", "FullSpinRadius", 7.8f, 0.5f, 16f, "Radius of a full-charge spin.");
             spinHits = Config.Bind("Ice Sword", "SpinSlices", 4, new ConfigDescription("The spin's one turn is cut into this many slices; an enemy is hit once, as the blade passes its slice (0.4.0).", new AcceptableValueRange<int>(1, 12)));
             spinTime = Float("Ice Sword", "SnapSpinTime", 0.45f, 0.1f, 3f, "Seconds for the spin's one 360-degree turn after its brace (0.10.0, #105; the old HeavySpinTime key is unused).");
             enhancedSpinWidth = Float("Ice Sword", "EnhancedSpinWidth", 1.3f, 1f, 3f, "How much wider the spin is when enhanced.");
