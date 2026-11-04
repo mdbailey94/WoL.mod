@@ -18,7 +18,7 @@ namespace WoLFrostGrapple
     {
         public const string PluginGuid = "mdbailey94.wol.frostgrapple";
         public const string PluginName = "Frost Grapple";
-        public const string PluginVersion = "0.1.1";
+        public const string PluginVersion = "0.1.2";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled, signatureWithArcana;
@@ -26,6 +26,10 @@ namespace WoLFrostGrapple
         public static void Log(string message) => log?.LogInfo(message);
 
         // [Throw], [Pull], [Enhanced], [Signature] apply the next cast; [Balance] after a restart.
+        private static ConfigEntry<float> hitReach;
+        // 0.1.2 (Matt 14:55, "make the pickaxe hit zone bigger"): how far from the pick's flight line
+        // an enemy's body can be and still be bitten.
+        public static float HitReach => Get(hitReach, 1f, 0.2f, 3f);
         private static ConfigEntry<float> throwSpeed, range, pullSpeed, maxPull, landGap, burstRadius, enhancedRadius, missRefund;
         private static ConfigEntry<int> sigTargets;
         private static ConfigEntry<float> sigSearch, sigThrowSpeed, sigFinaleRadius;
@@ -106,6 +110,7 @@ namespace WoLFrostGrapple
         {
             throwSpeed = Float("Throw", "Speed", 20f, 4f, 60f, "How fast the pickaxe flies, in units a second.");
             range = Float("Throw", "Range", 7f, 1f, 15f, "How far the pickaxe flies before it comes back.");
+            hitReach = Float("Throw", "HitReach", 1f, 0.2f, 3f, "How far from the pick's flight line an enemy's body can be and still be bitten (0.1.2: 1.0, was 0.5 = a 2-unit-wide hit zone).");
             missRefund = Float("Throw", "MissCooldownShare", 0.5f, 0f, 1f, "Share of the cooldown spent when the pick hits nothing (0.5 = half).");
             pullSpeed = Float("Pull", "Speed", 24f, 4f, 60f, "How fast you're pulled along the chain, units a second.");
             maxPull = Float("Pull", "MaxSeconds", 0.5f, 0.1f, 2f, "The longest a pull lasts (a fleeing enemy can't drag you across the room).");

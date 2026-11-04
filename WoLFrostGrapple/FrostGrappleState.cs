@@ -159,7 +159,7 @@ namespace WoLFrostGrapple
             Vector2 next = pick + pickDir * step;
             // A wall (or obstacle) on the way stops it.
             RaycastHit2D wall = Physics2D.Raycast(pick, pickDir, step + 0.1f, ChaosCollisions.layerAllWallAndObst);
-            GameObject hit = FirstEnemyAlong(pick, next, 0.5f);
+            GameObject hit = FirstEnemyAlong(pick, next, FrostGrapplePlugin.HitReach);   // 0.1.2 (Matt): 1.0, was 0.5
             if (hit != null)
             {
                 Bite(hit);
