@@ -13,6 +13,9 @@ namespace WoLChaosDepths
     public partial class InventoryPanel
     {
         private const int ArtW = 232, ArtH = 168, ListRows = 4, ListRowH = 18;
+        // The GEAR tab's v2 layout (WoL Art's gear_panel_readability_mockup_v2, Matt "do it all"
+        // 14:27): a bigger page, 312 x 254 mockup pixels, 5 list rows of 20.
+        private const int GearW = 312, GearH = 254, GearRows = 5, GearRowH = 20;
         private static ConfigEntry<string> look;
         private static readonly Color Rule = new Color32(0x61, 0x63, 0x74, 0xff);
         private static readonly Color RowLight = new Color32(0x5c, 0x5e, 0x6f, 0xff);
@@ -80,11 +83,14 @@ namespace WoLChaosDepths
                 // #113 (0.36.4, Matt): in two-player the panel ALWAYS opens at the two-player size
                 // and on its player's side, even when only one is open (it used to jump between the
                 // big centred size and the half size as the other panel opened or closed).
+                bool gearPage = panelTab != 1 && !forgeOpen;
+                int pw = gearPage ? GearW : ArtW, ph = gearPage ? GearH : ArtH;
+                float tall = gearPage ? 0.97f : 0.92f;
                 int s = activePlayers > 1 || OpenCount > 1
-                    ? Mathf.FloorToInt(Mathf.Min(Screen.height * 0.92f / ArtH, Screen.width / (2f * ArtW + 12f)))
-                    : Mathf.FloorToInt(Mathf.Min(Screen.height * 0.92f / ArtH, Screen.width * 0.96f / ArtW));
+                    ? Mathf.FloorToInt(Mathf.Min(Screen.height * tall / ph, Screen.width / (2f * pw + 12f)))
+                    : Mathf.FloorToInt(Mathf.Min(Screen.height * tall / ph, Screen.width * 0.96f / pw));
                 s = Mathf.Max(2, s);
-                float w = ArtW * s, h = ArtH * s;
+                float w = pw * s, h = ph * s;
                 float left = (Screen.width - w) / 2f;
                 if (activePlayers > 1 && player != null)
                     left = player.playerID == 0 ? 4f * s : Screen.width - w - 4f * s;
@@ -102,19 +108,20 @@ namespace WoLChaosDepths
 
                 if (DimScreen)
                     PixelUI.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.45f));
-                NineSlice(frame, R(0, 0, ArtW, ArtH), s);
+                NineSlice(frame, R(0, 0, pw, ph), s);
+                float dx = pw - ArtW;   // the header's right end moves with the wider gear page
 
                 // Header (#51, character_panel_gear_1x.png): LB [GEAR] [TALENTS] [SKILLS] RB in place
                 // of the title, then the level and dust; the experience along the rule under it,
                 // which the chosen tab opens through.
                 PanelTabRow(R, Mathf.Max(9, 6 * s), dim);
-                Label(R(166, 2, 34, 9), $"LV {save.level}", dimRight);
+                Label(R(166 + dx, 2, 34, 9), $"LV {save.level}", dimRight);
                 Texture2D dust = Piece("ui_chaos_dust_8");
                 if (dust != null)
-                    GUI.DrawTexture(R(202, 3, 8, 8), dust);
-                Label(R(150, 2, 76, 9), save.dust.ToString(), textRight);
+                    GUI.DrawTexture(R(202 + dx, 3, 8, 8), dust);
+                Label(R(150 + dx, 2, 76, 9), save.dust.ToString(), textRight);
                 int need = ChaosDepthsPlugin.XpToNext(save.level);
-                float xpEnd = 4 + 226 * Mathf.Clamp01(save.xp / (float)Mathf.Max(1, need));
+                float xpEnd = 4 + (226 + dx) * Mathf.Clamp01(save.xp / (float)Mathf.Max(1, need));
                 float opening = PanelTabX(panelTab);
                 void RuleFrom(float a, float b)
                 {
@@ -125,7 +132,7 @@ namespace WoLChaosDepths
                         PixelUI.Fill(R(a, 12, Mathf.Min(b, xpEnd) - a, 1), PixelUI.Accent);
                 }
                 RuleFrom(4, opening);
-                RuleFrom(opening + PanelTabW, 230);
+                RuleFrom(opening + PanelTabW, 230 + dx);
 
                 if (panelTab == 1)
                 {
@@ -139,138 +146,7 @@ namespace WoLChaosDepths
                     return true;
                 }
 
-                // Tab row: < ALL amulet ring charm >, the sort on the right.
-                Texture2D chevL = Piece("ui_chevron_left"), chevR = Piece("ui_chevron_right"), tabArt = Piece("ui_tab");
-                // The idle (dim) frame, as in the mockup; the bright one while < or > is held.
-                bool tabKeys = Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.RightArrow);
-                if (chevL != null)
-                    Frame(chevL, 2, tabKeys && Input.GetKey(KeyCode.LeftArrow) ? 1 : 0, R(6, 20, 4, 7));
-                if (chevR != null)
-                    Frame(chevR, 2, tabKeys && Input.GetKey(KeyCode.RightArrow) ? 1 : 0, R(111, 20, 4, 7));
-                for (int i = 0; i < TabNames.Length; i++)
-                {
-                    float tx = 14 + i * 24;
-                    if (tabArt != null)
-                        Frame(tabArt, 2, i == tab ? 1 : 0, R(tx, 16, 22, 16));
-                    if (i == 0)
-                        Label(R(tx, 18, 22, 9), "ALL", PixelUI.Style(font, i == tab ? PixelUI.Text : PixelUI.Dim, TextAnchor.UpperCenter));
-                    else
-                        Icon(new ItemData { slot = TabNames[i], rarity = i == tab ? "Rare" : "Common" }, R(tx + 4, 17, 14, 14));
-                }
-                Label(R(118, 16, 108, 9), $"SORT: {SortNames[sortMode].ToUpperInvariant()}", textRight);
-                Label(R(118, 24, 108, 9), "(Y) CHANGE", dimRight);
-                // The item count, or where the list is when it scrolls ("5-8 OF 12").
-                string count = view.Count > ListRows
-                    ? $"{scroll + 1}-{Mathf.Min(scroll + ListRows, view.Count)} OF {view.Count}"
-                    : $"{view.Count} ITEM{(view.Count == 1 ? "" : "S")}";
-                Label(R(118, 24, 60, 9), count, dim);
-
-                // Left: the equipped slots, each in its rarity's frame.
-                NineSlice(inset, R(4, 35, 59, 78), s);
-                Label(R(8, 37, 54, 9), "EQUIPPED", text);
-                for (int i = 0; i < LootTable.Slots.Length; i++)
-                {
-                    float sy = 47 + i * 22;
-                    ItemData item = StatMods.FindItem(save, save.equipped[i]);
-                    Frame(slots, 5, item != null ? 1 + Mathf.Clamp(LootTable.RarityIndex(item.rarity), 0, 3) : 0, R(8, sy, 20, 20));
-                    if (item != null)
-                        Icon(item, R(10, sy + 2, 16, 16));
-                    else
-                    {
-                        Texture2D empty = Piece("ui_empty_" + LootTable.Slots[i].ToLowerInvariant());
-                        if (empty != null)
-                            GUI.DrawTexture(R(10, sy + 2, 16, 16), empty);
-                    }
-                    Label(R(31, sy + 5, 31, 9), item != null ? LootTable.Slots[i].ToUpperInvariant() : "EMPTY", dim);
-                }
-
-                // Right: the list, a name and a level a row, equipped first.
-                NineSlice(inset, R(66, 35, 163, 78), s);
-                rows = ListRows;
-                if (selected >= scroll + rows)
-                    scroll = Mathf.Max(0, selected - rows + 1);
-                if (view.Count == 0)
-                    Label(R(72, 40, 152, 9), save.inventory.Count == 0 ? "NOTHING YET" : "NOTHING OF THIS TYPE", dim);
-                Texture2D cursor = Piece("ui_slot_cursor");
-                for (int row = 0; row < rows; row++)
-                {
-                    int index = scroll + row;
-                    if (index >= view.Count)
-                        break;
-                    ItemData item = view[index];
-                    float y0 = 37 + row * ListRowH;
-                    if (index == selected)
-                    {
-                        PixelUI.Fill(R(70, y0, 157, ListRowH), RowLight);
-                        PixelUI.Fill(R(68, y0, 1, ListRowH), Gold);
-                    }
-                    Frame(slots, 5, 1 + Mathf.Clamp(LootTable.RarityIndex(item.rarity), 0, 3), R(70, y0, 20, 20));
-                    Icon(item, R(72, y0 + 2, 16, 16));
-                    if (index == selected && cursor != null)
-                        Frame(cursor, 2, (int)(Time.unscaledTime * 3f) & 1, R(69, y0 - 1, 22, 22));
-                    GUIStyle nameStyle = Rarity(item, font);
-                    Label(R(93, y0 + 1, 128, 9), Fit(item.name.ToUpperInvariant(), nameStyle, 104 * s), nameStyle);
-                    Label(R(93, y0 + 9, 128, 9), $"LV {item.itemLevel}", dim);
-                    if (IsEquipped(item))
-                        Label(R(196, y0 + 1, 28, 9), "E", PixelUI.Style(font, EquippedMark, TextAnchor.UpperRight));
-                }
-
-                // The detail box: name and type, two lines of description, VS EQUIPPED.
-                NineSlice(inset, R(4, 115, 225, 38), s);
-                ItemData chosen = Selected;
-                if (chosen != null)
-                {
-                    GUIStyle chosenStyle = Rarity(chosen, font);
-                    string kind = (string.IsNullOrEmpty(chosen.unique) ? chosen.rarity : "Unique") + " " + chosen.slot;
-                    Label(R(8, 117, 217, 9), Fit($"{chosen.name}  ({kind})".ToUpperInvariant(), chosenStyle, 217 * s), chosenStyle);
-                    float ly = 125;
-                    foreach (string line in Wrap(LootTable.Describe(chosen).ToUpperInvariant(), text, 217 * s, 2))
-                    {
-                        Label(R(8, ly, 217, 8), line, text);
-                        ly += 7;
-                    }
-                    int slot = SlotOf(chosen);
-                    ItemData worn = slot >= 0 ? StatMods.FindItem(save, save.equipped[slot]) : null;
-                    if (worn == null)
-                        Label(R(8, 140, 217, 9), "VS EQUIPPED: SLOT EMPTY, ALL OF IT IS A GAIN", dim);
-                    else if (worn == chosen)
-                        Label(R(8, 140, 217, 9), "EQUIPPED", dim);
-                    else
-                    {
-                        // Gains then losses, carried onto a second line when the first is full
-                        // (0.14.7: on one line the losses at the end were cut off).
-                        Rect vs = R(8, 139, 217, 9);
-                        Label(vs, "VS EQUIPPED: ", dim);
-                        labelMeasure.text = "VS EQUIPPED: ";
-                        float lineStart = vs.x + dim.CalcSize(labelMeasure).x;
-                        float cx = lineStart, cy = vs.y;
-                        int line = 0;
-                        var all = Compare(chosen, worn);
-                        var parts = all.FindAll(p => p.Value);   // in their own order, gains first
-                        parts.AddRange(all.FindAll(p => !p.Value));
-                        foreach (KeyValuePair<string, bool> part in parts)
-                        {
-                            GUIStyle st = PixelUI.Style(font, part.Value ? Gain : Loss);
-                            labelMeasure.text = part.Key.ToUpperInvariant() + "  ";
-                            float pw = st.CalcSize(labelMeasure).x;
-                            if (cx + pw > vs.xMax)
-                            {
-                                if (++line > 1)
-                                    break;
-                                cx = lineStart;
-                                cy += 6 * s;
-                            }
-                            Label(new Rect(cx, cy, pw, vs.height), part.Key.ToUpperInvariant(), st);
-                            cx += pw;
-                        }
-                    }
-                    if (confirmHeldSince >= 0f && !confirmConsumed)
-                    {
-                        float held = Mathf.Clamp01((Time.unscaledTime - confirmHeldSince) / SalvageHold);
-                        PixelUI.Fill(R(8, 151, 217 * held, 1), PixelUI.Accent);
-                    }
-                }
-                Label(R(8, 156, 220, 9), "(A) EQUIP  (HOLD A) SALVAGE  (X) DROP  < > TAB  (Y) SORT  (F / SELECT) FORGE", dim);
+                DrawGearPage(R, s, font);
             }
             catch (Exception e)
             {
