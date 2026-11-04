@@ -112,11 +112,23 @@ namespace WoLGiantWeapons
                     return;
                 charging = false;
             }
-            base.Update();
-            // In case the game asks for the attack only once (at its execute point, while the brace
-            // was still running): fire it as soon as the brace is over.
-            if (!executed && Time.time - braceFrom >= braceFor && parent.anim.AnimPlayed(animExecTime))
+            // 0.12.1 (Matt's video 13:18: the blade stayed held back and never swung): the game's
+            // melee state ran on through its animation during the brace and ENDED the hit before
+            // the brace was over (dropping the held blade), and the next press braced again. Now the
+            // state is held in its opening pose for the whole brace (as the spin's charge is), then
+            // the swing fires the moment the brace ends. A dash still cancels a brace.
+            if (!executed)
+            {
+                if (Time.time - braceFrom < braceFor)
+                {
+                    if (CancelToDash(false))
+                        return;
+                    PlayAnimation(comboCounter);
+                    return;
+                }
                 ExecuteAttack();
+            }
+            base.Update();
         }
 
         public override void PlayAnimation(int attackCount)

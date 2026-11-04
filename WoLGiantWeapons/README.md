@@ -27,6 +27,10 @@ and Buckler are their own mods (WoLGiantSpear, WoLBuckler); Flaming Whip is WoLF
   damage, always shocks, knockback, camera shake and a thunder thud.
 - **Enhanced:** the slam arcs lightning to up to **3** enemies within **4 u**, **6** damage each.
 
+0.12.1 (Matt's video 13:18, "sword not working"): the blade stayed held back and never swung,
+because the game ended each hit during the brace. The hit now holds its opening pose until the brace
+is over, then swings at once.
+
 0.12.0 (Matt 13:00): during each brace the Ice Sword is held **backwards**, pointing behind the
 wizard away from the attack, then **swishes forward**: hit 1 comes round clockwise, hit 2
 counterclockwise, each ~200° from behind to 22.5° past the aim in **0.2 s** (the hit lands as the
