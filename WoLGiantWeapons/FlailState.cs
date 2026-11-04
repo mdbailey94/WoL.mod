@@ -121,8 +121,8 @@ namespace WoLGiantWeapons
                 Slam(Heavy.Hand(parent), Heavy.Aim(this, parent));
         }
 
-        // Hits 1-2: the ball goes once round the wizard at CircleRadius over CircleTime (hit 1
-        // counterclockwise, hit 2 clockwise), starting at the aim; 0.5.0 (#92): the hit follows
+        // Hits 1-2: the ball goes once round the wizard at CircleRadius over CircleTime (both
+        // counterclockwise since 0.16.1), starting at the aim; 0.5.0 (#92): the hit follows
         // the ball, the circle cut into CircleSlices slices hit as the ball passes (once each).
         private void Circle()
         {
@@ -130,7 +130,8 @@ namespace WoLGiantWeapons
             string id = skillID;
             Vector2 aim = Heavy.Aim(this, p);
             float aimDeg = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
-            bool clockwise = comboCounter % 2 == 0;
+            // 0.16.1 (Matt 16:40): "both flail swoops should move counterclockwise".
+            bool clockwise = false;
             float time = GiantWeaponsPlugin.CircleTime, radius = GiantWeaponsPlugin.CircleRadius;
             int slices = GiantWeaponsPlugin.CircleSlices;
             float slice = 360f / slices;
