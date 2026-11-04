@@ -136,6 +136,35 @@ namespace WoLChaosDepths
             return player != null && states.TryGetValue(player.playerID, out s) ? s.flurry.Count : 0;
         }
 
+        /// <summary>#108 buff bar (Player, Matt 11-04): this wizard's active archetype buffs as
+        /// (talent key, stacks; 0 = no count shown).</summary>
+        public static void Buffs(Player player, List<KeyValuePair<string, int>> into)
+        {
+            State s;
+            if (player == null || !Talents.Enabled || !states.TryGetValue(player.playerID, out s))
+                return;
+            if (s.lastStand)
+                into.Add(new KeyValuePair<string, int>("LastStand", 0));
+            if (s.streak > 0 && Talents.Rank(player, "HotStreak") > 0)
+                into.Add(new KeyValuePair<string, int>("HotStreak", s.streak));
+            if (Time.time < s.surgeUntil && Talents.Rank(player, "Surge") > 0)
+                into.Add(new KeyValuePair<string, int>("Surge", 0));
+            if (Time.time < s.resonanceUntil && Talents.Rank(player, "Echo") > 0)
+                into.Add(new KeyValuePair<string, int>("Echo", 0));
+            if (s.flurry.Count > 0)
+                into.Add(new KeyValuePair<string, int>("Flurry", s.flurry.Count));
+            if (s.riposteReady)
+                into.Add(new KeyValuePair<string, int>("Riposte", 0));
+            if (Talents.Rank(player, "AllIn") > 0)
+            {
+                int pct = Mathf.RoundToInt(AllInBonus() * 100f);
+                if (pct > 0)
+                    into.Add(new KeyValuePair<string, int>("AllIn", pct));
+            }
+            if (goldMultiplier > 1 && Talents.Rank(player, "DoubleOrNothing") > 0)
+                into.Add(new KeyValuePair<string, int>("DoubleOrNothing", goldMultiplier));
+        }
+
         private static State StateOf(Player player)
         {
             State s;

@@ -40,7 +40,7 @@ namespace WoLChaosDepths
         {
             public float dashUntil, hitAndRunUntil, afterimageReady, movingSince = -1f, clearSince = -1f, lifebloomShowUntil;
             public float quickdrawUntil = -1f, fortifyUntil = -1f;
-            public bool fortifySet;
+            public bool fortifySet, sprinting;
             public Vector2 lastPos, dashDir;
             public readonly HashSet<int> tailspun = new HashSet<int>();
             public int shieldAdded;
@@ -291,6 +291,22 @@ namespace WoLChaosDepths
             EndSlows();
         }
 
+        /// <summary>#108 buff bar: this wizard's active Windrunner / Mender buffs.</summary>
+        public static void Buffs(Player player, List<KeyValuePair<string, int>> into)
+        {
+            State st;
+            if (player == null || !Talents.Enabled || !states.TryGetValue(player.playerID, out st))
+                return;
+            if (Time.time < st.hitAndRunUntil && Talents.Rank(player, "HitAndRun") > 0)
+                into.Add(new KeyValuePair<string, int>("HitAndRun", 0));
+            if (st.sprinting && Talents.Rank(player, "Untouchable") > 0)
+                into.Add(new KeyValuePair<string, int>("Untouchable", 0));
+            else if (st.sprinting && Talents.Rank(player, "Evasive") > 0)
+                into.Add(new KeyValuePair<string, int>("Evasive", 0));
+            if (st.shieldAdded > 0)
+                into.Add(new KeyValuePair<string, int>("Overheal", 0));
+        }
+
         private static State StateOf(Player player)
         {
             State st;
@@ -368,6 +384,7 @@ namespace WoLChaosDepths
             else if (st.movingSince < 0f)
                 st.movingSince = Time.time;
             bool sprinting = st.movingSince >= 0f && Time.time - st.movingSince >= SprintAfter;
+            st.sprinting = sprinting;
             int evasive = Talents.Rank(player, "Evasive");
             Points.Set(player, "Evade", "Talent.Evasive", sprinting && evasive > 0 ? EvasiveEvade * 100f : 0f);   // #114: points
             if (sprinting && evasive > 0)

@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.43.3";
+        public const string PluginVersion = "0.44.0";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -433,6 +433,7 @@ namespace WoLChaosDepths
                 ChaosSurge.Draw();
                 Layers.Draw();
                 Pickups.Draw();
+                BuffBar.Draw();   // #108: active talent buffs under each health bar
             }
             else if (!AnyPanelOpen && InProfile)
                 ProfileTag();

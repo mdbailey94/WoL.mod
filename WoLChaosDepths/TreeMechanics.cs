@@ -56,7 +56,7 @@ namespace WoLChaosDepths
             public readonly List<KeyValuePair<Vector2, float>> wake = new List<KeyValuePair<Vector2, float>>();
             public int dashes;
             public float galeStepUntil = -1f;   // a free dash owed until its cooldown starts (or 1 s)
-            public bool undyingUsed;
+            public bool undyingUsed, grandDesign, onWake;
             public float undyingUntil, undyingPending;
         }
 
@@ -118,6 +118,22 @@ namespace WoLChaosDepths
             }
         }
 
+        /// <summary>#108 buff bar: this wizard's active #110 perk buffs.</summary>
+        public static void Buffs(Player player, List<KeyValuePair<string, int>> into)
+        {
+            State s;
+            if (player == null || !Talents.Enabled || !states.TryGetValue(player.playerID, out s))
+                return;
+            if (s.focusStacks > 0 && Talents.Rank(player, "FocusFire") > 0)
+                into.Add(new KeyValuePair<string, int>("FocusFire", s.focusStacks));
+            if (s.grandDesign)
+                into.Add(new KeyValuePair<string, int>("GrandDesign", 0));
+            if (s.onWake)
+                into.Add(new KeyValuePair<string, int>("WindWake", 0));
+            if (Time.time < s.undyingUntil)
+                into.Add(new KeyValuePair<string, int>("UndyingLight", 0));
+        }
+
         private static State StateOf(Player player)
         {
             State s;
@@ -148,7 +164,8 @@ namespace WoLChaosDepths
                 float damage = 0f;
                 if (Talents.Rank(player, "Versatile") > 0)
                     damage += VersatileStep * Elements(player);
-                if (Talents.Rank(player, "GrandDesign") > 0 && AllStandardsCooling(player))
+                s.grandDesign = Talents.Rank(player, "GrandDesign") > 0 && AllStandardsCooling(player);
+                if (s.grandDesign)
                 {
                     damage += GrandDesignDamage;
                     Say(player, "GrandDesign", $"Grand Design: every standard arcana cooling down, +{GrandDesignDamage * 100f:0}% damage");
@@ -419,6 +436,7 @@ namespace WoLChaosDepths
                         on = true;
                         break;
                     }
+            s.onWake = on;
             Points.Set(player, "MoveSpeed", "Talent.WindWake", on ? WakePoints : 0f);
             if (on)
                 Say(player, "WindWake", $"Wind Wake: +{WakePoints:0} move speed points on the streak");
