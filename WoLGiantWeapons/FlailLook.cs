@@ -171,6 +171,7 @@ namespace WoLGiantWeapons
                     if (ball == null)
                         ball = Part("Ball", 2);
                     ball.transform.position = tip;
+                    SortBall();
                     ball.sprite = head[(int)(age * 12f) % head.Length];
                 }
                 else
@@ -203,9 +204,21 @@ namespace WoLGiantWeapons
                     if (ball == null)
                         ball = Part("Ball", 2);
                     ball.transform.position = tip;
+                    SortBall();
                     ball.sprite = head[(int)(age * 12f) % head.Length];
                 }
                 Chain(hand, tip, age);
+            }
+
+            // 0.9.1 (#101 audit B13): the ball is drawn behind the wizard when it's above (behind)
+            // them and in front when below, instead of always in front.
+            private void SortBall()
+            {
+                SpriteRenderer body = owner != null ? owner.spriteRenderer : null;
+                if (ball == null || body == null)
+                    return;
+                bool behind = ball.transform.position.y > owner.transform.position.y + 0.15f;
+                ball.sortingOrder = body.sortingOrder + (behind ? -2 : 2);
             }
 
             // The lightning chain from the hand to the ball, tiled in 0.5 u links.

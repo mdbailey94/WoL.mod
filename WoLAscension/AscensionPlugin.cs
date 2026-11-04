@@ -17,7 +17,7 @@ namespace WoLAscension
     {
         public const string PluginGuid = "mdbailey94.wol.ascension";
         public const string PluginName = "Ascension";
-        public const string PluginVersion = "0.8.2";
+        public const string PluginVersion = "0.8.3";
 
         private const string PlayerDamageTakenMod = "Ascension_DamageTaken";
         private const string PlayerHealingMod = "Ascension_Healing";
@@ -368,10 +368,12 @@ namespace WoLAscension
             }
         }
 
+        private readonly HashSet<int> bosses = new HashSet<int>();
+
         private void ApplyEnemyMods()
         {
             float speed = AscensionLevels.EnemySpeed(runLevel);
-            var bosses = new HashSet<int>();
+            bosses.Clear();   // reused (#101 cleanup: was a new set 4 times a second)
             if (GameController.bosses != null)
             {
                 foreach (GameObject boss in GameController.bosses)

@@ -88,6 +88,7 @@ namespace WoLChaosDepths
         // would be hooked again and get the orb's spirit twice; instance ids are never reused.
         public static void ClearScene()
         {
+            sparePuffs.Clear();   // scene objects; gone with the scene
             credited.Clear();
             chunksPaid.Clear();
         }
@@ -388,17 +389,38 @@ namespace WoLChaosDepths
             if (!moving || wispFrames == null || Time.time < s.nextWisp)
                 return;
             s.nextWisp = Time.time + wispEvery.Value;
-            var go = new GameObject("ChaosDepthsShadeWisp");
+            // #101 cleanup (0.36.5): wisps are reused (was a new GameObject every 0.08 s).
+            Puff puff = null;
+            while (sparePuffs.Count > 0 && puff == null)
+            {
+                puff = sparePuffs[sparePuffs.Count - 1];
+                sparePuffs.RemoveAt(sparePuffs.Count - 1);
+            }
+            GameObject go;
+            SpriteRenderer r;
+            if (puff != null)
+            {
+                go = puff.gameObject;
+                go.SetActive(true);
+                r = go.GetComponent<SpriteRenderer>();
+            }
+            else
+            {
+                go = new GameObject("ChaosDepthsShadeWisp");
+                r = go.AddComponent<SpriteRenderer>();
+                puff = go.AddComponent<Puff>();
+            }
             go.transform.position = at + new Vector2(UnityEngine.Random.Range(-0.15f, 0.15f), 0.4f);
-            var r = go.AddComponent<SpriteRenderer>();
             if (p.spriteRenderer != null)
             {
                 r.sortingLayerID = p.spriteRenderer.sortingLayerID;
                 r.sortingOrder = p.spriteRenderer.sortingOrder - 1;
             }
             r.color = new Color(1f, 1f, 1f, ghostAlpha.Value);
-            go.AddComponent<Puff>().Init(r, wispFrames, 12f);
+            puff.Init(r, wispFrames, 12f);
         }
+
+        private static readonly List<Puff> sparePuffs = new List<Puff>();
 
         private class Puff : MonoBehaviour
         {
@@ -420,7 +442,8 @@ namespace WoLChaosDepths
                 int f = (int)((Time.time - born) * fps);
                 if (f >= frames.Length)
                 {
-                    Destroy(gameObject);
+                    gameObject.SetActive(false);
+                    sparePuffs.Add(this);
                     return;
                 }
                 r.sprite = frames[f];
