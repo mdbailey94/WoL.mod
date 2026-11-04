@@ -13,7 +13,7 @@ namespace WoLM4
     {
         public const string PluginGuid = "mdbailey94.wol.m4";
         public const string PluginName = "M4";
-        public const string PluginVersion = "0.3.0";
+        public const string PluginVersion = "0.3.1";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;

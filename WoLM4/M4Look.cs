@@ -178,7 +178,7 @@ namespace WoLM4
             public float hideAt = -1f;
             private Vector2 aim = Vector2.right;
             private float kickUntil;
-            private float flashUntil;
+            private float flashUntil, flashFrom;
             private SpriteRenderer flash;
 
             public void Aim(Vector2 a)
@@ -199,7 +199,9 @@ namespace WoLM4
                     go.transform.SetParent(transform, false);
                     flash = go.AddComponent<SpriteRenderer>();
                 }
-                flashUntil = Time.time + 0.05f;
+                // Art's 3-frame flash plays once (25 ms a frame).
+                flashFrom = Time.time;
+                flashUntil = Time.time + 0.025f * Mathf.Max(2, Muzzle.Length);
             }
 
             private void LateUpdate()
@@ -242,7 +244,7 @@ namespace WoLM4
                     flash.enabled = Time.time < flashUntil;
                     if (flash.enabled)
                     {
-                        flash.sprite = Muzzle[0];
+                        flash.sprite = Muzzle[Mathf.Min(Muzzle.Length - 1, (int)((Time.time - flashFrom) / 0.025f))];
                         flash.transform.position = hand + aim * 1.0f;
                         flash.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg);
                         Sort(flash, owner, up ? -1 : 3);

@@ -21,7 +21,7 @@ namespace WoLGiantSpear
     {
         public const string PluginGuid = "mdbailey94.wol.giantspear";
         public const string PluginName = "Giant Air Spear";
-        public const string PluginVersion = "0.2.1";
+        public const string PluginVersion = "0.3.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;

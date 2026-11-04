@@ -12,12 +12,77 @@ namespace WoLGiantSpear
         public const float ButtX = 2f, TipX = 33f, FrameWidth = 48f;
         public static Sprite[] Thrust, Throw;
 
+        // #112 (0.3.0): WoL Art's air spear (the game's 3 air tones), drawn in 8 FACINGS so nothing
+        // is rotated: [facing][frame], facing 0 right, 1 down-right, 2 down, 3 down-left, 4 left,
+        // 5 up-left, 6 up, 7 up-right. Pivot = the front fist (Log - Art 13:48). Empty = fallback
+        // to the old right-facing strip turned to the aim.
+        public static readonly string[] FacingNames = { "right", "down_right", "down", "down_left", "left", "up_left", "up", "up_right" };
+        public static Sprite[][] Thrust8 = new Sprite[8][], Gold8 = new Sprite[8][], Throw8 = new Sprite[8][];
+        // Fist to tip of the thrust art, and the thrown lance's length, in pixels (for the scale).
+        public const float ThrustLength = 25f, ThrowLength = 40f;
+
         public static void Load(BepInEx.Logging.ManualLogSource log)
         {
             Thrust = Frames("spear_thrust.png", 48, new Vector2(ButtX / FrameWidth, 0.5f));
             // The thrown spear turns round its middle.
             Throw = Frames("giant_spear_throw.png", 48, new Vector2((ButtX + TipX) / 2f / FrameWidth, 0.5f));
-            log?.LogInfo($"Giant Air Spear art: thrust {Thrust.Length}, throw {Throw.Length} frames");
+            int loaded = 0;
+            for (int f = 0; f < 8; f++)
+            {
+                Thrust8[f] = Facing("spear_thrust_" + FacingNames[f] + ".png", f);
+                Gold8[f] = Facing("spear_thrust_gold_" + FacingNames[f] + ".png", f);
+                if (Thrust8[f].Length > 0)
+                    loaded++;
+            }
+            Texture2D rows = GiantSpearPlugin.LoadTexture("giant_spear_throw_8dir.png");
+            for (int f = 0; f < 8; f++)
+            {
+                Throw8[f] = new Sprite[0];
+                if (rows == null || rows.width < 48 || rows.height < 8 * 48)
+                    continue;
+                int count = rows.width / 48;
+                Throw8[f] = new Sprite[count];
+                // Row f from the TOP (textures count rows from the bottom).
+                float y = rows.height - (f + 1) * 48;
+                for (int i = 0; i < count; i++)
+                    Throw8[f][i] = Sprite.Create(rows, new Rect(i * 48, y, 48, 48), new Vector2(0.5f, 0.5f), 16f);
+            }
+            log?.LogInfo($"Giant Air Spear art: {loaded}/8 thrust facings, throw {(Throw8[0].Length > 0 ? "8 rows" : Throw.Length + " frames (turned)")}");
+        }
+
+        // The aim's facing, 45 degrees a sector (0 right, then clockwise on screen).
+        public static int FacingOf(Vector2 aim)
+        {
+            float degrees = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
+            return ((Mathf.RoundToInt(-degrees / 45f) % 8) + 8) % 8;
+        }
+
+        // Up, up-left and up-right draw behind the wizard (Art's draw order).
+        public static bool Behind(int facing) => facing >= 5;
+
+        private static Sprite[] Facing(string file, int facing)
+        {
+            Texture2D texture = GiantSpearPlugin.LoadTexture(file);
+            if (texture == null)
+                return new Sprite[0];
+            // Side strips 48x15, up/down 15x48, diagonals 48x48; the fist per Art's spec.
+            int w, h;
+            Vector2 fist;
+            switch (facing)
+            {
+                case 0: w = 48; h = 15; fist = new Vector2(20, 7); break;
+                case 4: w = 48; h = 15; fist = new Vector2(27, 7); break;
+                case 2: w = 15; h = 48; fist = new Vector2(7, 20); break;
+                case 6: w = 15; h = 48; fist = new Vector2(7, 27); break;
+                default: w = 48; h = 48; fist = new Vector2(23.5f, 23.5f); break;
+            }
+            if (texture.width < w || texture.height != h)
+                return new Sprite[0];
+            var pivot = new Vector2((fist.x + 0.5f) / w, 1f - (fist.y + 0.5f) / h);
+            var frames = new Sprite[texture.width / w];
+            for (int i = 0; i < frames.Length; i++)
+                frames[i] = Sprite.Create(texture, new Rect(i * w, 0, w, h), pivot, 16f);
+            return frames;
         }
 
         // How much to scale the art so the spear (butt to tip) is this long.
@@ -52,13 +117,28 @@ namespace WoLGiantSpear
                 Burst(enemy.transform.position, owner.skillCategory, skillID, 1, 0.3f);
                 hits++;
             }
-            float scale = SpearArt.ScaleFor(reach);
-            float angle = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
-            Anim.Play(SpearArt.Thrust, hand, angle, new Vector3(scale, scale, 1f), StabFps, owner);
+            int facing = SpearArt.FacingOf(aim);
+            Sprite[] set = enhanced && SpearArt.Gold8[facing].Length > 0 ? SpearArt.Gold8[facing] : SpearArt.Thrust8[facing];
+            float scale, angle;
+            int order = SpearArt.Behind(facing) ? -1 : 1;
+            if (set.Length > 0)
+            {
+                // #112: Art's facing, unturned; the fist on the hand, the tip at the reach.
+                scale = reach * 16f / SpearArt.ThrustLength;
+                angle = 0f;
+            }
+            else
+            {
+                set = SpearArt.Thrust;
+                scale = SpearArt.ScaleFor(reach);
+                angle = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
+                order = 1;
+            }
+            Anim.Play(set, hand, angle, new Vector3(scale, scale, 1f), StabFps, owner, order);
             // Two wind ghosts trailing the thrust.
-            if (SpearArt.Thrust.Length > 0)
+            if (set.Length > 0)
                 for (int i = 1; i <= 2; i++)
-                    Ghost.Leave(SpearArt.Thrust[0], hand - aim * (0.45f * i), angle, new Vector3(scale, scale, 1f), owner, 0.5f / i, 0.3f);
+                    Ghost.Leave(set[0], hand - aim * (0.45f * i), angle, new Vector3(scale, scale, 1f), owner, 0.5f / i, 0.3f);
             Trail(hand, hand + aim * reach);
             Sound("WindBlastSharp", hand, 0.75f);
             GiantSpearPlugin.Log($"Giant Air Spear: stab ({reach:0.0} u), {hits} hit");
@@ -139,7 +219,7 @@ namespace WoLGiantSpear
         private float fps, born;
         private SpriteRenderer look;
 
-        public static void Play(Sprite[] frames, Vector2 at, float angle, Vector3 scale, float fps, Player owner)
+        public static void Play(Sprite[] frames, Vector2 at, float angle, Vector3 scale, float fps, Player owner, int order = 1)
         {
             if (frames == null || frames.Length == 0)
                 return;
@@ -153,8 +233,9 @@ namespace WoLGiantSpear
             a.born = Time.time;
             a.look = go.AddComponent<SpriteRenderer>();
             a.look.sprite = frames[0];
-            a.look.color = Spear.WindTint;
-            Spear.Sort(a.look, owner, 1);
+            // #112: Art's air tones are drawn as they are (the old wooden spear was tinted to wind).
+            a.look.color = SpearArt.Thrust8[0].Length > 0 ? Color.white : Spear.WindTint;
+            Spear.Sort(a.look, owner, order);
         }
 
         private void Update()
@@ -201,7 +282,7 @@ namespace WoLGiantSpear
                 Destroy(gameObject);
                 return;
             }
-            Color c = Spear.WindTint;
+            Color c = SpearArt.Thrust8[0].Length > 0 ? Color.white : Spear.WindTint;
             c.a = alpha * (1f - t);
             look.color = c;
         }
@@ -232,22 +313,37 @@ namespace WoLGiantSpear
             spear.enhanced = enhanced;
             spear.range = GiantSpearPlugin.ThrowRange * (enhanced ? GiantSpearPlugin.EnhancedReach : 1f);
             spear.born = Time.time;
-            float scale = SpearArt.ScaleFor(GiantSpearPlugin.StabReach);
+            bool rows = SpearArt.Throw8[0].Length >= 4;
+            float scale = rows ? GiantSpearPlugin.StabReach * 16f / SpearArt.ThrowLength : SpearArt.ScaleFor(GiantSpearPlugin.StabReach);
             go.transform.localScale = new Vector3(scale, scale, 1f);
             spear.look = go.AddComponent<SpriteRenderer>();
             if (SpearArt.Throw.Length > 0)
                 spear.look.sprite = SpearArt.Throw[0];
-            spear.look.color = Spear.WindTint;
+            spear.look.color = rows ? Color.white : Spear.WindTint;
             Spear.Sort(spear.look, owner, 1);
             spear.Face(aim);
             Spear.Sound("WindBoomerang", hand, 0.8f);
             GiantSpearPlugin.Log($"Giant Air Spear: thrown ({spear.range:0.0} u{(enhanced ? ", gust" : "")})");
         }
 
+        private int facing = -1;
+
+        // #112: with Art's 8-row throw the row is picked by the flight's angle (no rotation);
+        // the old single strip is turned to it.
         private void Face(Vector2 towards)
         {
+            if (SpearArt.Throw8[0].Length >= 4)
+            {
+                facing = SpearArt.FacingOf(towards);
+                transform.rotation = Quaternion.identity;
+                if (look != null)
+                    Spear.Sort(look, owner, SpearArt.Behind(facing) ? -1 : 1);
+                return;
+            }
             transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(towards.y, towards.x) * Mathf.Rad2Deg);
         }
+
+        private Sprite[] Flight => facing >= 0 && SpearArt.Throw8[facing].Length >= 4 ? SpearArt.Throw8[facing] : SpearArt.Throw;
 
         private void Update()
         {
@@ -258,8 +354,9 @@ namespace WoLGiantSpear
             }
             // The release burst first, then the wind-streak frames 1-3 loop in flight.
             float age = Time.time - born;
-            if (SpearArt.Throw.Length >= 4)
-                look.sprite = age < ReleaseTime ? SpearArt.Throw[0] : SpearArt.Throw[1 + (int)((age - ReleaseTime) * 14f) % 3];
+            Sprite[] flight = Flight;
+            if (flight.Length >= 4)
+                look.sprite = age < ReleaseTime ? flight[0] : flight[1 + (int)((age - ReleaseTime) * 14f) % 3];
             if (Time.time >= nextGhost)
             {
                 nextGhost = Time.time + GhostEvery;
@@ -269,7 +366,7 @@ namespace WoLGiantSpear
             {
                 nextTrail = Time.time + TrailEvery;
                 Vector2 now = transform.position;
-                Spear.Trail(now - (Vector2)(transform.rotation * Vector3.right) * 1.5f, now);
+                Spear.Trail(now - (returning ? ((Vector2)owner.transform.position - now).normalized : dir) * 1.5f, now);
             }
 
             // Blowing away at the end of its flight: it drifts on a little, fading.
@@ -281,7 +378,7 @@ namespace WoLGiantSpear
                     Destroy(gameObject);
                     return;
                 }
-                Color c = Spear.WindTint;
+                Color c = SpearArt.Throw8[0].Length >= 4 ? Color.white : Spear.WindTint;
                 c.a *= 1f - t;
                 look.color = c;
                 transform.position = (Vector2)transform.position + dir * GiantSpearPlugin.ThrowSpeed * 0.3f * Time.deltaTime;

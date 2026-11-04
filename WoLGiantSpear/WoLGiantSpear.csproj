@@ -42,6 +42,9 @@
     <EmbeddedResource Include="Assets\giant_spear_icon.png" LogicalName="WoLGiantSpear.Assets.giant_spear_icon.png" />
     <EmbeddedResource Include="Assets\spear_thrust.png" LogicalName="WoLGiantSpear.Assets.spear_thrust.png" />
     <EmbeddedResource Include="Assets\giant_spear_throw.png" LogicalName="WoLGiantSpear.Assets.giant_spear_throw.png" />
+    <!-- #112: WoL Art's air spear in 8 facings (thrust, gold thrust) and the 8-row throw. -->
+    <EmbeddedResource Include="Assets\spear_thrust_*.png" LogicalName="WoLGiantSpear.Assets.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Assets\giant_spear_throw_8dir.png" LogicalName="WoLGiantSpear.Assets.giant_spear_throw_8dir.png" />
   </ItemGroup>
 
   <Target Name="CopyToPlugins" AfterTargets="Build" Condition="Exists('$(GameDir)\BepInEx\plugins')">
