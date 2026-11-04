@@ -302,8 +302,16 @@ namespace WoLGiantWeapons
                 if (Time.time < next)
                     return;
                 next = Time.time + 0.3f;
+                // 0.12.2: only an enemy that isn't slowed yet gets the (no-damage) chill hit, so the
+                // ring no longer lands a 0-damage hit (flinch, hit sound, on-hit effects) on every
+                // enemy in it every 0.3 s; it re-chills one whose slow wore off.
                 foreach (GameObject enemy in Heavy.Near(transform.position, radius))
+                {
+                    Entity e = enemy.GetComponent<Entity>();
+                    if (e != null && e.dotManager != null && e.dotManager.HasDot(SlowDotEffect.slowStatusStr))
+                        continue;
                     Heavy.Ice(Heavy.Body(enemy), owner, skillID, 5, 0.3f);
+                }
                 Heavy.Dust(transform.position, 6, radius);
             }
         }

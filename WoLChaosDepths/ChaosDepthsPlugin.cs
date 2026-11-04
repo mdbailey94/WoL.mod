@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.38.0";
+        public const string PluginVersion = "0.38.1";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -114,7 +114,7 @@ namespace WoLChaosDepths
             freshDropChance = Config.Bind("Loot", "FreshDropChance", 0.06f,
                 new ConfigDescription("DropChance in the profile's fresh save (WoL Player's balanced rates, #31); DropChance is used in the Debugging save.", new AcceptableValueRange<float>(0f, 1f)));
             freshDropChanceZero = Config.Bind("Loot", "FreshDropChanceAtAscension0", 0.03f,
-                new ConfigDescription("FreshDropChance at Ascension 0 (Matt: the game on its own comes first; from level 1, FreshDropChance).", new AcceptableValueRange<float>(0f, 1f)));
+                new ConfigDescription("NOT USED at the moment (the fresh save uses FreshDropChance at every Ascension level); kept for Matt's call on a lower Ascension 0 rate.", new AcceptableValueRange<float>(0f, 1f)));
             // Balance settings (0.17.2, asked for by Matt); the defaults keep the drops as they were.
             bossDropChance = Config.Bind("Loot", "BossDropChance", 1f,
                 new ConfigDescription("Chance a realm boss drops an item (1 = always). Guaranteed Legendaries and the testing unique still drop.", new AcceptableValueRange<float>(0f, 1f)));

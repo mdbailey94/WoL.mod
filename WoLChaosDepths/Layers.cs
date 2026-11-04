@@ -36,9 +36,9 @@ namespace WoLChaosDepths
         public static void Bind(ConfigFile config)
         {
             layerEvery = config.Bind("Layers", "LayerEvery", 5,
-                new ConfigDescription("Every this many depths, the realm boss is a layer boss (0 = never).", new AcceptableValueRange<int>(0, 50)));
-            layerHealth = config.Bind("Layers", "LayerBossHealth", 0.5f, "Extra health for a layer boss, on top of depth (0.5 = +50%).");
-            layerXp = config.Bind("Layers", "LayerBossXp", 2f, "Experience multiplier for a layer boss, on top of a boss's usual.");
+                new ConfigDescription("Every this many depths, the realm boss is a layer boss (0 = never). NOT USED: depths are off since 0.14.0 (Ascension sets the difficulty); kept in case depths come back.", new AcceptableValueRange<int>(0, 50)));
+            layerHealth = config.Bind("Layers", "LayerBossHealth", 0.5f, "Extra health for a layer boss, on top of depth (0.5 = +50%). NOT USED: depths are off since 0.14.0 (Ascension sets the difficulty); kept in case depths come back.");
+            layerXp = config.Bind("Layers", "LayerBossXp", 2f, "Experience multiplier for a layer boss, on top of a boss's usual. NOT USED: depths are off since 0.14.0 (Ascension sets the difficulty); kept in case depths come back.");
             riftChance = config.Bind("Rifts", "Chance", 0.25f,
                 new ConfigDescription("Chance a trial floor (not a boss arena) opens as a rift.", new AcceptableValueRange<float>(0f, 1f)));
             riftSeconds = config.Bind("Rifts", "Seconds", 180f, "How long a rift stays open.");

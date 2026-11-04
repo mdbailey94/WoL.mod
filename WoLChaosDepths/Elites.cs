@@ -82,9 +82,9 @@ namespace WoLChaosDepths
         {
             enabled = config.Bind("Elites", "Enabled", true, "Ordinary enemies can spawn as elites in the trials.");
             chance = config.Bind("Elites", "Chance", 0.08f,
-                new ConfigDescription("Chance an ordinary enemy spawns as an elite.", new AcceptableValueRange<float>(0f, 1f)));
+                new ConfigDescription("Chance an ordinary enemy spawns as an elite. Only used WITHOUT the Ascension mod (its table sets the chance; ChanceAtAscension0 at Ascension 0).", new AcceptableValueRange<float>(0f, 1f)));
             chancePerAscension = config.Bind("Elites", "ChancePerAscension", 0.01f,
-                "Added to the elite chance per Ascension level (Ascension mod).");
+                "Added to the elite chance per Ascension level. Only used WITHOUT the Ascension mod's table (see Chance).");
             zeroChance = config.Bind("Elites", "ChanceAtAscension0", 0.04f,
                 new ConfigDescription("Chance an ordinary enemy spawns as an elite at Ascension 0 (from level 1, Ascension's table sets it).", new AcceptableValueRange<float>(0f, 1f)));
             // New keys in 0.15.9 (the old DropChanceAtAscension0 = 0.5 stays in config files

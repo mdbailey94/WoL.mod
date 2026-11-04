@@ -54,11 +54,11 @@ namespace WoLChaosDepths
 
         public static void Bind(ConfigFile config)
         {
-            healthPerDepth = config.Bind("Depth", "EnemyHealthPerDepth", 0.06f, "Enemy and boss health per depth below the first (0.06 = +6% each).");
-            damagePerDepth = config.Bind("Depth", "EnemyDamagePerDepth", 0.04f, "Damage you take per depth below the first (0.04 = +4% each).");
-            xpPerDepth = config.Bind("Depth", "XpPerDepth", 0.05f, "Experience per depth below the first (0.05 = +5% each).");
-            rarityPerDepth = config.Bind("Depth", "RarityBoostPerDepth", 0.05f, "Magic and better rarities per depth below the first (0.05 = +5% weight each).");
-            itemLevelsPerDepth = config.Bind("Depth", "ItemLevelsPerDepth", 1, "Item levels added per depth below the first.");
+            healthPerDepth = config.Bind("Depth", "EnemyHealthPerDepth", 0.06f, "Enemy and boss health per depth below the first (0.06 = +6% each). NOT USED: depths are off since 0.14.0 (Ascension sets the difficulty); kept in case depths come back.");
+            damagePerDepth = config.Bind("Depth", "EnemyDamagePerDepth", 0.04f, "Damage you take per depth below the first (0.04 = +4% each). NOT USED: depths are off since 0.14.0 (Ascension sets the difficulty); kept in case depths come back.");
+            xpPerDepth = config.Bind("Depth", "XpPerDepth", 0.05f, "Experience per depth below the first (0.05 = +5% each). NOT USED: depths are off since 0.14.0 (Ascension sets the difficulty); kept in case depths come back.");
+            rarityPerDepth = config.Bind("Depth", "RarityBoostPerDepth", 0.05f, "Magic and better rarities per depth below the first (0.05 = +5% weight each). NOT USED: depths are off since 0.14.0 (Ascension sets the difficulty); kept in case depths come back.");
+            itemLevelsPerDepth = config.Bind("Depth", "ItemLevelsPerDepth", 1, "Item levels added per depth below the first. NOT USED: depths are off since 0.14.0 (Ascension sets the difficulty); kept in case depths come back.");
             // Scale bosses the moment they spawn, not on the next half-second scan (the auto-dive
             // could kill an altar floor boss before the scan reached it).
             try

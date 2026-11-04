@@ -85,7 +85,7 @@ namespace WoLFlamingWhip
                 float native = sigil == WhipArt.SigilEnh ? 0.75f : 0.5f;   // its ring's x radius in units
                 float k = Mathf.Max(1f, Mathf.Round(spotRadius / native * 2f) / 2f);   // whole or half steps
                 float wind = Mathf.Max(0.05f, FlamingWhipPlugin.WindUp);
-                Anim.Play(sigil, hand + aim * FlamingWhipPlugin.CrackDistance, 0f, new Vector3(k, k, 1f), 6f / wind, owner, true, wind);
+                Anim.Play(sigil, hand + aim * FlamingWhipPlugin.CrackDistance, 0f, new Vector3(k, k, 1f), 6f / wind, owner, true, wind, floor: true);
             }
             if (WhipArt.HasArc)
             {
@@ -245,6 +245,27 @@ namespace WoLFlamingWhip
             return found;
         }
 
+        // 0.8.1: floor art (the fire line, the sigil) goes on the game's floor-mark layer
+        // ("TargetLineGround", what its own target lines use), so enemies and wizards standing on it
+        // are drawn over it; before, it sat one step behind the wizard and covered enemies above him.
+        private static int floorLayer = int.MinValue;
+
+        internal static void Floor(SpriteRenderer r, Player owner)
+        {
+            if (floorLayer == int.MinValue)
+            {
+                int id = SortingLayer.NameToID("TargetLineGround");
+                floorLayer = SortingLayer.IsValid(id) ? id : -1;
+            }
+            if (floorLayer != -1)
+            {
+                r.sortingLayerID = floorLayer;
+                r.sortingOrder = 0;
+            }
+            else
+                Sort(r, owner, -50);
+        }
+
         internal static void Sort(SpriteRenderer r, Player owner, int offset)
         {
             SpriteRenderer wizard = owner != null ? owner.GetComponentInChildren<SpriteRenderer>() : null;
@@ -265,7 +286,7 @@ namespace WoLFlamingWhip
 
         // holdUntil > 0: the last frame stays up until that many seconds after the start;
         // delay > 0: it starts that many seconds from now (hidden until then).
-        public static void Play(Sprite[] frames, Vector2 at, float angle, Vector3 scale, float fps, Player owner, bool behind, float holdUntil = 0f, float delay = 0f)
+        public static void Play(Sprite[] frames, Vector2 at, float angle, Vector3 scale, float fps, Player owner, bool behind, float holdUntil = 0f, float delay = 0f, bool floor = false)
         {
             if (frames == null || frames.Length == 0)
                 return;
@@ -281,7 +302,10 @@ namespace WoLFlamingWhip
             a.look = go.AddComponent<SpriteRenderer>();
             a.look.sprite = frames[0];
             a.look.enabled = delay <= 0f;
-            Whip.Sort(a.look, owner, behind ? -1 : 1);
+            if (floor)
+                Whip.Floor(a.look, owner);
+            else
+                Whip.Sort(a.look, owner, behind ? -1 : 1);
         }
 
         private void Update()
@@ -338,7 +362,7 @@ namespace WoLFlamingWhip
                 tile.transform.position = from + dir * i;
                 tile.transform.rotation = Quaternion.Euler(0f, 0f, angle);
                 SpriteRenderer r = tile.AddComponent<SpriteRenderer>();
-                Whip.Sort(r, owner, -1);
+                Whip.Floor(r, owner);
                 line.tiles.Add(r);
             }
             Destroy(go, FlamingWhipPlugin.FireLineTime);
