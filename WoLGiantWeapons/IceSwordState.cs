@@ -102,18 +102,28 @@ namespace WoLGiantWeapons
 
         // Hits 1-2 (#93, Matt): a 45-degree swing, hit 1 clockwise and hit 2 counterclockwise;
         // the hit box is the same 45 degrees (SwingArc) in front, at SwingReach.
+        // 0.6.0 (#95): heavy: the hit lands as the blade comes through the middle of its arc
+        // (it reaches half the sweep at EaseTimeOf(0.5) of HeavySwingTime, ~71% at Momentum 2).
         private void Swing(Vector2 hand, Vector2 aim)
         {
-            int hits = 0;
-            foreach (GameObject enemy in Heavy.InArc(hand, aim, GiantWeaponsPlugin.SwingReach, GiantWeaponsPlugin.SwingArc * 0.5f))
-            {
-                Heavy.Ice(enemy.transform.position, parent, skillID, 1, 0.3f);
-                hits++;
-            }
             float half = GiantWeaponsPlugin.SwingArc * 0.5f;
             bool clockwise = comboCounter % 2 == 1;   // hit 1 clockwise, hit 2 back
             FrostBlade.Sweep(parent, skillID, aim, clockwise ? half : -half, clockwise ? -2f * half : 2f * half, GiantWeaponsPlugin.SwingTurnTime);
-            GiantWeaponsPlugin.Log($"Giant Ice Sword: swing {comboCounter} ({(clockwise ? "clockwise" : "counterclockwise")} {2f * half:0} deg), {hits} hit");
+            Player p = parent;
+            string id = skillID;
+            int n = comboCounter;
+            Heavy.After(GiantWeaponsPlugin.SwingTurnTime * GiantWeaponsPlugin.EaseTimeOf(0.5f), () =>
+            {
+                if (p == null)
+                    return;
+                int hits = 0;
+                foreach (GameObject enemy in Heavy.InArc(Heavy.Hand(p), aim, GiantWeaponsPlugin.SwingReach, half))
+                {
+                    Heavy.Ice(enemy.transform.position, p, id, 1, 0.3f);
+                    hits++;
+                }
+                GiantWeaponsPlugin.Log($"Giant Ice Sword: swing {n} ({(clockwise ? "clockwise" : "counterclockwise")} {2f * half:0} deg), {hits} hit");
+            });
         }
 
         // Hit 3 (#93, Matt): always one 360-degree spin, clockwise from the aim, over SpinTime.
@@ -138,7 +148,8 @@ namespace WoLGiantWeapons
                 // Clockwise = decreasing angle; slice i is centred (i + 0.5) slices past the aim.
                 float centre = (aimDeg - (i + 0.5f) * slice) * Mathf.Deg2Rad;
                 var dir = new Vector2(Mathf.Cos(centre), Mathf.Sin(centre));
-                float delay = (i + 1) * GiantWeaponsPlugin.SpinTime / slices;
+                // The blade passes the end of slice i when the eased turn reaches (i+1)/slices.
+                float delay = GiantWeaponsPlugin.SpinTime * GiantWeaponsPlugin.EaseTimeOf((i + 1f) / slices);
                 Heavy.After(delay, () =>
                 {
                     if (p == null)

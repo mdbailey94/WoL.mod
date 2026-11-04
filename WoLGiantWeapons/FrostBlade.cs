@@ -46,6 +46,8 @@ namespace WoLGiantWeapons
                 d.spin = spin;
                 d.spinTime = Mathf.Max(0.1f, spinTime);
                 d.sweep = sweepDeg;
+                d.aimDeg = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
+                d.fromDeg = fromDeg;
                 d.turnFrom = rotator.localEulerAngles.z + fromDeg + GiantWeaponsPlugin.SwordAngleOffset;
                 rotator.localEulerAngles = new Vector3(0f, 0f, d.turnFrom);
             }
@@ -57,13 +59,21 @@ namespace WoLGiantWeapons
 
         // Plays the swing once it has appeared (or spins it), then shatters it; never lingers past
         // a few seconds.
+        // 0.6.0 (#95, Matt: "swings the wrong directions"): the blade is steered by where it
+        // actually IS, not by the rotator's angle. Each frame the blade's direction is measured
+        // (hand to the middle of its picture) and the rotator is turned by the difference to the
+        // wanted angle, so the prefab's own mirroring and animation can't flip the sweep: hit 1
+        // goes clockwise and hit 2 counterclockwise for every aim. HEAVY: the angle follows
+        // t^Momentum (slow start, gaining speed to the end), the same curve the hits use.
         private class Driver : MonoBehaviour
         {
             public IceSword sword;
             public bool spin;
             public float spinTime, turnFrom, sweep = 720f;
+            public float aimDeg, fromDeg;
             private float born = -1f;
             private bool swinging;
+            private SpriteRenderer blade;
 
             private void Update()
             {
@@ -81,8 +91,8 @@ namespace WoLGiantWeapons
                 if (spin)
                 {
                     float t = Mathf.Clamp01(age / spinTime);
-                    var e = transform.localEulerAngles;
-                    transform.localEulerAngles = new Vector3(e.x, e.y, turnFrom + sweep * t);
+                    float want = aimDeg + fromDeg + sweep * GiantWeaponsPlugin.Ease(t) + GiantWeaponsPlugin.SwordAngleOffset;
+                    Steer(want);
                     if (t >= 1f)
                         sword.EndSwing();
                     return;
@@ -98,6 +108,34 @@ namespace WoLGiantWeapons
                 }
                 if (sword.anim.GetCurrentAnimatorStateInfo(0).normalizedTime >= 1f)
                     sword.EndSwing();
+            }
+
+            // Turns the rotator so the blade points at `want` degrees (world, counterclockwise from
+            // +x). Before the blade has a picture, the rotator's own angle is used as a guess.
+            private void Steer(float want)
+            {
+                if (blade == null)
+                {
+                    float biggest = 0f;
+                    foreach (SpriteRenderer r in sword.GetComponentsInChildren<SpriteRenderer>())
+                    {
+                        float size = r.bounds.size.sqrMagnitude;
+                        if (r.enabled && r.sprite != null && size > biggest)
+                        {
+                            biggest = size;
+                            blade = r;
+                        }
+                    }
+                }
+                Vector2 d = blade != null ? (Vector2)(blade.bounds.center - transform.position) : Vector2.zero;
+                var e = transform.localEulerAngles;
+                if (d.sqrMagnitude < 0.04f)
+                {
+                    transform.localEulerAngles = new Vector3(e.x, e.y, turnFrom + (want - aimDeg - fromDeg));
+                    return;
+                }
+                float now = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;
+                transform.localEulerAngles = new Vector3(e.x, e.y, e.z + Mathf.DeltaAngle(now, want));
             }
         }
     }

@@ -17,7 +17,7 @@ namespace WoLGiantWeapons
     {
         public const string PluginGuid = "mdbailey94.wol.giantweapons";
         public const string PluginName = "Giant Weapons";
-        public const string PluginVersion = "0.5.1";
+        public const string PluginVersion = "0.6.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> swordEnabled, flailEnabled;
@@ -29,8 +29,8 @@ namespace WoLGiantWeapons
         private static ConfigEntry<float> swordPace, swingReach, swingArc, chopReach, spinMin, spinFull, spinRadius, fullSpinRadius,
             spinTime, enhancedSpinWidth, frostRingTime;
         private static ConfigEntry<int> spinHits;
-        private static ConfigEntry<float> swordScale, swordSwingSpeed, swingTurnTime, swordAngleOffset;
-        private static ConfigEntry<float> flailPace, circleTime, blurAlpha, circleRadius, slamDistance, slamRadius, slamWindUp, arcReach;
+        private static ConfigEntry<float> swordScale, swordSwingSpeed, swingTurnTime, swordAngleOffset, momentum;
+        private static ConfigEntry<float> flailPace, circleTime, blurAlpha, raiseShare, overheadHeight, circleRadius, slamDistance, slamRadius, slamWindUp, arcReach;
         private static ConfigEntry<int> arcTargets, circleSlices;
         private static ConfigEntry<int> swingDamage, chopDamage, spinDamage, fullSpinDamage, circleDamage, slamDamage, arcDamage;
 
@@ -43,21 +43,28 @@ namespace WoLGiantWeapons
         public static float SpinRadius => Get(spinRadius, 2.5f, 0.5f, 8f);
         public static float FullSpinRadius => Get(fullSpinRadius, 3f, 0.5f, 8f);
         public static int SpinHits => Mathf.Clamp(spinHits?.Value ?? 4, 1, 12);
-        public static float SpinTime => Get(spinTime, 0.5f, 0.1f, 3f);
+        public static float SpinTime => Get(spinTime, 0.7f, 0.1f, 3f);
         public static float EnhancedSpinWidth => Get(enhancedSpinWidth, 1.3f, 1f, 3f);
         public static float FrostRingTime => Get(frostRingTime, 1.5f, 0.2f, 6f);
         public static float SwordScale => Get(swordScale, 0.7f, 0.2f, 2f);
         public static float SwordSwingSpeed => Get(swordSwingSpeed, 1f, 0.2f, 4f);
-        public static float SwingTurnTime => Get(swingTurnTime, 0.22f, 0.05f, 1f);
+        public static float SwingTurnTime => Get(swingTurnTime, 0.32f, 0.05f, 1.5f);
+        public static float Momentum => Get(momentum, 2f, 1f, 4f);
+        // The heavy curve (#95): the share of the turn done at time share t (slow start, speeding up).
+        public static float Ease(float t) => Mathf.Pow(Mathf.Clamp01(t), Momentum);
+        // When the turn reaches share `done` (inverse of Ease).
+        public static float EaseTimeOf(float done) => Mathf.Pow(Mathf.Clamp01(done), 1f / Momentum);
         public static float SwordAngleOffset => Get(swordAngleOffset, 0f, -180f, 180f);
         public static float FlailPace => Get(flailPace, 0.6f, 0.3f, 1f);
         public static float CircleTime => Get(circleTime, 0.45f, 0.15f, 2f);
         public static float FlailBlurAlpha => Get(blurAlpha, 0.45f, 0f, 1f);
         public static int CircleSlices => Mathf.Clamp(circleSlices?.Value ?? 4, 1, 12);
-        public static float CircleRadius => Get(circleRadius, 2f, 0.5f, 6f);
+        public static float CircleRadius => Get(circleRadius, 2.6f, 0.5f, 6f);
+        public static float RaiseShare => Get(raiseShare, 0.65f, 0.2f, 0.9f);
+        public static float OverheadHeight => Get(overheadHeight, 1.8f, 0.5f, 4f);
         public static float SlamDistance => Get(slamDistance, 2.5f, 0.5f, 6f);
-        public static float SlamRadius => Get(slamRadius, 1.5f, 0.3f, 5f);
-        public static float SlamWindUp => Get(slamWindUp, 0.4f, 0f, 1.5f);
+        public static float SlamRadius => Get(slamRadius, 2f, 0.3f, 5f);
+        public static float SlamWindUp => Get(slamWindUp, 0.6f, 0f, 2f);
         public static float ArcReach => Get(arcReach, 4f, 0.5f, 10f);
         public static int ArcTargets => Mathf.Clamp(arcTargets?.Value ?? 3, 0, 12);
 
@@ -164,22 +171,25 @@ namespace WoLGiantWeapons
             spinRadius = Float("Ice Sword", "SpinRadius", 2.5f, 0.5f, 8f, "Radius of a tapped spin (and a charged one at the least charge).");
             fullSpinRadius = Float("Ice Sword", "FullSpinRadius", 3f, 0.5f, 8f, "Radius of a full-charge spin.");
             spinHits = Config.Bind("Ice Sword", "SpinSlices", 4, new ConfigDescription("The spin's one turn is cut into this many slices; an enemy is hit once, as the blade passes its slice (0.4.0).", new AcceptableValueRange<int>(1, 12)));
-            spinTime = Float("Ice Sword", "SpinTurnTime", 0.5f, 0.1f, 3f, "Seconds for the spin's one 360-degree turn (0.4.0).");
+            spinTime = Float("Ice Sword", "HeavySpinTime", 0.7f, 0.1f, 3f, "Seconds for the spin's one 360-degree turn (0.6.0, #95: slower start, gaining momentum; the old SpinTurnTime key is unused).");
             enhancedSpinWidth = Float("Ice Sword", "EnhancedSpinWidth", 1.3f, 1f, 3f, "How much wider the spin is when enhanced.");
             frostRingTime = Float("Ice Sword", "FrostRingTime", 1.5f, 0.2f, 6f, "Seconds the enhanced frost ring stays on the floor, slowing enemies.");
             swordScale = Float("Ice Sword", "SwordScale", 0.7f, 0.2f, 2f, "Size of the drawn sword (the game's ice boss greatsword; 1 = the boss's own size). Looks only; the hits are the reaches above.");
             swordSwingSpeed = Float("Ice Sword", "SwordSwingSpeed", 1f, 0.2f, 4f, "Unused since 0.4.0 (the blade is turned by the mod).");
-            swingTurnTime = Float("Ice Sword", "SwingTurnTime", 0.22f, 0.05f, 1f, "Seconds the drawn blade takes to turn through a 45-degree swing.");
+            swingTurnTime = Float("Ice Sword", "HeavySwingTime", 0.32f, 0.05f, 1.5f, "Seconds for a 45-degree swing (0.6.0, #95: slower, heavy; the hit lands as the blade finishes the swing). The old SwingTurnTime key is unused.");
+            momentum = Float("Ice Sword", "Momentum", 2f, 1f, 4f, "How much the swings and the spin speed up as they go: 1 = steady, 2 = slow start gaining momentum (the heavy feel), 3 = heavier still.");
             swordAngleOffset = Float("Ice Sword", "SwordAngleOffset", 0f, -180f, 180f, "Turns the drawn blade's starting angle, if it doesn't line up with the aim (looks only).");
 
             flailPace = Float("Flail", "SwingPace", 0.6f, 0.3f, 1f, "How fast the wizard's swings play (0.6 = 40% slower; 1 = normal). 0.5.0 (#92): a new key, swings about 17% longer than the old Pace 0.7, which is unused now.");
             circleTime = Float("Flail", "CircleTime", 0.45f, 0.15f, 2f, "Seconds for the ball to go once round on hits 1-2 (was 0.35).");
             circleSlices = Config.Bind("Flail", "CircleSlices", 4, new ConfigDescription("The circle is cut into this many slices; an enemy is hit once, as the ball passes its slice.", new AcceptableValueRange<int>(1, 12)));
             blurAlpha = Float("Flail", "BlurAlpha", 0.45f, 0f, 1f, "How strongly the motion-blur ring shows behind the ball (0 = only the ball and chain).");
-            circleRadius = Float("Flail", "CircleRadius", 2f, 0.5f, 6f, "Radius round the wizard of hits 1 and 2 (the circle swings).");
+            circleRadius = Float("Flail", "CircleReach", 2.6f, 0.5f, 6f, "Radius round the wizard of hits 1 and 2, where the ball goes (0.6.0, #97: bigger, was 2; the old CircleRadius key is unused).");
             slamDistance = Float("Flail", "SlamDistance", 2.5f, 0.5f, 6f, "How far ahead the slam lands, in units.");
-            slamRadius = Float("Flail", "SlamRadius", 1.5f, 0.3f, 5f, "Radius of the slam.");
-            slamWindUp = Float("Flail", "SlamWindUp", 0.4f, 0f, 1.5f, "Seconds from the third press to the slam.");
+            slamRadius = Float("Flail", "SlamReach", 2f, 0.3f, 5f, "Radius of the slam (0.6.0, #97: bigger, was 1.5; the old SlamRadius key is unused).");
+            slamWindUp = Float("Flail", "OverheadWindUp", 0.6f, 0f, 2f, "Seconds from the third press to the slam: the ball rises slowly over the head, then comes down hard (0.6.0, #97; was 0.4; the old SlamWindUp key is unused).");
+            raiseShare = Float("Flail", "RaiseShare", 0.65f, 0.2f, 0.9f, "Share of the wind-up spent lifting the ball overhead; the rest is the fast drop onto the spot.");
+            overheadHeight = Float("Flail", "OverheadHeight", 1.8f, 0.5f, 4f, "How high over the wizard the ball goes before the slam, in units.");
             arcReach = Float("Flail", "ArcReach", 4f, 0.5f, 10f, "How far the enhanced slam's lightning arcs reach.");
             arcTargets = Config.Bind("Flail", "ArcTargets", 3, new ConfigDescription("Enemies the enhanced slam arcs to.", new AcceptableValueRange<int>(0, 12)));
 

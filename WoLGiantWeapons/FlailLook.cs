@@ -177,8 +177,29 @@ namespace WoLGiantWeapons
                 {
                     // Out to the spot over the wind-up, then held there for the impact.
                     transform.position = Vector3.zero;
-                    float reach = Mathf.Clamp01(age / reachTime);
-                    tip = Vector2.Lerp(hand, spot, reach * reach);
+                    // 0.6.0 (#97): an OVER-THE-TOP swing. For the first RaiseShare of the wind-up the
+                    // ball rises slowly (smoothstep) from the hand to high over the wizard's head;
+                    // then it comes down fast (t^3) on an arc over the top onto the spot.
+                    float u = Mathf.Clamp01(age / reachTime);
+                    float raise = GiantWeaponsPlugin.RaiseShare;
+                    Vector2 apex = (Vector2)owner.transform.position + new Vector2(0f, GiantWeaponsPlugin.OverheadHeight)
+                        - (spot - hand).normalized * 0.4f;   // a little behind the head, so it comes over
+                    if (u < raise)
+                    {
+                        float k = u / raise;
+                        k = k * k * (3f - 2f * k);
+                        tip = Vector2.Lerp(hand, apex, k);
+                    }
+                    else
+                    {
+                        float k = (u - raise) / (1f - raise);
+                        k = k * k * k;
+                        // A bowed path: the midpoint lifted so it reads as coming over the top.
+                        Vector2 mid = (apex + spot) * 0.5f + new Vector2(0f, 0.6f);
+                        tip = Vector2.Lerp(Vector2.Lerp(apex, mid, k), Vector2.Lerp(mid, spot, k), k);
+                    }
+                    if (ball != null)
+                        ball.transform.localScale = Vector3.one * (u < 1f ? 1f + 0.25f * Mathf.Sin(Mathf.PI * Mathf.Min(1f, u / raise)) : 1f);
                     if (ball == null)
                         ball = Part("Ball", 2);
                     ball.transform.position = tip;

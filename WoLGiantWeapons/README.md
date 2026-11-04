@@ -27,6 +27,16 @@ and Buckler are their own mods (WoLGiantSpear, WoLBuckler); Flaming Whip is WoLF
   damage, always shocks, knockback, camera shake and a thunder thud.
 - **Enhanced:** the slam arcs lightning to up to **3** enemies within **4 u**, **6** damage each.
 
+0.6.0 (#95, #97, Matt's play-test):
+- **Ice Sword:** the blade is now steered by where it actually points, so hit 1 really sweeps
+  **clockwise** and hit 2 **counterclockwise** for every aim. **Heavy:** each swing takes **0.32 s**
+  and the spin **0.7 s**, on a slow-start curve that speeds up (`Momentum` 2); a swing's hit lands as
+  the blade comes through the middle, and the spin's slices as the blade passes them.
+- **Flail:** bigger hit areas: the circle swings reach **2.6 u** (was 2) and the slam is **2 u**
+  across its radius (was 1.5). The third hit is an **over-the-top** swing: over a **0.6 s** wind-up
+  the ball rises slowly to **1.8 u** above the head, then drops fast in an arc onto the spot.
+  No new art: Art's ball and chain draw the path.
+
 0.5.1: each slice's hit is a tighter burst on the enemy, so a neighbour in the next slice isn't hit twice.
 
 Config keys renamed in 0.4.0/0.5.0 so the new numbers reach existing installs: `[Ice Sword]`
