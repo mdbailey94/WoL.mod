@@ -17,7 +17,13 @@ namespace WoLGiantWeapons
     internal static class FlailLook
     {
         private const float RingPx = 30f, SlamPx = 23f;
-        private static Sprite[] head, chain, swing, slam;
+        // #106 (WoL Art, Log - Art 16:30 / 16:36): flail_swoop 6 x 96x96 (ground ring r 45 px,
+        // squashed x0.6, rising 10 px behind; frame N's ball at 8 - 60N degrees, clockwise),
+        // flail_whirl / _full 6 x 48x24 (pivot centre-bottom = top of the head, ball in the frames,
+        // 16 fps), flail_slam_big 6 x 88x88 (hit ring r 42 px = 2.6 u, 14 fps). Each replaces the
+        // older piece when it's in Assets.
+        private const float SwoopPx = 45f, SlamBigPx = 42f;
+        private static Sprite[] head, chain, swing, slam, swoop, whirlArt, whirlFull, slamBig;
         private static bool loaded;
 
         private static bool Art()
@@ -32,6 +38,11 @@ namespace WoLGiantWeapons
                 chain = Frames("flail_chain.png", 8, new Vector2(0f, 0.5f));
                 swing = Frames("flail_swing.png", 64, new Vector2(0.5f, 0.5f));
                 slam = Frames("flail_slam.png", 48, new Vector2(0.5f, 0.5f));
+                swoop = Frames("flail_swoop.png", 96, new Vector2(0.5f, 0.5f));
+                whirlArt = Frames("flail_whirl.png", 48, new Vector2(0.5f, 0f));
+                whirlFull = Frames("flail_whirl_full.png", 48, new Vector2(0.5f, 0f));
+                slamBig = Frames("flail_slam_big.png", 88, new Vector2(0.5f, 0.5f));
+                GiantWeaponsPlugin.Log($"Giant Lightning Flail: #106 art {(swoop != null ? "swoop" : "-")}/{(whirlArt != null ? "whirl" : "-")}/{(slamBig != null ? "slam_big" : "-")}/{(headBig ? "head_big" : "-")}");
                 GiantWeaponsPlugin.Log($"Giant Lightning Flail: art {(head != null && chain != null && swing != null && slam != null ? "loaded" : "missing")}");
             }
             return head != null && chain != null && swing != null && slam != null;
@@ -111,7 +122,7 @@ namespace WoLGiantWeapons
             fx.impact = true;
             fx.spot = spot;
             fx.radius = radius;
-            fx.time = slam.Length / 16f;
+            fx.time = slamBig != null ? slamBig.Length / 14f : slam.Length / 16f;
         }
 
         internal class Fx : MonoBehaviour
@@ -163,9 +174,11 @@ namespace WoLGiantWeapons
                 if (impact)
                 {
                     transform.position = spot;
-                    float s = radius * 16f / SlamPx;
+                    Sprite[] set = slamBig ?? slam;
+                    // 1:1 at the full-charge 2.6 u; the tap slam (2.0 u) at ~0.75, as Art specced.
+                    float s = radius * 16f / (slamBig != null ? SlamBigPx : SlamPx);
                     main.transform.localScale = new Vector3(s, s, 1f);
-                    main.sprite = slam[Mathf.Min(slam.Length - 1, (int)(t * slam.Length))];
+                    main.sprite = set[Mathf.Min(set.Length - 1, (int)(t * set.Length))];
                     return;
                 }
                 Vector2 hand = Heavy.Hand(owner);
@@ -176,6 +189,24 @@ namespace WoLGiantWeapons
                     // as the charge fills; it stays until the slam takes over (Stop).
                     transform.position = Vector3.zero;
                     Vector2 over = (Vector2)owner.transform.position + new Vector2(0f, GiantWeaponsPlugin.OverheadHeight);
+                    // Art's whirl: the ball on its chain circling overhead is in the frames, drawn
+                    // 1:1 with its bottom on top of the wizard's head; _full once fully charged.
+                    Sprite[] whirlSet = charge >= 1f && whirlFull != null ? whirlFull : whirlArt;
+                    if (whirlSet != null)
+                    {
+                        SpriteRenderer body = owner.spriteRenderer;
+                        float headTop = body != null ? body.bounds.max.y : owner.transform.position.y + 1.4f;
+                        main.transform.position = new Vector2(owner.transform.position.x, headTop);
+                        main.transform.localScale = Vector3.one;
+                        main.color = Color.white;
+                        main.sprite = whirlSet[(int)(age * (16f + 8f * charge)) % whirlSet.Length];
+                        if (body != null)
+                            main.sortingOrder = body.sortingOrder + 2;
+                        if (ball != null)
+                            ball.enabled = false;
+                        Chain(hand, hand, age);   // no loose chain: it's in the frames
+                        return;
+                    }
                     whirlAngle += Time.deltaTime * (7f + 12f * charge);
                     tip = over + new Vector2(Mathf.Cos(whirlAngle) * 0.8f, Mathf.Sin(whirlAngle) * 0.3f);
                     if (ball == null)
@@ -193,6 +224,11 @@ namespace WoLGiantWeapons
                     // Round the wizard, the ring's frames turning with the ball.
                     Vector2 centre = owner.transform.position;
                     transform.position = centre;
+                    if (swoop != null)
+                    {
+                        Swoop(centre, t, age);
+                        return;
+                    }
                     float s = radius * 16f / RingPx;
                     main.transform.localScale = new Vector3(s, s, 1f);
                     // 0.5.0 (#92): the ball itself is drawn on the ring, turning smoothly once
@@ -253,6 +289,33 @@ namespace WoLGiantWeapons
                     ball.sprite = head[(int)(age * 12f) % head.Length];
                 }
                 Chain(hand, tip, age);
+            }
+
+            // #106: Art's swooping trail, already shaped (squashed in front, rising behind), so never
+            // rotated: the frame whose ball sits at the ball's angle is shown (frame N: 8 - 60N
+            // degrees, clockwise; mirrored for a counterclockwise swing), 1:1 at a 2.8 u reach.
+            // The ball (flail_head_big) rides the same path on top.
+            private void Swoop(Vector2 centre, float t, float age)
+            {
+                float deg = startDeg + (clockwise ? -360f : 360f) * t;
+                float k = radius * 16f / SwoopPx;
+                main.transform.localRotation = Quaternion.identity;
+                main.transform.localScale = new Vector3(clockwise ? k : -k, k, 1f);
+                main.color = Color.white;
+                float frameAt = clockwise ? (8f - deg) / 60f : (deg - 172f) / 60f;
+                int f = ((Mathf.RoundToInt(frameAt) % swoop.Length) + swoop.Length) % swoop.Length;
+                main.sprite = swoop[f];
+                float a = deg * Mathf.Deg2Rad, sy = Mathf.Sin(a);
+                // Art's path: radius 45 px across, x0.6 up and down, plus up to 10 px of rise behind.
+                Vector2 tip = centre + new Vector2(Mathf.Cos(a) * radius, sy * radius * 0.6f + (sy > 0f ? sy * radius * (10f / SwoopPx) : 0f));
+                if (ball == null)
+                    ball = Part("Ball", 2);
+                ball.enabled = true;
+                ball.transform.position = tip;
+                ball.transform.localScale = Vector3.one * BallScale;
+                SortBall();
+                ball.sprite = head[(int)(age * 8f) % head.Length];
+                Chain(Heavy.Hand(owner), tip, age);
             }
 
             // 0.9.1 (#101 audit B13): the ball is drawn behind the wizard when it's above (behind)
