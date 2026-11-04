@@ -159,44 +159,56 @@ namespace WoLGiantWeapons
                 Spin(aim, charge >= GiantWeaponsPlugin.SpinMinCharge ? Mathf.Clamp01(charge / GiantWeaponsPlugin.SpinFullCharge) : -1f);
         }
 
-        // Hits 1-2 (#93, Matt): a 45-degree swing, hit 1 clockwise and hit 2 counterclockwise;
-        // the hit box is the same 45 degrees (SwingArc) in front, at SwingReach.
-        // 0.6.0 (#95): heavy: the hit lands as the blade comes through the middle of its arc
-        // (it reaches half the sweep at EaseTimeOf(0.5) of HeavySwingTime, ~71% at Momentum 2).
+        // Hits 1-2: braced with the blade straight behind, then a swish of SwingSweep degrees (Matt
+        // 14:17: 220) round one side, through the aim and on past it; hit 1 clockwise, hit 2 back.
+        // 0.13.0: the hit box follows the blade along the whole sweep (as the spin's does): the
+        // sweep is cut into slices of at most 45 degrees, each slice's enemies hit (once each) as
+        // the blade passes it, at SwingReach.
         private void Swing(Vector2 hand, Vector2 aim)
         {
-            float half = GiantWeaponsPlugin.SwingArc * 0.5f;
+            float total = GiantWeaponsPlugin.SwingSweep;
             bool clockwise = comboCounter % 2 == 1;   // hit 1 clockwise, hit 2 back
             aim = braceAim;   // the brace set the line
-            // From straight behind, round one side, through the aim, and on SwingArc/2 past it.
-            float sweep = (180f + half) * (clockwise ? -1f : 1f);
+            float sign = clockwise ? -1f : 1f;
             if (held != null)
             {
-                held.Release(sweep, GiantWeaponsPlugin.SwingTurnTime);
+                held.Release(total * sign, GiantWeaponsPlugin.SwingTurnTime);
                 held = null;
             }
             else
-                FrostBlade.Sweep(parent, skillID, aim, clockwise ? 180f : -180f, sweep, GiantWeaponsPlugin.SwingTurnTime);
-            // The hit lands as the blade crosses the aim: 180 of the (180 + half) degrees.
-            float crossAt = GiantWeaponsPlugin.SwingTurnTime * GiantWeaponsPlugin.EaseTimeOf(180f / (180f + half));
+                FrostBlade.Sweep(parent, skillID, aim, clockwise ? 180f : -180f, total * sign, GiantWeaponsPlugin.SwingTurnTime);
             Player p = parent;
             string id = skillID;
             int n = comboCounter;
-            Heavy.After(crossAt, () =>
+            float aimDeg = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
+            float start = aimDeg + (clockwise ? 180f : -180f);
+            int slices = Mathf.Max(1, Mathf.CeilToInt(total / 45f));
+            float slice = total / slices;
+            var done = new System.Collections.Generic.HashSet<int>();
+            int hits = 0;
+            for (int i = 0; i < slices; i++)
             {
-                if (!Heavy.Alive(p))
-                    return;
-                int hits = 0;
-                float hitHalf = Mathf.Max(half, GiantWeaponsPlugin.SwingHitAngle * 0.5f);
-                foreach (GameObject enemy in Heavy.InArc(Heavy.Hand(p), aim, GiantWeaponsPlugin.SwingReach, hitHalf))
+                float centre = (start + sign * (i + 0.5f) * slice) * Mathf.Deg2Rad;
+                var dir = new Vector2(Mathf.Cos(centre), Mathf.Sin(centre));
+                float delay = GiantWeaponsPlugin.SwingTurnTime * GiantWeaponsPlugin.EaseTimeOf((i + 1f) / slices);
+                bool last = i == slices - 1;
+                Heavy.After(delay, () =>
                 {
-                    Heavy.Ice(Heavy.Body(enemy), p, id, 1, Heavy.OnBodyRadius);
-                    hits++;
-                }
-                foreach (Vector2 prop in Heavy.PropsInArc(Heavy.Hand(p), aim, GiantWeaponsPlugin.SwingReach, hitHalf))
-                    Heavy.Ice(prop, p, id, 1, 0.12f);
-                GiantWeaponsPlugin.Log($"Giant Ice Sword: swing {n} ({(clockwise ? "clockwise" : "counterclockwise")} {2f * half:0} deg), {hits} hit");
-            });
+                    if (!Heavy.Alive(p))
+                        return;
+                    Vector2 from = Heavy.Hand(p);
+                    foreach (GameObject enemy in Heavy.InArc(from, dir, GiantWeaponsPlugin.SwingReach, slice * 0.5f + 1f))
+                        if (done.Add(enemy.GetInstanceID()))
+                        {
+                            Heavy.Ice(Heavy.Body(enemy), p, id, 1, Heavy.OnBodyRadius);
+                            hits++;
+                        }
+                    foreach (Vector2 prop in Heavy.PropsInArc(from, dir, GiantWeaponsPlugin.SwingReach, slice * 0.5f + 1f))
+                        Heavy.Ice(prop, p, id, 1, 0.12f);
+                    if (last)
+                        GiantWeaponsPlugin.Log($"Giant Ice Sword: swing {n} ({(clockwise ? "clockwise" : "counterclockwise")} {total:0} deg), {hits} hit");
+                });
+            }
         }
 
         // Hit 3 (#93, Matt): always one 360-degree spin, clockwise from the aim, over SpinTime.
