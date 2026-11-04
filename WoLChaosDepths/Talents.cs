@@ -44,9 +44,9 @@ namespace WoLChaosDepths
                 new Node { Key = "SecondWind", Name = "Second Wind", Tier = 2, MaxPoints = 1, Effect = "After taking damage, regain 2% max health over 3 s (6 s cooldown)" },
                 new Node { Key = "SteadyHands", Name = "Steady Hands", Tier = 2, MaxPoints = 1, Effect = "-5% all arcana cooldowns" },
                 new Node { Key = "PocketChange", Name = "Pocket Change", Tier = 2, MaxPoints = 1, Effect = "+15% gold found in runs" },
-                new Node { Key = "Versatile", Name = "Versatile", Tier = 3, MaxPoints = 1, Effect = "+3% damage for each different element in your loadout" + Soon },
+                new Node { Key = "Versatile", Name = "Versatile", Tier = 3, MaxPoints = 1, Effect = "+3% damage for each different element in your loadout" },
                 new Node { Key = "QuickStudy", Name = "Quick Study", Tier = 3, MaxPoints = 1, Effect = "Arcana level up 25% faster" + Soon },
-                new Node { Key = "SharpEye", Name = "Sharp Eye", Tier = 3, MaxPoints = 1, Effect = "+5% critical hit chance" + Soon },
+                new Node { Key = "SharpEye", Name = "Sharp Eye", Tier = 3, MaxPoints = 1, Effect = "+5% critical hit chance" },
                 new Node { Key = "Graduate", Name = "Graduate", Tier = 4, MaxPoints = 1, Effect = "+1 relic slot at the start of each run" },
                 new Node { Key = "Survivor", Name = "Survivor", Tier = 4, MaxPoints = 1, Effect = "Once per stage (floor), a killing blow leaves you at 1 health instead" },
                 new Node { Key = "BorrowedTime", Name = "Borrowed Time", Tier = 4, MaxPoints = 1, Effect = "PACT: all cooldowns 30% shorter, but max health drops 1% every 30 s in a run (to 40%)" },
@@ -163,8 +163,8 @@ namespace WoLChaosDepths
                 new Node { Key = "StandFirm", Name = "Stand Firm", Tier = 2, MaxPoints = 1, Effect = "-15% damage taken while standing still or casting" },
                 new Node { Key = "ShieldWall", Name = "Shield Wall", Tier = 2, MaxPoints = 1, Effect = "The first hit in each room deals 50% less" },
                 new Node { Key = "Retaliate", Name = "Retaliate", Tier = 3, MaxPoints = 1, Effect = "Being hit adds 10% signature charge (3 s cooldown)" },
-                new Node { Key = "SpikedPlate", Name = "Spiked Plate", Tier = 3, MaxPoints = 1, Effect = "An enemy that hits you in melee takes 20% of that hit back" + Soon },
-                new Node { Key = "Rally", Name = "Rally", Tier = 3, MaxPoints = 1, Effect = "Clearing a room heals 5% max health" + Soon },
+                new Node { Key = "SpikedPlate", Name = "Spiked Plate", Tier = 3, MaxPoints = 1, Effect = "An enemy that hits you in melee takes 20% of that hit back" },
+                new Node { Key = "Rally", Name = "Rally", Tier = 3, MaxPoints = 1, Effect = "Clearing a room heals 5% max health" },
                 new Node { Key = "Juggernaut", Name = "Juggernaut", Tier = 4, MaxPoints = 1, Effect = "Can't be knocked back or staggered" },
                 new Node { Key = "LastStand", Name = "Last Stand", Tier = 4, MaxPoints = 1, Effect = "Below 30% health: -30% damage taken, +20% damage" },
                 new Node { Key = "Bastion", Name = "Bastion", Tier = 4, MaxPoints = 1, Effect = "PACT: -25% damage taken, a hit takes at most 20% of max health, no knockback; but -20% move speed except 2 s after a dash" },
@@ -184,10 +184,10 @@ namespace WoLChaosDepths
                 new Node { Key = "Exploit", Name = "Exploit", Tier = 2, MaxPoints = 1, Effect = "Crits on burning, frozen or shocked enemies deal 25% more" },
                 new Node { Key = "Riposte", Name = "Riposte", Tier = 2, MaxPoints = 1, Effect = "After evading a hit, your next hit crits" },
                 new Node { Key = "Momentum", Name = "Momentum", Tier = 3, MaxPoints = 1, Effect = "A crit takes 0.3 s off all cooldowns (at most twice a second)" },
-                new Node { Key = "Lacerate", Name = "Lacerate", Tier = 3, MaxPoints = 1, Effect = "Crits make the target bleed for 20% of the hit over 3 s" + Soon },
-                new Node { Key = "FocusFire", Name = "Focus Fire", Tier = 3, MaxPoints = 1, Effect = "Each hit on the same enemy +2% damage, up to +20%; switching target resets it" + Soon },
+                new Node { Key = "Lacerate", Name = "Lacerate", Tier = 3, MaxPoints = 1, Effect = "Crits make the target bleed for 20% of the hit over 3 s" },
+                new Node { Key = "FocusFire", Name = "Focus Fire", Tier = 3, MaxPoints = 1, Effect = "Each hit on the same enemy +2% damage, up to +20%; switching target resets it" },
                 new Node { Key = "Assassin", Name = "Assassin", Tier = 4, MaxPoints = 1, Effect = "The first hit on an enemy at full health always crits, for 50% more" },
-                new Node { Key = "Flurry", Name = "Flurry", Tier = 4, MaxPoints = 1, Effect = "Each crit gives +4% move speed for 4 s, stacking to 5" + Soon },
+                new Node { Key = "Flurry", Name = "Flurry", Tier = 4, MaxPoints = 1, Effect = "Each crit gives +4% move speed for 4 s, stacking to 5" },
                 new Node { Key = "MarkedForDeath", Name = "Marked for Death", Tier = 4, MaxPoints = 1, Effect = "PACT: crits deal +60% crit damage and mark the target; but your evade is 0 for 6 s after each crit" },
             }
         };
@@ -206,9 +206,9 @@ namespace WoLChaosDepths
                 new Node { Key = "Channel", Name = "Channel", Tier = 2, MaxPoints = 1, Effect = "After standing still 1 s, cooldowns recover 10% faster" },
                 new Node { Key = "Surge", Name = "Surge", Tier = 3, MaxPoints = 1, Effect = "Casting your signature resets the dash and gives +15% damage for 4 s" },
                 new Node { Key = "Archmage", Name = "Archmage", Tier = 3, MaxPoints = 1, Effect = "Every 4th standard cast has no cooldown" },
-                new Node { Key = "ArcaneFlow", Name = "Arcane Flow", Tier = 3, MaxPoints = 1, Effect = "Each standard cast takes 0.25 s off your other standard arcana" + Soon },
+                new Node { Key = "ArcaneFlow", Name = "Arcane Flow", Tier = 3, MaxPoints = 1, Effect = "Each standard cast takes 0.25 s off your other standard arcana" },
                 new Node { Key = "Cataclysm", Name = "Cataclysm", Tier = 4, MaxPoints = 1, Effect = "Your signature deals 40% more" },
-                new Node { Key = "GrandDesign", Name = "Grand Design", Tier = 4, MaxPoints = 1, Effect = "While all your standard arcana are cooling down: +25% damage" + Soon },
+                new Node { Key = "GrandDesign", Name = "Grand Design", Tier = 4, MaxPoints = 1, Effect = "While all your standard arcana are cooling down: +25% damage" },
                 new Node { Key = "Overchannel", Name = "Overchannel", Tier = 4, MaxPoints = 1, Effect = "PACT: arcana +40% damage and cast speed; but each cast adds 1 s more cooldown than the last (+1, +2, +3...) until 3 s without casting" },
             }
         };
@@ -226,10 +226,10 @@ namespace WoLChaosDepths
                 new Node { Key = "HitAndRun", Name = "Hit and Run", Tier = 2, MaxPoints = 1, Effect = "+15% damage for 2 s after a dash" },
                 new Node { Key = "SecondGust", Name = "Second Gust", Tier = 2, MaxPoints = 1, Effect = "Kills have a 20% chance to give your dash back" },
                 new Node { Key = "Afterimage", Name = "Afterimage", Tier = 3, MaxPoints = 1, Effect = "A dash leaves a decoy that enemies attack for 1.5 s" },
-                new Node { Key = "WindWake", Name = "Wind Wake", Tier = 3, MaxPoints = 1, Effect = "A dash leaves a 2 s wind streak: +20% move speed while on it" + Soon },
-                new Node { Key = "GaleStep", Name = "Gale Step", Tier = 3, MaxPoints = 1, Effect = "Every 3rd dash uses no dash cooldown" + Soon },
+                new Node { Key = "WindWake", Name = "Wind Wake", Tier = 3, MaxPoints = 1, Effect = "A dash leaves a 2 s wind streak: +20% move speed while on it" },
+                new Node { Key = "GaleStep", Name = "Gale Step", Tier = 3, MaxPoints = 1, Effect = "Every 3rd dash uses no dash cooldown" },
                 new Node { Key = "Velocity", Name = "Velocity", Tier = 4, MaxPoints = 1, Effect = "+1% damage for every 1% move speed above base" },
-                new Node { Key = "Untouchable", Name = "Untouchable", Tier = 4, MaxPoints = 1, Effect = "While sprinting: 25% chance to evade a hit" + Soon },
+                new Node { Key = "Untouchable", Name = "Untouchable", Tier = 4, MaxPoints = 1, Effect = "While sprinting: 25% chance to evade a hit" },
                 new Node { Key = "MomentumEngine", Name = "Momentum Engine", Tier = 4, MaxPoints = 1, Effect = "PACT: +2% damage for every 1% move speed above base, dash cooldown halved; but every hit you take roots you 0.5 s" },
             }
         };
@@ -248,9 +248,9 @@ namespace WoLChaosDepths
                 new Node { Key = "Overheal", Name = "Overheal", Tier = 2, MaxPoints = 1, Effect = "Healing past max becomes a 5 s shield, up to 10% max health" },
                 new Node { Key = "Warden", Name = "Warden", Tier = 3, MaxPoints = 1, Effect = "Your agents and summons have +25% health" },
                 new Node { Key = "Lifebloom", Name = "Lifebloom", Tier = 3, MaxPoints = 1, Effect = "Your healing also heals the other wizard for 50% (co-op)" },
-                new Node { Key = "Triage", Name = "Triage", Tier = 3, MaxPoints = 1, Effect = "Healing on a wizard below 30% health is doubled" + Soon },
+                new Node { Key = "Triage", Name = "Triage", Tier = 3, MaxPoints = 1, Effect = "Healing on a wizard below 30% health is doubled" },
                 new Node { Key = "Sanctuary", Name = "Sanctuary", Tier = 4, MaxPoints = 1, Effect = "Casting your signature drops a 4 s healing circle (3% max health a second to wizards inside)" },
-                new Node { Key = "UndyingLight", Name = "Undying Light", Tier = 4, MaxPoints = 1, Effect = "Once a floor, dropping below 10% health heals 40% over 4 s" + Soon },
+                new Node { Key = "UndyingLight", Name = "Undying Light", Tier = 4, MaxPoints = 1, Effect = "Once a floor, dropping below 10% health heals 40% over 4 s" },
                 new Node { Key = "Martyr", Name = "Martyr", Tier = 4, MaxPoints = 1, Effect = "PACT: heals you pass to your partner are doubled, regenerate 4%/s in cleared rooms; but your max health is halved" },
             }
         };
@@ -269,7 +269,7 @@ namespace WoLChaosDepths
                 new Node { Key = "ShopkeepersWager", Name = "Shopkeeper's Wager", Tier = 2, MaxPoints = 1, Effect = "Bet the arcana shopkeeper a coin flip: heads halves their prices, tails doubles them" },
                 new Node { Key = "HotStreak", Name = "Hot Streak", Tier = 3, MaxPoints = 1, Effect = "Each kill without taking damage: +2% damage, up to +20%, lost when hit" },
                 new Node { Key = "Jackpot", Name = "Jackpot", Tier = 3, MaxPoints = 1, Effect = "Elites drop 25% more gold" },
-                new Node { Key = "CoinToss", Name = "Coin Toss", Tier = 3, MaxPoints = 1, Effect = "Each room: 50% chance enemies drop double gold, 50% none" + Soon },
+                new Node { Key = "CoinToss", Name = "Coin Toss", Tier = 3, MaxPoints = 1, Effect = "Each room: 50% chance enemies drop double gold, 50% none" },
                 new Node { Key = "AllIn", Name = "All In", Tier = 4, MaxPoints = 1, Effect = "+1% damage for every 20 gold you carry (up to +30%), but every hit you take spills 10% of your gold" },
                 new Node { Key = "DoubleOrNothing", Name = "Double or Nothing", Tier = 4, MaxPoints = 1, Effect = "Each floor cleared without being hit doubles the next floor's gold (up to 4x); a hit resets it" },
                 new Node { Key = "DoubleDown", Name = "Double Down", Tier = 4, MaxPoints = 1, Effect = "PACT: relics cost half price, but every relic bought also gives a random curse relic" },
@@ -395,8 +395,58 @@ namespace WoLChaosDepths
         }
 
         // 1 point per wizard level (level 1 has 1), less what this cloak has spent.
-        public static int Unspent(CharacterSave save, string cloak) =>
-            save == null ? 0 : Math.Max(0, save.level - Spent(save, cloak));
+        public static int Unspent(CharacterSave save, string cloak)
+        {
+            Tidy(save);
+            return save == null ? 0 : Math.Max(0, save.level - Spent(save, cloak));
+        }
+
+        // #110 (4-tier trees): points saved under the old trees are checked once per save. Points
+        // in a removed node (Fester, Steady Draw) come back; a cloak whose points no longer fit the
+        // new rules (a node moved up a tier past its gate, two keystones, more than its level) is
+        // reset in full, its points back to spend again.
+        private static readonly List<CharacterSave> tidied = new List<CharacterSave>();
+
+        public static void Tidy(CharacterSave save)
+        {
+            // (A save not loaded yet, level 0, waits: it would look like it has no points.)
+            if (save?.talents == null || save.level < 1 || tidied.Contains(save))
+                return;
+            tidied.Add(save);
+            try
+            {
+                int dropped = save.talents.RemoveAll(t => t == null || t.points <= 0 || Find(TreeFor(t.cloak), t.node) == null);
+                if (dropped > 0)
+                    ChaosDepthsPlugin.Log($"Talents: {dropped} saved talent(s) no longer in their tree; their points are free again");
+                var cloaks = new List<string>();
+                foreach (TalentData t in save.talents)
+                    if (!cloaks.Contains(t.cloak))
+                        cloaks.Add(t.cloak);
+                foreach (string cloak in cloaks)
+                {
+                    Tree tree = TreeFor(cloak);
+                    int keystones = KeystoneTier(tree);
+                    bool fits = Spent(save, cloak) <= save.level && Spent(save, cloak, keystones) <= 1;
+                    foreach (TalentData t in save.talents)
+                    {
+                        if (t.cloak != cloak)
+                            continue;
+                        Node node = Find(tree, t.node);
+                        if (node == null || t.points > node.MaxPoints || !TierOpen(save, cloak, node.Tier))
+                            fits = false;
+                    }
+                    if (!fits)
+                    {
+                        int back = Respec(save, cloak);
+                        ChaosDepthsPlugin.Log($"Talents: {cloak}'s saved points don't fit the 4-tier tree; reset, {back} point(s) to spend again");
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                ChaosDepthsPlugin.LogError($"Talents: checking saved points failed ({e.Message})");
+            }
+        }
 
         // The rank the effects read: 0 when talents are off, the node isn't learned or isn't in
         // the cloak's tree.
@@ -414,7 +464,9 @@ namespace WoLChaosDepths
                 string cloak = CloakOf(player);
                 if (Find(TreeFor(cloak), node) == null)
                     return 0;
-                return Points(ChaosDepthsPlugin.Instance.SaveOf(player), cloak, node);
+                CharacterSave save = ChaosDepthsPlugin.Instance.SaveOf(player);
+                Tidy(save);
+                return Points(save, cloak, node);
             }
             catch
             {

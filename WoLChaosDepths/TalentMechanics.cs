@@ -27,6 +27,7 @@ namespace WoLChaosDepths
         private const float QuickStartStep = -0.15f, LongStrideStep = 0.05f;
         private const float TailspinRadius = 0.9f, TailspinWindow = 0.3f, TailspinSlow = -0.3f, TailspinSlowTime = 1.5f, TailspinPush = 12f;
         private const float HitAndRunDamage = 0.15f, HitAndRunTime = 2f;
+        private const float UntouchableEvade = 25f;
         private const float EvasiveEvade = 0.05f, SprintAfter = 1f, MovingStep = 0.04f;
         private const float AfterimageTime = 1.5f, AfterimageCooldown = 3f;
         private const float LeechShare = 0.01f;
@@ -90,6 +91,7 @@ namespace WoLChaosDepths
             // Unique-stat nodes (Matt, 2026-11-02 20:20).
             Health.globalTakeDamageEnterHandlers += LuckyStrike;
             Projectile.projectileShootEvent += Ricochet;
+            TreeMechanics.Install(logger);   // #110: the 4-tier trees' new perks
         }
 
         // ---- Unique-stat nodes (Matt, 2026-11-02 20:20) ----
@@ -370,6 +372,11 @@ namespace WoLChaosDepths
             Points.Set(player, "Evade", "Talent.Evasive", sprinting && evasive > 0 ? EvasiveEvade * 100f : 0f);   // #114: points
             if (sprinting && evasive > 0)
                 Say(player, "Evasive", $"Evasive: +{EvasiveEvade * 100f:0}% evade while sprinting");
+            // #110 Untouchable (Windrunner keystone): 25 evade points while sprinting.
+            bool untouchable = sprinting && Talents.Rank(player, "Untouchable") > 0;
+            Points.Set(player, "Evade", "Talent.Untouchable", untouchable ? UntouchableEvade : 0f);
+            if (untouchable)
+                Say(player, "Untouchable", $"Untouchable: +{UntouchableEvade:0} evade points while sprinting");
 
             float damage = 0f;
             if (Time.time < st.hitAndRunUntil && Talents.Rank(player, "HitAndRun") > 0)

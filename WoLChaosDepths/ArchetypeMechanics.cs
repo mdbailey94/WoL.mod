@@ -47,7 +47,7 @@ namespace WoLChaosDepths
         private const float MomentumSpacing = 0.5f;      // ...at most twice a second
         private const float ExploitBonus = 0.25f;
         private const float AssassinBonus = 0.5f;
-        private const float FlurryStep = 0.03f;
+        private const float FlurryStep = 0.04f;          // #110 rework: move speed points per stack (was crit)
         private const float FlurryTime = 4f;
         private const int FlurryMax = 5;
         // Bulwark, Arcanist: rooms and standing
@@ -524,8 +524,9 @@ namespace WoLChaosDepths
             int on = player.GetInstanceID();
             if (stacks == s.critApplied && s.critOn == on)
                 return;
-            // #114: crit points, summed with gear and talents (GearTypeStats applies them).
-            Points.Set(player, "CritChance", "Talent.Flurry", FlurryStep * stacks * 100f);
+            // #110 (Player, Matt-approved tree): Flurry gives MOVE SPEED points per stack, not crit.
+            // #114: points, summed with gear and talents (GearTypeStats applies them).
+            Points.Set(player, "MoveSpeed", "Talent.Flurry", FlurryStep * stacks * 100f);
             s.critApplied = stacks;
             s.critOn = on;
         }
