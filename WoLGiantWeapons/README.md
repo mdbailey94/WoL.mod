@@ -18,7 +18,7 @@ and Buckler are their own mods (WoLGiantSpear, WoLBuckler); Flaming Whip is WoLF
 
 ## Giant Lightning Flail (#84, Lightning basic, tier 2; 0.5.0, #92)
 
-- A **slow 3-hit combo** (**63%** pace since 0.5.0, 10% slower than before).
+- A **slow 3-hit combo** (**60%** pace since 0.5.0: each swing about **17%** longer than before).
 - **Hits 1 and 2:** the **spiked ball itself** goes once round the wizard at **2 u** over
   **0.45 s** (hit 1 counterclockwise, hit 2 clockwise, starting at the aim), on its lightning
   chain, with a faint motion-blur ring behind it. The hit follows the ball (4 slices, each enemy

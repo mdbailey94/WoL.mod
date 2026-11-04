@@ -50,7 +50,7 @@ namespace WoLGiantWeapons
         public static float SwordSwingSpeed => Get(swordSwingSpeed, 1f, 0.2f, 4f);
         public static float SwingTurnTime => Get(swingTurnTime, 0.22f, 0.05f, 1f);
         public static float SwordAngleOffset => Get(swordAngleOffset, 0f, -180f, 180f);
-        public static float FlailPace => Get(flailPace, 0.63f, 0.3f, 1f);
+        public static float FlailPace => Get(flailPace, 0.6f, 0.3f, 1f);
         public static float CircleTime => Get(circleTime, 0.45f, 0.15f, 2f);
         public static float FlailBlurAlpha => Get(blurAlpha, 0.45f, 0f, 1f);
         public static int CircleSlices => Mathf.Clamp(circleSlices?.Value ?? 4, 1, 12);
@@ -172,7 +172,7 @@ namespace WoLGiantWeapons
             swingTurnTime = Float("Ice Sword", "SwingTurnTime", 0.22f, 0.05f, 1f, "Seconds the drawn blade takes to turn through a 45-degree swing.");
             swordAngleOffset = Float("Ice Sword", "SwordAngleOffset", 0f, -180f, 180f, "Turns the drawn blade's starting angle, if it doesn't line up with the aim (looks only).");
 
-            flailPace = Float("Flail", "SwingPace", 0.63f, 0.3f, 1f, "How fast the wizard's swings play (0.63 = 37% slower; 1 = normal). 0.5.0 (#92): a new key, 10% slower than the old Pace 0.7, which is unused now.");
+            flailPace = Float("Flail", "SwingPace", 0.6f, 0.3f, 1f, "How fast the wizard's swings play (0.6 = 40% slower; 1 = normal). 0.5.0 (#92): a new key, swings about 17% longer than the old Pace 0.7, which is unused now.");
             circleTime = Float("Flail", "CircleTime", 0.45f, 0.15f, 2f, "Seconds for the ball to go once round on hits 1-2 (was 0.35).");
             circleSlices = Config.Bind("Flail", "CircleSlices", 4, new ConfigDescription("The circle is cut into this many slices; an enemy is hit once, as the ball passes its slice.", new AcceptableValueRange<int>(1, 12)));
             blurAlpha = Float("Flail", "BlurAlpha", 0.45f, 0f, 1f, "How strongly the motion-blur ring shows behind the ball (0 = only the ball and chain).");
