@@ -27,6 +27,11 @@ and Buckler are their own mods (WoLGiantSpear, WoLBuckler); Flaming Whip is WoLF
   damage, always shocks, knockback, camera shake and a thunder thud.
 - **Enhanced:** the slam arcs lightning to up to **3** enemies within **4 u**, **6** damage each.
 
+0.12.0 (Matt 13:00): during each brace the Ice Sword is held **backwards**, pointing behind the
+wizard away from the attack, then **swishes forward**: hit 1 comes round clockwise, hit 2
+counterclockwise, each ~200° from behind to 22.5° past the aim in **0.2 s** (the hit lands as the
+blade crosses the aim, ~0.1 s in); the spin also starts from behind.
+
 0.11.0 (#106, Matt's flail rework):
 - **Bigger ball:** drawn 1.5x until WoL Art's 24 px `flail_head_big` lands (then 1:1).
 - **Hits 1-2: swooping 360° swings:** the ball dips low and wide in front and rises behind, reach

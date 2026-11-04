@@ -64,8 +64,11 @@ namespace WoLGiantWeapons
             braceAim = Heavy.Aim(this, parent);
             bool spin = comboCounter >= maxComboCount;
             braceFor = spin ? (charging ? 0f : GiantWeaponsPlugin.SpinBraceTime) : GiantWeaponsPlugin.BraceTime;
-            float half = GiantWeaponsPlugin.SwingArc * 0.5f;
-            float from = spin ? 0f : comboCounter % 2 == 1 ? half : -half;
+            // 0.12.0 (Matt 13:00): the blade is held BACKWARDS (pointing behind the wizard, away
+            // from the attack) through the wind-up, then swishes forward. Hit 1 comes round
+            // clockwise, hit 2 counterclockwise (+180 and -180 are the same spot behind; the sign
+            // only sets which way it comes round), the spin starts from behind too.
+            float from = spin ? 180f : comboCounter % 2 == 1 ? 180f : -180f;
             held = FrostBlade.Brace(parent, skillID, braceAim, from);
         }
 
@@ -153,17 +156,21 @@ namespace WoLGiantWeapons
             float half = GiantWeaponsPlugin.SwingArc * 0.5f;
             bool clockwise = comboCounter % 2 == 1;   // hit 1 clockwise, hit 2 back
             aim = braceAim;   // the brace set the line
+            // From straight behind, round one side, through the aim, and on SwingArc/2 past it.
+            float sweep = (180f + half) * (clockwise ? -1f : 1f);
             if (held != null)
             {
-                held.Release(clockwise ? -2f * half : 2f * half, GiantWeaponsPlugin.SwingTurnTime);
+                held.Release(sweep, GiantWeaponsPlugin.SwingTurnTime);
                 held = null;
             }
             else
-                FrostBlade.Sweep(parent, skillID, aim, clockwise ? half : -half, clockwise ? -2f * half : 2f * half, GiantWeaponsPlugin.SwingTurnTime);
+                FrostBlade.Sweep(parent, skillID, aim, clockwise ? 180f : -180f, sweep, GiantWeaponsPlugin.SwingTurnTime);
+            // The hit lands as the blade crosses the aim: 180 of the (180 + half) degrees.
+            float crossAt = GiantWeaponsPlugin.SwingTurnTime * GiantWeaponsPlugin.EaseTimeOf(180f / (180f + half));
             Player p = parent;
             string id = skillID;
             int n = comboCounter;
-            Heavy.After(GiantWeaponsPlugin.SwingTurnTime * GiantWeaponsPlugin.EaseTimeOf(0.5f), () =>
+            Heavy.After(crossAt, () =>
             {
                 if (!Heavy.Alive(p))
                     return;
@@ -200,7 +207,7 @@ namespace WoLGiantWeapons
             for (int i = 0; i < slices; i++)
             {
                 // Clockwise = decreasing angle; slice i is centred (i + 0.5) slices past the aim.
-                float centre = (aimDeg - (i + 0.5f) * slice) * Mathf.Deg2Rad;
+                float centre = (aimDeg + 180f - (i + 0.5f) * slice) * Mathf.Deg2Rad;   // from behind (0.12.0)
                 var dir = new Vector2(Mathf.Cos(centre), Mathf.Sin(centre));
                 // The blade passes the end of slice i when the eased turn reaches (i+1)/slices.
                 float delay = GiantWeaponsPlugin.SpinTime * GiantWeaponsPlugin.EaseTimeOf((i + 1f) / slices);

@@ -17,7 +17,7 @@ namespace WoLGiantWeapons
     {
         public const string PluginGuid = "mdbailey94.wol.giantweapons";
         public const string PluginName = "Giant Weapons";
-        public const string PluginVersion = "0.11.0";
+        public const string PluginVersion = "0.12.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> swordEnabled, flailEnabled;
@@ -53,7 +53,7 @@ namespace WoLGiantWeapons
         public static float EnhancedSpinWidth => Get(enhancedSpinWidth, 1.3f, 1f, 3f);
         public static float FrostRingTime => Get(frostRingTime, 1.5f, 0.2f, 6f);
         public static float SwordScale => Get(swordScale, 0.7f, 0.2f, 2f);
-        public static float SwingTurnTime => Get(swingTurnTime, 0.12f, 0.03f, 1.5f);
+        public static float SwingTurnTime => Get(swingTurnTime, 0.2f, 0.03f, 1.5f);
         public static float BraceTime => Get(braceTime, 0.35f, 0f, 1.5f);
         public static float SpinBraceTime => Get(spinBraceTime, 0.5f, 0f, 2f);
         public static float BraceStep => Get(braceStep, 0.6f, 0f, 3f);
@@ -176,7 +176,9 @@ namespace WoLGiantWeapons
                     circleRadius.Value = 2.8f;
                 Logger.LogInfo("Config moved to 0.9.0's defaults (Ice Sword SwingReach 2.6)");
             }
-            configVersion.Value = 110;
+            if (configVersion.Value < 120 && Mathf.Approximately(swingTurnTime.Value, 0.12f))
+                swingTurnTime.Value = 0.2f;
+            configVersion.Value = 120;
         }
 
         private static int Clamp(ConfigEntry<int> entry, int min, int max) => Mathf.Clamp(entry.Value, min, max);
@@ -208,7 +210,7 @@ namespace WoLGiantWeapons
             enhancedSpinWidth = Float("Ice Sword", "EnhancedSpinWidth", 1.3f, 1f, 3f, "How much wider the spin is when enhanced.");
             frostRingTime = Float("Ice Sword", "FrostRingTime", 1.5f, 0.2f, 6f, "Seconds the enhanced frost ring stays on the floor, slowing enemies.");
             swordScale = Float("Ice Sword", "SwordScale", 0.7f, 0.2f, 2f, "Size of the drawn sword (the game's ice boss greatsword; 1 = the boss's own size). Looks only; the hits are the reaches above.");
-            swingTurnTime = Float("Ice Sword", "SnapTime", 0.12f, 0.03f, 1.5f, "Seconds for the 45-degree snap after the brace (0.10.0, #105); the hit lands as the blade crosses the aim. The old HeavySwingTime key is unused.");
+            swingTurnTime = Float("Ice Sword", "SnapTime", 0.2f, 0.03f, 1.5f, "Seconds for the swish from behind the wizard round to SwingAngle/2 past the aim (0.12.0: 0.2, the blade now travels ~200 degrees); the hit lands as it crosses the aim.");
             braceTime = Float("Ice Sword", "BraceTime", 0.35f, 0f, 1.5f, "Seconds the wizard braces (stepping forward, blade drawn back) before swings 1 and 2.");
             spinBraceTime = Float("Ice Sword", "SpinBraceTime", 0.5f, 0f, 2f, "Seconds of the brace before the spin (holding through it charges the spin instead).");
             braceStep = Float("Ice Sword", "BraceStep", 0.6f, 0f, 3f, "How far the wizard steps forward while bracing for swings 1 and 2, in units.");
