@@ -17,7 +17,7 @@ namespace WoLGiantWeapons
     {
         public const string PluginGuid = "mdbailey94.wol.giantweapons";
         public const string PluginName = "Giant Weapons";
-        public const string PluginVersion = "0.9.1";
+        public const string PluginVersion = "0.10.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> swordEnabled, flailEnabled;
@@ -26,7 +26,7 @@ namespace WoLGiantWeapons
 
         // ---- Settings (BepInEx\config\mdbailey94.wol.giantweapons.cfg) ----
         // [Ice Sword] and [Flail] apply the next attack; [Balance] after restarting the game.
-        private static ConfigEntry<float> swingHitAngle;
+        private static ConfigEntry<float> swingHitAngle, braceTime, spinBraceTime, braceStep, spinBraceStep;
         private static ConfigEntry<int> configVersion;
         private static ConfigEntry<float> swordPace, swingReach, swingArc, spinMin, spinFull, spinRadius, fullSpinRadius,
             spinTime, enhancedSpinWidth, frostRingTime;
@@ -47,16 +47,20 @@ namespace WoLGiantWeapons
         public static float SpinRadius => Get(spinRadius, 2.5f, 0.5f, 8f);
         public static float FullSpinRadius => Get(fullSpinRadius, 3f, 0.5f, 8f);
         public static int SpinHits => Mathf.Clamp(spinHits?.Value ?? 4, 1, 12);
-        public static float SpinTime => Get(spinTime, 0.7f, 0.1f, 3f);
+        public static float SpinTime => Get(spinTime, 0.45f, 0.1f, 3f);
         public static float EnhancedSpinWidth => Get(enhancedSpinWidth, 1.3f, 1f, 3f);
         public static float FrostRingTime => Get(frostRingTime, 1.5f, 0.2f, 6f);
         public static float SwordScale => Get(swordScale, 0.7f, 0.2f, 2f);
-        public static float SwingTurnTime => Get(swingTurnTime, 0.32f, 0.05f, 1.5f);
+        public static float SwingTurnTime => Get(swingTurnTime, 0.12f, 0.03f, 1.5f);
+        public static float BraceTime => Get(braceTime, 0.35f, 0f, 1.5f);
+        public static float SpinBraceTime => Get(spinBraceTime, 0.5f, 0f, 2f);
+        public static float BraceStep => Get(braceStep, 0.6f, 0f, 3f);
+        public static float SpinBraceStep => Get(spinBraceStep, 0.4f, 0f, 3f);
         public static float Momentum => Get(momentum, 2f, 1f, 4f);
-        // The heavy curve (#95): the share of the turn done at time share t (slow start, speeding up).
-        public static float Ease(float t) => Mathf.Pow(Mathf.Clamp01(t), Momentum);
-        // When the turn reaches share `done` (inverse of Ease).
-        public static float EaseTimeOf(float done) => Mathf.Pow(Mathf.Clamp01(done), 1f / Momentum);
+        // 0.10.0 (#105): after the brace the blade SNAPS: fast out of the brace, easing at the end
+        // (the share of the turn done at time share t). EaseTimeOf is its inverse.
+        public static float Ease(float t) => 1f - Mathf.Pow(1f - Mathf.Clamp01(t), Momentum);
+        public static float EaseTimeOf(float done) => 1f - Mathf.Pow(1f - Mathf.Clamp01(done), 1f / Momentum);
         public static float SwordAngleOffset => Get(swordAngleOffset, 0f, -180f, 180f);
         public static float FlailPace => Get(flailPace, 0.6f, 0.3f, 1f);
         public static float CircleTime => Get(circleTime, 0.45f, 0.15f, 2f);
@@ -188,12 +192,16 @@ namespace WoLGiantWeapons
             spinRadius = Float("Ice Sword", "SpinRadius", 2.5f, 0.5f, 8f, "Radius of a tapped spin (and a charged one at the least charge).");
             fullSpinRadius = Float("Ice Sword", "FullSpinRadius", 3f, 0.5f, 8f, "Radius of a full-charge spin.");
             spinHits = Config.Bind("Ice Sword", "SpinSlices", 4, new ConfigDescription("The spin's one turn is cut into this many slices; an enemy is hit once, as the blade passes its slice (0.4.0).", new AcceptableValueRange<int>(1, 12)));
-            spinTime = Float("Ice Sword", "HeavySpinTime", 0.7f, 0.1f, 3f, "Seconds for the spin's one 360-degree turn (0.6.0, #95: slower start, gaining momentum; the old SpinTurnTime key is unused).");
+            spinTime = Float("Ice Sword", "SnapSpinTime", 0.45f, 0.1f, 3f, "Seconds for the spin's one 360-degree turn after its brace (0.10.0, #105; the old HeavySpinTime key is unused).");
             enhancedSpinWidth = Float("Ice Sword", "EnhancedSpinWidth", 1.3f, 1f, 3f, "How much wider the spin is when enhanced.");
             frostRingTime = Float("Ice Sword", "FrostRingTime", 1.5f, 0.2f, 6f, "Seconds the enhanced frost ring stays on the floor, slowing enemies.");
             swordScale = Float("Ice Sword", "SwordScale", 0.7f, 0.2f, 2f, "Size of the drawn sword (the game's ice boss greatsword; 1 = the boss's own size). Looks only; the hits are the reaches above.");
-            swingTurnTime = Float("Ice Sword", "HeavySwingTime", 0.32f, 0.05f, 1.5f, "Seconds for a 45-degree swing (0.6.0, #95: slower, heavy; the hit lands as the blade finishes the swing). The old SwingTurnTime key is unused.");
-            momentum = Float("Ice Sword", "Momentum", 2f, 1f, 4f, "How much the swings and the spin speed up as they go: 1 = steady, 2 = slow start gaining momentum (the heavy feel), 3 = heavier still.");
+            swingTurnTime = Float("Ice Sword", "SnapTime", 0.12f, 0.03f, 1.5f, "Seconds for the 45-degree snap after the brace (0.10.0, #105); the hit lands as the blade crosses the aim. The old HeavySwingTime key is unused.");
+            braceTime = Float("Ice Sword", "BraceTime", 0.35f, 0f, 1.5f, "Seconds the wizard braces (stepping forward, blade drawn back) before swings 1 and 2.");
+            spinBraceTime = Float("Ice Sword", "SpinBraceTime", 0.5f, 0f, 2f, "Seconds of the brace before the spin (holding through it charges the spin instead).");
+            braceStep = Float("Ice Sword", "BraceStep", 0.6f, 0f, 3f, "How far the wizard steps forward while bracing for swings 1 and 2, in units.");
+            spinBraceStep = Float("Ice Sword", "SpinBraceStep", 0.4f, 0f, 3f, "How far the wizard steps forward while bracing for the spin.");
+            momentum = Float("Ice Sword", "Momentum", 2f, 1f, 4f, "How sharp the snap is: 1 = steady turn, 2 = fast out of the brace easing at the end, 3 = sharper still.");
             swordAngleOffset = Float("Ice Sword", "SwordAngleOffset", 0f, -180f, 180f, "Turns the drawn blade's starting angle, if it doesn't line up with the aim (looks only).");
 
             flailPace = Float("Flail", "SwingPace", 0.6f, 0.3f, 1f, "How fast the wizard's swings play (0.6 = 40% slower; 1 = normal). 0.5.0 (#92): a new key, swings about 17% longer than the old Pace 0.7, which is unused now.");

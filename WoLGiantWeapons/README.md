@@ -27,6 +27,14 @@ and Buckler are their own mods (WoLGiantSpear, WoLBuckler); Flaming Whip is WoLF
   damage, always shocks, knockback, camera shake and a thunder thud.
 - **Enhanced:** the slam arcs lightning to up to **3** enemies within **4 u**, **6** damage each.
 
+0.10.0 (#105, Matt: "brace = charge, swing FAST"):
+- **Ice Sword brace combo:** each press is a **brace** then a **snap**. Hit 1: the wizard steps
+  **0.6 u** forward over a **0.35 s** brace with the blade drawn back on one side, then it snaps 45°
+  clockwise in **0.12 s** (fast out of the brace, easing at the end; the hit lands as the blade crosses
+  the aim). Hit 2: the same from the opposite side, counterclockwise. Hit 3: a **0.5 s** brace
+  (0.4 u step), then the 360° spin in **0.45 s**; holding the button through it charges the spin
+  (22, full 28) as before. Damage, reach and the 75° hit arc unchanged. A dash cancels a brace.
+
 0.9.0 (Matt's play-test: "the flail was not hitting enemies", "hit boxes are too thin"):
 - **Hits land on the body:** every hit used to be a small burst at the enemy's FEET (its pivot),
   while the hurt box sits up on the body, so many flail and sword hits missed. Enemies are now found

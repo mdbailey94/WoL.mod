@@ -16,14 +16,46 @@ namespace WoLGiantWeapons
         public static void Sweep(Player p, string skillID, Vector2 aim, float fromDeg, float sweepDeg, float time) =>
             Show(p, skillID, aim, true, time, fromDeg, sweepDeg);
 
+        // 0.10.0 (#105, the brace): the blade appears drawn back at `fromDeg` and is HELD there
+        // (following the hand) until Release turns it through `sweepDeg` over `time`.
+        public static Handle Brace(Player p, string skillID, Vector2 aim, float fromDeg)
+        {
+            Driver d = Show(p, skillID, aim, true, 10f, fromDeg, 0f);
+            if (d != null)
+                d.held = true;
+            return new Handle { driver = d };
+        }
+
+        public class Handle
+        {
+            internal Driver driver;
+
+            public void Release(float sweepDeg, float time)
+            {
+                if (driver == null)
+                    return;
+                driver.sweep = sweepDeg;
+                driver.spinTime = Mathf.Max(0.05f, time);
+                driver.held = false;
+                driver.ResetClock();
+            }
+
+            public void Drop()
+            {
+                if (driver != null && driver.held && driver.sword != null)
+                    driver.sword.EndSwing();
+                driver = null;
+            }
+        }
+
         // A swing along `aim` (or, spin = true, a turn of `sweepDeg` round the wizard over `spinTime`).
-        public static void Show(Player p, string skillID, Vector2 aim, bool spin, float spinTime, float fromDeg = 0f, float sweepDeg = 720f)
+        internal static Driver Show(Player p, string skillID, Vector2 aim, bool spin, float spinTime, float fromDeg = 0f, float sweepDeg = 720f)
         {
             try
             {
                 GameObject prefab = IceSword.Prefab;
                 if (prefab == null || p == null)
-                    return;
+                    return null;
                 var rotator = new GameObject("IceSwordRotator").transform;
                 rotator.position = Heavy.Hand(p);
                 rotator.localEulerAngles = Globals.GetRotationVector(-aim);
@@ -35,7 +67,7 @@ namespace WoLGiantWeapons
                 if (sword == null)
                 {
                     UnityEngine.Object.Destroy(rotator.gameObject);
-                    return;
+                    return null;
                 }
                 // Its Start reads the attack's category (Player: the player's Spawn animation).
                 sword.attack.SetAttackInfo(p.skillCategory, skillID, 1);
@@ -50,10 +82,12 @@ namespace WoLGiantWeapons
                 d.fromDeg = fromDeg;
                 d.turnFrom = rotator.localEulerAngles.z + fromDeg + GiantWeaponsPlugin.SwordAngleOffset;
                 rotator.localEulerAngles = new Vector3(0f, 0f, d.turnFrom);
+                return d;
             }
             catch (Exception e)
             {
                 GiantWeaponsPlugin.Log($"Giant Ice Sword: the ice boss's sword couldn't be shown ({e.Message})");
+                return null;
             }
         }
 
@@ -65,13 +99,16 @@ namespace WoLGiantWeapons
         // wanted angle, so the prefab's own mirroring and animation can't flip the sweep: hit 1
         // goes clockwise and hit 2 counterclockwise for every aim. HEAVY: the angle follows
         // t^Momentum (slow start, gaining speed to the end), the same curve the hits use.
-        private class Driver : MonoBehaviour
+        internal class Driver : MonoBehaviour
         {
             public IceSword sword;
             public float spinTime, turnFrom, sweep = 720f;
             public float aimDeg, fromDeg;
             public Player owner;
+            public bool held;
             private float born = -1f;
+
+            public void ResetClock() => born = Time.time;
             private float nextLook;
             private SpriteRenderer blade;
 
@@ -80,6 +117,15 @@ namespace WoLGiantWeapons
                 if (born < 0f)
                     born = Time.time;
                 float age = Time.time - born;
+                if (held)
+                {
+                    if (owner != null)
+                        transform.position = Heavy.Hand(owner);
+                    Steer(aimDeg + fromDeg + GiantWeaponsPlugin.SwordAngleOffset);
+                    if (age > 3f && sword != null)
+                        sword.EndSwing();   // never released (the attack was cancelled)
+                    return;
+                }
                 if (sword == null || age > 3f)
                 {
                     if (sword != null)

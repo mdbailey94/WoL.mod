@@ -16,6 +16,11 @@ namespace WoLGiantWeapons
 
         private NumVarStatMod paceMod;
         private bool paced, executed, charging, tinted;
+        // 0.10.0 (#105, Matt: "brace = charge: step forward and brace, swing FAST"): each hit starts
+        // with a brace (the blade held drawn back while the wizard steps forward), then snaps.
+        private float braceFrom, braceFor;
+        private Vector2 braceAim;
+        private FrostBlade.Handle held;
         // 0.7.0 (#101): the spin charges only on a FRESH hold: the button must have been let go
         // since hit 2 started, so holding attack through the combo no longer forces a full charge.
         private bool releasedSinceHit2 = true;
@@ -54,6 +59,14 @@ namespace WoLGiantWeapons
             // Holding the button again as the third hit starts: charge the spin first.
             charging = comboCounter >= maxComboCount && ButtonHeld() && releasedSinceHit2;
             chargeFrom = Time.time;
+            // The brace: hit 1 drawn back on one side, hit 2 on the other, the spin from the aim.
+            braceFrom = Time.time;
+            braceAim = Heavy.Aim(this, parent);
+            bool spin = comboCounter >= maxComboCount;
+            braceFor = spin ? (charging ? 0f : GiantWeaponsPlugin.SpinBraceTime) : GiantWeaponsPlugin.BraceTime;
+            float half = GiantWeaponsPlugin.SwingArc * 0.5f;
+            float from = spin ? 0f : comboCounter % 2 == 1 ? half : -half;
+            held = FrostBlade.Brace(parent, skillID, braceAim, from);
         }
 
         public override void OnExit()
@@ -61,6 +74,13 @@ namespace WoLGiantWeapons
             Heavy.Pace(parent, ref paceMod, "GiantIceSword_Pace", GiantWeaponsPlugin.SwordPace, ref paced, false);
             Tint(Color.white);
             charging = false;
+            if (held != null)
+            {
+                held.Drop();   // cancelled before the snap
+                held = null;
+            }
+            if (parent != null && parent.rigidbody2D != null && !executed)
+                parent.rigidbody2D.velocity = Vector2.zero;
             base.OnExit();
         }
 
@@ -68,6 +88,14 @@ namespace WoLGiantWeapons
         {
             if (!ButtonHeld())
                 releasedSinceHit2 = true;
+            // The step forward while bracing (a wall stops it, as it stops any movement).
+            if (!executed && parent.rigidbody2D != null)
+            {
+                float step = comboCounter >= maxComboCount ? GiantWeaponsPlugin.SpinBraceStep : GiantWeaponsPlugin.BraceStep;
+                float span = charging ? Mathf.Max(GiantWeaponsPlugin.SpinBraceTime, 0.1f) : Mathf.Max(braceFor, 0.1f);
+                bool stepping = Time.time - braceFrom < span;
+                parent.rigidbody2D.velocity = stepping ? braceAim * (step / span) : Vector2.zero;
+            }
             if (charging)
             {
                 charge = Time.time - chargeFrom;
@@ -82,6 +110,10 @@ namespace WoLGiantWeapons
                 charging = false;
             }
             base.Update();
+            // In case the game asks for the attack only once (at its execute point, while the brace
+            // was still running): fire it as soon as the brace is over.
+            if (!executed && Time.time - braceFrom >= braceFor && parent.anim.AnimPlayed(animExecTime))
+                ExecuteAttack();
         }
 
         public override void PlayAnimation(int attackCount)
@@ -97,7 +129,12 @@ namespace WoLGiantWeapons
         {
             if (executed)
                 return;
+            // Still bracing: the swing waits (ExecuteAttack is asked again every frame).
+            if (Time.time - braceFrom < braceFor)
+                return;
             executed = true;
+            if (parent.rigidbody2D != null)
+                parent.rigidbody2D.velocity = Vector2.zero;
             base.ExecuteAttack();
             Tint(Color.white);
             Vector2 aim = Heavy.Aim(this, parent), hand = Heavy.Hand(parent);
@@ -115,7 +152,14 @@ namespace WoLGiantWeapons
         {
             float half = GiantWeaponsPlugin.SwingArc * 0.5f;
             bool clockwise = comboCounter % 2 == 1;   // hit 1 clockwise, hit 2 back
-            FrostBlade.Sweep(parent, skillID, aim, clockwise ? half : -half, clockwise ? -2f * half : 2f * half, GiantWeaponsPlugin.SwingTurnTime);
+            aim = braceAim;   // the brace set the line
+            if (held != null)
+            {
+                held.Release(clockwise ? -2f * half : 2f * half, GiantWeaponsPlugin.SwingTurnTime);
+                held = null;
+            }
+            else
+                FrostBlade.Sweep(parent, skillID, aim, clockwise ? half : -half, clockwise ? -2f * half : 2f * half, GiantWeaponsPlugin.SwingTurnTime);
             Player p = parent;
             string id = skillID;
             int n = comboCounter;
@@ -172,7 +216,13 @@ namespace WoLGiantWeapons
                     Heavy.Sound("WindSlashBasic", p.transform.position, 0.6f);
                 });
             }
-            FrostBlade.Sweep(p, id, aim, 0f, -360f, GiantWeaponsPlugin.SpinTime);
+            if (held != null)
+            {
+                held.Release(-360f, GiantWeaponsPlugin.SpinTime);
+                held = null;
+            }
+            else
+                FrostBlade.Sweep(p, id, aim, 0f, -360f, GiantWeaponsPlugin.SpinTime);
             Heavy.Shake(fullCharge ? 1f : tapped ? 0.5f : 0.7f);
             if (enhanced)
                 FrostRing.Lay(p, id, p.transform.position, radius);
