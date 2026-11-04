@@ -14,7 +14,7 @@ namespace WoLThunderhead
     {
         public const string PluginGuid = "mdbailey94.wol.thunderhead";
         public const string PluginName = "Thunderhead";
-        public const string PluginVersion = "0.11.0";
+        public const string PluginVersion = "0.12.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -22,7 +22,7 @@ namespace WoLThunderhead
         private ConfigEntry<int> settingsRevision;
         // Bumped when a default changes: an older config file still holding the old default gets
         // the new one (values you changed yourself are kept). 8 = 0.8.0.
-        private const int SettingsRevision = 11;
+        private const int SettingsRevision = 12;
 
         public static void Log(string message) => log?.LogInfo(message);
 
@@ -182,11 +182,11 @@ namespace WoLThunderhead
             volleyInterval = Float("Lightning", "VolleyInterval", 0.12f, 0.05f, 2f, "Seconds between volleys of strikes while up.");
             enhancedVolleyInterval = Float("Lightning", "EnhancedVolleyInterval", 0.12f, 0.03f, 2f,
                 "VolleyInterval when enhanced and in the signature storm (lower = more often; the signature divides it by [Signature] StrikeRateMultiplier).");
-            volleySize = Config.Bind("Lightning", "VolleySize", 1,
+            volleySize = Config.Bind("Lightning", "VolleySize", 2,
                 new ConfigDescription("Strikes in each volley.", new AcceptableValueRange<int>(1, 12)));
-            enhancedVolleySize = Config.Bind("Lightning", "EnhancedVolleySize", 2,
+            enhancedVolleySize = Config.Bind("Lightning", "EnhancedVolleySize", 4,
                 new ConfigDescription("VolleySize when enhanced.", new AcceptableValueRange<int>(1, 12)));
-            signatureVolleySize = Config.Bind("Lightning", "SignatureVolleySize", 4,
+            signatureVolleySize = Config.Bind("Lightning", "SignatureVolleySize", 8,
                 new ConfigDescription("VolleySize in the signature storm.", new AcceptableValueRange<int>(1, 12)));
             evenSpread = Config.Bind("Lightning", "EvenSpread", true,
                 "Spread the strikes evenly over the whole area through the leap, each volley striking near, " +
@@ -276,6 +276,14 @@ namespace WoLThunderhead
                 // About three times the strikes, a third of them aimed: less damage each.
                 Upgrade(strikeDamage, 5, changed);
                 Upgrade(signatureStrikeDamage, 7, changed);
+            }
+            if (settingsRevision.Value < 12)
+            {
+                // 0.12.0 (Matt 11-04 16:44): "double lightning strikes at all levels": 2 / 4 / 8 a
+                // volley (was 1 / 2 / 4). Asked for outright, so moved even if set by hand.
+                Force(volleySize, changed);
+                Force(enhancedVolleySize, changed);
+                Force(signatureVolleySize, changed);
             }
             settingsRevision.Value = SettingsRevision;
             Logger.LogInfo(changed.Count > 0

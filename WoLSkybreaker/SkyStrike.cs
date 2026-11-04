@@ -24,6 +24,7 @@ namespace WoLSkybreaker
         private const float ArcReach = 3.5f;           // where they start, this far out
         private const float AftershockBoltSize = 1f;
         private const float Life = 3f;                 // gone by then whatever happened
+        private const float BoltLife = 0.7f;           // the game's bolt animation, before 0.3.0's linger
 
         private static readonly HashSet<string> failed = new HashSet<string>();
         private static bool loggedBolt;
@@ -271,12 +272,17 @@ namespace WoLSkybreaker
                     Object.Destroy(script);
                 foreach (Collider2D collider in go.GetComponentsInChildren<Collider2D>(true))
                     Object.Destroy(collider);
+                // 0.3.0 (Matt): played slower so it lingers SkybreakerPlugin.Linger longer, and wider.
+                float life = BoltLife + SkybreakerPlugin.Linger;
                 foreach (Animator anim in go.GetComponentsInChildren<Animator>(true))
+                {
                     anim.enabled = true;
-                go.transform.localScale = new Vector3(size, size, 1f);
+                    anim.speed = BoltLife / life;
+                }
+                go.transform.localScale = new Vector3(size * SkybreakerPlugin.Width, size, 1f);
                 if (!go.activeSelf)
                     go.SetActive(true);
-                Object.Destroy(go, 0.7f);
+                Object.Destroy(go, life);
                 if (!loggedBolt)
                 {
                     loggedBolt = true;

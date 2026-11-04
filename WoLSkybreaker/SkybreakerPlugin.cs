@@ -17,7 +17,7 @@ namespace WoLSkybreaker
     {
         public const string PluginGuid = "mdbailey94.wol.skybreaker";
         public const string PluginName = "Skybreaker";
-        public const string PluginVersion = "0.2.1";
+        public const string PluginVersion = "0.3.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -27,7 +27,7 @@ namespace WoLSkybreaker
 
         // ---- Settings (BepInEx\config\mdbailey94.wol.skybreaker.cfg) ----
         // [Bolt], [Enhanced] and [Signature] apply the next time you cast it; [Balance] after restarting the game.
-        private static ConfigEntry<float> range, delay, coreSize, ringSize, boltSize;
+        private static ConfigEntry<float> range, delay, coreSize, ringSize, boltSize, boltWidth, boltLinger;
         private static ConfigEntry<float> enhancedDelay, enhancedCoreSize, enhancedRingSize;
         private static ConfigEntry<float> sigGather, sigCoreSize, sigRingSize, sigBoltSize, sigAftershockDelay, sigAftershockSize;
         private static ConfigEntry<int> sigAftershocks;
@@ -40,15 +40,20 @@ namespace WoLSkybreaker
         public static float Range => Get(range, 4f, 1f, 10f);
         public static float Delay => Get(delay, 0.45f, 0.05f, 2f);
         // Diameters in units (a burst's hit radius is half of it).
-        public static float CoreSize => Get(coreSize, 1f, 0.3f, 5f);
-        public static float RingSize => Get(ringSize, 2f, 0.5f, 8f);
+        // 0.3.0 (Matt 11-04 16:44): "increase width of Skybreaker by 25%": every bolt's core and ring
+        // (standard, enhanced, signature) and the drawn bolt's width x Width (1.25).
+        public static float Width => Get(boltWidth, 1.25f, 0.5f, 3f);
+        // ..."and have it visually linger another 0.25 s": the drawn bolt plays this much longer.
+        public static float Linger => Get(boltLinger, 0.25f, 0f, 2f);
+        public static float CoreSize => Get(coreSize, 1f, 0.3f, 5f) * Width;
+        public static float RingSize => Get(ringSize, 2f, 0.5f, 8f) * Width;
         public static float BoltSize => Get(boltSize, 2.2f, 0.5f, 4f);
         public static float EnhancedDelay => Get(enhancedDelay, 0.3f, 0.05f, 2f);
-        public static float EnhancedCoreSize => Get(enhancedCoreSize, 1.3f, 0.3f, 5f);
-        public static float EnhancedRingSize => Get(enhancedRingSize, 2.6f, 0.5f, 8f);
+        public static float EnhancedCoreSize => Get(enhancedCoreSize, 1.3f, 0.3f, 5f) * Width;
+        public static float EnhancedRingSize => Get(enhancedRingSize, 2.6f, 0.5f, 8f) * Width;
         public static float SignatureGather => Get(sigGather, 0.8f, 0.1f, 3f);
-        public static float SignatureCoreSize => Get(sigCoreSize, 2f, 0.3f, 6f);
-        public static float SignatureRingSize => Get(sigRingSize, 4f, 0.5f, 10f);
+        public static float SignatureCoreSize => Get(sigCoreSize, 2f, 0.3f, 6f) * Width;
+        public static float SignatureRingSize => Get(sigRingSize, 4f, 0.5f, 10f) * Width;
         public static float SignatureBoltSize => Get(sigBoltSize, 4.5f, 0.5f, 8f);
         public static int SignatureAftershocks => Mathf.Clamp(sigAftershocks?.Value ?? 0, 0, 16);
         public static float SignatureAftershockDelay => Get(sigAftershockDelay, 0.15f, 0f, 1f);
@@ -148,6 +153,8 @@ namespace WoLSkybreaker
             coreSize = Float("Bolt", "CoreSize", 1f, 0.3f, 5f, "Diameter in units of the bolt's core (the high damage).");
             ringSize = Float("Bolt", "RingSize", 2f, 0.5f, 8f, "Diameter in units of the ring round it (the small damage).");
             boltSize = Float("Bolt", "BoltSize", 2.2f, 0.5f, 4f, "Size of the drawn bolt (the game's lightning strike).");
+            boltWidth = Float("Bolt", "Width", 1.25f, 0.5f, 3f, "Multiplies every bolt's core and ring diameters (standard, enhanced, signature) and the drawn bolt's width (0.3.0: 1.25, Matt).");
+            boltLinger = Float("Bolt", "Linger", 0.25f, 0f, 2f, "Extra seconds the drawn bolt stays on screen (its animation slowed to fill them; 0.3.0: 0.25, Matt).");
             enhancedDelay = Float("Enhanced", "Delay", 0.3f, 0.05f, 2f, "Delay when enhanced.");
             enhancedCoreSize = Float("Enhanced", "CoreSize", 1.3f, 0.3f, 5f, "Core diameter when enhanced.");
             enhancedRingSize = Float("Enhanced", "RingSize", 2.6f, 0.5f, 8f, "Ring diameter when enhanced.");
