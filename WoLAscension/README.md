@@ -26,6 +26,15 @@ this table; without Chaos Depths only the health, damage, speed and healing part
 Not in yet: level 10's Chaos Surge look (waiting on art, #29). (Attack speed is in since 0.7.3.) Bosses with an affix roll Swift or Armored (a Giant boss
 would be scaled up inside its arena).
 
+
+## Changes in 0.8.2 (#101 audit)
+
+- **Boss health now scales.** Bosses set their health with an override the old multiplier never
+  reached, so Ascension's enemy and boss health rows didn't apply to bosses. The override is now
+  scaled in place (logged per boss). Bosses at high Ascension will be much tougher than in past
+  play-tests: at A10 the table asks for its full EnemyHealth x BossHealth. `[General]
+  ScaleBossHealth = false` restores the old behaviour.
+
 ## Choosing a level: the Ascension altar
 
 In the plaza, an **Ascension altar** stands to the left of the Chaos Trials portal: a carved stone

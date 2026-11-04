@@ -17,7 +17,7 @@ namespace WoLAscension
     {
         public const string PluginGuid = "mdbailey94.wol.ascension";
         public const string PluginName = "Ascension";
-        public const string PluginVersion = "0.8.1";
+        public const string PluginVersion = "0.8.2";
 
         private const string PlayerDamageTakenMod = "Ascension_DamageTaken";
         private const string PlayerHealingMod = "Ascension_Healing";
@@ -58,6 +58,8 @@ namespace WoLAscension
         private void Awake()
         {
             instance = this;
+            scaleBossOverride = Config.Bind("General", "ScaleBossHealth", true,
+                "0.8.2 (#101): apply the table's enemy and boss health to bosses too. Bosses set their health with an override the old multiplier never reached, so before 0.8.2 Ascension didn't raise boss health at all. False = the old behaviour.");
             modEnabled = Config.Bind("General", "Enabled", true,
                 "Turn the mod on or off (also in the title screen Mods menu). Off = normal difficulty.");
             level = Config.Bind("General", "Level", 0,
@@ -389,7 +391,19 @@ namespace WoLAscension
 
                 // Fill to the new max so enemies start at full (higher) health.
                 if (enemy.health != null)
-                    EnsureMod(enemy.health.healthStat, EnemyHealthMod, health, true);
+                {
+                    // 0.8.2 (#101): bosses set their health with an Override mod ('BossHP',
+                    // 'MiniBossHP') that ignores multipliers, so the Multiplicative mod never
+                    // reached them (Chaos Depths' Depth found this in its 0.6.3 test). Their
+                    // override is scaled in place instead, from its original value, never compounding.
+                    if (enemy.health.healthStat != null && enemy.health.healthStat.HasOverrideMod)
+                    {
+                        if (scaleBossOverride.Value)
+                            ScaleOverride(enemy, health);
+                    }
+                    else
+                        EnsureMod(enemy.health.healthStat, EnemyHealthMod, health, true);
+                }
                 if (enemy.movement != null)
                     EnsureMod(enemy.movement.moveSpeedStat, EnemySpeedMod, speed, false);
                 // "Move and attack faster" (the table, 0.7.3): their animations, which pace their
@@ -423,6 +437,35 @@ namespace WoLAscension
         // Adds, updates or (for a 1x multiplier) removes one of our stat mods. The game's
         // Multiplicative mod value is the *change*: 0.15 means +15%, -0.15 means -15%
         // (passing 0.85 for "x0.85" actually gave +85%).
+        private ConfigEntry<bool> scaleBossOverride;
+        private readonly Dictionary<int, float> overrideOriginal = new Dictionary<int, float>();
+        private readonly Dictionary<int, float> overrideScaled = new Dictionary<int, float>();
+
+        private void ScaleOverride(Enemy enemy, float multiplier)
+        {
+            if (enemy.health.CurrentHealthValue <= 0)
+                return;
+            NumVarStat stat = enemy.health.healthStat;
+            var top = stat.topPriorityOverride as NumVarStatMod;
+            if (top == null)
+                return;
+            int id = enemy.GetInstanceID();
+            float original, scaledValue;
+            if (!overrideOriginal.TryGetValue(id, out original) || !overrideScaled.TryGetValue(id, out scaledValue) || !Mathf.Approximately(top.modValue, scaledValue))
+                original = top.modValue;   // first time, or the game set a new base
+            float target = original * multiplier;
+            if (Mathf.Approximately(top.modValue, target))
+                return;
+            float before = stat.ModifiedValue;
+            stat.RemoveMod(top.ID);
+            top.modValue = target;
+            top.fillToNewMax = true;
+            stat.AddMod(top);
+            overrideOriginal[id] = original;
+            overrideScaled[id] = target;
+            Logger.LogInfo($"{enemy.GetType().Name}: boss override '{top.ID}' {original:0} x{multiplier:0.##} in place, max health {before:0} -> {stat.ModifiedValue:0}");
+        }
+
         private void EnsureMod(NumVarStat stat, string id, float multiplier, bool fillToNewMax)
         {
             if (stat == null)
