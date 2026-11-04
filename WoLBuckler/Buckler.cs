@@ -16,6 +16,9 @@ namespace WoLBuckler
         public static Sprite[] Held = new Sprite[0];
         public static Sprite[] Disc = new Sprite[0];
         public static Sprite[] DiscBig = new Sprite[0];
+        // Log - Art 09:05: the punch in 8 facings, 8 ROWS (same facing order as Held, row 0 at the
+        // top) x 4 frames (pull back, SMASH, hold, recover) of 40x40; pivot (20,20) = the shoulder.
+        public static Sprite[][] Punch8 = new Sprite[0][];
         public const float ArtPixels = 16f;      // the new strips' native buckler size
         public const float DiscFps = 24f;
 
@@ -32,10 +35,11 @@ namespace WoLBuckler
                     Punch[i] = Sprite.Create(strip, new Rect(i * strip.height, 0, strip.height, strip.height), new Vector2(0.5f, 0.5f), 16f);
             }
             Held = Strip("buckler_held_8dir.png");
+            Punch8 = Sheet("buckler_punch_8dir.png", 40, 8, 4);
             Disc = Strip("buckler_disc.png");
             DiscBig = Strip("buckler_disc_big.png");
             log?.LogInfo($"Buckler art: buckler {(Shield != null ? "loaded" : "missing")}, punch {Punch.Length} frames, " +
-                $"held {Held.Length} facings, disc {Disc.Length} + big {DiscBig.Length} frames");
+                $"held {Held.Length} facings, punch {Punch8.Length}x{(Punch8.Length > 0 ? Punch8[0].Length : 0)}, disc {Disc.Length} + big {DiscBig.Length} frames");
         }
 
         // Square frames side by side, centre pivot, 16 px per unit.
@@ -49,6 +53,24 @@ namespace WoLBuckler
                 frames[i] = Sprite.Create(strip, new Rect(i * strip.height, 0, strip.height, strip.height), new Vector2(0.5f, 0.5f), 16f);
             return frames;
         }
+
+        // rows x cols of size x size frames; row 0 is the TOP of the image (Unity's rects count from the bottom).
+        private static Sprite[][] Sheet(string file, int size, int rows, int cols)
+        {
+            Texture2D tex = BucklerPlugin.LoadTexture(file);
+            if (tex == null || tex.width < size * cols || tex.height < size * rows)
+                return new Sprite[0][];
+            var sheet = new Sprite[rows][];
+            for (int r = 0; r < rows; r++)
+            {
+                sheet[r] = new Sprite[cols];
+                for (int c = 0; c < cols; c++)
+                    sheet[r][c] = Sprite.Create(tex, new Rect(c * size, tex.height - (r + 1) * size, size, size), new Vector2(0.5f, 0.5f), 16f);
+            }
+            return sheet;
+        }
+
+        public static bool HasPunch8 => Punch8.Length == 8 && Punch8[0].Length == 4;
 
         // The facing index for an aim: 0 right, then clockwise in screen space (1 down-right ... 7 up-right).
         public static int Facing(Vector2 aim)
@@ -217,7 +239,45 @@ namespace WoLBuckler
                 Destroy(old.gameObject);
         }
 
+        // Log - Art 09:05: with the 8-facing punch sheet, the punch is drawn from the SHOULDER
+        // (the sheet's pivot) in the wizard's facing: f0 pull back during the wind-up, then f1
+        // smash, f2 hold, f3 recover at ~16 fps, then the held buckler (buckler_held_8dir) out
+        // in front for the rest of the pause. Without the sheet: the 0.4.0 / 0.5.0 look.
+        private const float PunchFrameTime = 1f / 16f, PullMaxTime = 0.35f;
+        private static bool Punch8 => BucklerArt.HasPunch8 && BucklerPlugin.HeldArt;
+        private bool pulling;
+        private int facing;
+
+        // The wind-up of hits 1-2: the pull-back frame (f0) at the shoulder until the punch lands.
+        public static void Pull(Player owner, Vector2 aim, bool enhanced)
+        {
+            if (!Punch8 || owner == null)
+                return;
+            BucklerGuard guard = Make(owner, null, aim, enhanced);
+            guard.pulling = true;
+            guard.ShowPunch(0);
+        }
+
         public static void Raise(Player owner, string skillID, Vector2 aim, bool enhanced)
+        {
+            BucklerGuard guard = Make(owner, skillID, aim, enhanced);
+            if (Punch8)
+            {
+                guard.ShowPunch(1);
+                return;
+            }
+            float scale = Buckler.BaseScale * Buckler.Size(enhanced);
+            guard.transform.localScale = new Vector3(scale, scale, 1f);
+            guard.look.sprite = BucklerArt.PunchFrame(1);
+            // The smash's sparks are drawn on the right edge: turned to the aim, and mirrored
+            // top to bottom when punching left so its light stays on top.
+            guard.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg);
+            guard.look.flipY = aim.x < -0.01f;
+            Buckler.Sort(guard.look, owner, aim.y > 0.3f ? -1 : 1);
+            guard.Place();
+        }
+
+        private static BucklerGuard Make(Player owner, string skillID, Vector2 aim, bool enhanced)
         {
             PutAway(owner);
             var go = new GameObject("Buckler Guard");
@@ -228,27 +288,38 @@ namespace WoLBuckler
             guard.aim = aim;
             guard.enhanced = enhanced;
             guard.born = Time.time;
-            float scale = Buckler.BaseScale * Buckler.Size(enhanced);
-            go.transform.localScale = new Vector3(scale, scale, 1f);
+            guard.facing = BucklerArt.Facing(aim);
             guard.look = go.AddComponent<SpriteRenderer>();
-            guard.look.sprite = BucklerArt.PunchFrame(1);
-            // The smash's sparks are drawn on the right edge: turned to the aim, and mirrored
-            // top to bottom when punching left so its light stays on top.
-            go.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg);
-            guard.look.flipY = aim.x < -0.01f;
-            Buckler.Sort(guard.look, owner, aim.y > 0.3f ? -1 : 1);
-            guard.Place();
+            go.transform.position = Buckler.Hand(owner);
+            return guard;
+        }
+
+        // A punch frame for this facing, drawn upright from the shoulder, native size (x enhanced).
+        private void ShowPunch(int frame)
+        {
+            look.sprite = BucklerArt.Punch8[facing][frame];
+            look.flipY = false;
+            transform.rotation = Quaternion.identity;
+            float scale = Buckler.Size(enhanced);
+            transform.localScale = new Vector3(scale, scale, 1f);
+            transform.position = Buckler.Hand(owner);
+            Buckler.Sort(look, owner, BucklerArt.HeldBehind(facing) ? -1 : 1);
         }
 
         private float Reach => BucklerPlugin.PunchReach * Buckler.Size(enhanced);
 
-        // Out to the punch's reach during the smash, then back to where it's held.
-        private Vector2 Place()
+        // Where the buckler is: out to the punch's reach during the smash, then back to where it's held.
+        private Vector2 BucklerAt()
         {
             float age = Time.time - born;
             float d = age < SmashTime ? Mathf.Lerp(0.3f, Reach, age / SmashTime)
                 : Mathf.Lerp(Reach, Reach * HoldAt, Mathf.Clamp01((age - SmashTime) / 0.1f));
-            Vector2 at = Buckler.Hand(owner) + aim * d;
+            return Buckler.Hand(owner) + aim * d;
+        }
+
+        private Vector2 Place()
+        {
+            Vector2 at = BucklerAt();
             transform.position = at;
             return at;
         }
@@ -256,16 +327,37 @@ namespace WoLBuckler
         private void Update()
         {
             float age = Time.time - born;
-            if (owner == null || age >= BucklerPlugin.HoldTime)
+            if (owner == null || (pulling ? age >= PullMaxTime : age >= BucklerPlugin.HoldTime))
             {
                 Destroy(gameObject);
                 return;
             }
-            Vector2 at = Place();
-            if (age >= SmashTime && BucklerArt.Held.Length >= 8 && BucklerPlugin.HeldArt)
-                ShowHeld();
+            if (pulling)
+            {
+                transform.position = Buckler.Hand(owner);
+                return;
+            }
+            Vector2 at;
+            if (Punch8)
+            {
+                at = BucklerAt();
+                float punchEnd = SmashTime + 2f * PunchFrameTime;
+                if (age < punchEnd)
+                    ShowPunch(age < SmashTime ? 1 : age < SmashTime + PunchFrameTime ? 2 : 3);
+                else
+                {
+                    ShowHeld();
+                    transform.position = at;
+                }
+            }
             else
-                look.sprite = BucklerArt.PunchFrame(age < SmashTime ? 1 : age > BucklerPlugin.HoldTime - RecoverTime ? 3 : 2);
+            {
+                at = Place();
+                if (age >= SmashTime && BucklerArt.Held.Length >= 8 && BucklerPlugin.HeldArt)
+                    ShowHeld();
+                else
+                    look.sprite = BucklerArt.PunchFrame(age < SmashTime ? 1 : age > BucklerPlugin.HoldTime - RecoverTime ? 3 : 2);
+            }
             Buckler.BreakShots(owner, skillID, at, BucklerPlugin.GuardRadius * Buckler.Size(enhanced), aim, enhanced);
         }
 
@@ -277,7 +369,6 @@ namespace WoLBuckler
             if (heldShown)
                 return;
             heldShown = true;
-            int facing = BucklerArt.Facing(aim);
             look.sprite = BucklerArt.Held[facing];
             look.flipY = false;
             transform.rotation = Quaternion.identity;

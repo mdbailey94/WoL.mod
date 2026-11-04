@@ -21,7 +21,7 @@ namespace WoLBuckler
     {
         public const string PluginGuid = "mdbailey94.wol.buckler";
         public const string PluginName = "Buckler";
-        public const string PluginVersion = "0.5.0";
+        public const string PluginVersion = "0.6.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;

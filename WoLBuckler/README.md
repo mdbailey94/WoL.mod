@@ -16,3 +16,5 @@ Art: WoL Art's buckler, 4-frame punch and icon ('Giant weapons (2026-11-03)'). A
 
 **0.5.0** (#94): WoL Art's held buckler in 8 facings (buckler_held_8dir, 16x16): after the punch's smash the raised buckler shows the frame for your aim (right, the diagonals, down, left, up), upright, and goes behind the wizard for the three up facings. The thrown disc plays Art's spin strip at 24 fps instead of turning the buckler (buckler_disc; the enhanced disc uses the native 26 px buckler_disc_big). Same sizes, hits and timing. `[Look] DirectionalArt = false` brings back the 0.4.0 look.
 
+**0.6.0** (#94, Log - Art 09:05): WoL Art's punch in 8 directions (buckler_punch_8dir, 8 facings x 4 frames of 40x40, drawn from the shoulder): the arm pulls back during the wind-up, smashes, holds and recovers in the direction you punch, with the buckler strapped to the fist, then the 8-facing held buckler stays up through the pause. The up facings are drawn behind the wizard. Hits, guard and timing are unchanged; `[Look] DirectionalArt = false` still gives the 0.4.0 look.
+

@@ -53,6 +53,19 @@ namespace WoLBuckler
         {
             animExecTime = attackCount >= maxComboCount ? TossExecTime : PunchExecTime;
             base.PlayAnimation(attackCount);
+            // Log - Art 09:05: the pull-back frame during a punch's wind-up, in the wizard's facing.
+            if (attackCount < maxComboCount)
+            {
+                try
+                {
+                    Vector2 aim = inputVector != Vector2.zero ? inputVector.normalized : Entity.GetFacingDirectionVector(parent.facingDirection).normalized;
+                    BucklerGuard.Pull(parent, aim == Vector2.zero ? Vector2.right : aim, IsEmpowered);
+                }
+                catch (System.Exception e)
+                {
+                    BucklerPlugin.Log($"Buckler: wind-up look failed: {e.Message}");
+                }
+            }
         }
 
         // Once per hit (ExecuteAttack can come twice), as Flaming Whip.
