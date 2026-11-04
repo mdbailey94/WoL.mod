@@ -21,7 +21,7 @@ namespace WoLBuckler
     {
         public const string PluginGuid = "mdbailey94.wol.buckler";
         public const string PluginName = "Buckler";
-        public const string PluginVersion = "0.7.0";
+        public const string PluginVersion = "0.7.1";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -37,7 +37,7 @@ namespace WoLBuckler
         private static ConfigEntry<float> punchKnockback, discKnockback, enhancedPunchKnockback, enhancedDiscKnockback;
 
         public static float PunchReach => Get(punchReach, 1.0f, 0.4f, 3f);
-        public static float PunchRadius => Get(punchRadius, 0.75f, 0.3f, 2f);
+        public static float PunchRadius => Get(punchRadius, 1.0f, 0.3f, 2f);
         public static float GuardRadius => Get(guardRadius, 0.8f, 0.3f, 2f);
         public static float HoldTime => Get(holdTime, 0.55f, 0.15f, 1.5f);
         public static float DiscRange => Get(discRange, 5.5f, 1f, 12f);
@@ -73,7 +73,13 @@ namespace WoLBuckler
                     entry.Value = (float)entry.DefaultValue;
                 Logger.LogInfo("Buckler: settings moved to 0.4.0's numbers (hit, hold, hit, hold, disc)");
             }
-            revision.Value = 2;
+            // 0.7.1 (Matt, 11-04 play-test: basic hit boxes too thin): punch radius 0.75 -> 1.0 u.
+            if (hadConfig && revision.Value < 3 && Mathf.Approximately(punchRadius.Value, 0.75f))
+            {
+                punchRadius.Value = 1.0f;
+                Logger.LogInfo("Buckler: punch hit widened (PunchRadius 1.0)");
+            }
+            revision.Value = 3;
             BucklerArt.Load(Logger);
 
             int punch = Mathf.Clamp(punchDamage.Value, 0, 200), disc = Mathf.Clamp(discDamage.Value, 0, 200);
@@ -117,7 +123,7 @@ namespace WoLBuckler
         private void BindSettings()
         {
             punchReach = Float("Buckler", "PunchReach", 1.0f, 0.4f, 3f, "How far in front of your hands a punch lands, in units.");
-            punchRadius = Float("Buckler", "PunchRadius", 0.75f, 0.3f, 2f, "Radius of a punch's hit.");
+            punchRadius = Float("Buckler", "PunchRadius", 1.0f, 0.3f, 2f, "Radius of a punch's hit.");
             guardRadius = Float("Buckler", "GuardRadius", 0.8f, 0.3f, 2f, "How close to the held buckler an enemy shot breaks, in units.");
             holdTime = Float("Buckler", "HoldTime", 0.55f, 0.15f, 1.5f, "Seconds the buckler stays held up (breaking shots) after each punch.");
             discRange = Float("Disc", "Range", 5.5f, 1f, 12f, "How far the tossed buckler flies before it comes back, in units.");

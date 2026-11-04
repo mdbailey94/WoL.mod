@@ -13,7 +13,7 @@ namespace WoLTrailblazer
     {
         public const string PluginGuid = "mdbailey94.wol.trailblazer";
         public const string PluginName = "Trailblazer";
-        public const string PluginVersion = "0.12.2";
+        public const string PluginVersion = "0.12.3";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -47,7 +47,7 @@ namespace WoLTrailblazer
         public static float AuraInterval => Get(auraInterval, 0.15f, 0.05f, 1f);
         public static float PatchSpacing => Get(patchSpacing, 0.6f, 0.2f, 4f);
         public static float TrailLinger => Get(trailLinger, 1.5f, 0.2f, 6f);
-        public static float TrailHitSize => Get(trailHitSize, 1.6f, 0.3f, 5f);
+        public static float TrailHitSize => Get(trailHitSize, 2.4f, 0.3f, 5f);
         public static float TrailHitInterval => Get(trailHitInterval, 0.3f, 0.1f, 2f);
         public static bool SearingFire => searingFire?.Value ?? true;
         public static bool Drawn => drawn?.Value ?? true;
@@ -71,6 +71,15 @@ namespace WoLTrailblazer
                 "Turning it off doesn't remove it from a run where you already have it.");
             BindSettings();
             AdvancedTuning.Bind(Config);
+            // 0.12.3 (Matt, 11-04 play-test: the trail needs a wider hit box): TrailHitSize
+            // 1.6 -> 2.4 (+50%); a config still on the old default moves over once.
+            var hitRevision = Config.Bind("General", "HitboxRevision", 0, "Which version's hit box defaults this file was last updated to. Leave it alone.");
+            if (hitRevision.Value < 1 && Mathf.Approximately(trailHitSize.Value, 1.6f))
+            {
+                trailHitSize.Value = 2.4f;
+                Log("Trailblazer: trail hit widened (TrailHitSize 2.4)");
+            }
+            hitRevision.Value = 1;
             // The signature version only shows up in the spellbook's Signature list once it's
             // unlocked; see SignatureUnlock.cs.
             SignatureUnlock.Install(new HarmonyLib.Harmony(PluginGuid), TrailblazerState.staticID,
@@ -130,7 +139,7 @@ namespace WoLTrailblazer
             auraInterval = Float("Trail", "AuraInterval", 0.15f, 0.05f, 1f, "Seconds between the ring's hits.");
             patchSpacing = Float("Trail", "PatchSpacing", 0.6f, 0.2f, 4f, "Distance moved between patches of fire on the trail.");
             trailLinger = Float("Trail", "TrailLinger", 1.5f, 0.2f, 6f, "Seconds each patch of the trail keeps burning.");
-            trailHitSize = Float("Trail", "TrailHitSize", 1.6f, 0.3f, 5f, "Size of each patch's hit.");
+            trailHitSize = Float("Trail", "TrailHitSize", 2.4f, 0.3f, 5f, "Size of each patch's hit.");
             trailHitInterval = Float("Trail", "TrailHitInterval", 0.3f, 0.1f, 2f, "Seconds between each patch's hits.");
             flameAmount = Float("Trail", "FlameAmount", 2f, 0.5f, 10f, "How many flames flicker on each patch (more the harder it hits).");
             searingFire = Config.Bind("Trail", "SearingRushFire", true,

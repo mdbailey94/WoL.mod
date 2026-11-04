@@ -21,7 +21,7 @@ namespace WoLGiantSpear
     {
         public const string PluginGuid = "mdbailey94.wol.giantspear";
         public const string PluginName = "Giant Air Spear";
-        public const string PluginVersion = "0.2.0";
+        public const string PluginVersion = "0.2.1";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -37,11 +37,11 @@ namespace WoLGiantSpear
         private static ConfigEntry<float> stabKnockback, throwKnockback, gustKnockback;
 
         public static float StabReach => Get(stabReach, 3.4f, 1f, 8f);
-        public static float StabWidth => Get(stabWidth, 0.9f, 0.2f, 3f);
+        public static float StabWidth => Get(stabWidth, 1.4f, 0.2f, 3f);
         public static float ThrowRange => Get(throwRange, 6.5f, 2f, 15f);
         public static float ThrowSpeed => Get(throwSpeed, 16f, 4f, 40f);
         public static float ReturnSpeed => Get(returnSpeed, 20f, 4f, 40f);
-        public static float ThrowWidth => Get(throwWidth, 1.0f, 0.2f, 3f);
+        public static float ThrowWidth => Get(throwWidth, 1.4f, 0.2f, 3f);
         public static float EnhancedReach => Get(enhancedReach, 1.25f, 1f, 2f);
         public static float GustRadius => Get(gustRadius, 1.6f, 0.5f, 4f);
 
@@ -63,7 +63,15 @@ namespace WoLGiantSpear
                 stabKnockback.Value = (float)stabKnockback.DefaultValue;
                 Logger.LogInfo("Giant Air Spear: settings moved to 0.2.0's heavier stabs (StabKnockback 12)");
             }
-            revision.Value = 1;
+            // 0.2.1 (Matt, 11-04 play-test: basic hit boxes too thin): stab 0.9 -> 1.4 u wide,
+            // throw 1.0 -> 1.4 u; a config still on the old defaults moves over once.
+            if (hadConfig && revision.Value < 2)
+            {
+                if (Mathf.Approximately(stabWidth.Value, 0.9f)) stabWidth.Value = 1.4f;
+                if (Mathf.Approximately(throwWidth.Value, 1.0f)) throwWidth.Value = 1.4f;
+                Logger.LogInfo("Giant Air Spear: hit boxes widened (StabWidth 1.4, ThrowWidth 1.4)");
+            }
+            revision.Value = 2;
             SpearArt.Load(Logger);
 
             Skills.Register(new SkillInfo
@@ -108,12 +116,12 @@ namespace WoLGiantSpear
         private void BindSettings()
         {
             stabReach = Float("Spear", "StabReach", 3.4f, 1f, 8f, "How far each stab reaches along your aim, in units.");
-            stabWidth = Float("Spear", "StabWidth", 0.9f, 0.2f, 3f, "How wide a stab's hit is, in units.");
+            stabWidth = Float("Spear", "StabWidth", 1.4f, 0.2f, 3f, "How wide a stab's hit is, in units.");
             throwRange = Float("Spear", "ThrowRange", 6.5f, 2f, 15f, "How far the thrown spear flies before it comes back, in units.");
             throwSpeed = Float("Spear", "ThrowSpeed", 16f, 4f, 40f, "How fast the thrown spear flies out, units a second.");
             returnToHand = Config.Bind("Spear", "ReturnToHand", false, "The thrown spear flies back to you, hitting again on the way (0.1's throw). Off: it blows away at the end of its flight.");
             returnSpeed = Float("Spear", "ReturnSpeed", 20f, 4f, 40f, "With ReturnToHand: how fast it flies back to you, units a second.");
-            throwWidth = Float("Spear", "ThrowWidth", 1.0f, 0.2f, 3f, "How wide the thrown spear's hit is, in units.");
+            throwWidth = Float("Spear", "ThrowWidth", 1.4f, 0.2f, 3f, "How wide the thrown spear's hit is, in units.");
             enhancedReach = Float("Enhanced", "ReachMultiplier", 1.25f, 1f, 2f, "Enhanced: stab reach and throw range times this.");
             gustRadius = Float("Enhanced", "GustRadius", 1.6f, 0.5f, 4f, "Enhanced: radius of the gust where the thrown spear turns.");
 
