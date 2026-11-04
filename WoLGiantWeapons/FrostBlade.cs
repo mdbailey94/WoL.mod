@@ -10,8 +10,14 @@ namespace WoLGiantWeapons
     // switched off: the arcana's hits stay IceSwordState's (the numbers Matt approved).
     internal static class FrostBlade
     {
-        // A swing along `aim` (or, spin = true, two whole turns round the wizard over `spinTime`).
-        public static void Show(Player p, string skillID, Vector2 aim, bool spin, float spinTime)
+        // 0.4.0 (#93): the blade turned by hand instead of the boss's own swing animation, so the
+        // look matches the hit box: it starts `fromDeg` off the aim (+ = counterclockwise) and
+        // turns `sweepDeg` (- = clockwise) over `time`, then shatters.
+        public static void Sweep(Player p, string skillID, Vector2 aim, float fromDeg, float sweepDeg, float time) =>
+            Show(p, skillID, aim, true, time, fromDeg, sweepDeg);
+
+        // A swing along `aim` (or, spin = true, a turn of `sweepDeg` round the wizard over `spinTime`).
+        public static void Show(Player p, string skillID, Vector2 aim, bool spin, float spinTime, float fromDeg = 0f, float sweepDeg = 720f)
         {
             try
             {
@@ -39,7 +45,9 @@ namespace WoLGiantWeapons
                 d.sword = sword;
                 d.spin = spin;
                 d.spinTime = Mathf.Max(0.1f, spinTime);
-                d.turnFrom = rotator.localEulerAngles.z;
+                d.sweep = sweepDeg;
+                d.turnFrom = rotator.localEulerAngles.z + fromDeg + GiantWeaponsPlugin.SwordAngleOffset;
+                rotator.localEulerAngles = new Vector3(0f, 0f, d.turnFrom);
             }
             catch (Exception e)
             {
@@ -53,7 +61,7 @@ namespace WoLGiantWeapons
         {
             public IceSword sword;
             public bool spin;
-            public float spinTime, turnFrom;
+            public float spinTime, turnFrom, sweep = 720f;
             private float born = -1f;
             private bool swinging;
 
@@ -74,7 +82,7 @@ namespace WoLGiantWeapons
                 {
                     float t = Mathf.Clamp01(age / spinTime);
                     var e = transform.localEulerAngles;
-                    transform.localEulerAngles = new Vector3(e.x, e.y, turnFrom + 720f * t);
+                    transform.localEulerAngles = new Vector3(e.x, e.y, turnFrom + sweep * t);
                     if (t >= 1f)
                         sword.EndSwing();
                     return;

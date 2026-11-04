@@ -3,25 +3,34 @@
 The giant weapon set's basics built by WoL Modder (Matt, 2026-11-03). WoL Player's Giant Air Spear
 and Buckler are their own mods (WoLGiantSpear, WoLBuckler); Flaming Whip is WoLFlamingWhip.
 
-## Giant Ice Sword (#83, Water basic, tier 2)
+## Giant Ice Sword (#83, Water basic, tier 2; reworked in 0.4.0, #93)
 
-- A **slow 3-hit combo** (the wizard's swings play at 65% pace).
-- **Hits 1 and 2:** a wide **120°** arc **2.2 u** long in front, **12** damage each, **20%** chill.
-- **Hit 3, tapped:** an overhead chop **2.5 u** long, **18** damage, **40%** freeze, knockback.
-- **Hit 3, held:** keep the button held as the third swing starts to **charge** (the wizard glows
-  ice blue; at least **0.4 s**, full at **1 s**), then let go to **spin**: 3 hits round you over
-  0.6 s in a **2.5 u** radius (**3 u** at full charge), **10** each (**14** at full charge), up
-  to **50%** freeze.
+- A **slow 3-hit combo** (the wizard's swings play at 65% pace). The drawn blade is the game's own
+  ice boss greatsword, turned by the mod so it sweeps exactly where the hit box is.
+- **Hit 1:** a **45°** swing **clockwise**, **2.2 u** long, **12** damage, **20%** chill.
+- **Hit 2:** the same **45°** swing back **counterclockwise**.
+- **Hit 3:** always one **360° spin**, clockwise from the aim over **0.5 s**. The hit follows the
+  blade: the circle is cut into 4 slices and each enemy is hit once, as the blade passes it.
+  - **Tapped:** **2.5 u** radius, **18** damage, **30%** freeze.
+  - **Held** as hit 3 starts (the wizard glows ice blue; at least **0.4 s**, full at **1 s**): wider
+    with the charge, **22** damage (**28** and **3 u** at full charge), **40%** freeze (**50%** full).
 - **Enhanced:** the spin is **30%** wider and leaves a **frost ring** for **1.5 s** that slows enemies.
 
-## Giant Lightning Flail (#84, Lightning basic, tier 2)
+## Giant Lightning Flail (#84, Lightning basic, tier 2; 0.5.0, #92)
 
-- A **slow 3-hit combo** (70% pace).
-- **Hits 1 and 2:** the flail swings round in a full **circle**, hitting everything within **2 u**,
-  **10** damage each, **25%** shock.
+- A **slow 3-hit combo** (**63%** pace since 0.5.0, 10% slower than before).
+- **Hits 1 and 2:** the **spiked ball itself** goes once round the wizard at **2 u** over
+  **0.45 s** (hit 1 counterclockwise, hit 2 clockwise, starting at the aim), on its lightning
+  chain, with a faint motion-blur ring behind it. The hit follows the ball (4 slices, each enemy
+  once): **10** damage, **25%** shock.
 - **Hit 3:** a **0.4 s** wind-up, then a **slam** **2.5 u** ahead in a **1.5 u** radius: **20**
   damage, always shocks, knockback, camera shake and a thunder thud.
 - **Enhanced:** the slam arcs lightning to up to **3** enemies within **4 u**, **6** damage each.
+
+Config keys renamed in 0.4.0/0.5.0 so the new numbers reach existing installs: `[Ice Sword]`
+SwingAngle, SpinSlices, SpinTurnTime, SwingTurnTime, SwordAngleOffset (turns the drawn blade if it
+doesn't line up with the aim); `[Balance]` SwordTapSpinDamage, SwordChargedSpinDamage,
+SwordFullSpin360Damage; `[Flail]` SwingPace, CircleTime, CircleSlices, BlurAlpha.
 
 Neither can have a signature: the game's spellbook puts every basic in the basic slot before it
 looks for a signature. The hits are the game's own ice and lightning bursts with each arcana's

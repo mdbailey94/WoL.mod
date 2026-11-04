@@ -69,14 +69,36 @@ namespace WoLGiantWeapons
                 Slam(Heavy.Hand(parent), Heavy.Aim(this, parent));
         }
 
-        // Hits 1-2: everything within CircleRadius round the wizard.
+        // Hits 1-2: the ball goes once round the wizard at CircleRadius over CircleTime (hit 1
+        // counterclockwise, hit 2 clockwise), starting at the aim; 0.5.0 (#92): the hit follows
+        // the ball, the circle cut into CircleSlices slices hit as the ball passes (once each).
         private void Circle()
         {
-            Vector2 at = parent.transform.position;
-            Heavy.Bolt(at, parent, skillID, 1, GiantWeaponsPlugin.CircleRadius);
-            FlailLook.Circle(parent, GiantWeaponsPlugin.CircleRadius, 0.35f);
-            Heavy.Sound("WindSlashBasic", at, 0.55f);
-            GiantWeaponsPlugin.Log($"Giant Lightning Flail: circle swing {comboCounter}");
+            Player p = parent;
+            string id = skillID;
+            Vector2 aim = Heavy.Aim(this, p);
+            float aimDeg = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
+            bool clockwise = comboCounter % 2 == 0;
+            float time = GiantWeaponsPlugin.CircleTime, radius = GiantWeaponsPlugin.CircleRadius;
+            int slices = GiantWeaponsPlugin.CircleSlices;
+            float slice = 360f / slices;
+            var done = new System.Collections.Generic.HashSet<int>();
+            for (int i = 0; i < slices; i++)
+            {
+                float centre = (aimDeg + (clockwise ? -1f : 1f) * (i + 0.5f) * slice) * Mathf.Deg2Rad;
+                var dir = new Vector2(Mathf.Cos(centre), Mathf.Sin(centre));
+                Heavy.After((i + 1) * time / slices, () =>
+                {
+                    if (p == null)
+                        return;
+                    foreach (GameObject enemy in Heavy.InArc(p.transform.position, dir, radius + 0.3f, slice * 0.5f + 1f))
+                        if (done.Add(enemy.GetInstanceID()))
+                            Heavy.Bolt(enemy.transform.position, p, id, 1, 0.35f);
+                });
+            }
+            FlailLook.Circle(p, radius, time, aimDeg, clockwise);
+            Heavy.Sound("WindSlashBasic", p.transform.position, 0.5f);
+            GiantWeaponsPlugin.Log($"Giant Lightning Flail: circle swing {comboCounter} ({(clockwise ? "clockwise" : "counterclockwise")}, {time:0.00} s)");
         }
 
         // Hit 3: SlamWindUp later, the head smashes down SlamDistance ahead.

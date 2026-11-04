@@ -60,7 +60,7 @@ namespace WoLGiantWeapons
         }
 
         // Hits 1-2: the ring round the wizard over `time`, its radius drawn to `radius`.
-        public static void Circle(Player p, float radius, float time)
+        public static void Circle(Player p, float radius, float time, float startDeg = 0f, bool clockwise = false)
         {
             if (p == null || !Art())
                 return;
@@ -68,6 +68,8 @@ namespace WoLGiantWeapons
             fx.ring = true;
             fx.radius = radius;
             fx.time = Mathf.Max(0.15f, time);
+            fx.startDeg = startDeg;
+            fx.clockwise = clockwise;
         }
 
         // Hit 3: the ball and chain reach from the hand to the spot over `windUp`; Impact plays
@@ -95,8 +97,8 @@ namespace WoLGiantWeapons
 
         private class Fx : MonoBehaviour
         {
-            public bool ring, impact;
-            public float radius, time, reachTime;
+            public bool ring, impact, clockwise;
+            public float radius, time, reachTime, startDeg;
             public Vector2 spot;
             private Player owner;
             private SpriteRenderer main, ball;
@@ -153,10 +155,23 @@ namespace WoLGiantWeapons
                     transform.position = centre;
                     float s = radius * 16f / RingPx;
                     main.transform.localScale = new Vector3(s, s, 1f);
+                    // 0.5.0 (#92): the ball itself is drawn on the ring, turning smoothly once
+                    // round from the aim (the ring's frames behind it as a faint motion blur).
                     int f = Mathf.Min(swing.Length - 1, (int)(t * swing.Length));
                     main.sprite = swing[f];
-                    float angle = (t * swing.Length * 60f) * Mathf.Deg2Rad;
+                    main.color = new Color(1f, 1f, 1f, GiantWeaponsPlugin.FlailBlurAlpha);
+                    float deg = startDeg + (clockwise ? -360f : 360f) * t;
+                    float angle = deg * Mathf.Deg2Rad;
+                    // Frame f's bright head is drawn at f x 60 degrees counterclockwise; turn the
+                    // ring so that head sits on the ball (mirrored for a clockwise swing, so its
+                    // tail trails behind).
+                    main.transform.localScale = new Vector3(s, clockwise ? -s : s, 1f);
+                    main.transform.localRotation = Quaternion.Euler(0f, 0f, clockwise ? deg + f * 60f : deg - f * 60f);
                     tip = centre + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+                    if (ball == null)
+                        ball = Part("Ball", 2);
+                    ball.transform.position = tip;
+                    ball.sprite = head[(int)(age * 12f) % head.Length];
                 }
                 else
                 {
