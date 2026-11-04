@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.36.1";
+        public const string PluginVersion = "0.36.2";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -156,7 +156,7 @@ namespace WoLChaosDepths
             Instance = this;
             try
             {
-                InProfile = Environment.GetEnvironmentVariable("CHAOSDEPTHS_PROFILE") == "1";
+                InProfile = Environment.GetEnvironmentVariable("CHAOSDEPTHS_PROFILE") == "1" || LoadedFromOwnFolder();
             }
             catch
             {
@@ -657,7 +657,25 @@ namespace WoLChaosDepths
 
         // Launched through the Chaos Depths profile's launcher (Profile/README.md), which sets
         // CHAOSDEPTHS_PROFILE=1; inside the base game's BepInEx otherwise.
+        // Also when BepInEx itself was loaded from a folder outside the game's own BepInEx (the
+        // profile's, via doorstop), e.g. started from Steam with the doorstop launch options, so
+        // Steam's overlay and Remote Play Together work (Matt, 2026-11-04). The launcher's
+        // environment variable isn't set then.
         public static bool InProfile { get; private set; }
+
+        private static bool LoadedFromOwnFolder()
+        {
+            try
+            {
+                string root = System.IO.Path.GetFullPath(BepInEx.Paths.BepInExRootPath).TrimEnd('\\', '/');
+                string game = System.IO.Path.GetFullPath(System.IO.Path.Combine(BepInEx.Paths.GameRootPath, "BepInEx")).TrimEnd('\\', '/');
+                return !string.Equals(root, game, StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
         public static bool InTrialsNow() => InTrials();
 
