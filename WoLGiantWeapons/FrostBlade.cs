@@ -43,6 +43,7 @@ namespace WoLGiantWeapons
                 sword.initAnimTime = 0.5f;   // straight into the end of its appearing
                 Driver d = rotator.gameObject.AddComponent<Driver>();
                 d.sword = sword;
+                d.owner = p;
                 d.spin = spin;
                 d.spinTime = Mathf.Max(0.1f, spinTime);
                 d.sweep = sweepDeg;
@@ -71,6 +72,7 @@ namespace WoLGiantWeapons
             public bool spin;
             public float spinTime, turnFrom, sweep = 720f;
             public float aimDeg, fromDeg;
+            public Player owner;
             private float born = -1f;
             private bool swinging;
             private SpriteRenderer blade;
@@ -90,6 +92,10 @@ namespace WoLGiantWeapons
                 }
                 if (spin)
                 {
+                    // 0.7.0 (#101): the blade stays at the wizard's hand as they move (the hits are
+                    // centred on the wizard's live position), so hits never land where no blade is.
+                    if (owner != null)
+                        transform.position = Heavy.Hand(owner);
                     float t = Mathf.Clamp01(age / spinTime);
                     float want = aimDeg + fromDeg + sweep * GiantWeaponsPlugin.Ease(t) + GiantWeaponsPlugin.SwordAngleOffset;
                     Steer(want);

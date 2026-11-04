@@ -89,9 +89,9 @@ namespace WoLGiantWeapons
                 var dir = new Vector2(Mathf.Cos(centre), Mathf.Sin(centre));
                 Heavy.After((i + 1) * time / slices, () =>
                 {
-                    if (p == null)
+                    if (!Heavy.Alive(p))
                         return;
-                    foreach (GameObject enemy in Heavy.InArc(p.transform.position, dir, radius + 0.3f, slice * 0.5f + 1f))
+                    foreach (GameObject enemy in Heavy.InArc(p.transform.position, dir, radius, slice * 0.5f + 1f))
                         if (done.Add(enemy.GetInstanceID()))
                             Heavy.Bolt(enemy.transform.position, p, id, 1, 0.12f);   // tight, so a neighbour isn't hit again by this slice's burst
                 });
@@ -112,7 +112,7 @@ namespace WoLGiantWeapons
             FlailLook.Reach(p, spot, GiantWeaponsPlugin.SlamWindUp);
             Heavy.After(GiantWeaponsPlugin.SlamWindUp, () =>
             {
-                if (p == null)
+                if (!Heavy.Alive(p))
                     return;
                 Heavy.Bolt(spot, p, id, 2, GiantWeaponsPlugin.SlamRadius);
                 FlailLook.Impact(p, spot, GiantWeaponsPlugin.SlamRadius);
@@ -122,7 +122,11 @@ namespace WoLGiantWeapons
                 Heavy.Dust(spot, 14, GiantWeaponsPlugin.SlamRadius);
                 int arcs = 0;
                 if (enhanced)
-                    foreach (GameObject enemy in Heavy.Near(spot, GiantWeaponsPlugin.ArcReach))
+                {
+                    // 0.7.0 (#101): the NEAREST enemies outside the slam, not the first in the list.
+                    var near = Heavy.Near(spot, GiantWeaponsPlugin.ArcReach);
+                    near.Sort((a, b) => ((Vector2)a.transform.position - spot).sqrMagnitude.CompareTo(((Vector2)b.transform.position - spot).sqrMagnitude));
+                    foreach (GameObject enemy in near)
                     {
                         if (arcs >= GiantWeaponsPlugin.ArcTargets)
                             break;
@@ -131,6 +135,7 @@ namespace WoLGiantWeapons
                         Heavy.Bolt(enemy.transform.position, p, id, 3, 0.4f);
                         arcs++;
                     }
+                }
                 GiantWeaponsPlugin.Log($"Giant Lightning Flail: slam {GiantWeaponsPlugin.SlamDistance:0.0} u out{(enhanced ? $", {arcs} arcs" : "")}");
             });
         }

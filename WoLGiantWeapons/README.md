@@ -27,6 +27,16 @@ and Buckler are their own mods (WoLGiantSpear, WoLBuckler); Flaming Whip is WoLF
   damage, always shocks, knockback, camera shake and a thunder thud.
 - **Enhanced:** the slam arcs lightning to up to **3** enemies within **4 u**, **6** damage each.
 
+0.7.0 (#101 audit fixes):
+- Ice Sword: the spinning blade stays at your hand as you move, so its hits (centred on you) never
+  land where no blade is drawn. The spin charges only on a fresh hold (let go after hit 2, then
+  hold again); holding attack through the combo gives a tapped spin. The charge glow no longer
+  wipes other colours on the wizard.
+- Hit areas count the enemy's body (0.3 u) on the reach and the arc edges, so big enemies the
+  blade or ball visibly crosses are hit.
+- Delayed hits (swings, spin slices, circle slices, slam) don't land after the wizard dies.
+- Enhanced Flail arcs go to the nearest enemies.
+
 0.6.0 (#95, #97, Matt's play-test):
 - **Ice Sword:** the blade is now steered by where it actually points, so hit 1 really sweeps
   **clockwise** and hit 2 **counterclockwise** for every aim. **Heavy:** each swing takes **0.32 s**

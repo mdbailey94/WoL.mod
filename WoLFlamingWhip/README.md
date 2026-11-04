@@ -19,6 +19,10 @@ The hits are the game's own fire bursts with this arcana's stats, so burn, gear,
 talents apply. Art by WoL Art (Finished Art/Prickly Ballet + Flaming Whip, 2026-11-02); a bigger
 overhead-arc crack is being drawn for #81/#86.
 
+## Changes in 0.6.1 (#101)
+
+- The crack doesn't land if the wizard died (or went down in co-op) during the wind-up.
+
 ## Changes in 0.6.0 (#98)
 
 - **Bigger hit area:** the crack's spot is **1.5 tiles** across (was 1), enhanced **2 tiles** (was 1.5),

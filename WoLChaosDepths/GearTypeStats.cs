@@ -100,6 +100,9 @@ namespace WoLChaosDepths
                     damage += Get(totals, "HoldDamage");
                     cooldown += Get(totals, "HoldCooldown");
                 }
+                // #101 (0.36.0): generic + type cooldown together stay within GearCooldownCap.
+                float generic = Mathf.Max(Get(totals, "Cooldown"), -ChaosDepthsPlugin.GearCooldownCap);
+                cooldown = Mathf.Max(cooldown, -ChaosDepthsPlugin.GearCooldownCap - generic);
                 Set(s.skillData, StatData.damageStr, "Damage", damage);
                 Set(s.skillData, StatData.cdStr, "Cooldown", cooldown);
             }

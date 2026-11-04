@@ -17,7 +17,7 @@ namespace WoLGiantWeapons
     {
         public const string PluginGuid = "mdbailey94.wol.giantweapons";
         public const string PluginName = "Giant Weapons";
-        public const string PluginVersion = "0.6.0";
+        public const string PluginVersion = "0.7.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> swordEnabled, flailEnabled;

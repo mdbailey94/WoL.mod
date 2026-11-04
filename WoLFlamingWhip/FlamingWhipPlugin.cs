@@ -19,7 +19,7 @@ namespace WoLFlamingWhip
     {
         public const string PluginGuid = "mdbailey94.wol.flamingwhip";
         public const string PluginName = "Flaming Whip";
-        public const string PluginVersion = "0.6.0";
+        public const string PluginVersion = "0.6.1";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;

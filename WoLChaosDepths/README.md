@@ -72,6 +72,14 @@ LeftStick, Back or None).
 
 To start over, delete the `characterN.json` files while the game is closed.
 
+## #101 refinement fixes (0.36.0)
+
+- **Gear safety caps** (`[Balance]`, Matt to approve the values): gear can cut an arcana's cooldown
+  by at most **60%** (generic + type cooldown affixes together), damage taken by at most **60%**,
+  and give at most **40%** evade. Only stacked high-level Legendaries reach them; talents, pacts and
+  relics still add on top.
+- Arcana Levels (pulled out of the build) no longer patches every cast.
+
 ## Review fixes (0.35.4)
 
 - **Shade in solo:** stays a normal target (`[Shade] UntargetedInSolo = false`), since with nobody

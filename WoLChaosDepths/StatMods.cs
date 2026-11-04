@@ -65,7 +65,7 @@ namespace WoLChaosDepths
                 Skill(category, StatData.damageStr, "Damage", Get(totals, "Damage"), VarStatModType.Multiplicative);
                 Skill(category, StatData.critChStr, "CritChance", Get(totals, "CritChance"), VarStatModType.Additive);
                 Skill(category, StatData.critDmgStr, "CritDamage", Get(totals, "CritDamage"), VarStatModType.Additive);
-                Skill(category, StatData.cdStr, "Cooldown", Get(totals, "Cooldown"), VarStatModType.Multiplicative);
+                Skill(category, StatData.cdStr, "Cooldown", Mathf.Max(Get(totals, "Cooldown"), -ChaosDepthsPlugin.GearCooldownCap), VarStatModType.Multiplicative);
                 Skill(category, StatData.kbMultiStr, "Knockback", Get(totals, "Knockback"), VarStatModType.Multiplicative);
                 // The fields the game's Fury cloak uses (OutfitModType.ODRate / ODDamage).
                 Skill(category, StatData.odProgStr, "SignatureCharge", Get(totals, "SignatureCharge"), VarStatModType.Multiplicative);
@@ -86,8 +86,8 @@ namespace WoLChaosDepths
                     if (!wasFull && health.healthStat != null && hpBefore > 0)
                         health.CurrentHealthValue = Mathf.Min(hpBefore, (int)health.healthStat.ModifiedValue);
                     Stat(health.healModifierStat, "Healing", Get(totals, "Healing"), VarStatModType.Multiplicative, false);
-                    Stat(health.damageTakenStat, "DamageTaken", Get(totals, "DamageTaken"), VarStatModType.Multiplicative, false);
-                    Stat(health.evadeStat, "Evade", Get(totals, "Evade"), VarStatModType.Additive, false);
+                    Stat(health.damageTakenStat, "DamageTaken", Mathf.Max(Get(totals, "DamageTaken"), -ChaosDepthsPlugin.GearDamageTakenCap), VarStatModType.Multiplicative, false);
+                    Stat(health.evadeStat, "Evade", Mathf.Min(Get(totals, "Evade"), ChaosDepthsPlugin.GearEvadeCap), VarStatModType.Additive, false);
                     Stat(health.critHealModStat, "HealCrit", Get(totals, "HealCrit"), VarStatModType.Additive, false);
                 }
                 if (player.movement != null)

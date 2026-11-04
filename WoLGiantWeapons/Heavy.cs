@@ -49,19 +49,29 @@ namespace WoLGiantWeapons
         }
 
         // Live enemies within `reach` of `from` and within halfAngle degrees of `dir`.
+        // 0.7.0 (#101): with BodyPad for the enemy's body, on the reach and on the arc's edges, so
+        // a big enemy the blade visibly crosses isn't missed because its centre is just outside.
+        public const float BodyPad = 0.3f;
+
         public static List<GameObject> InArc(Vector2 from, Vector2 dir, float reach, float halfAngle)
         {
             var found = new List<GameObject>();
+            float r = reach + BodyPad;
             foreach (GameObject go in Enemies())
             {
                 Vector2 rel = (Vector2)go.transform.position - from;
-                if (rel.sqrMagnitude > reach * reach)
+                float d2 = rel.sqrMagnitude;
+                if (d2 > r * r)
                     continue;
-                if (rel.sqrMagnitude < 0.01f || Vector2.Angle(dir, rel) <= halfAngle)
+                float off = Vector2.Angle(dir, rel) - halfAngle;
+                if (d2 < 0.01f || off <= 0f || (off < 90f && Mathf.Sqrt(d2) * Mathf.Sin(off * Mathf.Deg2Rad) <= BodyPad))
                     found.Add(go);
             }
             return found;
         }
+
+        // A delayed hit only lands while its wizard is alive (not after a death or a co-op down).
+        public static bool Alive(Player p) => p != null && p.health != null && p.health.CurrentHealthValue > 0;
 
         // Live enemies within halfWidth (+ a little for their body) of the segment.
         public static List<GameObject> AlongLine(Vector2 from, Vector2 dir, float length, float halfWidth)

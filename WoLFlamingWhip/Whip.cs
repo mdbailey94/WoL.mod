@@ -92,7 +92,8 @@ namespace WoLFlamingWhip
                 if (Time.time < at)
                     return;
                 Destroy(gameObject);
-                if (owner != null)
+                // 0.6.1 (#101): no crack after the wizard died or went down in co-op.
+                if (owner != null && owner.health != null && owner.health.CurrentHealthValue > 0)
                     Crack(owner, skillID, hand, aim, enhanced);
             }
         }

@@ -15,7 +15,10 @@ namespace WoLGiantWeapons
         private static readonly Color Glow = new Color(0.55f, 0.85f, 1f, 1f);
 
         private NumVarStatMod paceMod;
-        private bool paced, executed, charging;
+        private bool paced, executed, charging, tinted;
+        // 0.7.0 (#101): the spin charges only on a FRESH hold: the button must have been let go
+        // since hit 2 started, so holding attack through the combo no longer forces a full charge.
+        private bool releasedSinceHit2 = true;
         private float chargeFrom, charge;
 
         public IceSwordState(FSM fsm, Player player) : base(staticID, fsm, player)
@@ -46,8 +49,10 @@ namespace WoLGiantWeapons
             executed = false;
             charge = 0f;
             Heavy.Pace(parent, ref paceMod, "GiantIceSword_Pace", GiantWeaponsPlugin.SwordPace, ref paced, true);
-            // Still holding the button as the third hit starts: charge a spin instead of chopping.
-            charging = comboCounter >= maxComboCount && ButtonHeld();
+            if (comboCounter == maxComboCount - 1)
+                releasedSinceHit2 = false;
+            // Holding the button again as the third hit starts: charge the spin first.
+            charging = comboCounter >= maxComboCount && ButtonHeld() && releasedSinceHit2;
             chargeFrom = Time.time;
         }
 
@@ -61,6 +66,8 @@ namespace WoLGiantWeapons
 
         public override void Update()
         {
+            if (!ButtonHeld())
+                releasedSinceHit2 = true;
             if (charging)
             {
                 charge = Time.time - chargeFrom;
@@ -114,7 +121,7 @@ namespace WoLGiantWeapons
             int n = comboCounter;
             Heavy.After(GiantWeaponsPlugin.SwingTurnTime * GiantWeaponsPlugin.EaseTimeOf(0.5f), () =>
             {
-                if (p == null)
+                if (!Heavy.Alive(p))
                     return;
                 int hits = 0;
                 foreach (GameObject enemy in Heavy.InArc(Heavy.Hand(p), aim, GiantWeaponsPlugin.SwingReach, half))
@@ -152,7 +159,7 @@ namespace WoLGiantWeapons
                 float delay = GiantWeaponsPlugin.SpinTime * GiantWeaponsPlugin.EaseTimeOf((i + 1f) / slices);
                 Heavy.After(delay, () =>
                 {
-                    if (p == null)
+                    if (!Heavy.Alive(p))
                         return;
                     foreach (GameObject enemy in Heavy.InArc(p.transform.position, dir, radius, slice * 0.5f + 1f))
                         if (done.Add(enemy.GetInstanceID()))
@@ -179,10 +186,17 @@ namespace WoLGiantWeapons
             }
         }
 
+        // Only resets the colour it set itself (0.7.0, #101), so a hurt flash or another mod's
+        // tint isn't wiped on every hit.
         private void Tint(Color c)
         {
-            if (parent != null && parent.spriteRenderer != null)
-                parent.spriteRenderer.color = c;
+            if (parent == null || parent.spriteRenderer == null)
+                return;
+            bool white = c == Color.white;
+            if (white && !tinted)
+                return;
+            parent.spriteRenderer.color = c;
+            tinted = !white;
         }
 
         // Enhanced: a frost ring on the floor where it spun, slowing (and lightly chilling) enemies

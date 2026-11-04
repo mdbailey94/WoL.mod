@@ -51,6 +51,9 @@ namespace WoLChaosDepths
 
         public static void Install(Harmony harmony)
         {
+            // #101 (0.36.0): pulled out, so don't patch every cast or add the badge object at all.
+            if (PulledOut)
+                return;
             try
             {
                 harmony.Patch(AccessTools.Method(typeof(Player.SkillState), nameof(Player.SkillState.StartCooldownTimer)),
