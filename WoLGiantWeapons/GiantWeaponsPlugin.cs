@@ -17,7 +17,7 @@ namespace WoLGiantWeapons
     {
         public const string PluginGuid = "mdbailey94.wol.giantweapons";
         public const string PluginName = "Giant Weapons";
-        public const string PluginVersion = "0.13.0";
+        public const string PluginVersion = "0.14.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> swordEnabled, flailEnabled;
@@ -33,7 +33,11 @@ namespace WoLGiantWeapons
         private static ConfigEntry<float> swingSweep;
         // 0.13.0 (Matt 14:17): swings 1-2 turn 220 degrees, from straight behind the wizard round one
         // side to 40 past the aim, and hit everything the blade passes (not just a cone in front).
-        public static float SwingSweep => Get(swingSweep, 220f, 45f, 360f);
+        public static float SwingSweep => Get(swingSweep, 240f, 45f, 360f);
+        // 0.14.0 (Matt 16:23): the blade is held this many degrees back from the aim before each
+        // swing and the spin (was 180 = straight behind).
+        private static ConfigEntry<float> braceAngle;
+        public static float BraceAngle => Get(braceAngle, 120f, 0f, 180f);
         private static ConfigEntry<float> swordPace, swingReach, swingArc, spinMin, spinFull, spinRadius, fullSpinRadius,
             spinTime, enhancedSpinWidth, frostRingTime;
         private static ConfigEntry<int> spinHits;
@@ -195,7 +199,9 @@ namespace WoLGiantWeapons
                     fullSpinRadius.Value = 3.9f;
                 Logger.LogInfo("Config moved to 0.13.0's longer Ice Sword (scale 0.91, swing reach 3.4, spin 3.25 / 3.9)");
             }
-            configVersion.Value = 130;
+            if (configVersion.Value < 140 && Mathf.Approximately(swingSweep.Value, 220f))
+                swingSweep.Value = 240f;
+            configVersion.Value = 140;
         }
 
         private static int Clamp(ConfigEntry<int> entry, int min, int max) => Mathf.Clamp(entry.Value, min, max);
@@ -216,7 +222,8 @@ namespace WoLGiantWeapons
         {
             swordPace = Float("Ice Sword", "Pace", 0.65f, 0.3f, 1f, "How fast the wizard's swings play (0.65 = 35% slower, the heavy feel; 1 = normal).");
             swingReach = Float("Ice Sword", "SwingReach", 3.4f, 0.5f, 6f, "Reach of swings 1 and 2, in units (0.13.0: 3.4 with the longer sword; was 2.6).");
-            swingSweep = Float("Ice Sword", "SwingSweep", 220f, 45f, 360f, "Degrees swings 1 and 2 turn, from straight behind the wizard round one side and past the aim (0.13.0: 220 ends 40 past the aim). Everything the blade passes is hit.");
+            swingSweep = Float("Ice Sword", "SwingSweep", 240f, 45f, 360f, "Degrees swings 1 and 2 turn, from BraceAngle back on one side, through the aim, round the other side (0.14.0: 240 = from 120 back to 120 on the other side). Everything the blade passes is hit.");
+            braceAngle = Float("Ice Sword", "BraceAngle", 120f, 0f, 180f, "Degrees back from the aim the blade is held while bracing, for the swings and the spin (0.14.0: 120; 180 = straight behind).");
             swingHitAngle = Float("Ice Sword", "SwingHitAngle", 75f, 10f, 360f, "UNUSED since 0.13.0 (swings hit along their whole SwingSweep).");
             swingArc = Float("Ice Sword", "SwingAngle", 45f, 10f, 360f, "UNUSED since 0.13.0 (see SwingSweep).");
             spinMin = Float("Ice Sword", "SpinMinCharge", 0.4f, 0f, 3f, "Seconds held before the third hit's spin counts as charged (shorter = a tapped spin).");

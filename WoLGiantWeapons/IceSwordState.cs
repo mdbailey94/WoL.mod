@@ -1,3 +1,4 @@
+using System;
 using Chaos.AnimatorExtensions;
 using UnityEngine;
 
@@ -68,7 +69,10 @@ namespace WoLGiantWeapons
             // from the attack) through the wind-up, then swishes forward. Hit 1 comes round
             // clockwise, hit 2 counterclockwise (+180 and -180 are the same spot behind; the sign
             // only sets which way it comes round), the spin starts from behind too.
-            float from = spin ? 180f : comboCounter % 2 == 1 ? 180f : -180f;
+            // 0.14.0 (Matt 16:23): held BraceAngle (120) degrees back from the aim, on the side it
+            // swings from: hit 1 and the spin from +120 (coming round clockwise), hit 2 from -120.
+            float back = GiantWeaponsPlugin.BraceAngle;
+            float from = spin ? back : comboCounter % 2 == 1 ? back : -back;
             held = FrostBlade.Brace(parent, skillID, braceAim, from);
         }
 
@@ -159,54 +163,68 @@ namespace WoLGiantWeapons
                 Spin(aim, charge >= GiantWeaponsPlugin.SpinMinCharge ? Mathf.Clamp01(charge / GiantWeaponsPlugin.SpinFullCharge) : -1f);
         }
 
-        // Hits 1-2: braced with the blade straight behind, then a swish of SwingSweep degrees (Matt
-        // 14:17: 220) round one side, through the aim and on past it; hit 1 clockwise, hit 2 back.
-        // 0.13.0: the hit box follows the blade along the whole sweep (as the spin's does): the
-        // sweep is cut into slices of at most 45 degrees, each slice's enemies hit (once each) as
-        // the blade passes it, at SwingReach.
+        // Hits 1-2: braced BraceAngle (120) back on one side, then a swish of SwingSweep (240)
+        // round through the aim to 120 on the other side; hit 1 clockwise, hit 2 back. The hits
+        // follow the blade along the whole sweep (SweepHits), at SwingReach.
         private void Swing(Vector2 hand, Vector2 aim)
         {
+            // 0.14.0 (Matt 16:23): from BraceAngle (120) back on one side, SwingSweep (240) round
+            // through the aim to 120 on the other side; hit 1 clockwise, hit 2 back.
             float total = GiantWeaponsPlugin.SwingSweep;
-            bool clockwise = comboCounter % 2 == 1;   // hit 1 clockwise, hit 2 back
+            bool clockwise = comboCounter % 2 == 1;
             aim = braceAim;   // the brace set the line
             float sign = clockwise ? -1f : 1f;
+            float back = GiantWeaponsPlugin.BraceAngle;
             if (held != null)
             {
                 held.Release(total * sign, GiantWeaponsPlugin.SwingTurnTime);
                 held = null;
             }
             else
-                FrostBlade.Sweep(parent, skillID, aim, clockwise ? 180f : -180f, total * sign, GiantWeaponsPlugin.SwingTurnTime);
+                FrostBlade.Sweep(parent, skillID, aim, clockwise ? back : -back, total * sign, GiantWeaponsPlugin.SwingTurnTime);
+            float aimDeg = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
+            int n = comboCounter;
+            SweepHits(aimDeg + (clockwise ? back : -back), total * sign, GiantWeaponsPlugin.SwingTurnTime, GiantWeaponsPlugin.SwingReach, 1,
+                hits => GiantWeaponsPlugin.Log($"Giant Ice Sword: swing {n} ({(clockwise ? "clockwise" : "counterclockwise")} {total:0} deg from {back:0} back), {hits} hit"));
+        }
+
+        // 0.14.0 (Matt 16:23, "still trouble with hits registering"): every step of the turn (about
+        // every 30 degrees) hits each enemy in ALL the area the blade has swept so far, not only the
+        // last slice, so an enemy that was on a slice edge, stepped into the swept area or was right
+        // beside the wizard still gets hit (once per swing). Measured from the wizard's own position
+        // (the hand point sits in front of him, so enemies at his side read as behind it).
+        private void SweepHits(float startDeg, float signedSweep, float time, float reach, int level, Action<int> done)
+        {
             Player p = parent;
             string id = skillID;
-            int n = comboCounter;
-            float aimDeg = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
-            float start = aimDeg + (clockwise ? 180f : -180f);
-            int slices = Mathf.Max(1, Mathf.CeilToInt(total / 45f));
-            float slice = total / slices;
-            var done = new System.Collections.Generic.HashSet<int>();
-            int hits = 0;
-            for (int i = 0; i < slices; i++)
+            int steps = Mathf.Max(2, Mathf.CeilToInt(Mathf.Abs(signedSweep) / 30f));
+            var hit = new System.Collections.Generic.HashSet<int>();
+            var propsHit = new System.Collections.Generic.HashSet<Vector2>();
+            int count = 0;
+            for (int i = 1; i <= steps; i++)
             {
-                float centre = (start + sign * (i + 0.5f) * slice) * Mathf.Deg2Rad;
-                var dir = new Vector2(Mathf.Cos(centre), Mathf.Sin(centre));
-                float delay = GiantWeaponsPlugin.SwingTurnTime * GiantWeaponsPlugin.EaseTimeOf((i + 1f) / slices);
-                bool last = i == slices - 1;
+                float swept = signedSweep * i / steps;
+                float delay = time * GiantWeaponsPlugin.EaseTimeOf((float)i / steps);
+                bool last = i == steps;
                 Heavy.After(delay, () =>
                 {
                     if (!Heavy.Alive(p))
                         return;
-                    Vector2 from = Heavy.Hand(p);
-                    foreach (GameObject enemy in Heavy.InArc(from, dir, GiantWeaponsPlugin.SwingReach, slice * 0.5f + 1f))
-                        if (done.Add(enemy.GetInstanceID()))
+                    float mid = (startDeg + swept * 0.5f) * Mathf.Deg2Rad;
+                    var dir = new Vector2(Mathf.Cos(mid), Mathf.Sin(mid));
+                    float half = Mathf.Min(180f, Mathf.Abs(swept) * 0.5f + 2f);
+                    Vector2 from = p.transform.position;
+                    foreach (GameObject enemy in Heavy.InArc(from, dir, reach, half))
+                        if (hit.Add(enemy.GetInstanceID()))
                         {
-                            Heavy.Ice(Heavy.Body(enemy), p, id, 1, Heavy.OnBodyRadius);
-                            hits++;
+                            Heavy.Ice(Heavy.Body(enemy), p, id, level, Heavy.OnBodyRadius);
+                            count++;
                         }
-                    foreach (Vector2 prop in Heavy.PropsInArc(from, dir, GiantWeaponsPlugin.SwingReach, slice * 0.5f + 1f))
-                        Heavy.Ice(prop, p, id, 1, 0.12f);
+                    foreach (Vector2 prop in Heavy.PropsInArc(from, dir, reach, half))
+                        if (propsHit.Add(prop))
+                            Heavy.Ice(prop, p, id, level, 0.12f);
                     if (last)
-                        GiantWeaponsPlugin.Log($"Giant Ice Sword: swing {n} ({(clockwise ? "clockwise" : "counterclockwise")} {total:0} deg), {hits} hit");
+                        done?.Invoke(count);
                 });
             }
         }
@@ -221,39 +239,24 @@ namespace WoLGiantWeapons
             float radius = (tapped ? GiantWeaponsPlugin.SpinRadius : Mathf.Lerp(GiantWeaponsPlugin.SpinRadius, GiantWeaponsPlugin.FullSpinRadius, full))
                 * (IsEmpowered ? GiantWeaponsPlugin.EnhancedSpinWidth : 1f);
             int level = tapped ? 2 : fullCharge ? 4 : 3;
-            int slices = GiantWeaponsPlugin.SpinHits;
-            float slice = 360f / slices;
             float aimDeg = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
             Player p = parent;
             string id = skillID;
             bool enhanced = IsEmpowered;
-            var done = new System.Collections.Generic.HashSet<int>();
-            for (int i = 0; i < slices; i++)
-            {
-                // Clockwise = decreasing angle; slice i is centred (i + 0.5) slices past the aim.
-                float centre = (aimDeg + 180f - (i + 0.5f) * slice) * Mathf.Deg2Rad;   // from behind (0.12.0)
-                var dir = new Vector2(Mathf.Cos(centre), Mathf.Sin(centre));
-                // The blade passes the end of slice i when the eased turn reaches (i+1)/slices.
-                float delay = GiantWeaponsPlugin.SpinTime * GiantWeaponsPlugin.EaseTimeOf((i + 1f) / slices);
-                Heavy.After(delay, () =>
-                {
-                    if (!Heavy.Alive(p))
-                        return;
-                    foreach (GameObject enemy in Heavy.InArc(p.transform.position, dir, radius, slice * 0.5f + 1f))
-                        if (done.Add(enemy.GetInstanceID()))
-                            Heavy.Ice(Heavy.Body(enemy), p, id, level, Heavy.OnBodyRadius);
-                    foreach (Vector2 prop in Heavy.PropsInArc(p.transform.position, dir, radius, slice * 0.5f + 1f))
-                        Heavy.Ice(prop, p, id, level, 0.12f);   // tight, so a neighbour isn't hit again by this slice's burst
-                    Heavy.Sound("WindSlashBasic", p.transform.position, 0.6f);
-                });
-            }
+            float back = GiantWeaponsPlugin.BraceAngle;
+            // 0.14.0 (Matt 16:23): from BraceAngle back, one full clockwise turn all round the wizard;
+            // the hits follow the blade and cover everything it has swept so far.
+            SweepHits(aimDeg + back, -360f, GiantWeaponsPlugin.SpinTime, radius, level,
+                hits => GiantWeaponsPlugin.Log($"Giant Ice Sword: spin hit {hits}"));
+            for (int i = 0; i < 4; i++)
+                Heavy.After(GiantWeaponsPlugin.SpinTime * GiantWeaponsPlugin.EaseTimeOf((i + 1f) / 4f), () => Heavy.Sound("WindSlashBasic", p.transform.position, 0.6f));
             if (held != null)
             {
                 held.Release(-360f, GiantWeaponsPlugin.SpinTime);
                 held = null;
             }
             else
-                FrostBlade.Sweep(p, id, aim, 0f, -360f, GiantWeaponsPlugin.SpinTime);
+                FrostBlade.Sweep(p, id, aim, back, -360f, GiantWeaponsPlugin.SpinTime);
             Heavy.Shake(fullCharge ? 1f : tapped ? 0.5f : 0.7f);
             if (enhanced)
                 FrostRing.Lay(p, id, p.transform.position, radius);

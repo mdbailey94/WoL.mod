@@ -138,11 +138,15 @@ namespace WoLGiantWeapons
 
         private static IEnumerable<GameObject> Enemies()
         {
-            if (GameController.enemies == null)
-                yield break;
-            foreach (GameObject go in GameController.enemies)
-                if (go != null && go.activeInHierarchy)
-                    yield return go;
+            // 0.14.0: bosses too, in case one isn't on the enemy list (each enemy once).
+            if (GameController.enemies != null)
+                foreach (GameObject go in GameController.enemies)
+                    if (go != null && go.activeInHierarchy)
+                        yield return go;
+            if (GameController.bosses != null)
+                foreach (GameObject go in GameController.bosses)
+                    if (go != null && go.activeInHierarchy && (GameController.enemies == null || !GameController.enemies.Contains(go)))
+                        yield return go;
         }
 
         public static void Sound(string name, Vector2 at, float pitch)
