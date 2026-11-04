@@ -14,7 +14,7 @@ namespace WoLFlamingWhip
         // right: whip_windup 6 x 48x48, pivot (24,32) = the hand; whip_arc 12 x 80x48, pivot
         // (20,32), the tip strikes (68,32) on frame 2; flamingwhip_crack_big 8 x 32x32 (ring = the
         // 1-tile spot) and _enh 8 x 40x40 (the 1.5-tile spot). Any missing: the 0.4.0 look.
-        public static Sprite[] WindUp, Arc, CrackBig, CrackBigEnh;
+        public static Sprite[] WindUp, Arc, CrackBig, CrackBigEnh, CrackHuge;
         public const float StrikeFrame = 2f, StripFps = 25f, ArcDrawnFor = 3f;
 
         public static void Load(BepInEx.Logging.ManualLogSource log)
@@ -27,6 +27,8 @@ namespace WoLFlamingWhip
             Arc = Frames("whip_arc.png", 80, new Vector2(20f / 80f, 16f / 48f));
             CrackBig = Frames("flamingwhip_crack_big.png", 32, new Vector2(0.5f, 0.5f));
             CrackBigEnh = Frames("flamingwhip_crack_big_enh.png", 40, new Vector2(0.5f, 0.5f));
+            // Optional, for the 2-tile enhanced spot (#98): 8 x 48x48, ring radius 16 px.
+            CrackHuge = Frames("flamingwhip_crack_huge.png", 48, new Vector2(0.5f, 0.5f));
             log?.LogInfo($"Flaming Whip art: lash {Lash.Length}, crack {Crack.Length}, fire line {FireLine.Length}, v3 wind-up {WindUp.Length}, arc {Arc.Length}, big crack {CrackBig.Length}/{CrackBigEnh.Length} frames");
         }
 
@@ -111,10 +113,15 @@ namespace WoLFlamingWhip
             if (!WhipArt.HasArc)
                 Anim.Play(WhipArt.Lash, hand, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg, new Vector3((distance + radius) / 4f, 1.5f, 1f), 20f, owner, false);
             // 0.5.0 (#91): Art's native big crack (ring = the spot, so 1x at the default sizes).
-            Sprite[] big = enhanced ? WhipArt.CrackBigEnh : WhipArt.CrackBig;
+            // 0.6.0 (#98): the crack strip whose ring matches the spot best (ring radius 0.5 /
+            // 0.75 / 1 u), so the default spots draw 1:1: 1.5 tiles uses the _enh strip, 2 tiles
+            // the _huge one (until Art draws it, _enh at 1.33x).
+            Sprite[] big;
+            float native;
+            PickCrack(radius, out big, out native);
             if (big.Length == 8)
             {
-                float s = radius / (enhanced ? 0.75f : 0.5f);
+                float s = radius / native;
                 Anim.Play(big, spot, 0f, new Vector3(s, s, 1f), 24f, owner, false);
             }
             else
@@ -139,6 +146,29 @@ namespace WoLFlamingWhip
             if (enhanced)
                 FireLine.Lay(owner, skillID, spot - aim * radius, aim, radius * 2f);
             FlamingWhipPlugin.Log($"Flaming Whip: crack {distance:0.0} u out, {radius * 2f:0.0} u spot{(enhanced ? ", fire line" : "")}");
+        }
+
+        private static void PickCrack(float radius, out Sprite[] frames, out float native)
+        {
+            frames = new Sprite[0];
+            native = 0.5f;
+            float best = float.MaxValue;
+            Try(WhipArt.CrackBig, 0.5f, radius, ref frames, ref native, ref best);
+            Try(WhipArt.CrackBigEnh, 0.75f, radius, ref frames, ref native, ref best);
+            Try(WhipArt.CrackHuge, 1f, radius, ref frames, ref native, ref best);
+        }
+
+        private static void Try(Sprite[] set, float ring, float radius, ref Sprite[] frames, ref float native, ref float best)
+        {
+            if (set == null || set.Length != 8)
+                return;
+            float off = Mathf.Abs(Mathf.Log(radius / ring));
+            if (off < best)
+            {
+                best = off;
+                frames = set;
+                native = ring;
+            }
         }
 
         private static void Sound(string name, Vector2 at, float volume, float pitch)

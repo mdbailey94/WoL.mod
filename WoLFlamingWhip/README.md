@@ -19,6 +19,13 @@ The hits are the game's own fire bursts with this arcana's stats, so burn, gear,
 talents apply. Art by WoL Art (Finished Art/Prickly Ballet + Flaming Whip, 2026-11-02); a bigger
 overhead-arc crack is being drawn for #81/#86.
 
+## Changes in 0.6.0 (#98)
+
+- **Bigger hit area:** the crack's spot is **1.5 tiles** across (was 1), enhanced **2 tiles** (was 1.5),
+  still 3 tiles out. New keys `[Crack] HitSpot` / `[Enhanced] HitSpot` (the old SpotSize keys are unused).
+- The crack art matching the spot is picked automatically, so 1.5 tiles draws Art's _enh crack 1:1;
+  the 2-tile enhanced spot uses it at 1.33x until a native `flamingwhip_crack_huge` (8 x 48x48) exists.
+
 ## Changes in 0.5.0 (#91, WoL Art's v3 "spell look")
 
 - The wind-up now draws Art's **whip_windup** (the whip coiling back over the head with fire
