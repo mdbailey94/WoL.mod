@@ -72,6 +72,12 @@ LeftStick, Back or None).
 
 To start over, delete the `characterN.json` files while the game is closed.
 
+## #101 cleanup (0.36.1)
+
+- Double Down: the shop discount is on while ANY wizard holds the pact (it followed whichever
+  wizard the scan landed on), and the shop scan and inventory count only run while it's held.
+- Hailstorm reuses its floor marks instead of making a new object per stone.
+
 ## #101 refinement fixes (0.36.0)
 
 - **Gear safety caps** (`[Balance]`, Matt to approve the values): gear can cut an arcana's cooldown

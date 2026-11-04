@@ -129,6 +129,8 @@ namespace WoLGiantWeapons
                     Heavy.Ice(enemy.transform.position, p, id, 1, 0.3f);
                     hits++;
                 }
+                foreach (Vector2 prop in Heavy.PropsInArc(Heavy.Hand(p), aim, GiantWeaponsPlugin.SwingReach, half))
+                    Heavy.Ice(prop, p, id, 1, 0.12f);
                 GiantWeaponsPlugin.Log($"Giant Ice Sword: swing {n} ({(clockwise ? "clockwise" : "counterclockwise")} {2f * half:0} deg), {hits} hit");
             });
         }
@@ -163,7 +165,9 @@ namespace WoLGiantWeapons
                         return;
                     foreach (GameObject enemy in Heavy.InArc(p.transform.position, dir, radius, slice * 0.5f + 1f))
                         if (done.Add(enemy.GetInstanceID()))
-                            Heavy.Ice(enemy.transform.position, p, id, level, 0.12f);   // tight, so a neighbour isn't hit again by this slice's burst
+                            Heavy.Ice(enemy.transform.position, p, id, level, 0.12f);
+                    foreach (Vector2 prop in Heavy.PropsInArc(p.transform.position, dir, radius, slice * 0.5f + 1f))
+                        Heavy.Ice(prop, p, id, level, 0.12f);   // tight, so a neighbour isn't hit again by this slice's burst
                     Heavy.Sound("WindSlashBasic", p.transform.position, 0.6f);
                 });
             }

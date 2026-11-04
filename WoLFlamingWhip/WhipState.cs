@@ -59,6 +59,8 @@ namespace WoLFlamingWhip
                     return;
                 if (slowMod == null)
                     slowMod = new NumVarStatMod(SlowModID, FlamingWhipPlugin.WindUpPace - 1f, 10, VarStatModType.Multiplicative);
+                if (on)
+                    slowMod.modValue = FlamingWhipPlugin.WindUpPace - 1f;   // read each press (#101 cleanup)
                 parent.animSpeedHandler.Modify(slowMod, on);
                 slowed = on;
             }

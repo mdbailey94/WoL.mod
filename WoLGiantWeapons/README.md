@@ -27,6 +27,14 @@ and Buckler are their own mods (WoLGiantSpear, WoLBuckler); Flaming Whip is WoLF
   damage, always shocks, knockback, camera shake and a thunder thud.
 - **Enhanced:** the slam arcs lightning to up to **3** enemies within **4 u**, **6** damage each.
 
+0.8.0 (#101: crates and pots, cleanup):
+- **Crates, pots, plants and other breakables** in the swing arc, the spin's slices and the flail's
+  circle are hit directly (they used to break only when a burst on an enemy happened to reach them).
+  The slam already broke them.
+- Changing `Pace` / `SwingPace` now takes effect on the next attack (it needed a restart).
+- One timer object per scene holds the delayed hits (was a new object per hit); the sword's blade
+  is looked up 10 times a second at most; unused `ChopReach` and `SwordSwingSpeed` settings removed.
+
 0.7.0 (#101 audit fixes):
 - Ice Sword: the spinning blade stays at your hand as you move, so its hits (centred on you) never
   land where no blade is drawn. The spin charges only on a fresh hold (let go after hit 2, then
@@ -48,6 +56,11 @@ and Buckler are their own mods (WoLGiantSpear, WoLBuckler); Flaming Whip is WoLF
   No new art: Art's ball and chain draw the path.
 
 0.5.1: each slice's hit is a tighter burst on the enemy, so a neighbour in the next slice isn't hit twice.
+
+Timings now: Ice swings 0.32 s, spin 0.7 s (heavy curve); Flail circle 0.45 s, slam wind-up 0.6 s.
+Keys left unused in older config files (safe to delete): `[Ice Sword]` SwingArc, SpinTurnTime,
+SwingTurnTime, SpinTime, SpinHits, ChopReach, SwordSwingSpeed; `[Flail]` Pace, CircleRadius, SlamRadius,
+SlamWindUp; `[Balance]` SwordChopDamage, SwordSpinDamage, SwordFullSpinDamage.
 
 Config keys renamed in 0.4.0/0.5.0 so the new numbers reach existing installs: `[Ice Sword]`
 SwingAngle, SpinSlices, SpinTurnTime, SwingTurnTime, SwordAngleOffset (turns the drawn blade if it

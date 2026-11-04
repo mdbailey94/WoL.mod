@@ -273,15 +273,27 @@ namespace WoLChaosDepths
         private static void DoubleDown(Player p, State st)
         {
             bool on = Has(p, "DoubleDown");
-            if (Time.unscaledTime >= nextStoreScan)
+            // #101 cleanup (0.36.1): the shop is shared, so the discount is on while ANY wizard has
+            // the pact (it used to follow whichever wizard's turn the 0.5 s scan landed on), and the
+            // scan only runs while the pact is held or a discount is still to be taken off.
+            bool anyOn = AnyHas("DoubleDown");
+            if ((anyOn || discountOn) && Time.unscaledTime >= nextStoreScan)
             {
                 nextStoreScan = Time.unscaledTime + 0.5f;
                 foreach (ItemStoreItem item in UnityEngine.Object.FindObjectsOfType<ItemStoreItem>())
                     if (item != null && !item.usePlatinumCost && item.costStat != null)
                     {
-                        SetMod(item.costStat, "DoubleDown", on ? -0.5f : 0f, true);
+                        SetMod(item.costStat, "DoubleDown", anyOn ? -0.5f : 0f, true);
                         item.UpdatePrice();   // the shown price follows the stat (as the game's discounts do)
                     }
+                discountOn = anyOn;
+            }
+            // The inventory is only counted while this wizard holds the pact (it was read every
+            // frame for everyone); -1 restarts the count when the pact is taken.
+            if (!on)
+            {
+                st.itemsSeen = -1;
+                return;
             }
             if (p.inventory == null)
                 return;
@@ -309,6 +321,18 @@ namespace WoLChaosDepths
                 lastWithdraw = -10f;
             }
             st.itemsSeen = count;
+        }
+
+        private static bool discountOn;
+
+        private static bool AnyHas(string pact)
+        {
+            Player[] all = GameController.activePlayers;
+            if (all != null)
+                foreach (Player o in all)
+                    if (o != null && Has(o, pact))
+                        return true;
+            return false;
         }
 
         private static void HookWallet()

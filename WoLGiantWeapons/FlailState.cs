@@ -94,6 +94,8 @@ namespace WoLGiantWeapons
                     foreach (GameObject enemy in Heavy.InArc(p.transform.position, dir, radius, slice * 0.5f + 1f))
                         if (done.Add(enemy.GetInstanceID()))
                             Heavy.Bolt(enemy.transform.position, p, id, 1, 0.12f);   // tight, so a neighbour isn't hit again by this slice's burst
+                    foreach (Vector2 prop in Heavy.PropsInArc(p.transform.position, dir, radius, slice * 0.5f + 1f))
+                        Heavy.Bolt(prop, p, id, 1, 0.12f);
                 });
             }
             FlailLook.Circle(p, radius, time, aimDeg, clockwise);

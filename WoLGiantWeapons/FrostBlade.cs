@@ -44,7 +44,6 @@ namespace WoLGiantWeapons
                 Driver d = rotator.gameObject.AddComponent<Driver>();
                 d.sword = sword;
                 d.owner = p;
-                d.spin = spin;
                 d.spinTime = Mathf.Max(0.1f, spinTime);
                 d.sweep = sweepDeg;
                 d.aimDeg = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
@@ -69,12 +68,11 @@ namespace WoLGiantWeapons
         private class Driver : MonoBehaviour
         {
             public IceSword sword;
-            public bool spin;
             public float spinTime, turnFrom, sweep = 720f;
             public float aimDeg, fromDeg;
             public Player owner;
             private float born = -1f;
-            private bool swinging;
+            private float nextLook;
             private SpriteRenderer blade;
 
             private void Update()
@@ -90,29 +88,14 @@ namespace WoLGiantWeapons
                         Destroy(gameObject);
                     return;
                 }
-                if (spin)
-                {
-                    // 0.7.0 (#101): the blade stays at the wizard's hand as they move (the hits are
-                    // centred on the wizard's live position), so hits never land where no blade is.
-                    if (owner != null)
-                        transform.position = Heavy.Hand(owner);
-                    float t = Mathf.Clamp01(age / spinTime);
-                    float want = aimDeg + fromDeg + sweep * GiantWeaponsPlugin.Ease(t) + GiantWeaponsPlugin.SwordAngleOffset;
-                    Steer(want);
-                    if (t >= 1f)
-                        sword.EndSwing();
-                    return;
-                }
-                if (!swinging)
-                {
-                    if (age < 0.06f)
-                        return;
-                    swinging = true;
-                    sword.anim.speed = GiantWeaponsPlugin.SwordSwingSpeed;
-                    sword.anim.Play("Swing", -1, 0f);
-                    return;
-                }
-                if (sword.anim.GetCurrentAnimatorStateInfo(0).normalizedTime >= 1f)
+                // Every caller sweeps (0.8.0 cleanup: the boss's own swing-animation path is gone).
+                // 0.7.0 (#101): the blade stays at the wizard's hand as they move (the hits are
+                // centred on the wizard's live position), so hits never land where no blade is.
+                if (owner != null)
+                    transform.position = Heavy.Hand(owner);
+                float t = Mathf.Clamp01(age / spinTime);
+                Steer(aimDeg + fromDeg + sweep * GiantWeaponsPlugin.Ease(t) + GiantWeaponsPlugin.SwordAngleOffset);
+                if (t >= 1f)
                     sword.EndSwing();
             }
 
@@ -120,8 +103,11 @@ namespace WoLGiantWeapons
             // +x). Before the blade has a picture, the rotator's own angle is used as a guess.
             private void Steer(float want)
             {
-                if (blade == null)
+                // Looked for at most 10 times a second until the blade has a picture (0.8.0 cleanup:
+                // it was searched every frame).
+                if (blade == null && Time.time >= nextLook)
                 {
+                    nextLook = Time.time + 0.1f;
                     float biggest = 0f;
                     foreach (SpriteRenderer r in sword.GetComponentsInChildren<SpriteRenderer>())
                     {

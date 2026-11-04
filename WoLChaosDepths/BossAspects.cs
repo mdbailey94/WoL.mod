@@ -142,6 +142,7 @@ namespace WoLChaosDepths
                 if (h.go != null)
                     UnityEngine.Object.Destroy(h.go);
             hail.Clear();
+            spareMarks.Clear();
             foreach (SpriteRenderer[] tiles in mist.Values)
                 foreach (SpriteRenderer r in tiles)
                     if (r != null)
@@ -525,6 +526,7 @@ namespace WoLChaosDepths
             public Entity boss;
         }
 
+        private static readonly List<SpriteRenderer> spareMarks = new List<SpriteRenderer>();
         private static Sprite ringSprite;
         private static Sprite[] markFrames;
         private static bool markLooked;
@@ -547,15 +549,17 @@ namespace WoLChaosDepths
             }
         }
 
+        private static readonly List<Player> aliveBuffer = new List<Player>();
+
         private static Player RandomLivingPlayer(Player[] players)
         {
             if (players == null)
                 return null;
-            var alive = new List<Player>();
+            aliveBuffer.Clear();
             foreach (Player p in players)
                 if (p != null && p.health != null && p.health.CurrentHealthValue > 0)
-                    alive.Add(p);
-            return alive.Count > 0 ? alive[UnityEngine.Random.Range(0, alive.Count)] : null;
+                    aliveBuffer.Add(p);
+            return aliveBuffer.Count > 0 ? aliveBuffer[UnityEngine.Random.Range(0, aliveBuffer.Count)] : null;
         }
 
         private static void SpawnMark(Entity boss, Vector2 spot)
@@ -565,9 +569,24 @@ namespace WoLChaosDepths
                 markLooked = true;
                 markFrames = ItemArt.Frames("aspect_hail_mark", 4, new Vector2(0.5f, 0.5f), 16f);
             }
-            var go = new GameObject("ChaosDepthsHailMark");
+            // #101 cleanup (0.36.1): marks are reused (it was a new GameObject per stone, 6-8 a second).
+            GameObject go;
+            SpriteRenderer sr;
+            if (spareMarks.Count > 0 && spareMarks[spareMarks.Count - 1] != null)
+            {
+                sr = spareMarks[spareMarks.Count - 1];
+                spareMarks.RemoveAt(spareMarks.Count - 1);
+                go = sr.gameObject;
+                go.SetActive(true);
+                go.transform.localScale = Vector3.one;
+            }
+            else
+            {
+                spareMarks.Clear();
+                go = new GameObject("ChaosDepthsHailMark");
+                sr = go.AddComponent<SpriteRenderer>();
+            }
             go.transform.position = new Vector3(spot.x, spot.y, 0f);
-            var sr = go.AddComponent<SpriteRenderer>();
             sr.sprite = markFrames != null ? markFrames[0] : Ring();
             if (markFrames == null)
             {
@@ -606,7 +625,8 @@ namespace WoLChaosDepths
                 if (Time.time < h.landAt)
                     continue;
                 Land(h);
-                UnityEngine.Object.Destroy(h.go);
+                h.go.SetActive(false);
+                spareMarks.Add(h.mark);
                 hail.RemoveAt(i);
             }
         }

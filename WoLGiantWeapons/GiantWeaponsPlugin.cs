@@ -17,7 +17,7 @@ namespace WoLGiantWeapons
     {
         public const string PluginGuid = "mdbailey94.wol.giantweapons";
         public const string PluginName = "Giant Weapons";
-        public const string PluginVersion = "0.7.0";
+        public const string PluginVersion = "0.8.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> swordEnabled, flailEnabled;
@@ -26,10 +26,10 @@ namespace WoLGiantWeapons
 
         // ---- Settings (BepInEx\config\mdbailey94.wol.giantweapons.cfg) ----
         // [Ice Sword] and [Flail] apply the next attack; [Balance] after restarting the game.
-        private static ConfigEntry<float> swordPace, swingReach, swingArc, chopReach, spinMin, spinFull, spinRadius, fullSpinRadius,
+        private static ConfigEntry<float> swordPace, swingReach, swingArc, spinMin, spinFull, spinRadius, fullSpinRadius,
             spinTime, enhancedSpinWidth, frostRingTime;
         private static ConfigEntry<int> spinHits;
-        private static ConfigEntry<float> swordScale, swordSwingSpeed, swingTurnTime, swordAngleOffset, momentum;
+        private static ConfigEntry<float> swordScale, swingTurnTime, swordAngleOffset, momentum;
         private static ConfigEntry<float> flailPace, circleTime, blurAlpha, raiseShare, overheadHeight, circleRadius, slamDistance, slamRadius, slamWindUp, arcReach;
         private static ConfigEntry<int> arcTargets, circleSlices;
         private static ConfigEntry<int> swingDamage, chopDamage, spinDamage, fullSpinDamage, circleDamage, slamDamage, arcDamage;
@@ -37,7 +37,6 @@ namespace WoLGiantWeapons
         public static float SwordPace => Get(swordPace, 0.65f, 0.3f, 1f);
         public static float SwingReach => Get(swingReach, 2.2f, 0.5f, 6f);
         public static float SwingArc => Get(swingArc, 45f, 10f, 360f);
-        public static float ChopReach => Get(chopReach, 2.5f, 0.5f, 6f);
         public static float SpinMinCharge => Get(spinMin, 0.4f, 0f, 3f);
         public static float SpinFullCharge => Get(spinFull, 1f, 0.1f, 4f);
         public static float SpinRadius => Get(spinRadius, 2.5f, 0.5f, 8f);
@@ -47,7 +46,6 @@ namespace WoLGiantWeapons
         public static float EnhancedSpinWidth => Get(enhancedSpinWidth, 1.3f, 1f, 3f);
         public static float FrostRingTime => Get(frostRingTime, 1.5f, 0.2f, 6f);
         public static float SwordScale => Get(swordScale, 0.7f, 0.2f, 2f);
-        public static float SwordSwingSpeed => Get(swordSwingSpeed, 1f, 0.2f, 4f);
         public static float SwingTurnTime => Get(swingTurnTime, 0.32f, 0.05f, 1.5f);
         public static float Momentum => Get(momentum, 2f, 1f, 4f);
         // The heavy curve (#95): the share of the turn done at time share t (slow start, speeding up).
@@ -165,7 +163,6 @@ namespace WoLGiantWeapons
             swordPace = Float("Ice Sword", "Pace", 0.65f, 0.3f, 1f, "How fast the wizard's swings play (0.65 = 35% slower, the heavy feel; 1 = normal).");
             swingReach = Float("Ice Sword", "SwingReach", 2.2f, 0.5f, 6f, "Reach of swings 1 and 2, in units.");
             swingArc = Float("Ice Sword", "SwingAngle", 45f, 10f, 360f, "How far swings 1 and 2 turn, in degrees; the hit box is the same angle in front (0.4.0, #93; the old SwingArc key is unused).");
-            chopReach = Float("Ice Sword", "ChopReach", 2.5f, 0.5f, 6f, "Unused since 0.4.0 (the third hit is always a spin).");
             spinMin = Float("Ice Sword", "SpinMinCharge", 0.4f, 0f, 3f, "Seconds held before the third hit's spin counts as charged (shorter = a tapped spin).");
             spinFull = Float("Ice Sword", "SpinFullCharge", 1f, 0.1f, 4f, "Seconds held for a full-charge spin.");
             spinRadius = Float("Ice Sword", "SpinRadius", 2.5f, 0.5f, 8f, "Radius of a tapped spin (and a charged one at the least charge).");
@@ -175,7 +172,6 @@ namespace WoLGiantWeapons
             enhancedSpinWidth = Float("Ice Sword", "EnhancedSpinWidth", 1.3f, 1f, 3f, "How much wider the spin is when enhanced.");
             frostRingTime = Float("Ice Sword", "FrostRingTime", 1.5f, 0.2f, 6f, "Seconds the enhanced frost ring stays on the floor, slowing enemies.");
             swordScale = Float("Ice Sword", "SwordScale", 0.7f, 0.2f, 2f, "Size of the drawn sword (the game's ice boss greatsword; 1 = the boss's own size). Looks only; the hits are the reaches above.");
-            swordSwingSpeed = Float("Ice Sword", "SwordSwingSpeed", 1f, 0.2f, 4f, "Unused since 0.4.0 (the blade is turned by the mod).");
             swingTurnTime = Float("Ice Sword", "HeavySwingTime", 0.32f, 0.05f, 1.5f, "Seconds for a 45-degree swing (0.6.0, #95: slower, heavy; the hit lands as the blade finishes the swing). The old SwingTurnTime key is unused.");
             momentum = Float("Ice Sword", "Momentum", 2f, 1f, 4f, "How much the swings and the spin speed up as they go: 1 = steady, 2 = slow start gaining momentum (the heavy feel), 3 = heavier still.");
             swordAngleOffset = Float("Ice Sword", "SwordAngleOffset", 0f, -180f, 180f, "Turns the drawn blade's starting angle, if it doesn't line up with the aim (looks only).");

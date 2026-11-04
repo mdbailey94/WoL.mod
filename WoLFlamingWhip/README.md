@@ -19,6 +19,14 @@ The hits are the game's own fire bursts with this arcana's stats, so burn, gear,
 talents apply. Art by WoL Art (Finished Art/Prickly Ballet + Flaming Whip, 2026-11-02); a bigger
 overhead-arc crack is being drawn for #81/#86.
 
+## Changes in 0.6.2 (#101 cleanup)
+
+- Changing `WindUpPace` takes effect on the next press (it needed a restart).
+- Timing, measured from the code: the crack lands about **0.44 s** after the press (the attack's
+  0.1 s start played at the 0.7 wind-up pace, then the 0.3 s wind-up), not 0.3 s.
+- Keys left unused in older config files (safe to delete): `[Crack] SpotSize`, `[Enhanced] SpotSize`,
+  and the whole 0.1/0.2 `[Whip]` section.
+
 ## Changes in 0.6.1 (#101)
 
 - The crack doesn't land if the wizard died (or went down in co-op) during the wind-up.

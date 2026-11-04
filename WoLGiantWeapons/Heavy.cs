@@ -18,6 +18,10 @@ namespace WoLGiantWeapons
                     return;
                 if (mod == null)
                     mod = new NumVarStatMod(id, pace - 1f, 10, VarStatModType.Multiplicative);
+                // 0.8.0 (#101 cleanup): the setting is read again each attack (it was cached, so a
+                // changed Pace only took effect after a restart).
+                if (want)
+                    mod.modValue = pace - 1f;
                 p.animSpeedHandler.Modify(mod, want);
                 on = want;
             }
@@ -118,28 +122,77 @@ namespace WoLGiantWeapons
             catch { }
         }
 
-        // Runs `act` after `seconds` of game time (a pause holds it).
+        // Runs `act` after `seconds` of game time (a pause holds it). 0.8.0 (#101 cleanup): one
+        // runner per scene holds every pending hit (it used to be a new GameObject per hit, 4-5 a
+        // spin); it lives in the scene, so pending hits are dropped on a scene change as before.
         public static void After(float seconds, Action act)
         {
-            var go = new GameObject("GiantWeapons Delay");
-            Delay d = go.AddComponent<Delay>();
-            d.at = Time.time + seconds;
-            d.act = act;
+            if (runner == null)
+                runner = new GameObject("GiantWeapons Delays").AddComponent<Delays>();
+            runner.Add(Time.time + seconds, act);
         }
 
-        private class Delay : MonoBehaviour
+        private static Delays runner;
+
+        private class Delays : MonoBehaviour
         {
-            public float at;
-            public Action act;
+            private readonly List<float> at = new List<float>();
+            private readonly List<Action> acts = new List<Action>();
+            private readonly List<Action> due = new List<Action>();
+
+            public void Add(float when, Action act)
+            {
+                at.Add(when);
+                acts.Add(act);
+            }
 
             private void Update()
             {
-                if (Time.time < at)
+                if (at.Count == 0)
                     return;
-                Destroy(gameObject);
-                try { act?.Invoke(); }
-                catch (Exception e) { GiantWeaponsPlugin.Log($"Giant weapons: a delayed hit failed: {e.Message}"); }
+                float now = Time.time;
+                due.Clear();
+                for (int i = at.Count - 1; i >= 0; i--)
+                    if (now >= at[i])
+                    {
+                        due.Add(acts[i]);
+                        at.RemoveAt(i);
+                        acts.RemoveAt(i);
+                    }
+                for (int i = due.Count - 1; i >= 0; i--)
+                {
+                    try { due[i]?.Invoke(); }
+                    catch (Exception e) { GiantWeaponsPlugin.Log($"Giant weapons: a delayed hit failed: {e.Message}"); }
+                }
             }
+        }
+
+        // Crates, pots, plants and the like (the game's Destructible) inside the same arc, by their
+        // colliders (0.8.0, #101): the hits used to search enemies only, so these broke only when a
+        // burst on an enemy happened to reach them. Each is returned once, at its collider's centre.
+        private static readonly HashSet<int> seenProps = new HashSet<int>();
+
+        public static List<Vector2> PropsInArc(Vector2 from, Vector2 dir, float reach, float halfAngle)
+        {
+            var found = new List<Vector2>();
+            seenProps.Clear();
+            Collider2D[] hits;
+            try { hits = Physics2D.OverlapCircleAll(from, reach + BodyPad); }
+            catch { return found; }
+            foreach (Collider2D c in hits)
+            {
+                if (c == null)
+                    continue;
+                Destructible d = c.GetComponentInParent<Destructible>();
+                if (d == null || d.destroyed || !seenProps.Add(d.GetInstanceID()))
+                    continue;
+                Vector2 at = c.bounds.center;
+                Vector2 rel = at - from;
+                float off = Vector2.Angle(dir, rel) - halfAngle;
+                if (rel.sqrMagnitude < 0.01f || off <= 0f || (off < 90f && rel.magnitude * Mathf.Sin(off * Mathf.Deg2Rad) <= BodyPad))
+                    found.Add(at);
+            }
+            return found;
         }
     }
 }
