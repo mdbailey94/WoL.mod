@@ -167,10 +167,20 @@ namespace WoLChaosDepths
 
         private class Runner : MonoBehaviour
         {
+            private bool wasOn;
+
             private void Update()
             {
                 if (!Enabled)
+                {
+                    if (wasOn && GameController.activePlayers != null)
+                        foreach (Player p in GameController.activePlayers)
+                            if (p != null)
+                                Guard("restore", () => Restore(p));
+                    wasOn = false;
                     return;
+                }
+                wasOn = true;
                 Guard("tick", Tick);
             }
 
@@ -195,8 +205,14 @@ namespace WoLChaosDepths
             }
             foreach (Player p in all)
             {
-                if (p == null || !IsShade(p) || p.health == null)
+                if (p == null || p.health == null)
                     continue;
+                if (!IsShade(p))
+                {
+                    if (p.fall != null && p.fall.ignoreFall != null && p.fall.ignoreFall.GetModIndex(FloatMod) >= 0)
+                        Restore(p);
+                    continue;
+                }
                 State s = StateOf(p);
                 // Outside the trials (Hub, house) the bar refills to its start for the next run.
                 if (!ChaosDepthsPlugin.InTrialsNow())
@@ -214,8 +230,35 @@ namespace WoLChaosDepths
                 }
                 Wisps(p, s);
                 Lantern(p, s, alive);
+                Untargeted(p, alive);
                 DeathRule(p, s, all);
             }
+        }
+
+        // 0.35.1 (from WoL Player's decompile greps, Log - Player 08:10): enemies pick targets
+        // from GameController.allies (Entity.GetClosestTarget), and the game's own fall state and
+        // stealth relic take a wizard off that list, so the Shade is kept off it while alive; it
+        // still has its hurt box, so shots and swings in its way still hit it. Pits: a mod on
+        // fall.ignoreFall, as the game's airborne skills do, so the Shade floats over them.
+        private const string FloatMod = "ChaosDepthsShade_Float";
+
+        private static void Untargeted(Player p, bool alive)
+        {
+            List<GameObject> allies = GameController.allies;
+            if (allies != null && alive)
+                allies.Remove(p.gameObject);
+            if (p.fall != null && p.fall.ignoreFall != null && p.fall.ignoreFall.GetModIndex(FloatMod) < 0)
+                p.fall.ignoreFall.AddMod(new BoolVarStatMod(FloatMod, true));
+        }
+
+        // A wizard that stops being the Shade (switched off) goes back on the list and can fall.
+        private static void Restore(Player p)
+        {
+            List<GameObject> allies = GameController.allies;
+            if (allies != null && p.health != null && p.health.CurrentHealthValue > 0 && !allies.Contains(p.gameObject))
+                allies.Add(p.gameObject);
+            if (p.fall != null && p.fall.ignoreFall != null)
+                p.fall.ignoreFall.RemoveMod(FloatMod);
         }
 
         private static void Wisps(Player p, State s)

@@ -86,9 +86,11 @@ LIVING wizard dressed as a ghost, so the game's own death, ghost, HUD and game o
   Outside the trials the bar refills to 40.
 - **Death rule:** at 0 spirit for **3 s** the Shade is out. In solo, or if the partner is down too,
   that ends the run; otherwise the Shade waits at 0 and the partner's kills bring it back.
+- **Not a target, floats (0.35.1):** enemies don't pick the Shade as a target (it's kept off the
+  game's list of targets, as the game's own stealth relic does), but shots and swings in its way
+  still hit it. It floats over pits.
 - **Still to come (part 2):** Blink (dash slot, 3 u, 5 spirit), Spirit Wolf (basic slot, 15 spirit),
-  health-orb and boss-chunk spirit, the 60-spirit revive, being skipped as a target by enemies and
-  floating over pits. Every number is in `[Shade.Tuning]`.
+  health-orb and boss-chunk spirit and the 60-spirit revive. Every number is in `[Shade.Tuning]`.
 
 ## Boss Aspects (0.34.0, #88)
 
