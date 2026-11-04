@@ -564,6 +564,9 @@ namespace WoLChaosDepths
             }
         }
 
+        // True while All In spills gold, so Pacts' Double Down ignores that withdraw.
+        public static bool Spilling;
+
         // After a hit on the wizard: Retaliate, and the Gambler's streaks break.
         private static void AfterHit(Player player, AttackInfo info)
         {
@@ -582,11 +585,17 @@ namespace WoLChaosDepths
                     log?.LogInfo($"Talents: Hot Streak lost at {s.streak} kill(s), player {player.playerID + 1}");
                     s.streak = 0;
                 }
-                if (Talents.Rank(player, "AllIn") > 0)
+                // Review fix (0.35.4): burn/poison ticks don't spill (one burn spilled ~40%), and
+                // the spill is flagged so Double Down doesn't take it for a purchase.
+                if (Talents.Rank(player, "AllIn") > 0 && !info.isStatusEffect)
                 {
                     GoldWallet wallet = Player.goldWallet;
                     int spill = wallet != null ? Mathf.FloorToInt(wallet.balance * AllInSpill) : 0;
-                    if (spill > 0 && wallet.Withdraw(spill))
+                    bool spilled = false;
+                    Spilling = true;
+                    try { spilled = spill > 0 && wallet.Withdraw(spill); }
+                    finally { Spilling = false; }
+                    if (spilled)
                     {
                         Fx(() => KeystoneFx.Fire(player, "AllIn"));
                         log?.LogInfo($"Talents: All In, player {player.playerID + 1} was hit and spilled {spill} gold ({wallet.balance} left)");

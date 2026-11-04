@@ -66,6 +66,9 @@ namespace WoLChaosDepths
             public SpriteRenderer shellLook;
             public Sprite[] shellFrames, breakFrames;
             public float breakAt = -1f;
+            public bool sized;           // the shell is sized once the aspects start (after Ascension's health)
+            public Color baseTint = Color.white;
+            public bool tintTaken;
 
             public bool Has(string a) => aspects.Contains(a);
             public bool Alive => boss != null && boss.health != null && boss.health.CurrentHealthValue > 0;
@@ -184,11 +187,6 @@ namespace WoLChaosDepths
                     strong = AscensionLink.Level >= strongFrom.Value,
                     activeAt = Time.time + Mathf.Max(0f, introDelay.Value),
                 };
-                if (a.Has("Bulwarked"))
-                {
-                    a.shellMax = Mathf.Max(1f, a.Max * shellSize.Value * a.scale);
-                    a.shell = a.shellMax;
-                }
                 bosses[id] = a;
                 string list = string.Join(", ", picked.ToArray());
                 ChaosDepthsPlugin.Log($"Aspects: {(realm ? "realm" : "floor")} boss {type} is {list} (Ascension {AscensionLink.Level}{(a.strong ? ", stronger numbers" : "")}, scale {a.scale:0.##})");
@@ -243,7 +241,7 @@ namespace WoLChaosDepths
                     if (info.damage > cap)
                         info.damage = cap;
                 }
-                if (a.Has("Bulwarked") && a.shell > 0f && !a.broken)
+                if (a.Has("Bulwarked") && a.sized && a.shell > 0f && !a.broken)
                 {
                     a.lastHitAt = Time.time;
                     float soaked = Mathf.Min(a.shell, info.damage);
@@ -413,6 +411,16 @@ namespace WoLChaosDepths
 
         private static void Shell(Aspected a, float dt)
         {
+            // Review fix (0.35.4): sized when the aspects start, not at spawn: Ascension raises a
+            // boss's health in its own scan a moment after it appears, so at spawn the shell came
+            // out at 25% of the unscaled health.
+            if (!a.sized)
+            {
+                a.sized = true;
+                a.shellMax = Mathf.Max(1f, a.Max * shellSize.Value * a.scale);
+                a.shell = a.shellMax;
+                ChaosDepthsPlugin.Log($"Aspects: {a.boss.GetType().Name}'s shell is {a.shellMax:0} ({shellSize.Value * a.scale:P0} of {a.Max:0})");
+            }
             if (a.broken)
             {
                 if (Time.time < a.openUntil)
@@ -431,10 +439,16 @@ namespace WoLChaosDepths
                 a.shell = Mathf.Min(a.shellMax, a.shell + a.shellMax * shellRegrow.Value * dt);
             }
             // Steel-blue tint while the shell is up.
+            // From the boss's own tint (a layer boss's or an elite's), not from white.
             if (a.boss.spriteRenderer != null)
             {
+                if (!a.tintTaken)
+                {
+                    a.tintTaken = true;
+                    a.baseTint = a.boss.spriteRenderer.color;
+                }
                 float k = a.broken ? 0f : a.shell / a.shellMax;
-                a.boss.spriteRenderer.color = Color.Lerp(Color.white, Colors[1], (a.shellLook != null ? 0.25f : 0.55f) * k);
+                a.boss.spriteRenderer.color = Color.Lerp(a.baseTint, Colors[1], (a.shellLook != null ? 0.25f : 0.55f) * k);
             }
             ShellLook(a);
         }
@@ -609,19 +623,40 @@ namespace WoLChaosDepths
                 if (((Vector2)p.transform.position - h.spot).sqrMagnitude > hailRadius.Value * hailRadius.Value)
                     continue;
                 int dmg = Mathf.Max(1, Mathf.RoundToInt(p.health.healthStat.ModifiedValue * hailDamage.Value));
+                Entity boss = h.boss != null ? h.boss : null;   // Unity-null once the boss is gone
                 var info = new AttackInfo
                 {
                     damage = dmg,
-                    entity = h.boss,
+                    entity = boss,
+                    skillCategory = boss != null ? boss.skillCategory : "",
                     elementType = ElementType.Water,
                     showDamageNumber = true,
                     showDamageEffect = true,
                     attackerPosition = h.spot,
                     targetPosition = p.transform.position,
                 };
-                p.health.TakeDamage(info, h.boss);
+                // Review fix (0.35.4): if the game's damage path rejects a hit built by hand, the
+                // stone still hurts (straight off health, never below 1), and the log says so once.
+                try
+                {
+                    p.health.TakeDamage(info, boss);
+                }
+                catch (Exception e)
+                {
+                    if (!hailFallbackLogged)
+                    {
+                        hailFallbackLogged = true;
+                        ChaosDepthsPlugin.LogError($"aspects: hail TakeDamage failed ({e.Message}); hail now takes health directly");
+                    }
+                    if (Shade.IsShade(p))
+                        Shade.AddSpirit(p, -Shade.BossHitCostValue);
+                    else
+                        p.health.CurrentHealthValue = Mathf.Max(1, p.health.CurrentHealthValue - dmg);
+                }
             }
         }
+
+        private static bool hailFallbackLogged;
 
         private static Sprite Ring()
         {

@@ -72,6 +72,20 @@ LeftStick, Back or None).
 
 To start over, delete the `characterN.json` files while the game is closed.
 
+## Review fixes (0.35.4)
+
+- **Shade in solo:** stays a normal target (`[Shade] UntargetedInSolo = false`), since with nobody
+  else to chase enemies and bosses would idle. In co-op enemies still skip it.
+- **Bulwarked:** the shell is sized when the aspects start (3 s in), after Ascension has raised the
+  boss's health, so it really is 25% of the boss's health.
+- **Tints:** the shell's blue starts from the boss's own tint (layer or elite boss); the Shade's
+  ghost tint goes on top of other mods' tints (the Ice Sword glow) and is undone when it's off.
+- **Hail:** carries the boss's attack category; if the game still rejects the hit, it takes health
+  directly (spirit for a Shade) and says so once in the log.
+- **Health orbs:** the Shade's heal hook can't be added twice, so an orb is always +10.
+- **All In:** burn/poison ticks no longer spill gold, and Double Down no longer takes the spill for
+  a purchase (it could hand out a curse relic).
+
 ## Shade cloak v1, part 1 (0.35.0, #89)
 
 **Off by default:** `[Shade] Enabled = true`, and `[Shade] Players` = P1, P2 or Both picks who

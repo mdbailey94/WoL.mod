@@ -27,6 +27,8 @@ and Buckler are their own mods (WoLGiantSpear, WoLBuckler); Flaming Whip is WoLF
   damage, always shocks, knockback, camera shake and a thunder thud.
 - **Enhanced:** the slam arcs lightning to up to **3** enemies within **4 u**, **6** damage each.
 
+0.5.1: each slice's hit is a tighter burst on the enemy, so a neighbour in the next slice isn't hit twice.
+
 Config keys renamed in 0.4.0/0.5.0 so the new numbers reach existing installs: `[Ice Sword]`
 SwingAngle, SpinSlices, SpinTurnTime, SwingTurnTime, SwordAngleOffset (turns the drawn blade if it
 doesn't line up with the aim); `[Balance]` SwordTapSpinDamage, SwordChargedSpinDamage,

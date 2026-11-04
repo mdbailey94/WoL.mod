@@ -21,6 +21,7 @@ namespace WoLChaosDepths
         private static ConfigEntry<string> players;
         private static ConfigEntry<float> spiritMax, spiritStart, killSpirit, eliteSpirit, bossSpirit;
         private static ConfigEntry<float> hitCost, bossHitCost, outSeconds, ghostAlpha, wispEvery;
+        private static ConfigEntry<bool> untargetedSolo;
         private static ConfigEntry<float> orbSpirit, chunkSpirit, floorChunk, realmChunk, finalChunk, orbMinHeal;
 
         private static readonly Color Ghost = new Color(0.8f, 0.9f, 1f);
@@ -33,6 +34,9 @@ namespace WoLChaosDepths
             public Vector2 lastPos;
             public SpriteRenderer lantern;
             public bool ended;
+            public Color lastSet = Color.white, baseTint = Color.white;
+            public bool tinted;
+            public bool offList;   // we took the wizard off GameController.allies
         }
 
         // Keyed by player slot (0/1): the Player objects are rebuilt per scene; spirit carries over.
@@ -47,6 +51,8 @@ namespace WoLChaosDepths
         {
             enabled = config.Bind(Section, "Enabled", false, "Shade cloak v1 (#89): the chosen wizard(s) play as a living ghost with a spirit bar instead of health.");
             players = config.Bind(Section, "Players", "P1", new ConfigDescription("Who wears the Shade (v1 unlock is config only).", new AcceptableValueList<string>("P1", "P2", "Both")));
+            untargetedSolo = config.Bind(Section, "UntargetedInSolo", false,
+                "Review fix (0.35.4): in SOLO the Shade stays a normal target (with nobody else to chase, enemies and bosses would just idle). In co-op enemies always skip it. True = skip it in solo too.");
             const string t = "Shade.Tuning";
             spiritMax = config.Bind(t, "SpiritMax", 100f, "Size of the spirit bar.");
             spiritStart = config.Bind(t, "SpiritStart", 40f, "Spirit at the start of a run (and of a new floor in v1).");
@@ -78,11 +84,12 @@ namespace WoLChaosDepths
             go.AddComponent<Runner>();
         }
 
+        // healHooked is NOT cleared (review fix 0.35.4): a wizard that survives the scene change
+        // would be hooked again and get the orb's spirit twice; instance ids are never reused.
         public static void ClearScene()
         {
             credited.Clear();
             chunksPaid.Clear();
-            healHooked.Clear();
         }
 
         private static int Slot(Player p) => Array.IndexOf(GameController.activePlayers ?? new Player[0], p);
@@ -112,6 +119,7 @@ namespace WoLChaosDepths
         }
 
         public static float Spirit(Player p) => IsShade(p) ? StateOf(p).spirit : 0f;
+        public static float BossHitCostValue => bossHitCost != null ? bossHitCost.Value : 12f;
 
         public static void AddSpirit(Player p, float amount)
         {
@@ -206,7 +214,7 @@ namespace WoLChaosDepths
 
         private static void HookHeal(Player p)
         {
-            if (!healHooked.Add(p.GetInstanceID()))
+            if (!healHooked.Add(p.health.GetInstanceID()))
                 return;
             Player who = p;
             p.health.healEnterEventHandlers += (ref int amount) =>
@@ -274,7 +282,9 @@ namespace WoLChaosDepths
                     continue;
                 if (!IsShade(p))
                 {
-                    if (p.fall != null && p.fall.ignoreFall != null && p.fall.ignoreFall.GetModIndex(FloatMod) >= 0)
+                    State was;
+                    if ((p.fall != null && p.fall.ignoreFall != null && p.fall.ignoreFall.GetModIndex(FloatMod) >= 0)
+                        || (states.TryGetValue(Slot(p), out was) && was.tinted))
                         Restore(p);
                     continue;
                 }
@@ -288,15 +298,11 @@ namespace WoLChaosDepths
                 }
                 bool alive = p.health.CurrentHealthValue > 0;
                 if (p.spriteRenderer != null && alive)
-                {
-                    Color c = Ghost;
-                    c.a = ghostAlpha.Value;
-                    p.spriteRenderer.color = c;
-                }
+                    Tint(p, s);
                 HookHeal(p);
                 Wisps(p, s);
                 Lantern(p, s, alive);
-                Untargeted(p, alive);
+                Untargeted(p, s, alive);
                 DeathRule(p, s, all);
             }
         }
@@ -308,11 +314,47 @@ namespace WoLChaosDepths
         // fall.ignoreFall, as the game's airborne skills do, so the Shade floats over them.
         private const string FloatMod = "ChaosDepthsShade_Float";
 
-        private static void Untargeted(Player p, bool alive)
+        // Review fix (0.35.4): the ghost tint goes ON TOP of whatever another mod set (the Ice
+        // Sword's charge glow, a talent's flash): a colour we didn't write becomes the new base.
+        private static void Tint(Player p, State s)
+        {
+            Color now = p.spriteRenderer.color;
+            if (!s.tinted || now != s.lastSet)
+                s.baseTint = s.tinted ? now : Color.white;
+            s.tinted = true;
+            Color c = s.baseTint * Ghost;
+            c.a = s.baseTint.a * ghostAlpha.Value;
+            p.spriteRenderer.color = c;
+            s.lastSet = c;
+        }
+
+        private static bool Solo(Player p)
+        {
+            Player[] all = GameController.activePlayers;
+            if (all == null)
+                return true;
+            foreach (Player o in all)
+                if (o != null && o != p)
+                    return false;
+            return true;
+        }
+
+        private static void Untargeted(Player p, State s, bool alive)
         {
             List<GameObject> allies = GameController.allies;
-            if (allies != null && alive)
+            bool skip = alive && (untargetedSolo.Value || !Solo(p));
+            if (allies != null && skip)
+            {
                 allies.Remove(p.gameObject);
+                s.offList = true;
+            }
+            else if (allies != null && s.offList)
+            {
+                // Only undo our own removal (the game takes wizards off the list too: falling, the stealth relic).
+                s.offList = false;
+                if (alive && !allies.Contains(p.gameObject))
+                    allies.Add(p.gameObject);
+            }
             if (p.fall != null && p.fall.ignoreFall != null && p.fall.ignoreFall.GetModIndex(FloatMod) < 0)
                 p.fall.ignoreFall.AddMod(new BoolVarStatMod(FloatMod, true));
         }
@@ -321,10 +363,21 @@ namespace WoLChaosDepths
         private static void Restore(Player p)
         {
             List<GameObject> allies = GameController.allies;
-            if (allies != null && p.health != null && p.health.CurrentHealthValue > 0 && !allies.Contains(p.gameObject))
+            State st;
+            bool ours = states.TryGetValue(Slot(p), out st) && st.offList;
+            if (ours)
+                st.offList = false;
+            if (ours && allies != null && p.health != null && p.health.CurrentHealthValue > 0 && !allies.Contains(p.gameObject))
                 allies.Add(p.gameObject);
             if (p.fall != null && p.fall.ignoreFall != null)
                 p.fall.ignoreFall.RemoveMod(FloatMod);
+            // Back to the wizard's normal look.
+            State s;
+            if (p.spriteRenderer != null && states.TryGetValue(Slot(p), out s) && s.tinted)
+            {
+                p.spriteRenderer.color = s.baseTint;
+                s.tinted = false;
+            }
         }
 
         private static void Wisps(Player p, State s)

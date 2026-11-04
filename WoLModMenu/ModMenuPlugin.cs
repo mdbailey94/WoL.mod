@@ -15,7 +15,7 @@ namespace WoLModMenu
     {
         public const string PluginGuid = "mdbailey94.wol.modmenu";
         public const string PluginName = "Mod Menu";
-        public const string PluginVersion = "0.1.6";
+        public const string PluginVersion = "0.1.7";
 
         private const string ModGuidPrefix = "mdbailey94.wol.";
         private const float ReferenceHeight = 1080f;
@@ -415,14 +415,20 @@ namespace WoLModMenu
         {
             const float rowHeight = 34f;
             const float width = 460f;
-            float height = 70f + mods.Count * rowHeight + 50f;
+            // 0.1.7 (review fix): the list scrolls with the cursor once it's taller than the
+            // screen (about 29 mods plus the aspect switches no longer fit at 1080).
+            int fit = Mathf.Max(3, Mathf.FloorToInt((virtualHeight - 160f) / rowHeight));
+            int shown = Mathf.Min(mods.Count, fit);
+            int first = Mathf.Clamp(selected - shown / 2, 0, Mathf.Max(0, mods.Count - shown));
+            float height = 70f + shown * rowHeight + 50f;
             var area = new Rect((virtualWidth - width) / 2f, (virtualHeight - height) / 2f, width, height);
             GUI.Box(area, GUIContent.none, boxStyle);
-            GUI.Label(new Rect(area.x + 20f, area.y + 16f, width - 40f, 30f), "<b>MODS</b>", textStyle);
+            string more = (first > 0 ? " <color=#9aa>\u25b2</color>" : "") + (first + shown < mods.Count ? " <color=#9aa>\u25bc</color>" : "");
+            GUI.Label(new Rect(area.x + 20f, area.y + 16f, width - 40f, 30f), "<b>MODS</b>" + more, textStyle);
 
-            for (int i = 0; i < mods.Count; i++)
+            for (int i = first; i < first + shown; i++)
             {
-                var row = new Rect(area.x + 20f, area.y + 60f + i * rowHeight, width - 40f, rowHeight);
+                var row = new Rect(area.x + 20f, area.y + 60f + (i - first) * rowHeight, width - 40f, rowHeight);
                 bool on = mods[i].Enabled.Value;
                 string cursor = i == selected ? "<color=#fd5>></color> " : "   ";
                 string state = on ? "<color=#7d7>ON</color>" : "<color=#d77>OFF</color>";

@@ -145,7 +145,7 @@ namespace WoLGiantWeapons
                         return;
                     foreach (GameObject enemy in Heavy.InArc(p.transform.position, dir, radius, slice * 0.5f + 1f))
                         if (done.Add(enemy.GetInstanceID()))
-                            Heavy.Ice(enemy.transform.position, p, id, level, 0.35f);
+                            Heavy.Ice(enemy.transform.position, p, id, level, 0.12f);   // tight, so a neighbour isn't hit again by this slice's burst
                     Heavy.Sound("WindSlashBasic", p.transform.position, 0.6f);
                 });
             }

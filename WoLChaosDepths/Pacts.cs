@@ -317,7 +317,11 @@ namespace WoLChaosDepths
             if (wallet == null || wallet == hookedWallet)
                 return;
             hookedWallet = wallet;
-            wallet.withdrawEventHandlers += amount => lastWithdraw = Time.time;
+            wallet.withdrawEventHandlers += amount =>
+            {
+                if (!ArchetypeMechanics.Spilling)   // All In's spill isn't a purchase (review fix 0.35.4)
+                    lastWithdraw = Time.time;
+            };
         }
 
         // ---- The HUD marker: each wizard's pact cost, top left, while learned ----
