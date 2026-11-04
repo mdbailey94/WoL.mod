@@ -19,7 +19,7 @@ namespace WoLPricklyBallet
     {
         public const string PluginGuid = "mdbailey94.wol.pricklyballet";
         public const string PluginName = "Cactus Tango";
-        public const string PluginVersion = "0.2.1";
+        public const string PluginVersion = "0.3.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -29,7 +29,8 @@ namespace WoLPricklyBallet
         // ---- Settings (BepInEx\config\mdbailey94.wol.pricklyballet.cfg) ----
         // [Cactus] and [Enhanced] apply the next dash; [Balance] after restarting the game.
         private static ConfigEntry<float> lifetime, every, hitEvery;
-        private static ConfigEntry<float> enhancedLifetime, enhancedEvery;
+        private static ConfigEntry<float> enhancedLifetime, enhancedEvery, followDistance;
+        private static ConfigEntry<bool> follow;
         private static ConfigEntry<int> hitDamage;
         private static ConfigEntry<float> hitKnockback, cooldown;
 
@@ -38,6 +39,8 @@ namespace WoLPricklyBallet
         public static float EnhancedLifetime => Get(enhancedLifetime, 4f, 0.5f, 10f);
         public static float EnhancedEvery => Get(enhancedEvery, 4.5f, 0f, 30f);
         public static float HitEvery => Get(hitEvery, 0.4f, 0.1f, 2f);
+        public static bool Follow => follow == null || follow.Value;
+        public static float FollowDistance => Get(followDistance, 0.9f, 0f, 3f);
 
         private static float Get(ConfigEntry<float> entry, float fallback, float min, float max) =>
             Mathf.Clamp(entry?.Value ?? fallback, min, max);
@@ -89,6 +92,8 @@ namespace WoLPricklyBallet
             lifetime = Float("Cactus", "Lifetime", 3f, 0.5f, 10f, "Seconds the cactus stays and needles enemies.");
             every = Float("Cactus", "Every", 6f, 0f, 30f, "At most one cactus every this many seconds (dashes in between are plain dashes).");
             hitEvery = Float("Cactus", "HitEvery", 0.4f, 0.1f, 2f, "Seconds between the cactus's hits.");
+            follow = Config.Bind("Cactus", "Follow", true, "The cactus follows the wizard for its whole lifetime (0.3.0, Matt). Off: it stays where the dash started.");
+            followDistance = Float("Cactus", "FollowDistance", 0.9f, 0f, 3f, "How far behind the wizard (along the way you move) the cactus trails, in units.");
             enhancedLifetime = Float("Cactus Enhanced", "Lifetime", 4f, 0.5f, 10f, "Cactus lifetime when enhanced.");
             enhancedEvery = Float("Cactus Enhanced", "Every", 4.5f, 0f, 30f, "At most one cactus every this many seconds when enhanced.");
 
