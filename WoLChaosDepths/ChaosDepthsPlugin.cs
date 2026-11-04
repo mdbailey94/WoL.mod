@@ -20,7 +20,7 @@ namespace WoLChaosDepths
     {
         public const string PluginGuid = "mdbailey94.wol.chaosdepths";
         public const string PluginName = "Chaos Depths";
-        public const string PluginVersion = "0.40.0";
+        public const string PluginVersion = "0.41.0";
 
 
         private static BepInEx.Logging.ManualLogSource log;
@@ -262,6 +262,7 @@ namespace WoLChaosDepths
             var harmony = new Harmony(PluginGuid);
             ProfileSave.Install(harmony, Logger);
             InventoryPanel.Install(Config, harmony);   // #113(b) [Item Menu] KeepGameRunning
+            CloakPoints.Install(harmony);   // #114 step 3: cloaks' crit/evade/speed/cooldown/armor as points
             ArcanaLevels.Install(harmony);
             try
             {

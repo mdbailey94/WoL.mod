@@ -103,6 +103,9 @@ Overchannel's cooldown penalty, Depth scaling) stay their own mods. Sources name
 `Talent.` stop counting while `[Talents] Enabled` is off. The inventory's TOTALS show each point
 stat's whole sum and result, e.g. `crit 38 pts (+32%)`.
 
+- 0.41.0 (#114 step 3, Matt): every cloak's own crit chance, evade, move speed, cooldown and armor
+  (after Cloak Upgrades' tier scaling) go on points as `Cloak.<type>` sources; the game's own mods
+  for those five are switched off on the wizard. Armor becomes damage-taken points, 1% = 1 point.
 - 0.38.1: unused `[Depth]`/layer-boss keys and `[Loot] FreshDropChanceAtAscension0` say so in
   their descriptions; `[Elites] Chance`/`ChancePerAscension` only apply without Ascension.
 - 0.39.0 (#113b): `[Item Menu] KeepGameRunning` (off by default; in the Mods menu too): the menu
