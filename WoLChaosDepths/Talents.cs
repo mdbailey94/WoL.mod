@@ -164,7 +164,7 @@ namespace WoLChaosDepths
                 new Node { Key = "ShieldWall", Name = "Shield Wall", Tier = 2, MaxPoints = 1, Effect = "The first hit in each room deals 50% less" },
                 new Node { Key = "Retaliate", Name = "Retaliate", Tier = 3, MaxPoints = 1, Effect = "Being hit adds 10% signature charge (3 s cooldown)" },
                 new Node { Key = "SpikedPlate", Name = "Spiked Plate", Tier = 3, MaxPoints = 1, Effect = "An enemy that hits you in melee takes 20% of that hit back" },
-                new Node { Key = "Rally", Name = "Rally", Tier = 3, MaxPoints = 1, Effect = "Clearing a room heals 5% max health" },
+                new Node { Key = "Rally_Bulwark", Name = "Rally", Tier = 3, MaxPoints = 1, Effect = "Clearing a room heals 5% max health" },
                 new Node { Key = "Juggernaut", Name = "Juggernaut", Tier = 4, MaxPoints = 1, Effect = "Can't be knocked back or staggered" },
                 new Node { Key = "LastStand", Name = "Last Stand", Tier = 4, MaxPoints = 1, Effect = "Below 30% health: -30% damage taken, +20% damage" },
                 new Node { Key = "Bastion", Name = "Bastion", Tier = 4, MaxPoints = 1, Effect = "PACT: -25% damage taken, a hit takes at most 20% of max health, no knockback; but -20% move speed except 2 s after a dash" },

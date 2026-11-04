@@ -176,7 +176,7 @@ namespace WoLChaosDepths
                 if (roomCheck && inTrials)
                 {
                     bool near = EnemiesNear(player.transform.position);
-                    if (s.inRoom && !near && Talents.Rank(player, "Rally") > 0 && player.health.CurrentHealthValue > 0)
+                    if (s.inRoom && !near && Talents.Rank(player, "Rally_Bulwark") > 0 && player.health.CurrentHealthValue > 0)
                     {
                         Heal(player, Mathf.Max(1, Mathf.RoundToInt(RallyHeal * player.health.healthStat.ModifiedValue)));
                         log?.LogInfo($"Talents: Rally, player {player.playerID + 1} cleared a room and healed {RallyHeal * 100f:0}%");

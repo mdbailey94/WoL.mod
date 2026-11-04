@@ -83,7 +83,8 @@ namespace WoLChaosDepths
                 // #113 (0.36.4, Matt): in two-player the panel ALWAYS opens at the two-player size
                 // and on its player's side, even when only one is open (it used to jump between the
                 // big centred size and the half size as the other panel opened or closed).
-                bool gearPage = panelTab != 1 && !forgeOpen;
+                // The talents tab uses the wide page too (WoL Art's talent readability mockup, Matt 11-04).
+                bool gearPage = !forgeOpen;
                 int pw = gearPage ? GearW : ArtW, ph = gearPage ? GearH : ArtH;
                 float tall = gearPage ? 0.97f : 0.92f;
                 int s = activePlayers > 1 || OpenCount > 1
