@@ -19,7 +19,7 @@ namespace WoLPricklyBallet
     {
         public const string PluginGuid = "mdbailey94.wol.pricklyballet";
         public const string PluginName = "Cactus Tango";
-        public const string PluginVersion = "0.3.0";
+        public const string PluginVersion = "0.4.0";
 
         private static BepInEx.Logging.ManualLogSource log;
         private ConfigEntry<bool> modEnabled;
@@ -35,10 +35,10 @@ namespace WoLPricklyBallet
         private static ConfigEntry<float> hitKnockback, cooldown;
 
         public static float Lifetime => Get(lifetime, 3f, 0.5f, 10f);
-        public static float Every => Get(every, 6f, 0f, 30f);
+        public static float Every => Get(every, 3f, 0f, 30f);
         public static float EnhancedLifetime => Get(enhancedLifetime, 4f, 0.5f, 10f);
-        public static float EnhancedEvery => Get(enhancedEvery, 4.5f, 0f, 30f);
-        public static float HitEvery => Get(hitEvery, 0.4f, 0.1f, 2f);
+        public static float EnhancedEvery => Get(enhancedEvery, 2f, 0f, 30f);
+        public static float HitEvery => Get(hitEvery, 0.3f, 0.1f, 2f);
         public static bool Follow => follow == null || follow.Value;
         public static float FollowDistance => Get(followDistance, 0.9f, 0f, 3f);
 
@@ -52,6 +52,20 @@ namespace WoLPricklyBallet
                 "Offer Cactus Tango in the arcana shop (also in the title screen Mods menu). " +
                 "Turning it off doesn't remove it from a run where you already have it.");
             BindSettings();
+            // 0.4.0 (Matt, 11-04: 'make the cactus tango very powerful'): 12 a needle (was 4), a
+            // needle every 0.3 s (0.4), a cactus every 3 s (6; enhanced 2, was 4.5), knockback 10
+            // (6). A config still on the old values moves over once.
+            var power = Config.Bind("General", "PowerRevision", 0, "Which version's power defaults this file was last updated to. Leave it alone.");
+            if (power.Value < 1)
+            {
+                if (hitDamage.Value == 4) hitDamage.Value = 12;
+                if (Mathf.Approximately(hitEvery.Value, 0.4f)) hitEvery.Value = 0.3f;
+                if (Mathf.Approximately(every.Value, 6f)) every.Value = 3f;
+                if (Mathf.Approximately(enhancedEvery.Value, 4.5f)) enhancedEvery.Value = 2f;
+                if (Mathf.Approximately(hitKnockback.Value, 6f)) hitKnockback.Value = 10f;
+                Log("Cactus Tango: moved to 0.4.0's power numbers");
+            }
+            power.Value = 1;
 
             Skills.Register(new SkillInfo
             {
@@ -90,16 +104,16 @@ namespace WoLPricklyBallet
             // New sections in 0.2.0 ([Dancer] is 0.1.0's), so the new cooldowns (6 s, enhanced
             // 4.5 s) take effect on an existing config too.
             lifetime = Float("Cactus", "Lifetime", 3f, 0.5f, 10f, "Seconds the cactus stays and needles enemies.");
-            every = Float("Cactus", "Every", 6f, 0f, 30f, "At most one cactus every this many seconds (dashes in between are plain dashes).");
-            hitEvery = Float("Cactus", "HitEvery", 0.4f, 0.1f, 2f, "Seconds between the cactus's hits.");
+            every = Float("Cactus", "Every", 3f, 0f, 30f, "At most one cactus every this many seconds (dashes in between are plain dashes).");
+            hitEvery = Float("Cactus", "HitEvery", 0.3f, 0.1f, 2f, "Seconds between the cactus's hits.");
             follow = Config.Bind("Cactus", "Follow", true, "The cactus follows the wizard for its whole lifetime (0.3.0, Matt). Off: it stays where the dash started.");
             followDistance = Float("Cactus", "FollowDistance", 0.9f, 0f, 3f, "How far behind the wizard (along the way you move) the cactus trails, in units.");
             enhancedLifetime = Float("Cactus Enhanced", "Lifetime", 4f, 0.5f, 10f, "Cactus lifetime when enhanced.");
-            enhancedEvery = Float("Cactus Enhanced", "Every", 4.5f, 0f, 30f, "At most one cactus every this many seconds when enhanced.");
+            enhancedEvery = Float("Cactus Enhanced", "Every", 2f, 0f, 30f, "At most one cactus every this many seconds when enhanced.");
 
             const string restart = " Applies after restarting the game.";
-            hitDamage = Int("Balance", "PrickDamage", 4, 200, "Damage of each of the cactus's hits." + restart);
-            hitKnockback = Float("Balance", "PrickKnockback", 6f, 0f, 200f, "Knockback of a hit (small)." + restart);
+            hitDamage = Int("Balance", "PrickDamage", 12, 200, "Damage of each of the cactus's hits." + restart);
+            hitKnockback = Float("Balance", "PrickKnockback", 10f, 0f, 200f, "Knockback of a hit (small)." + restart);
             cooldown = Float("Balance", "Cooldown", 0.6f, 0.1f, 5f, "Cooldown of the dash itself, in seconds." + restart);
         }
 

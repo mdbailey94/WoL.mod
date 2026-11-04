@@ -24,6 +24,8 @@ its whole loadout reset.
 - `[Cactus Enhanced]` (next dash): `Lifetime`, `Every`.
 - `[Balance]` (after a restart): `PrickDamage`, `PrickKnockback`, `Cooldown`.
 
+**0.4.0** (Matt, 11-04: 'very powerful'): **12** a needle (was 4), a needle every **0.3 s** (0.4), a cactus every **3 s** (6; enhanced **2 s**, was 4.5), knockback **10** (6). Up to about 120 on an enemy that stays in reach for the 3 s.
+
 **0.3.0** (Matt, 11-04 play-test): the cactus FOLLOWS the wizard for its whole 3 s (4 s enhanced), trailing about a unit behind the way you move, needling everything it passes; it still rises where the dash started. `[Cactus] Follow = false` keeps it in place; `FollowDistance` sets the gap.
 
 **0.2.1** (#77): renamed Cactus Tango, Matt's final pick.
