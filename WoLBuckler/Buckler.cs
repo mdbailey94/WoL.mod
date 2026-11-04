@@ -23,6 +23,9 @@ namespace WoLBuckler
         // from the left shoulder. #99 (09:15): the thrown disc seen as a tilted flat disc, 8 throw
         // directions x 4 spin frames, 16x16 and a native 26x26 for the enhanced buckler.
         public static Sprite[] HeldLeft = new Sprite[0];
+        public static Sprite[] HeldEnh = new Sprite[0], HeldLeftEnh = new Sprite[0];
+        public static Sprite[][] Punch8Enh = new Sprite[0][], PunchLeft8Enh = new Sprite[0][];
+        public static bool HasEnhancedSet => HeldEnh.Length >= 8 && HeldLeftEnh.Length >= 8 && Punch8Enh.Length == 8 && PunchLeft8Enh.Length == 8;
         public static Sprite[][] PunchLeft8 = new Sprite[0][];
         public static Sprite[][] Disc8 = new Sprite[0][];
         public static Sprite[][] DiscBig8 = new Sprite[0][];
@@ -45,6 +48,11 @@ namespace WoLBuckler
             Punch8 = Sheet("buckler_punch_8dir.png", 40, 8, 4);
             HeldLeft = Strip("buckler_held_left_8dir.png");
             PunchLeft8 = Sheet("buckler_punch_left_8dir.png", 40, 8, 4);
+            // Log - Art 09:56: native ENHANCED sets (held 28x28, punch 70x70), drawn at scale 1.0.
+            HeldEnh = Strip("buckler_held_8dir_enh.png");
+            HeldLeftEnh = Strip("buckler_held_left_8dir_enh.png");
+            Punch8Enh = Sheet("buckler_punch_8dir_enh.png", 70, 8, 4);
+            PunchLeft8Enh = Sheet("buckler_punch_left_8dir_enh.png", 70, 8, 4);
             Disc8 = Sheet("buckler_disc_8dir.png", 16, 8, 4);
             DiscBig8 = Sheet("buckler_disc_big_8dir.png", 26, 8, 4);
             Disc = Strip("buckler_disc.png");
@@ -386,7 +394,12 @@ namespace WoLBuckler
         // Both hands for this moment, upright, native size (x enhanced), in Art's draw order.
         private void Draw(float age)
         {
-            float scale = Buckler.Size(enhanced);
+            // Enhanced: Art's native 1.75x sets at scale 1.0 when they're there; otherwise the
+            // normal sets scaled up.
+            bool native = enhanced && Dual && BucklerArt.HasEnhancedSet;
+            float scale = native ? 1f : Buckler.Size(enhanced);
+            Sprite[] heldR = native ? BucklerArt.HeldEnh : BucklerArt.Held, heldL = native ? BucklerArt.HeldLeftEnh : BucklerArt.HeldLeft;
+            Sprite[][] punchR = native ? BucklerArt.Punch8Enh : BucklerArt.Punch8, punchL = native ? BucklerArt.PunchLeft8Enh : BucklerArt.PunchLeft8;
             // The punching / throwing hand.
             if (mode == Mode.Toss)
                 main.enabled = false;
@@ -394,17 +407,17 @@ namespace WoLBuckler
             {
                 int frame = mode == Mode.Pull ? 0 : age < SmashTime ? 1 : age < SmashTime + PunchFrameTime ? 2 : age < SmashTime + 2f * PunchFrameTime ? 3 : -1;
                 if (frame >= 0)
-                    Put(main, (left ? BucklerArt.PunchLeft8 : BucklerArt.Punch8)[facing][frame],
+                    Put(main, (left ? punchL : punchR)[facing][frame],
                         Dual ? BucklerArt.Shoulder(owner, facing, left) : Buckler.Hand(owner), left, scale);
                 else
-                    Put(main, (left ? BucklerArt.HeldLeft : BucklerArt.Held)[facing],
+                    Put(main, (left ? heldL : heldR)[facing],
                         Dual ? BucklerArt.HeldSpot(owner, facing, left) : BucklerAt(), left, scale);
             }
             // The other hand: held up the whole time.
             if (off != null)
             {
                 bool offLeft = mode == Mode.Toss || !left;
-                Put(off, (offLeft ? BucklerArt.HeldLeft : BucklerArt.Held)[facing], BucklerArt.HeldSpot(owner, facing, offLeft), offLeft, scale);
+                Put(off, (offLeft ? heldL : heldR)[facing], BucklerArt.HeldSpot(owner, facing, offLeft), offLeft, scale);
             }
         }
 

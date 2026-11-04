@@ -20,3 +20,5 @@ Art: WoL Art's buckler, 4-frame punch and icon ('Giant weapons (2026-11-03)'). A
 
 **0.7.0** (#100, #99, #96; Log - Art 09:15 / 09:24): **dual-wield**. The wizard holds two bucklers through the combo: hit 1 punches with the RIGHT buckler while the left is held up, hit 2 with the LEFT while the right is held, hit 3 throws the right one and the left stays up until it's caught. Each hand punches from its own shoulder (Art's per-facing offsets) in the punch's facing, with Art's draw order (the far-side buckler behind the body). The thrown buckler is now a flat, tilted disc whose row follows its flight direction (out and back), spinning; the enhanced one is Art's native 26 px disc at scale 1.0. Only Art's 8-facing sprites are drawn now (the old camera-facing punch frame is gone unless `[Look] DirectionalArt = false`). Hits, guard and timing unchanged.
 
+**0.7.2** (Log - Art 09:56): the enhanced buckler uses Art's native 1.75x sets (held 28x28, punch 70x70) at scale 1.0 instead of the normal ones scaled up, so it stays crisp. **0.7.1**: punch radius 0.75 -> 1.0 (Matt: basic hit boxes too thin).
+
