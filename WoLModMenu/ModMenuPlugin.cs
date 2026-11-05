@@ -15,7 +15,7 @@ namespace WoLModMenu
     {
         public const string PluginGuid = "mdbailey94.wol.modmenu";
         public const string PluginName = "Mod Menu";
-        public const string PluginVersion = "0.1.3";
+        public const string PluginVersion = "0.1.8";
 
         private const string ModGuidPrefix = "mdbailey94.wol.";
         private const float ReferenceHeight = 1080f;
@@ -37,6 +37,7 @@ namespace WoLModMenu
         private class ModToggle
         {
             public string Name;
+            public string SortKey;
             public ConfigEntry<bool> Enabled;
         }
 
@@ -57,7 +58,25 @@ namespace WoLModMenu
 
         private void Awake()
         {
+            // The game never caps its frame rate, so with its V-Sync option off it runs at
+            // 700-1400 fps, which on the owner's PC stalled for ~100 ms every few seconds; capped
+            // at 120 the stalls went away entirely (WoL Player's test, task sheet #26, 0.1.5).
+            frameCap = Config.Bind("Display", "FrameCap", 120,
+                new ConfigDescription("Cap the frame rate at this many frames a second (0 = the game's own: none). Only applies with the game's V-Sync off.",
+                    new AcceptableValueRange<int>(0, 500)));
+            ApplyFrameCap();
+            frameCap.SettingChanged += (s, e) => ApplyFrameCap();
             Logger.LogInfo($"{PluginName} {PluginVersion} loaded");
+        }
+
+        private ConfigEntry<int> frameCap;
+
+        private void ApplyFrameCap()
+        {
+            Application.targetFrameRate = frameCap.Value > 0 ? frameCap.Value : -1;
+            Logger.LogInfo(frameCap.Value > 0
+                ? $"Frame rate capped at {frameCap.Value} fps (only applies with the game's V-Sync off)"
+                : "Frame rate left to the game (no cap)");
         }
 
         private void Update()
@@ -122,16 +141,18 @@ namespace WoLModMenu
         // True outside a run (no active players), i.e. the title screen and other front-end menus,
         // except while the game's own Options screen is open. Finding the title screen itself is
         // only needed to pause its input while our panel is open.
+        // In a run the title screen isn't searched for at all (0.1.4: the search of every loaded
+        // object ran once a second for good, and the status line was built on every call).
         private bool OnTitleMenu()
         {
-            if (Time.unscaledTime >= nextTitleSearch)
+            bool inRun = AnyActivePlayer();
+            if (!inRun && Time.unscaledTime >= nextTitleSearch)
             {
                 nextTitleSearch = Time.unscaledTime + FindTitleInterval;
                 titleScreen = FindTitleScreen();
             }
 
-            bool inRun = AnyActivePlayer();
-            bool inOptions = titleScreen != null && titleScreen.gameObject.activeInHierarchy
+            bool inOptions = !inRun && titleScreen != null && titleScreen.gameObject.activeInHierarchy
                 && titleScreen.currentState == TitleScreen.TitleScreenState.Options;
             bool onTitle = !inRun && !inOptions;
             LogTitleStatus(inRun, onTitle);
@@ -167,8 +188,26 @@ namespace WoLModMenu
         }
 
         // Logs only when something changes, so a log shows why the panel did or didn't appear.
+        // The line is only built when one of its parts changed.
+        private bool loggedInRun, loggedOnTitle, loggedFound, loggedActive, loggedEnabled;
+        private TitleScreen.TitleScreenState loggedState;
+        private int loggedMods = -1;
+
         private void LogTitleStatus(bool inRun, bool onTitle)
         {
+            bool found = titleScreen != null;
+            bool active = found && titleScreen.gameObject.activeInHierarchy, enabledNow = found && titleScreen.enabled;
+            TitleScreen.TitleScreenState state = found ? titleScreen.currentState : default(TitleScreen.TitleScreenState);
+            if (loggedMods >= 0 && inRun == loggedInRun && onTitle == loggedOnTitle && found == loggedFound && active == loggedActive
+                && enabledNow == loggedEnabled && state == loggedState && mods.Count == loggedMods)
+                return;
+            loggedInRun = inRun;
+            loggedOnTitle = onTitle;
+            loggedFound = found;
+            loggedActive = active;
+            loggedEnabled = enabledNow;
+            loggedState = state;
+            loggedMods = mods.Count;
             string title = titleScreen == null
                 ? "not found"
                 : $"active={titleScreen.gameObject.activeInHierarchy} enabled={titleScreen.enabled} state={titleScreen.currentState}";
@@ -195,11 +234,52 @@ namespace WoLModMenu
                 mods.Add(new ModToggle
                 {
                     Name = info.Metadata.Name,
+                    SortKey = info.Metadata.Name,
                     Enabled = plugin.Config.Bind("General", "Enabled", true, "Turn the mod on or off.")
                 });
+                AddSubSwitches(plugin, info.Metadata.Name);
             }
-            mods.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+            mods.Sort((a, b) => string.Compare(a.SortKey, b.SortKey, StringComparison.OrdinalIgnoreCase));
             Logger.LogInfo($"Found {mods.Count} mods to manage");
+        }
+
+        // Sub-switches listed under their mod (0.1.6, #88): the on/off settings of a mod's
+        // [Aspects] section (Chaos Depths' Boss Aspects: the master switch, then one per aspect).
+        private static readonly string[] SubSections = { "Aspects", "Item Menu" };   // 0.1.8: Chaos Depths' KeepGameRunning (#113)
+
+        private void AddSubSwitches(BaseUnityPlugin plugin, string modName)
+        {
+            try
+            {
+                int order = 0;
+                foreach (string section in SubSections)
+                {
+                    var keys = new List<ConfigDefinition>(plugin.Config.Keys);
+                    // "Enabled" first (the master switch), then the rest in file order.
+                    keys.Sort((a, b) => (a.Key == "Enabled" ? 0 : 1).CompareTo(b.Key == "Enabled" ? 0 : 1));
+                    foreach (ConfigDefinition def in keys)
+                    {
+                        if (def.Section != section)
+                            continue;
+                        var entry = plugin.Config[def] as ConfigEntry<bool>;
+                        if (entry == null)
+                            continue;
+                        bool master = def.Key == "Enabled";
+                        string label = section == "Aspects" ? (master ? "Boss Aspects" : def.Key) : $"{section}: {def.Key}";
+                        mods.Add(new ModToggle
+                        {
+                            Name = (master ? "      " : "            ") + label,
+                            SortKey = modName + "\u0001" + order.ToString("00"),
+                            Enabled = entry
+                        });
+                        order++;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.LogError($"{modName}: sub-switches: {e.Message}");
+            }
         }
 
         private void Open()
@@ -335,14 +415,20 @@ namespace WoLModMenu
         {
             const float rowHeight = 34f;
             const float width = 460f;
-            float height = 70f + mods.Count * rowHeight + 50f;
+            // 0.1.7 (review fix): the list scrolls with the cursor once it's taller than the
+            // screen (about 29 mods plus the aspect switches no longer fit at 1080).
+            int fit = Mathf.Max(3, Mathf.FloorToInt((virtualHeight - 160f) / rowHeight));
+            int shown = Mathf.Min(mods.Count, fit);
+            int first = Mathf.Clamp(selected - shown / 2, 0, Mathf.Max(0, mods.Count - shown));
+            float height = 70f + shown * rowHeight + 50f;
             var area = new Rect((virtualWidth - width) / 2f, (virtualHeight - height) / 2f, width, height);
             GUI.Box(area, GUIContent.none, boxStyle);
-            GUI.Label(new Rect(area.x + 20f, area.y + 16f, width - 40f, 30f), "<b>MODS</b>", textStyle);
+            string more = (first > 0 ? " <color=#9aa>\u25b2</color>" : "") + (first + shown < mods.Count ? " <color=#9aa>\u25bc</color>" : "");
+            GUI.Label(new Rect(area.x + 20f, area.y + 16f, width - 40f, 30f), "<b>MODS</b>" + more, textStyle);
 
-            for (int i = 0; i < mods.Count; i++)
+            for (int i = first; i < first + shown; i++)
             {
-                var row = new Rect(area.x + 20f, area.y + 60f + i * rowHeight, width - 40f, rowHeight);
+                var row = new Rect(area.x + 20f, area.y + 60f + (i - first) * rowHeight, width - 40f, rowHeight);
                 bool on = mods[i].Enabled.Value;
                 string cursor = i == selected ? "<color=#fd5>></color> " : "   ";
                 string state = on ? "<color=#7d7>ON</color>" : "<color=#d77>OFF</color>";

@@ -1,48 +1,262 @@
-# Slingshot and Blazing Slingshot (Wizard of Legend)
+# Vacuum Fist, Blazing Kick, Feint Swap, Vine Slingshot and Charged Leap (Wizard of Legend)
 
-Two new **dash** arcana, added with [LegendAPI](https://github.com/yekoc/LegendAPI). Both charge
-the same way; they differ in what the launch does.
+Four new **dash** arcana and one standard arcana (Feint Swap), added with
+[LegendAPI](https://github.com/yekoc/LegendAPI). The dashes all charge the same way; they differ
+in what the launch does.
 
-### Charging (both)
+### Charging (the four dashes)
 
-- **Tap** dash: a normal dash.
-- **Hold** dash: your wizard hops backward, like pulling back a slingshot, then holds that pose
-  while dust builds at their feet (up to 1 second). Keep aiming to turn and line up the shot.
+- **Tap** dash (slingshot ready): the arcana's own dash at **normal dash length**, with its
+  effects at their smallest; it uses the slingshot's charge like a charged one. While the
+  slingshot is recharging, tapping or holding is a plain dash.
+- **Hold** dash (slingshot ready): your wizard hops backward, like pulling back a slingshot,
+  and holds that pose while their element gathers round them: a fast-spinning whirlwind for
+  Vacuum Fist, flames (and a trembling wizard) for Blazing Kick, ice crystals forming in a
+  closing ring for Feint Swap, pebbles and leaves for Vine Slingshot, and electric arcs and
+  sparks for Charged Leap. The charge is full after 1 second; after 2 seconds it
+  launches by itself. Keep aiming to turn and line up the shot (Vine Slingshot is the
+  exception: no hop, and no turning).
 - **Release**: launch the way you're aiming. A full charge gives **+60% dash speed and +40% dash
-  time** (about 2.2× the distance). Holding the full second launches you automatically.
+  time** (about 2.2× the distance).
 
-### Slingshot (Air)
+### Vacuum Fist (Air)
 
-> **Slingshot**: Hold to pull back and charge, then release to launch yourself across the room,
-> blasting enemies away where you leave and land!
+> **Vacuum Fist**: Hold to charge, then release to rush across the room on a howling wind that
+> drags enemies along, and finish with a punch that pulls them all in!
+>
+> *Enhanced: Leaves a trail of gusts along your path!*
 
-Wind bursts go off **where you leave and where you land**, knocking nearby enemies away: hard at
-the launch, gentler where you land. Both get bigger with more charge.
+- A wide gust grabs enemies where you launch, then the wind you ride **drags everyone you pass
+  along with you**.
+- You wind up a punch for the end of the rush, and it lands in a **vacuum** that keeps pulling
+  everyone nearby in for about half a second.
+- Everything scales with charge.
+- **Enhanced**: gusts are left all along your path, each blowing twice (3 damage a gust, pushing
+  enemies away from the line).
+- **Look** (0.25.2, in the game's own wind art): the game's whirlwind forms round your feet and
+  spins while you charge (its far side behind you, its near side in front), growing with the
+  charge; at the launch it's left behind, rising and breaking up, with the game's dash air burst,
+  wind twirl and air shockwaves. You rush in the wizard's own dash streaks, leaving the game's
+  wind-trail wisps and pale afterimages, and the punch lands in its air vortex with a wind slash,
+  a shockwave ring closing in on the floor (again with each vacuum pulse).
 
-### Blazing Slingshot (Fire)
+### Blazing Kick (Fire) - a standard arcana since 0.26.0
 
-> **Blazing Slingshot**: Hold to pull back and charge, then release to blitz across the room in
-> flames, leaving a vacuum that sucks enemies in!
+> **Blazing Kick**: Hold to charge, then release to blitz through enemies in a trail of flame,
+> shoving them aside, and finish with a kick that blasts them away!
+>
+> *Sets every enemy it touches on fire! Signature: blitz through your foes, leap and crash down in
+> an inferno!* (the game shows this one line for both the enhanced and the signature version)
 
-- You rush forward wrapped in **Blazing Blitz's flame trail**, dropping flame bursts that pull
-  nearby enemies into your path.
-- Where you land, a **flame vacuum** keeps sucking everyone nearby in for about half a second.
-- Everything scales with charge, and it's Fire, so it can burn.
+**0.26.0 (Matt)**: Blazing Kick is a **standard arcana** now, not a dash: hold its button to
+charge (full at 1 s, it goes by itself at 2 s), let go to rush 1x to 2.2x a plain dash's length
+and kick into the blast. Dash to cancel the charge. Cooldown 4 s, from the rush. It's a new
+arcana to the game (`BlazingKick`): buy it in the shop again (or have Unlock Mod Content on).
+The dash version is hidden from the shop but still works in a save or loadout that has it.
+
+**Signature: the Inferno Kick** (unlocked along with the arcana,
+`[General] SignatureUnlocksWithArcana`), in four beats:
+
+1. **Ignite** (0.6 s): the room plunges into firelit dark (30% light) and the camera closes in
+   10% while every flame round your feet roars up, with a heartbeat of three shakes and flame
+   rings.
+2. **Blitz**: you streak at up to **three enemies** in turn (the nearest not yet struck, within
+   9), through each one, leaving the burning trail; each impact is a burning blast (10 and a
+   burn) with a 3-frame hit-stop and a flash.
+3. **Rise**: you spring 3 units into the air; the camera closes in further, the room darkens to
+   15%, and time all but stops at the top.
+4. **Axe kick**: you come down in a **huge blast** (45, scale 5) with a **ring of ten fire
+   bursts** round it (radius 3.5, each burning), a 7-frame hit-stop, a white flash, the heaviest
+   shake and 0.6 s of near-frozen time; then the camera and light ease back.
+
+About 110 to an enemy caught in all of it. The camera and light always go back
+(`Blazing Kick: signature restored (...)`). The rest below describes the dash version, which
+the standard one plays the same way.
+
+- A wide burst where you launch, then you rush forward wrapped in **Blazing Blitz's flame
+  trail**, dropping flame bursts that **shove enemies out of your way**.
+- You swing into a kick for the end of the rush, and it lands in a **fiery blast** that throws
+  everyone nearby away.
+- Everything scales with charge.
+- **Enhanced**: every hit, trail and blast alike, **sets the enemy on fire**.
+- **Look** (0.25.2, in the game's own fire art): while you charge, a ring of its Blazing Combo
+  flame tongues lights up round your feet, more and taller as it builds, with embers drifting up,
+  flaring with its ring of fire at full. You take off in its swirling fireball puff, leave its
+  fire particle flames, embers, scorch marks and smoke along the rush, and the kick lands in its
+  explosion (fireball to smoke) with an expanding ring, a burning fissure on the floor, a star
+  flash and a spray of embers, with its fire ring, large scorch mark and smoke.
+
+### Feint Swap (Water) - a standard arcana
+
+> **Feint Swap**: Hold to charge, then release to hurl an ice feint through your foes; press again
+> to swap places with it, and it explodes in a freezing blast!
+>
+> *Faster charge; leaves an exploding feint behind. Signature: hurl 6 feints, then chain-swap
+> through them all!* (the game shows this one line for both the enhanced and the signature version)
+
+Not a dash any more: it goes in a normal arcana slot, and your dash stays your dash.
+
+- **Hold** the button: your wizard stands and gathers ice crystals round their feet (dash to
+  cancel). Let go and they **hurl an ice copy of themselves** (the game's ice decoy) along your
+  aim, **hitting enemies along its path** (ice bursts, 4 damage and a little knockback). A tap
+  throws it a bit further than a normal dash, a 1 second hold up to 10.5, stopping short of walls.
+  Held 2 seconds, it throws by itself. The cooldown (7 s by default) starts with the throw.
+- It **stands** there while you move about, drawing enemies to it (it's on your side, like the
+  game's own Ice Dash decoy, so your arcana pass it by) for up to **2 seconds**: **press the
+  button again** (or cast again once the cooldown is up) to **swap places** with it sooner, or it
+  swaps by itself when the time is up; either way it **explodes** round you (a Frost Nova, 15
+  damage and a sure freeze). The only thing that stops the swap is enemies **breaking it** first,
+  and then it just shatters, with no explosion. The press that threw it never counts as the re-press: the button has to come up
+  first (and a press in the first quarter second after the throw is ignored), so a tap or a
+  button still held when it throws itself leaves the feint waiting. (Up to 0.23.4 the feint
+  shattered as it landed: it wasn't set up as an ally, so its own ice bursts broke it.)
+- **Enhanced**: full range at **0.5 seconds** of holding, and a **new feint is left
+  where you swapped from**, drawing enemies to it, and **explodes the same way 2 seconds later**.
+
+**Signature** (0.24.0; put Feint Swap in the signature slot and cast it with the gauge full):
+
+- **Fan throw**: hold and release as usual, and **six feints** fly out at once in a **fan 52
+  degrees wide** centred on your aim, as far as the normal throw at that charge (each stopping
+  short of walls; 0.25.1 drew them in from 110 degrees at the full distance to 70 degrees at
+  three quarters of it, and 0.25.5 gave them the full distance back with the fan narrowed so its
+  ends are as far apart as before), each bursting through the enemies on its way (3 damage a burst, and the six
+  can't stack on one enemy: one burst every 0.15 s at most). A frosty flash, the room dims a
+  little and the camera pulls back to show the fan.
+- **Wait**: they stand for 2 seconds, or until you press again / cast again (same rules as the
+  normal feint: the press that threw them never counts).
+- **Chained swaps**: you swap onto them **one after another, 0.2 s apart**, in a **random
+  order** that always **ends on the feint thrown along your aim** (one of the two either side of
+  it, since there are six; if it's broken first, the last one standing). Each one you land
+  on goes off in an **icicle spin**: a ring of 8 icicles (the game's ice shard sprite) spins out
+  from you and bursts into the game's icicle shards with a Frost Nova (17 damage, a sure freeze,
+  radius 1.75), with a 2-frame hit-stop and a shake that grows with each swap. The **last one**
+  is bigger: 12 icicles, radius 2.4, 22 damage and a 2 s freeze, a longer hit-stop, a big shake,
+  a flash and the room lighting up before settling back. Feints enemies broke before their turn
+  are **skipped**.
+- Enhanced as well (the usual case, since the game empowers whatever sits in the signature
+  slot): the charge is full in half the time, and a feint is left **where you stood when the
+  chain began**, exploding 2 s later (15).
+- Its hits don't refill the gauge. The camera, time and light always go back to normal: when the
+  last spin settles, when the cast is cut short (all feints broken, the wizard gone or dead), on
+  a level load, and by a watchdog if anything ever runs long.
+- The signature is unlocked together with the arcana (`SignatureUnlocksWithArcana`, under
+  `[General]`, default on); off, its Signature drop has to be found in a run like the game's own.
+- **0.26.3**: fewer leftovers over a long run. Each feint's icy copy of the wizard now frees its
+  own material when it goes, and the markers, Blazing Kick's lightning crackle and Charged
+  Leap's storm ring share one material instead of making a new one every cast (Unity never
+  frees a material by itself).
+- **0.26.2 (Matt)**: the signature throws **nine feints** (was six) in a fan **72 degrees** wide
+  (widened so they stand as far apart as six did across 52), and the chain ends on the middle
+  one, thrown along your aim. With the swaps 0.08 s apart, all nine take under a second.
+  **Enhanced** (the normal cast): after the swap, **press the button a third time** (or cast
+  again) before the feint left behind goes off, and you **swap back onto it**; it goes off round
+  you as you land, as a swap does. Left alone it explodes after 2 s as before.
+- **0.26.1 (Matt: more cinema, a marker on each feint, swap more rapidly, every burst a large
+  AoE)**:
+  - Each feint that lands gets a **marker**: an ice ring on the floor the size of the burst it
+    will go off in, pulsing while they stand, so the chain's path reads before it plays (drawn in
+    code until Art draws one).
+  - The swaps come **0.08 s apart** (was 0.2), and **every burst is large**: radius **3** (was
+    1.75) and **4.2** for the finish (was 2.4), same damage, so overlapping bursts can catch an
+    enemy more than once.
+  - More cinema: the room darkens to 55% (was 80%) and the camera pulls back 20% (was 10%) while
+    the feints stand; as the chain begins **every marker flares** with a 4-frame held beat, a
+    flash and a shake; each spin's hit-stop (3 frames), shake and flash are heavier and grow
+    with each swap; the finish has an 8-frame hit-stop, a bigger shake and flash, the room lit up
+    and a moment of near-frozen time. Each marker bursts outward as you land on it.
+
+(The old dash version is still in the mod, hidden, so a save that has it equipped still loads;
+the shop offers the new one.)
+
+### Vine Slingshot (Earth)
+
+> **Vine Slingshot**: Hold to lash out twin vines that grab the first foe they touch, then
+> release to pull yourself in and kick it away!
+>
+> *Enhanced: Vines spread to nearby foes and keep them snared for 3 seconds after the kick!*
+
+- Hold dash past a tap and the wizard **punches the ground** as **twin vines** (the game's own
+  vine, as thrown by Soaring Ivy) **shoot out** along your aim, up to 10.1 tiles. You stay planted
+  and **can't turn** while holding; that's the trade-off for the longer reach.
+- The **first enemy they touch is grabbed**: vines coil tight around it (on bosses too, even
+  though they can't be held still) and it takes small hits that keep it stunned for as long as
+  you hold, up to 2 seconds.
+- If they touch no enemy, they **latch onto the wall** (or the ground at their reach).
+- Let go, or run out of time, and you **pull yourself in** trailing dust and pebbles, with a kick
+  that **knocks the target back** hard: a hit-stop, a camera shake, a floor crack and a spray of
+  rock, and the target skids away in a cloud of dust. The kick also hits **enemies just behind
+  the target**, knocking them the same way.
+- **Enhanced**: when the vines take hold, more vines **spread to up to 5 enemies** within 4 tiles,
+  coiling round them and rooting them (2 damage every 0.5 s) while you hold and for **3 seconds
+  after the kick**, anchored where the kick landed.
+- **Look** (0.25.2, in the game's own earth art): the punch into the ground sends its meteor
+  dust ring across the floor and throws up its rock debris and dust puffs; its thorns burst where
+  the vines grab an enemy. While you hold, stones keep hopping up out of the floor. The pull
+  kicks up dust and rocks behind you, and the kick bursts the game's earth spikes out of the floor
+  one after another along it, with its dust ring, a sandy star flash, rocks thrown on ahead and
+  its floor crater; the target skids away in puffs of dust.
+
+### Charged Leap (Lightning)
+
+> **Charged Leap**: Hold to pull enemy projectiles into orbit around you, then release to fling
+> them at the foe and leap in after them!
+>
+> *Enhanced: A bigger lightning burst where you land!*
+
+- While you hold, **Mag Sphere** forms on you and works at full effect, exactly like the arcana,
+  just **smaller** (`StormSphereSize`). Nothing it holds can **hit you or your allies** while
+  you charge, and anything about to fly out of the smaller sphere is turned back into its orbit.
+- Let go and the sphere ends and **everything it caught is fired in a fan along your aim**,
+  hitting harder than before (×1.5), while you **dash after them** and land with a small
+  **lightning burst**.
+- **Enhanced**: the landing burst is half as big again.
+- **Look** (0.25.2, in the game's own lightning art): the game's crackles snap on and off in a
+  widening ring round your feet while you charge, with its mini zaps and its lightning aura at
+  full. The leap fires its bolt along your aim with its lightning start, and you go in the
+  wizard's dash streaks, leaving yellow afterimages and zaps. The landing calls its full lightning
+  strike down from the sky with its strike sparks and a yellow shock ring on the floor, and a bolt
+  struck back along the whole leap, with its lightning hits and a scorch mark (bigger with the
+  enhanced burst).
+
+### Flair
+
+Every arcana has extra effects that are only for show (they never hit anything or change the
+timing): Vacuum Fist's whirl of wind, the punch it winds up and the dust drawn into its vacuum,
+Blazing Kick's fiery blasts and the kick it swings into at the end of its rush, Feint Swap's splashes,
+shimmering trail and glints at both ends, and Charged Leap's lightning flash and crackling sparks.
+Most come with a small camera shake.
+
+The four dashes' **Look** effects (above) are the game's own effect art: its particle effects,
+and frames cut at runtime from its own wind, fire, earth and lightning sheets (`GameArt.cs`,
+`DashArt.cs`), tinted, sorted with the wizard, on the effects layer or flat on the floor, and
+fading out as the game's do. Where a sheet isn't loaded in a level, the mod's own drawing in the
+same style stands in (`PixelArt.cs`: colours sampled from the game's sheets, no outlines). They
+are pooled (at most 160 on screen), stop when the dash ends and are cleared on a level load. The
+log says `<arcana>: visual '<name>' ready (the game's ...)` (or `(drawn by the mod ...)`) the
+first time each one plays, and `<arcana>: look '<moment>' played (...)` the first time each
+moment of a dash shows.
 
 ### Balance
 
 Slingshot arcana trade a long cooldown and a charge-up for more range and damage than a normal
-dash, without outclassing standard arcana. Both have **one charge** that recharges in **10 s**, and
-a tap uses the charge too, since it's the same dash.
+dash, without outclassing standard arcana. The **slingshot** has one charge that recharges in
+**7 s** (`CooldownSeconds`); until then, and for taps, the dash button is a **normal dash** with a
+short cooldown. The arcana's HUD icon shows only the **slingshot's** cooldown (counting down
+while it recharges, and flashing when it's ready), not the normal dash's; a puff of dust and a
+swish also tell you it's ready.
 
 | | Damage per enemy | Notes |
 |---|---|---|
-| Slingshot | 10 at launch, 6 where you land (up to 16) | Strong knockback at launch, gentle at landing |
-| Blazing Slingshot | 4 per trail burst, 2 per vacuum pulse (about 20 at most) | Plus burn; pulls instead of pushing |
+| Vacuum Fist | 4 per drag, 2 per vacuum pulse (about 20 at most) | Drags along, then pulls in; enhanced trail gusts 3 each |
+| Blazing Kick | 4 per trail burst, 10 from the blast (about 18 at most) | Shoves aside, then throws away; enhanced, every hit burns |
+| Feint Swap | 4 per ice burst on the path (one or two an enemy), 15 from the explosion (about 23 at most) | A sure freeze for 1.5 s; the feint draws enemies; enhanced, a second explosion where you were. 0.23.7 trimmed the path bursts from 6: a sure freeze plus a teleport keeps the damage low |
+| Feint Swap signature | 17 per icicle spin (22 the last), 3 per burst on the path | One spin on an enemy is about 20-23 with a burst or two. Six feints landing on one spot (stopped by a wall in front of you) can't pass 5 x 17 + 22 + 9 = 116, 131 with the enhanced feint left behind, in line with the game's own signatures (~120 on one enemy) |
+| Vine Slingshot | 3 per grip tick (every 0.4 s, up to 2 s) and 14 from the kick | Grip stuns; the kick knocks back hard; enhanced snares 2 every 0.5 s |
+| Charged Leap | Caught projectiles ×1.5, plus 10 from the landing burst | Only as strong as what you catch |
 
 You're not invulnerable while charging, so time it. Careful hopping backward near a ledge.
 
-## Tuning the pose
+## Settings
 
 The hop and the held pose reuse the game's own wizard animations. In
 `BepInEx\config\mdbailey94.wol.slingshotdash.cfg`, under `[Charge]`:
@@ -50,8 +264,122 @@ The hop and the held pose reuse the game's own wizard animations. In
 - `Animation`: `Jump` (default), `Charge`, `Slide`, `Hurt`, `Kick`, `Parry`, `Slam`, `Fall` or `None`.
 - `PoseFrame`: which moment of that animation is held, from `0` (start) to `1` (end). Default `0.4`.
 - `HopDistance`: how far the hop goes. Default `1.5`; `0` turns the hop off.
+- `MaxHold`: every slingshot launches by itself after you've held this long. Default `2`; `0`
+  lets you hold as long as you like.
+
+Under `[Balance]`:
+
+- `CooldownSeconds`: how long until you can slingshot again. Default `7`.
+- `DashCooldownSeconds`: cooldown of the normal dash in between. Default `0.6`.
+- `Drag`: how hard Vacuum Fist's wind drags enemies along your dash. Default `35`; make it
+  negative if they get pushed the wrong way.
+- `FrostFreezeRadius`: size of Feint Swap's freezes at the shortest hold (a full charge adds
+  half again). Default `1`.
+- `StormSphereSize`: size of Charged Leap's Mag Sphere compared with the arcana's (`1` = the
+  same). Default `0.6`.
+
+Under `[Vines]`: `DarkColor`, `MidColor` and `LightColor` set Vine Slingshot's greens as hex
+colours like `#2E6B3A`. Empty (the default) takes them from the game's own vine art; the log
+says which colours it used. `HoldFrame` picks the moment of the game's vine animation that's held
+for the whole grab (`0` = its start, `1` = its end). Default `0.95`, the fully stretched vines,
+which are then stretched further to reach the enemy, wall or ground they grabbed.
+`HoldAnimation` (default `PBAoE`, punching the ground; `Slam` is the other ground hit) and
+`HoldPoseFrame` (default `0.5`) set the wizard's pose while holding Vine Slingshot.
 
 Changes apply the next time the game starts.
+
+**Icons:** Vacuum Fist, Blazing Kick, Charged Leap and Feint Swap use the player-made pixel icons
+from the "Dash Arcana Icons" design, as drawn. Under `[Icons]`, `MatchGamePalette` (default on)
+recolours Vine Slingshot's icon in the colours of the game's own vine arcana, once the game has
+loaded them (it doesn't hook any game code); the game icons it used are saved to
+`BepInEx/config/SlingshotDash_IconRefs`. Turn it off for the mod's own colours.
+
+## Changing it in code
+
+Anything not in the config file lives in the code:
+
+- **Damage, knockback, freeze, element, shop price**: the `Skills.Register(...)` blocks in
+  `SlingshotDashPlugin.cs`, one per arcana. Stat arrays have one entry per skill level; where
+  there are two (e.g. `damage = new[] { 10, 6 }`), level 1 is the launch and level 2 the
+  landing, trail or pulses, as the comments say.
+- **Charging** (time to full charge, tap window, speed/duration bonus, hop timing): the
+  constants at the top of `ChargedDashState.cs`.
+- **Each arcana's attacks**: `SlingshotDashState.cs` (Air), `BlazingSlingshotState.cs` (Fire),
+  `FrostSlingshotState.cs` (Water), `VineSlingshotState.cs` (Earth; the vines are drawn in
+  `VineLines.cs`) and `StormSlingshotState.cs` (Lightning): burst sizes, intervals, throw distance and so on, as
+  constants at the top or numbers in the calls. Feint Swap is `FeintSwapState.cs`, its signature
+  `FeintSwapSignature.cs` (fan, timings, spin sizes), `IcicleSpin.cs` (the icicle rings) and
+  `FeintCinematic.cs` (flash, light, camera pull-back, hit-stops).
+- **The dashes' looks**: which of the game's sprites each uses in `DashArt.cs` (found at runtime
+  by `GameArt.cs`), the stand-in drawings and palettes in `PixelArt.cs`, the sprites that play
+  them (pool, sorting, fades, afterimages) in `PixelFx.cs`, and when and where each plays in the
+  arcana's state file (the "look" constants and the `...Look` methods).
+
+To build your change, push it to a branch and open a pull request: GitHub Actions builds every
+mod and, once merged, publishes the zips on the
+[latest release](https://github.com/mdbailey94/wol.mod/releases/tag/latest). To build locally
+instead, install the .NET SDK, put the reference DLLs listed in `.github/workflows/build.yml`
+in a `lib` folder at the repo root, and run
+`dotnet build WoLSlingshotDash/WoLSlingshotDash.csproj -c Release`; if your game is in the
+default Steam folder, the DLL is copied into `BepInEx\plugins` automatically.
+
+## Changes in 0.27.0
+
+More settings to balance with (Matt). Every arcana's gameplay numbers are now in
+`BepInEx\config\mdbailey94.wol.slingshotdash.cfg`, each defaulting to the value it had in code,
+so nothing plays differently until you change one. The `[... Balance]` sections are the skill
+stats (damage, cooldown, knockback, hit stun, freeze and root times) and apply after restarting
+the game; the others apply the next time you cast. Existing settings keep their names and values.
+
+- `[Charge]` (the four dashes): `FullChargeTime`, `TapWindow`, `FullChargeSpeedBonus`,
+  `FullChargeDurationBonus`, `HopTime`.
+- `[Vacuum Fist]`: `DragInterval`, `DragSize`, `LaunchDragSize`, `VacuumPulses`,
+  `VacuumPulseInterval`, `VacuumSize`, `VacuumChargeSize`, `GustInterval`, `GustSize`,
+  `GustRepeatDelay`. `[Vacuum Fist Balance]`: `WindDamage`, `VacuumDamage`, `GustDamage`,
+  `VacuumPull`, `GustKnockback`, `HitStun`.
+- `[Blazing Kick]`: `FullChargeTime`, `MaxHold`, `RushSpeedBonus`, `RushTimeBonus`,
+  `TrailInterval`, `TrailHitSize`, `LaunchHitSize`, `BlastSize`, `BlastChargeSize`,
+  `RecoverTime`. `[Blazing Kick Signature]` (the Inferno Kick): `IgniteTime`, `BlitzTargets`,
+  `BlitzRange`, `BlitzSpeed`, `BlitzOvershoot`, `BlitzPause`, `BlitzMaxTime`, `ImpactSize`,
+  `RiseTime`, `RiseHeight`, `FallTime`, `HangSlowMoTime`, `HangSlowMoScale`, `FinaleSize`,
+  `RingBursts`, `RingRadius`, `RingBurstSize`, and its cinema: `IgniteZoomIn`, `HangZoomIn`,
+  `IgniteLight`, `HangLight`, `ImpactHitStop`, `FinaleHitStop`, `FinaleFlash`, `FinaleShake`,
+  `FinaleSlowMoTime`, `FinaleSlowMoScale`, `EaseBack`. `[Blazing Kick Balance]`: `TrailDamage`,
+  `BlastDamage`, `EnhancedTrailDamage`, `EnhancedBlastDamage`, `SignatureKickDamage`,
+  `Cooldown`, `TrailKnockback`, `BlastKnockback`, `SignatureKickKnockback`, `HitStun`,
+  `SignatureKickHitStun`, `EnhancedBurnChance`.
+- `[Blazing Kick Dash]` and `[Blazing Kick Dash Balance]`: the same for the hidden dash version
+  still in older saves.
+- `[Feint Swap]`: `FullChargeTime`, `EnhancedChargeShare`, `MaxHold`, `ShortestThrow`,
+  `MaxDistance`, `FlightTime`, `PathHitInterval`, `PathHitSize`, `HoverTime`,
+  `ChargeRadiusBonus`, `LeftBehindFuse`, `ThrowTime`. `[Feint Swap Signature]`: `FanCount`,
+  `FanSpread`, `FanDistanceScale`, `PathHitInterval`, `PathHitSize`, `SwapInterval`, `SpinTime`,
+  `SpinRadiusScale`, `FinaleRadiusScale`, `ChainStartHitStop`, and its cinema: `ThrowFlash`,
+  `StandLight`, `StandZoom`, `SpinHitStop`, `SpinShake`, `SpinShakeStep`, `SpinFlash`,
+  `SpinFlashStep`, `ChainStartFlash`, `ChainStartShake`, `FinaleHitStop`, `FinaleShake`,
+  `FinaleFlash`, `FinaleSlowMoTime`, `FinaleSlowMoScale`, `FinaleLight`. `[Feint Swap Balance]`:
+  `ExplosionDamage`, `PathDamage`, `SignaturePathDamage`, `SignatureSpinDamage`,
+  `SignatureFinaleDamage`, `PathKnockback`, `HitStun`, `FreezeDuration`,
+  `SignatureFinaleFreezeDuration`. (Its cooldown stays `[Balance] CooldownSeconds`.)
+- `[Vine Slingshot]`: `Range`, `CatchWidth`, `GripInterval`, `GripSize`, `KickSize`,
+  `BehindDistance`, `BehindSize`, `MinPullSpeed`, and the enhanced spread: `SpreadRadius`,
+  `SpreadMaxEnemies`, `SpreadLinger`, `SnareInterval`, `SnareSize`. `[Vine Slingshot Balance]`:
+  `KickDamage`, `GripDamage`, `SnareDamage`, `KickKnockback`, `KickHitStun`, `GripHitStun`,
+  `SnareHitStun`, `SnareRootDuration`.
+- `[Charged Leap]`: `LaunchSpeed`, `FanDegrees`, `ReflectDamage`, `BurstSize`,
+  `BurstChargeSize`, `EnhancedBurstScale`, and for the stand-in field used without a Mag Sphere:
+  `FieldRadius`, `FieldChargeRadius`, `MaxCaught`. `[Charged Leap Balance]`: `BurstDamage`,
+  `BurstKnockback`, `HitStun`.
+
+Each setting's description in the file says what it does and its unit, and its allowed range.
+The arcana's shop text doesn't change with them (e.g. "9 feints", "3 seconds").
+
+## Changes in 0.25.6
+
+- Lighter HUD (task sheet #26, frame-rate drops): a slingshot arcana's cooldown icon is now
+  drawn by the mod in place of the game's update, not after it. Before, whenever the
+  slingshot's cooldown and the normal one disagreed, the game and the mod set the icon ready and
+  cooling in turn, rewriting it every frame. It looks the same.
 
 ## Install
 
@@ -63,4 +391,10 @@ have them unlocked right away.
 ## Troubleshooting
 
 If holding dash doesn't charge, check `BepInEx\LogOutput.log` for the lines starting with
-`Dash button` and send them over.
+`Dash button` and send them over. For Feint Swap's signature, the lines starting with
+`Feint Swap: signature` (and `Feint Swap: cast (`) tell each beat of the cast.
+
+
+## 0.27.1
+
+Signature damage retains its signature flag through bursts and delayed hits, so it cannot generate signature charge. Standard/enhanced casts still charge normally.

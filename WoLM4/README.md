@@ -1,0 +1,37 @@
+# M4
+
+A new **Air basic** arcana (asked for by Matt): a rifle.
+
+**0.3.0** (Matt, 11-04: brought back after #43's removal; "powerful, fast and long range, the M4
+held as the attack animation, the bullets different"): **8** a bullet (9 on the spray), knockback
+3 / 5, bullets **3x** Air Dart's speed that fly **14 u**. The rifle is drawn in the wizard's
+hands, turned to the aim, with a kick and a muzzle flash on every shot, and the bullets are
+gold-white **tracers** instead of tinted darts. The gun and tracer are drawn in code until WoL
+Art's `m4_held_8dir.png` / `m4_bullet.png` / `m4_muzzle.png` are in `Assets` (used
+automatically). Older configs move to the new numbers once. A full combo is about 24 + 24 + 45.
+
+- Three trigger pulls, like the game's other basics. The first two each fire a burst of **3**
+  brass bullets down the aim line, the third a spray of **5** with a wider spread.
+- **Enhanced**: one more round in every burst, and the rounds come faster.
+- Bullets do 5 damage each on the first two pulls and 6 on the spray (about 15, 15 and 30).
+- Built on the game's Air Dart basic (its dart is the bullet, tinted brass, thinner and 1.6
+  times as fast), so basic relics such as auto combo, full auto and basic damage work on it.
+- No signature version yet.
+
+## Settings (`mdbailey94.wol.m4.cfg`)
+
+- `[General] Enabled`: offer it in the arcana shop.
+- `[Gun] Burst` (3), `FinalBurst` (5): rounds per pull.
+- `[Gun] BulletSpeed` (3): times Air Dart's speed.
+- `[Gun] Range` (14): how far a bullet flies, in units.
+- `[Gun] Spread` (3): degrees either side of the aim; the last pull sprays `FinalSpread` (1.6) times wider.
+- `[Gun] RoundGap` (0.055): time between rounds as a share of the attack animation (smaller = faster).
+- `[Enhanced] RoundGap` (0.04), `ExtraRounds` (1).
+- `[Balance] Damage` (8), `FinalDamage` (9), `Knockback` (3), `FinalKnockback` (5) per bullet,
+  after restarting the game (0.2.0; the defaults are 0.1.0's numbers).
+
+## To test
+
+- Buy it in the plaza arcana shop (Chaos Depths' test odds favour mod arcana) or use the
+  Debugging save, equip it in the basic slot, and fire: 3, 3, then 5 bullets, no cooldown.
+- Holding the button keeps firing (auto hold, like Air Dart).

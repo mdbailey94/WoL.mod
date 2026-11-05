@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net35</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+    <AssemblyName>WoLPhaseOne</AssemblyName>
+    <RootNamespace>WoLPhaseOne</RootNamespace>
+
+    <!-- Folder holding the reference DLLs listed below (the repo's lib/ folder by default). -->
+    <LibDir Condition="'$(LibDir)' == ''">$(MSBuildThisFileDirectory)..\lib</LibDir>
+    <!-- Phase 1 lives in Chaos Depths, which is profile only: install there by default. -->
+    <GameDir Condition="'$(GameDir)' == ''">C:\Users\mdbai\ChaosDepths\profile</GameDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="BepInEx">
+      <HintPath>$(LibDir)\BepInEx.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(LibDir)\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="CopyToPlugins" AfterTargets="Build" Condition="Exists('$(GameDir)\BepInEx\plugins')">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(GameDir)\BepInEx\plugins\WoLPhaseOne" />
+  </Target>
+
+</Project>

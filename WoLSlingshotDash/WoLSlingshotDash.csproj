@@ -40,11 +40,22 @@
       <HintPath>$(LibDir)\LegendApi.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(LibDir)\UnityEngine.UI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(LibDir)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Assets\icon.png" LogicalName="WoLSlingshotDash.Assets.icon.png" />
     <EmbeddedResource Include="Assets\icon_fire.png" LogicalName="WoLSlingshotDash.Assets.icon_fire.png" />
+    <EmbeddedResource Include="Assets\icon_ice.png" LogicalName="WoLSlingshotDash.Assets.icon_ice.png" />
+    <EmbeddedResource Include="Assets\icon_earth.png" LogicalName="WoLSlingshotDash.Assets.icon_earth.png" />
+    <EmbeddedResource Include="Assets\icon_lightning.png" LogicalName="WoLSlingshotDash.Assets.icon_lightning.png" />
   </ItemGroup>
 
   <Target Name="CopyToPlugins" AfterTargets="Build" Condition="Exists('$(GameDir)\BepInEx\plugins')">
